@@ -6,16 +6,16 @@ from invoke import task
 import lupa as lua
 
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
-from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
-# from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
+# from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
+from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 
 @task(help={"root":"root path for the installation"})
 def init_root(c, root = "rootfs"):
-    # ant hierarchy
-    ant_dirs = ["kod/config", "kod/generations", "kod/pkgs"]
+    # kod hierarchy
+    kod_dirs = ["kod/config", "kod/generations", "kod/pkgs"]
     c.config["run"]["env"]["KOD_ROOTFS"] = root 
-    root_ant_dirs = [root + "/" + d for d in ant_dirs]
-    c.run(f"mkdir -p {' '.join(root_ant_dirs)}")
+    root_kod_dirs = [root + "/" + d for d in kod_dirs]
+    c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
 
     # File hierarchy
     fhs_dirs = ["usr/bin", "usr/lib", "usr/share", "etc", "proc", "tmp", "dev", "var", "run", "root" ]
@@ -70,8 +70,8 @@ def make_pkg_generation_links(c, pkgs_to_link, generation, absolute=False):
         cwd = str(Path.cwd())
     for pkg, desc in pkgs_to_link.items():
         pkg_path = f"{cwd}/kod/pkgs" / Path(pkg) / Path(desc["version"])
-        # pkg_path = "/workspaces/antos/demofs/ant/pkgspip freeee" / Path(pkg) / Path(desc['version'])
-        gen_pkg_path = f"ant/generations/{generation}/{pkg}"
+        # pkg_path = "/workspaces/antos/demofs/kod/pkgspip freeee" / Path(pkg) / Path(desc['version'])
+        gen_pkg_path = f"kod/generations/{generation}/{pkg}"
         print("  SYMLINK:", gen_pkg_path, "->", pkg_path)
         # c.run(f"ln -s -f {pkg_path} {gen_pkg_path}")
         c.run(f"ln -s -f ../../pkgs/{pkg}/{desc['version']} {gen_pkg_path}")
@@ -89,9 +89,9 @@ def make_file_generation_links(c, pkgs_to_link, target="", absolute=False):
 
     for pkg, desc in pkgs_to_link.items():
         # install_path = Path(f"{target}/{app_name}/{app_version}")
-        # target = "ant/pkgs"
-        # current_path = Path(f"ant/generations/current/{pkg}/").resolve()
-        pkg_path = "ant/pkgs" / Path(pkg) / Path(desc["version"])
+        # target = "kod/pkgs"
+        # current_path = Path(f"kod/generations/current/{pkg}/").resolve()
+        pkg_path = "kod/pkgs" / Path(pkg) / Path(desc["version"])
         gen_pkg_path = f"/kod/generations/current/{pkg}"
 
         # files = list(current_path.rglob("[!.]*"))
@@ -203,7 +203,7 @@ def rebuild(c, config):
 
     make_pkg_generation_links(c, all_pkgs_to_install, generation, absolute=absolute)
     # remove_previous_current(created_symlinks, created_dirs)
-    # make_file_generation_links(all_pkgs_to_install, "ant/generations/current/.rootfs")
+    # make_file_generation_links(all_pkgs_to_install, "kod/generations/current/.rootfs")
     make_file_generation_links(c, all_pkgs_to_install, "", absolute=absolute)
 
     # # TODO:

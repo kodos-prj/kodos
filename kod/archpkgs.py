@@ -66,13 +66,13 @@ def init_index(c, source):
         repo_catalog = generate_index(c, source, repo)
         catalog.update(repo_catalog)
     # Write unified catalog to disk
-    with open("ant/config/catalog.json", "w") as f:
+    with open("kod/config/catalog.json", "w") as f:
         json.dump(catalog, f)
 
 
 # Download a package from a mirror, open it, and extract it to the target directory
 def install_pkg(c, repo_url, pkg_desc, target_gen):
-    target = "ant/pkgs"
+    target = "kod/pkgs"
     filename = pkg_desc["filename"]
     print("---------------------------")
     print(filename)
