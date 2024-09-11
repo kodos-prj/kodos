@@ -11,7 +11,7 @@ lupa = "^2.2"
 invoke = "^2.2.0"
 
 [tool.poetry.scripts]
-ant = "kod.main:program.run"
+kod = "kod.main:program.run"
 
 [build-system]
 requires = ["poetry-core"]

@@ -1,5 +1,6 @@
 import glob
 import json
+from operator import ne
 import os
 from pathlib import Path
 from invoke import task
@@ -8,6 +9,7 @@ import lupa as lua
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 # from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
 from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
+from kod.filesytem import create_partitions
 
 @task(help={"root":"root path for the installation"})
 def init_root(c, root = "rootfs"):
@@ -30,6 +32,8 @@ def init_root(c, root = "rootfs"):
 
 def load_config(config_filename: str):
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
+    config_path = Path(config_filename).resolve().parents[0]
+    luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
     with open(config_filename) as f:
         config_data = f.read()
         conf = luart.execute(config_data)
@@ -158,6 +162,31 @@ def rebuild(c, config):
 
     conf = load_config(config)
 
+
+    devices = conf.devices
+    print(f"{devices=}")
+
+    print(f"{list(devices.keys())=}")
+    # for k,v in devices.disk.items():
+    #     print(f"  {k} = {v}")
+    print("->>",devices.disk0)
+    for d_id, disk in devices.items():
+        print(d_id)
+        create_partitions(c, disk)
+    print("-------------------------------")
+
+    bootloader = conf.bootloader
+    print(f"{bootloader=}")
+
+    locale = conf.locale
+    print(f"{locale=}")
+
+    network = conf.network
+    print(f"{network=}")
+
+    users = conf.users
+    print(f"{users=}")
+
     if not Path("kod/config/catalog.json").exists():
         # Init catalog
         sources = conf.source
@@ -218,3 +247,25 @@ def rebuild(c, config):
     report_install_scripts()
     # -------
 
+
+
+
+@task(help={"config":"system configuration file"})
+def install(c, config):
+
+    conf = load_config(config)
+
+    devices = conf.devices
+    print(f"{devices=}")
+
+    print(f"{list(devices.keys())=}")
+    # for k,v in devices.disk.items():
+    #     print(f"  {k} = {v}")
+    print("->>",devices.disk0)
+    for d_id, disk in devices.items():
+        print(d_id)
+        create_partitions(c, disk)
+    print("-------------------------------")
+
+    bootloader = conf.bootloader
+    print(f"{bootloader=}")
