@@ -166,14 +166,14 @@ def rebuild(c, config):
     devices = conf.devices
     print(f"{devices=}")
 
-    print(f"{list(devices.keys())=}")
-    # for k,v in devices.disk.items():
-    #     print(f"  {k} = {v}")
-    print("->>",devices.disk0)
-    for d_id, disk in devices.items():
-        print(d_id)
-        create_partitions(c, disk)
-    print("-------------------------------")
+    # print(f"{list(devices.keys())=}")
+    # # for k,v in devices.disk.items():
+    # #     print(f"  {k} = {v}")
+    # print("->>",devices.disk0)
+    # for d_id, disk in devices.items():
+    #     print(d_id)
+    #     create_partitions(c, disk)
+    # print("-------------------------------")
 
     bootloader = conf.bootloader
     print(f"{bootloader=}")
