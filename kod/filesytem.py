@@ -113,7 +113,7 @@ def create_partitions(c, disk_info):
     if not partitions:
         return
 
-    start = "1024B"
+    start = "1048KiB"
     delay_action = []
     for pid, part in partitions.items():
 
