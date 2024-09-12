@@ -17,7 +17,7 @@ _filesystem_cmd = {
     "ext4": "mkfs.ext4",
     "minix": "mkfs.minix",
     "f2fs": "mkfs.f2fs",
-    "swap": "mkswap",
+    "linux-swap": "mkswap",
     "noformat": None,
 }
 
