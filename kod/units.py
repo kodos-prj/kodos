@@ -33,14 +33,14 @@ def convert2byte(value_unit: str) -> tuple[int,str]:
         case _: 
             print(f"Wrong unit {unit}")
             raise Exception(f"Wrong units {unit}")
-    return value_b,'B'
+    return value_b // (10**6),'MB'
 
 
 def add_value_unit(value1, value2):
     val1,unit1 = convert2byte(value1)
     val2,unit2 = convert2byte(value2)
-    if unit1 == unit2 and unit1 == 'B':
-        return val1 + val2, 'B'
+    if unit1 == unit2 and unit1 == 'MB':
+        return val1 + val2, 'MB'
     return val2,unit2
 
 

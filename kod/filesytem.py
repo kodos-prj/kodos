@@ -113,7 +113,7 @@ def create_partitions(c, disk_info):
     if not partitions:
         return
 
-    start = "1048KiB"
+    start = "1048KB"
     delay_action = []
     for pid, part in partitions.items():
 
@@ -151,7 +151,7 @@ def create_partitions(c, disk_info):
                     f"mount {blockdevice} {install_mountpoint}"
                 ] + delay_action
 
-            start = end
+        start = end
 
     print("=======================")
     if delay_action:

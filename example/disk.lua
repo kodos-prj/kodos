@@ -3,19 +3,19 @@
 return  {
    device = "/dev/vda",
    efi = true,
-   efi_size = 1024,
+   -- efi_size = 1024,
    type = "gpt",
    filesystem = "ext4",
    partitions = {
       {
          name = "Boot",
          size = "1GB",
-         type = "vfat",
+         type = "fat32",
          mountpoint = "/boot",
       },
       {
          name = "Swap",
-         size = "5GB",
+         size = "3GB",
          type = "swap",
          resumeDevice = true,
       },
