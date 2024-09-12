@@ -16,7 +16,7 @@ return  {
       {
          name = "Swap",
          size = "3GB",
-         type = "swap",
+         type = "linux-swap",
          resumeDevice = true,
       },
       {

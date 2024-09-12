@@ -4,6 +4,7 @@ from .units import add_value_unit, convert2byte
 
 
 _filesystem_cmd = {
+    "fat32": "mkfs.vfat -F32",
     "vfat": "mkfs.vfat",
     "bfs": "mkfs.bfs",
     "cramfs": "mkfs.cramfs",
@@ -134,6 +135,9 @@ def create_partitions(c, disk_info):
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
                 c.run(f"{cmd} {blockdevice}")
+        
+        if mountpoint == "/boot":
+            c.run(f"parted -s {device} set {pid} boot on")
 
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(c,delay_action, part, blockdevice)
