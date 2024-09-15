@@ -44,17 +44,26 @@ return {
     },
 
     users = {
-        {
-            name = "user",
-            password = "SOME_PLAINTEXT_PASSWORD",
-            shell = "bash"
+        abuss = {
+            name = "Antal Buss",
+            password = "changeme",
+            shell = "bash",
+
+            packages = {
+                "helix"
+            },
+
+            services = {
+                "syncthing"
+            }
         },
     },
 
     packages = {
         -- "base",
         "bash",
-        -- "linux",
+        "coreutils",
+        "linux",
         -- "python",
         -- "python-pip",
         -- "python-virtualenv",
@@ -65,7 +74,7 @@ return {
         -- "python-pyzstd",
         -- "grep",
         -- "mc",
-        -- "systemd",
+        "systemd",
         -- "openssl",
         -- "neovim",
         -- "libvterm",

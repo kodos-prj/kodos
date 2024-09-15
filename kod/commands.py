@@ -6,6 +6,8 @@ from pathlib import Path
 from invoke import task
 import lupa as lua
 
+from pprint import pprint
+
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 # from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
 from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
@@ -123,11 +125,11 @@ def make_file_generation_links(c, pkgs_to_link, target="", absolute=False):
                     os.unlink(target / rel_path)
                     # c.run(f"rm {target/rel_path}")
                 # if not rel_path.is_symlink():
-                else:
-                    print("  SYMLINK:", target / rel_path, "->", cwd + str(file_path))
-                    os.symlink(cwd + str(file_path), target / rel_path)
-                    # c.run(f"ln -s -f {target/rel_path} {gen_pkg_path/rel_path}")
-                    created_symlinks.append(rel_path)
+                # else:
+                print("  SYMLINK:", target / rel_path, "->", cwd + str(file_path))
+                os.symlink(cwd + str(file_path), target / rel_path)
+                # c.run(f"ln -s -f {target/rel_path} {gen_pkg_path/rel_path}")
+                created_symlinks.append(rel_path)
 
     with open("kod/generations/current/.created_symlink.txt", "w") as f:
         for d in created_symlinks:
@@ -143,6 +145,15 @@ def report_install_scripts():
     files = list(pkg_path.rglob("*/.INSTALL"))
     for f in files:
         print(f)
+
+
+def load_catalog(c, sources):
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
+    return catalog
 
 
 @task(help={"config":"system configuration file"})
@@ -166,15 +177,6 @@ def rebuild(c, config):
     devices = conf.devices
     print(f"{devices=}")
 
-    # print(f"{list(devices.keys())=}")
-    # # for k,v in devices.disk.items():
-    # #     print(f"  {k} = {v}")
-    # print("->>",devices.disk0)
-    # for d_id, disk in devices.items():
-    #     print(d_id)
-    #     create_partitions(c, disk)
-    # print("-------------------------------")
-
     bootloader = conf.bootloader
     print(f"{bootloader=}")
 
@@ -187,22 +189,26 @@ def rebuild(c, config):
     users = conf.users
     print(f"{users=}")
 
-    if not Path("kod/config/catalog.json").exists():
-        # Init catalog
-        sources = conf.source
-        init_index(c, sources)
-    with open("kod/config/catalog.json") as f:
-        catalog = json.load(f)
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
 
-    created_dirs = []
-    if Path("kod/generations/current/.created_dirs.txt").exists():
-        with open("kod/generations/current/.created_dirs.txt") as f:
-            created_dirs = f.read().split("\n")
+    catalog = load_catalog(c, conf.sources)
+    # if not Path("kod/config/catalog.json").exists():
+    #     # Init catalog
+    #     sources = conf.source
+    #     init_index(c, sources)
+    # with open("kod/config/catalog.json") as f:
+    #     catalog = json.load(f)
 
-    created_symlinks = []
-    if Path("kod/generations/current/.created_symlink.txt").exists():
-        with open("kod/generations/current/.created_symlink.txt") as f:
-            created_symlinks = f.read().split("\n")
+    # created_dirs = []
+    # if Path("kod/generations/current/.created_dirs.txt").exists():
+    #     with open("kod/generations/current/.created_dirs.txt") as f:
+    #         created_dirs = f.read().split("\n")
+
+    # created_symlinks = []
+    # if Path("kod/generations/current/.created_symlink.txt").exists():
+    #     with open("kod/generations/current/.created_symlink.txt") as f:
+    #         created_symlinks = f.read().split("\n")
 
     generation = get_next_generation()
     c.run(f"mkdir -p kod/generations/{generation}")
@@ -210,16 +216,21 @@ def rebuild(c, config):
         c.run("rm kod/generations/current")
     c.run(f"cd kod/generations && ln -s {generation} current")
 
-    pkg_list = list(conf.packages.values())
-    print(pkg_list)
+    # pkg_list = list(conf.packages.values())
+    # print(pkg_list)
 
     all_pkgs_to_install = {}
     packages_to_install = {}
     for pkgname in pkg_list:
-        print(pkgname)
+        # print(pkgname)
         packages_to_install = get_list_of_packages_to_install(catalog, pkgname)
-        print(packages_to_install.keys())
+        # print(packages_to_install.keys())
         all_pkgs_to_install.update(packages_to_install)
+
+    print("========= packages ==========")
+    for pkg in all_pkgs_to_install.keys():
+        print("-",pkg)
+    print("=============================")
 
     for pkg, desc in all_pkgs_to_install.items():
         download_size, install_size = calc_sizes(packages_to_install)
@@ -248,8 +259,9 @@ def rebuild(c, config):
     # -------
 
 
-
-
+# -----------------------------------------------------
+# Intall
+# -----------------------------------------------------
 @task(help={"config":"system configuration file"})
 def install(c, config):
 

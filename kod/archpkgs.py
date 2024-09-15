@@ -99,7 +99,7 @@ def install_pkg(c, repo_url, pkg_desc, target_gen):
 
 
 
-packages_to_skip = ["filesystem", "pacman"]
+packages_to_skip = ["filesystem", "pacman", "archlinux-keyring"]
 
 
 def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
