@@ -139,12 +139,24 @@ def make_file_generation_links(c, pkgs_to_link, target="", absolute=False):
             f.write(str(d) + "\n")
 
 
-def report_install_scripts():
-    pkg_path = Path(f"kod/generations/current/")  # {app_name}/current")
-    # files = os.
+def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
+    print(f"{new_added_pkgs = }")
+    print(f"{updated_pkgs = }")
+    print(f"{removed_pkgs = }")
+    pkg_path = Path(f"kod/generations/current/")
     files = list(pkg_path.rglob("*/.INSTALL"))
-    for f in files:
-        print(f)
+    for pkg_path in files:
+        pkg = pkg_path.parts[3]
+        print(pkg, pkg_path)
+        if pkg in new_added_pkgs:
+            with c.prefix(f"grep post_install {pkg_path}"):
+                print(f". {pkg_path} && post_install")
+                c.run(f". {pkg_path} && post_install")
+
+        if pkg in updated_pkgs:
+            with c.prefix(f"grep post_upgrade {pkg_path}"):
+                print(f". {pkg_path} && post_upgrade")
+                c.run(f". {pkg_path} && post_upgrade")
 
 
 def load_catalog(c, sources):
@@ -154,6 +166,20 @@ def load_catalog(c, sources):
     with open("kod/config/catalog.json") as f:
         catalog = json.load(f)
     return catalog
+
+def load_installed(gen_path):
+    inst_pkgs = {}
+    with open(f"{gen_path}/.installed_packages") as f:
+        for line in f:
+            pkg,version = line.split(" ")
+            inst_pkgs[pkg] = version.strip()
+        # inst_pkgs = f.readlines()
+    return inst_pkgs
+
+def save_installed(generation, inst_pkgs):
+    with open(f"kod/generations/{generation}/.installed_packages","w") as f:
+        for pkg, info in inst_pkgs.items():
+            f.write(f"{pkg} {info['version']}\n")
 
 
 @task(help={"config":"system configuration file"})
@@ -210,9 +236,11 @@ def rebuild(c, config):
     #     with open("kod/generations/current/.created_symlink.txt") as f:
     #         created_symlinks = f.read().split("\n")
 
+    previous_installed = None
     generation = get_next_generation()
     c.run(f"mkdir -p kod/generations/{generation}")
     if generation > 1:
+        previous_installed = load_installed("kod/generations/current")
         c.run("rm kod/generations/current")
     c.run(f"cd kod/generations && ln -s {generation} current")
 
@@ -227,6 +255,28 @@ def rebuild(c, config):
         # print(packages_to_install.keys())
         all_pkgs_to_install.update(packages_to_install)
 
+    save_installed(generation, all_pkgs_to_install)
+
+    if previous_installed:
+        new_added_pkgs = set(all_pkgs_to_install.keys()) - set(previous_installed.keys())
+    else:
+        new_added_pkgs = set(all_pkgs_to_install.keys())
+    print(f"{new_added_pkgs = }")
+
+    updated_pkgs = []
+    if previous_installed:
+        same_pkgs = set(all_pkgs_to_install.keys()) & set(previous_installed.keys())
+        for pkg in same_pkgs:
+            if previous_installed[pkg] != all_pkgs_to_install[pkg]['version']:
+                updated_pkgs.append(pkg)
+    print(f"{updated_pkgs = }")
+
+    removed_pkgs = []
+    if previous_installed:
+        removed_pkgs = set(previous_installed.keys() - set(all_pkgs_to_install.keys()))
+    print(f"{removed_pkgs = }")
+
+    
     print("========= packages ==========")
     for pkg in all_pkgs_to_install.keys():
         print("-",pkg)
@@ -255,7 +305,7 @@ def rebuild(c, config):
         print(pkg, desc["version"])
 
     print("====== ==== == =")
-    report_install_scripts()
+    report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs)
     # -------
 
 
