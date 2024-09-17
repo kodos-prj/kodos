@@ -151,12 +151,12 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         if pkg in new_added_pkgs:
             with c.prefix(f"grep post_install {pkg_path}"):
                 print(f". {pkg_path} && post_install")
-                c.run(f". {pkg_path} && post_install")
+                # c.run(f". {pkg_path} && post_install")
 
         if pkg in updated_pkgs:
             with c.prefix(f"grep post_upgrade {pkg_path}"):
                 print(f". {pkg_path} && post_upgrade")
-                c.run(f". {pkg_path} && post_upgrade")
+                # c.run(f". {pkg_path} && post_upgrade")
 
 
 def load_catalog(c, sources):
@@ -218,13 +218,13 @@ def rebuild(c, config):
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
 
-    catalog = load_catalog(c, conf.sources)
-    # if not Path("kod/config/catalog.json").exists():
-    #     # Init catalog
-    #     sources = conf.source
-    #     init_index(c, sources)
-    # with open("kod/config/catalog.json") as f:
-    #     catalog = json.load(f)
+    # catalog = load_catalog(c, conf.sources)
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        sources = conf.source
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
 
     # created_dirs = []
     # if Path("kod/generations/current/.created_dirs.txt").exists():

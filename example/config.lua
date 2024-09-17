@@ -60,7 +60,7 @@ return {
     },
 
     packages = {
-        "base",
+        -- "base",
         -- "bash",
         "coreutils",
         "linux",
