@@ -26,10 +26,11 @@ def init_root(c, root = "rootfs"):
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
-    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib")
+    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib ln -s usr/lib lib64")
 
     c.run(f"cd {root} && touch etc/shells")
-   
+
+    c.run("genfstab -U /mnt > /mnt/etc/fstab")
    
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
@@ -345,3 +346,47 @@ def install(c, config):
 
     bootloader = conf.bootloader
     print(f"{bootloader=}")
+
+
+
+# ToDO
+# create /etc/eo-release
+# NAME="KodOS Linux"
+# PRETTY_NAME="KodOS Linux"
+# ID=kodos
+# ANSI_COLOR="38;2;23;147;209"
+# HOME_URL="https://github.com/kodos-prj/kodos/"
+# DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
+# SUPPORT_URL="https://github.com/kodos-prj/kodos/"
+# BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
+## LOGO=archlinux-logo
+
+# To install boot manager (system-boot)
+# copy /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+# On an x64 UEFI, /usr/lib/systemd/boot/efi/systemd-bootx64.efi will be copied 
+# to esp/EFI/systemd/systemd-bootx64.efi and esp/EFI/BOOT/BOOTX64.EFI
+
+# mkdir -p /boot/EFI/systemd/
+# mkdir -p /boot/EFI/BOOT/
+# cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/systemd/
+# cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI
+
+
+# bootctl will do the copy
+# rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+# cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+
+# bootctl install
+
+# mkdir -p /boot/kod
+# depmod 6.10.10-arch1-1
+# dracut -v --fstab --kver 6.10.10-arch1-1
+# cp /boot/initramfs-6.10.10-arch1-1.img /boot/kod
+# cp /mnt/kod/generations/current/linux/usr/lib/models/6.10.10-arch1-1/vmlinuz /mnt/boot/kod/vmlinuz-6.10.10-arch1-1
+
+# /boot/loader/entries/kodos.conf
+# title   KodOS Linux
+# linux   /kod/vmlinuz-6.10.10-arch1-1
+# initrd  /kod/initramfs-6.10.10-arch1-1.img
+
+
