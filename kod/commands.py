@@ -26,7 +26,7 @@ def init_root(c, root = "rootfs"):
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
-    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib64")
+    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib")
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
 
@@ -139,6 +139,11 @@ def make_file_generation_links(c, pkgs_to_link, target="", absolute=False):
             f.write(str(d) + "\n")
 
 
+def search_string(string, filename):
+    with open(filename) as f:
+        return  string in f.read()
+
+
 def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
     print(f"{new_added_pkgs = }")
     print(f"{updated_pkgs = }")
@@ -149,12 +154,12 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         pkg = pkg_path.parts[3]
         print(pkg, pkg_path)
         if pkg in new_added_pkgs:
-            with c.prefix(f"grep post_install {pkg_path}"):
+            if search_string("post_install", pkg_path):
                 print(f". {pkg_path} && post_install")
                 # c.run(f". {pkg_path} && post_install")
 
         if pkg in updated_pkgs:
-            with c.prefix(f"grep post_upgrade {pkg_path}"):
+            if search_string("post_upgrade", pkg_path):
                 print(f". {pkg_path} && post_upgrade")
                 # c.run(f". {pkg_path} && post_upgrade")
 
