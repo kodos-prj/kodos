@@ -27,6 +27,10 @@ def init_root(c, root = "rootfs"):
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
     c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib")
+
+    c.run(f"cd {root} && touch etc/shells")
+   
+   
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
 
@@ -153,11 +157,16 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
     for pkg_path in files:
         pkg = pkg_path.parts[3]
         print(pkg, pkg_path)
+        # New installed packages
         if pkg in new_added_pkgs:
             if search_string("post_install", pkg_path):
                 print(f". {pkg_path} && post_install")
                 # c.run(f". {pkg_path} && post_install")
+            if search_string("post_upgrade", pkg_path):
+                print(f". {pkg_path} && post_upgrade")
+                # c.run(f". {pkg_path} && post_upgrade")
 
+        # Packages that are updated
         if pkg in updated_pkgs:
             if search_string("post_upgrade", pkg_path):
                 print(f". {pkg_path} && post_upgrade")
