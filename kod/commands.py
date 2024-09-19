@@ -22,7 +22,7 @@ def init_root(c, root = "rootfs"):
     c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
 
     # File hierarchy
-    fhs_dirs = ["usr/bin", "usr/lib", "usr/share", "etc", "proc", "tmp", "dev", "var", "run", "root" ]
+    fhs_dirs = ["usr/bin", "usr/lib", "usr/share", "etc", "proc", "tmp", "dev", "var", "run", "root", "sys", "var/tmp" ]
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
