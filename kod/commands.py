@@ -31,6 +31,18 @@ def init_root(c, root = "rootfs"):
     c.run(f"cd {root} && touch etc/shells")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
+
+    os_release = '''NAME="KodOS Linux"
+PRETTY_NAME="KodOS Linux"
+ID=kodos
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://github.com/kodos-prj/kodos/"
+DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
+SUPPORT_URL="https://github.com/kodos-prj/kodos/"
+BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
+
+    with open("/mnt/etc/os-release") as f:
+        f.write(os_release)
    
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
