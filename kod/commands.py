@@ -162,16 +162,16 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         if pkg in new_added_pkgs:
             if search_string("post_install", pkg_path):
                 print(f". {pkg_path} && post_install")
-                # c.run(f". {pkg_path} && post_install")
+                c.run(f". {pkg_path} && post_install")
             if search_string("post_upgrade", pkg_path):
                 print(f". {pkg_path} && post_upgrade")
-                # c.run(f". {pkg_path} && post_upgrade")
+                c.run(f". {pkg_path} && post_upgrade")
 
         # Packages that are updated
         if pkg in updated_pkgs:
             if search_string("post_upgrade", pkg_path):
                 print(f". {pkg_path} && post_upgrade")
-                # c.run(f". {pkg_path} && post_upgrade")
+                c.run(f". {pkg_path} && post_upgrade")
 
 
 def load_catalog(c, sources):
@@ -372,15 +372,16 @@ def install(c, config):
 # cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI
 
 
-# bootctl will do the copy
+# bootctl will do the copy <--- ok
 # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
 # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
 
 # bootctl install
 
+
 # mkdir -p /boot/kod
 # depmod 6.10.10-arch1-1
-# dracut -v --fstab --kver 6.10.10-arch1-1
+# dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 # cp /boot/initramfs-6.10.10-arch1-1.img /boot/kod
 # cp /mnt/kod/generations/current/linux/usr/lib/models/6.10.10-arch1-1/vmlinuz /mnt/boot/kod/vmlinuz-6.10.10-arch1-1
 
