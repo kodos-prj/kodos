@@ -26,7 +26,7 @@ def init_root(c, root = "rootfs"):
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
-    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib ln -s usr/lib lib64")
+    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib && ln -s usr/lib lib64")
 
     c.run(f"cd {root} && touch etc/shells")
 
@@ -389,4 +389,5 @@ def install(c, config):
 # linux   /kod/vmlinuz-6.10.10-arch1-1
 # initrd  /kod/initramfs-6.10.10-arch1-1.img
 
-
+# /usr/lib/kernel/install.d/50-depmod.install add 6.10.10-arch1-1 /boot/kodos/6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
+# kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
