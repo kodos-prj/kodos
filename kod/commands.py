@@ -41,7 +41,7 @@ DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
 SUPPORT_URL="https://github.com/kodos-prj/kodos/"
 BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
 
-    with open("/mnt/etc/os-release") as f:
+    with open("/mnt/etc/os-release","w") as f:
         f.write(os_release)
    
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
