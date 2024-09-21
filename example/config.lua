@@ -25,9 +25,20 @@ return {
         disk0 = require "disk",
     },
 
-    bootloader = {
-        type = "systemd-boot",
-        location = "/boot/efi"
+    -- bootloader = {
+    --     type = "systemd-boot",
+    --     location = "/boot/efi"
+    -- },
+
+    boot = {
+        initrd = {
+            kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
+        },
+        loader = {
+            type = "systemd-boot",
+            timeout = 10,
+            include = { "memtest86+" },
+        },
     },
 
     locale = {
@@ -73,7 +84,7 @@ return {
         -- "python-click",
         -- "python-pyzstd",
         -- "grep",
-        -- "mc",
+        "mc",
         "systemd",
         "git",
         -- "openssl",
@@ -85,6 +96,7 @@ return {
         -- "libp11-kit"
         "btrfs-progs",
         "dracut",
+        "memtest86+-efi",
     },
 
     services = {

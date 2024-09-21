@@ -230,8 +230,8 @@ def rebuild(c, config):
     devices = conf.devices
     print(f"{devices=}")
 
-    bootloader = conf.bootloader
-    print(f"{bootloader=}")
+    boot = conf.boot
+    print(f"{boot=}")
 
     locale = conf.locale
     print(f"{locale=}")
@@ -337,7 +337,7 @@ def rebuild(c, config):
 
 
 # -----------------------------------------------------
-# Intall
+# Intall/create partitions
 # -----------------------------------------------------
 @task(help={"config":"system configuration file"})
 def install(c, config):
@@ -356,9 +356,76 @@ def install(c, config):
         create_partitions(c, disk)
     print("-------------------------------")
 
-    bootloader = conf.bootloader
-    print(f"{bootloader=}")
+    # boot = conf.boot
+    # print(f"{boot=}")
 
+
+# -----------------------------------------------------
+# Intall bootloader
+# -----------------------------------------------------
+@task(help={"config":"system configuration file"})
+def install_boot(c, config):
+
+    conf = load_config(config)
+
+    boot = conf.boot
+    print(f"{boot=}")
+
+    initrd = boot.initrd
+    print(f"{initrd=}")
+
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        sources = conf.source
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
+
+    linux_desc = catalog["linux"]
+    kver = linux_desc["version"]
+    c.run(f"depmod {kver}")
+    # depmod 6.10.10-arch1-1
+    c.run(f"dracut -v --fstab --kver {kver} --libdirs lib64")
+    # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
+
+    # loader processing
+    loader = boot.loader
+    for item,value in loader.items():
+        print(item,value)
+
+    loader_type = loader.type
+
+    if loader_type == "systemd-boot":
+        print("Using systemd-boot")
+        
+        # Remove the linked fie to avoid cross partion links
+        efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
+        c.run(f"mv {efi_systemd_boot} {efi_systemd_boot}-lnk")
+        # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"cp /kod/generations/current/systemd/{efi_systemd_boot} {efi_systemd_boot}")
+
+        # ------------
+        # bootctl --make-entry-directory=yes install 
+        c.run(f"bootctl --make-entry-directory=yes install")
+
+        # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
+        c.run(f"kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+
+        # ------------
+        # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"rm {efi_systemd_boot}")
+        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"mv {efi_systemd_boot}-lnk {efi_systemd_boot}")
+
+    entries_to_include = loader.include
+
+    for entry in entries_to_include.values():
+        print(f"Include {entry}")
+        print(f"install '{entry}-efi' if not installed")
+        print(f"Create /boot/loader/entries/{entry}.conf")
+        print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
+    print("-------------------------------")
 
 
 # ToDO
@@ -385,14 +452,14 @@ def install(c, config):
 
 
 # bootctl will do the copy <--- ok
-# rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+# mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
 # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
 
-# bootctl install
+# bootctl --make-entry-directory=yes install   # <-- ok
 
 
 # mkdir -p /boot/kod
-# depmod 6.10.10-arch1-1
+# depmod 6.10.10-arch1-1                                    # <--- ok
 # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 # cp /boot/initramfs-6.10.10-arch1-1.img /boot/kod
 # cp /mnt/kod/generations/current/linux/usr/lib/models/6.10.10-arch1-1/vmlinuz /mnt/boot/kod/vmlinuz-6.10.10-arch1-1
@@ -404,3 +471,9 @@ def install(c, config):
 
 # /usr/lib/kernel/install.d/50-depmod.install add 6.10.10-arch1-1 /boot/kodos/6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
 # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
+
+# kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img  # <-- ok
+
+
+# memtest86+ should use copy instead of link
+# '/kod/generations/current/memtest86+-efi/boot/memtest86+/memtest.efi' -> 'boot/memtest86+/memtest.efi'
