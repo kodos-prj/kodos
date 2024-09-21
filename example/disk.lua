@@ -22,26 +22,8 @@ return  {
       {
          name = "Root",
          size = "100%",
-         type = "btrfs",
-         subvolumes = {
-            -- Subvolume name is different from mountpoint
-            rootfs = {
-               subvol = "/rootfs",
-               mountpoint = "/"
-            },
-            -- Subvolume name is the same as the mountpoint
-            home = {
-               subvol = "/home",
-               mountOptions = "compress=zstd",
-               mountpoint = "/home",
-            },
-            -- Parent is not mounted so the mountpoint must be set
-            kod = {
-               subvol = "/kod",
-               mountOptions = "compress=zstd,noatime",
-               mountpoint = "/kod",
-            }
-         }
+         type = "ext4",
+         mountpoint = "/",
       },
    },
 }
