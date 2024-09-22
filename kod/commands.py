@@ -401,22 +401,22 @@ def install_boot(c, config):
         # Remove the linked fie to avoid cross partion links
         efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
-        c.run(f"mv {efi_systemd_boot} {efi_systemd_boot}-lnk")
+        c.run(f"mv /mnt{efi_systemd_boot} /mnt{efi_systemd_boot}-lnk")
         # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"cp /kod/generations/current/systemd/{efi_systemd_boot} {efi_systemd_boot}")
+        c.run(f"cp /mnt/kod/generations/current/systemd/{efi_systemd_boot} /mnt{efi_systemd_boot}")
 
         # ------------
         # bootctl --make-entry-directory=yes install 
-        c.run(f"bootctl --make-entry-directory=yes install")
+        c.run(f"arch-chroot /mnt bootctl --make-entry-directory=yes install")
 
         # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
-        c.run(f"kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+        c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
 
         # ------------
         # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"rm {efi_systemd_boot}")
+        c.run(f"rm /mnt{efi_systemd_boot}")
         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"mv {efi_systemd_boot}-lnk {efi_systemd_boot}")
+        c.run(f"mv /mnt{efi_systemd_boot}-lnk /mnt{efi_systemd_boot}")
 
     entries_to_include = loader.include
 
@@ -477,3 +477,9 @@ def install_boot(c, config):
 
 # memtest86+ should use copy instead of link
 # '/kod/generations/current/memtest86+-efi/boot/memtest86+/memtest.efi' -> 'boot/memtest86+/memtest.efi'
+
+
+
+# root=UUID=6480e4c0-96fb-4bee-bbc9-7c532e44f835 rootfstype=ext4 rootflags=rw,relatime
+
+# rd.driver.pre=btrfs

@@ -89,14 +89,14 @@ return {
         "git",
         -- "openssl",
         "neovim",
-        -- "libvterm",
+        "libvterm",
         -- "lua51-lpeg",
         -- "ca-certificates-utils",
         -- "p11-kit",
         -- "libp11-kit"
         "btrfs-progs",
         "dracut",
-        "memtest86+-efi",
+        -- "memtest86+-efi",
     },
 
     services = {

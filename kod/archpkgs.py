@@ -7,11 +7,10 @@
 
 # Process Arch package descriptions
 import glob
-import io
 import json
 import os
 from pathlib import Path
-import shutil
+
 
 def get_desc(desc):
     sections = desc.split("\n\n")
@@ -90,7 +89,7 @@ def install_pkg(c, repo_url, pkg_desc, target_gen):
         print("installing", install_path)
         c.run(f"mkdir -p {install_path}")
         c.run(f"tar xf tmp/pkg.tar -C {install_path}")
-        c.run(f"rm tmp/pkg.tar")
+        c.run("rm tmp/pkg.tar")
         # link current
         c.run(f"cd {target}/{app_name} && ln -s -f {app_version} current")
 
@@ -118,7 +117,7 @@ def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
                 dependencies = desc["depends"]
             packages_to_install[pkg_name] = desc
 
-            if type(dependencies) == str:
+            if dependencies.isinstance(str):
                 dependencies = [dependencies]
             for dep in dependencies:
                 packages_to_install.update(
