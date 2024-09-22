@@ -480,6 +480,5 @@ def install_boot(c, config):
 
 
 
-# root=UUID=6480e4c0-96fb-4bee-bbc9-7c532e44f835 rootfstype=ext4 rootflags=rw,relatime
-
+# root=UUID=a64de2e0-065a-4a98-93bc-613aebcacc10 rootfstype=ext4 rootflags=rw,relatime
 # rd.driver.pre=btrfs

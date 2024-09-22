@@ -96,6 +96,9 @@ return {
         -- "libp11-kit"
         "btrfs-progs",
         "dracut",
+        -- "grub",
+        "grub-btrfs",
+        "efibootmgr",
         -- "memtest86+-efi",
     },
 
