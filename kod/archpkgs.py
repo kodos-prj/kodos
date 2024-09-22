@@ -117,7 +117,7 @@ def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
                 dependencies = desc["depends"]
             packages_to_install[pkg_name] = desc
 
-            if dependencies.isinstance(str):
+            if isinstance(dependencies,str):
                 dependencies = [dependencies]
             for dep in dependencies:
                 packages_to_install.update(
