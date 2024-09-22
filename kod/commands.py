@@ -383,9 +383,9 @@ def install_boot(c, config):
 
     linux_desc = catalog["linux"]
     kver = linux_desc["version"]
-    c.run(f"depmod {kver}")
+    c.run(f"arch-chroot /mnt depmod {kver}")
     # depmod 6.10.10-arch1-1
-    c.run(f"dracut -v --fstab --kver {kver} --libdirs lib64")
+    c.run(f"arch-chroot /mnt dracut -v --fstab --kver {kver} --libdirs lib64")
     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 
     # loader processing
