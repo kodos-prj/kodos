@@ -5,7 +5,7 @@ return  {
    efi = true,
    -- efi_size = 1024,
    type = "gpt",
-   filesystem = "ext4",
+   -- filesystem = "ext4",
    partitions = {
       {
          name = "Boot",
@@ -13,12 +13,12 @@ return  {
          type = "fat32",
          mountpoint = "/boot",
       },
-      {
-         name = "Swap",
-         size = "3GB",
-         type = "linux-swap",
-         resumeDevice = true,
-      },
+      -- {
+      --    name = "Swap",
+      --    size = "3GB",
+      --    type = "linux-swap",
+      --    resumeDevice = true,
+      -- },
       {
          name = "Root",
          size = "100%",
