@@ -100,6 +100,7 @@ return {
         "grub-btrfs",
         "efibootmgr",
         -- "memtest86+-efi",
+        "linux-firmware",
     },
 
     services = {

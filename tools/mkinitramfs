@@ -4,6 +4,8 @@
 
 # Ref: https://www.linuxfromscratch.org/blfs/view/svn/postlfs/initramfs.html
 
+set -x
+
 copy()
 {
   local file
@@ -23,6 +25,8 @@ copy()
   fi
 }
 
+# $1: Kernel version
+
 if [ -z $1 ] ; then
   INITRAMFS_FILE=initrd.img-no-kmods
 else
@@ -35,33 +39,38 @@ if [ -n "$KERNEL_VERSION" ] && [ ! -d "/usr/lib/modules/$1" ] ; then
   exit 1
 fi
 
-printf "Creating $INITRAMFS_FILE... "
+printf "Creating $INITRAMFS_FILE... \n"
 
 binfiles="sh cat cp dd killall ls mkdir mknod mount "
 binfiles="$binfiles umount sed sleep ln rm uname"
 binfiles="$binfiles readlink basename"
 
 # Systemd installs udevadm in /bin. Other udev implementations have it in /sbin
-if [ -x /usr/bin/udevadm ] ; then binfiles="$binfiles udevadm"; fi
+# if [ -x /usr/bin/udevadm ] ; then binfiles="$binfiles udevadm"; fi
 
 sbinfiles="modprobe blkid switch_root"
 
 # Optional files and locations
-for f in mdadm mdmon udevd udevadm; do
-  if [ -x /usr/sbin/$f ] ; then sbinfiles="$sbinfiles $f"; fi
-done
+# for f in mdadm mdmon udevd udevadm; do
+  # if [ -x /usr/sbin/$f ] ; then sbinfiles="$sbinfiles $f"; fi
+# done
 
 # Add lvm if present (cannot be done with the others because it
 # also needs dmsetup
-if [ -x /usr/sbin/lvm ] ; then sbinfiles="$sbinfiles lvm dmsetup"; fi
+# if [ -x /usr/sbin/lvm ] ; then sbinfiles="$sbinfiles lvm dmsetup"; fi
 
+printf "Making /tmp/unsorted.XXXXXXXXXX"
 unsorted=$(mktemp /tmp/unsorted.XXXXXXXXXX)
 
-DATADIR=/usr/share/mkinitramfs
+#DATADIR=/usr/share/mkinitramfs
+DATADIR=.
 INITIN=init.in
 
+printf "Making /tmp/initrd-work.XXXXXXXXXX"
 # Create a temporary working directory
 WDIR=$(mktemp -d /tmp/initrd-work.XXXXXXXXXX)
+
+echo "WDIR: $WDIR"
 
 # Create base directory structure
 mkdir -p $WDIR/{dev,run,sys,proc,usr/{bin,lib/{firmware,modules},sbin}}
