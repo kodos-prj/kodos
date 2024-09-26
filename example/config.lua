@@ -94,6 +94,14 @@ return {
         -- "ca-certificates-utils",
         -- "p11-kit",
         -- "libp11-kit"
+
+        -- "btrfs-progs",
+        -- "dracut",
+        -- -- "grub",
+        -- "grub-btrfs",
+        -- "efibootmgr",
+        -- -- "memtest86+-efi",
+
         "btrfs-progs",
         "dracut",
         -- "grub",

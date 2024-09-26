@@ -385,7 +385,7 @@ def install_boot(c, config):
     kver = linux_desc["version"]
     c.run(f"arch-chroot /mnt depmod {kver}")
     # depmod 6.10.10-arch1-1
-    c.run(f"arch-chroot /mnt dracut -v --fstab --kver {kver} --libdirs lib64")
+    c.run(f"arch-chroot /mnt dracut -v -H --fstab --kver {kver} --libdirs lib64")
     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 
     # loader processing
@@ -479,6 +479,12 @@ def install_boot(c, config):
 # '/kod/generations/current/memtest86+-efi/boot/memtest86+/memtest.efi' -> 'boot/memtest86+/memtest.efi'
 
 
-
-# root=UUID=a64de2e0-065a-4a98-93bc-613aebcacc10 rootfstype=ext4 rootflags=rw,relatime
 # rd.driver.pre=btrfs
+
+# root=UUID=9ffd9206-5b27-4b36-be06-3c50fd22ab34 rootfstype=ext4 rootflags=rw,relatime
+
+
+# mkinitcpio -k 6.10.10-arch1-1 -A "systemd" -g /boot/initramfs-6.10.10-arch1-1-mkcpio.img 
+
+# dracut --kver 6.10.10-arch1-1 --force --add "busybox bash shutdown test"
+# root=UUID=a1e30583-57d2-4aa0-98e2-b80226d57ae7 rootfstype=ext4 rootflags=rw,relatime
