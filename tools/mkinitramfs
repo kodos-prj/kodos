@@ -98,9 +98,9 @@ done
 cp -a /usr/lib/firmware $WDIR/usr/lib
 
 # Copy the RAID configuration file if present
-if [ -f /etc/mdadm.conf ] ; then
-  cp /etc/mdadm.conf $WDIR/etc
-fi
+# if [ -f /etc/mdadm.conf ] ; then
+  # cp /etc/mdadm.conf $WDIR/etc
+# fi
 
 # Install the init file
 install -m0755 $DATADIR/$INITIN $WDIR/init

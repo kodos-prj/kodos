@@ -109,6 +109,7 @@ return {
         "efibootmgr",
         -- "memtest86+-efi",
         "linux-firmware",
+        "util-linux",
     },
 
     services = {
