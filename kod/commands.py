@@ -28,9 +28,11 @@ def init_root(c, root = "rootfs"):
 
     c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib && ln -s usr/lib lib64")
 
+    c.run(f"cd {root}/usr/lib && ln -s ld-linux-x86-64.so.2 ld-linux.so.2")
+
     c.run(f"cd {root} && touch etc/shells")
 
-    c.run("genfstab -U /mnt > /mnt/etc/fstab")
+    # c.run("genfstab -U /mnt > /mnt/etc/fstab")
 
     os_release = '''NAME="KodOS Linux"
 PRETTY_NAME="KodOS Linux"
@@ -41,7 +43,7 @@ DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
 SUPPORT_URL="https://github.com/kodos-prj/kodos/"
 BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
 
-    with open("/mnt/etc/os-release","w") as f:
+    with open(f"{root}/etc/os-release","w") as f:
         f.write(os_release)
    
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
@@ -488,3 +490,6 @@ def install_boot(c, config):
 
 # dracut --kver 6.10.10-arch1-1 --force --add "busybox bash shutdown test"
 # root=UUID=a1e30583-57d2-4aa0-98e2-b80226d57ae7 rootfstype=ext4 rootflags=rw,relatime
+
+
+# sudo chroot mnt /usr/bin/env -i HOME=/root TERM="$TERM" PS1='(kodos) \u:\w\$ ' PATH=/usr/bin /bin/bash --login

@@ -110,6 +110,7 @@ return {
         -- "memtest86+-efi",
         "linux-firmware",
         "util-linux",
+        "strace",
     },
 
     services = {
