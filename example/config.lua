@@ -92,11 +92,12 @@ return {
         "dracut",
         -- "grub",
         -- "grub-btrfs",
-        "efibootmgr",
+        -- "efibootmgr",
         -- "memtest86+-efi",
         "linux-firmware",
         "util-linux",
         "strace",
+        -- "pacman",
     },
 
     services = {
