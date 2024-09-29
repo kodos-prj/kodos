@@ -46,18 +46,18 @@ binfiles="$binfiles umount sed sleep ln rm uname"
 binfiles="$binfiles readlink basename"
 
 # Systemd installs udevadm in /bin. Other udev implementations have it in /sbin
-# if [ -x /usr/bin/udevadm ] ; then binfiles="$binfiles udevadm"; fi
+if [ -x /usr/bin/udevadm ] ; then binfiles="$binfiles udevadm"; fi
 
 sbinfiles="modprobe blkid switch_root"
 
 # Optional files and locations
-# for f in mdadm mdmon udevd udevadm; do
-  # if [ -x /usr/sbin/$f ] ; then sbinfiles="$sbinfiles $f"; fi
-# done
+for f in mdadm mdmon udevd udevadm; do
+  if [ -x /usr/sbin/$f ] ; then sbinfiles="$sbinfiles $f"; fi
+done
 
 # Add lvm if present (cannot be done with the others because it
 # also needs dmsetup
-# if [ -x /usr/sbin/lvm ] ; then sbinfiles="$sbinfiles lvm dmsetup"; fi
+if [ -x /usr/sbin/lvm ] ; then sbinfiles="$sbinfiles lvm dmsetup"; fi
 
 printf "Making /tmp/unsorted.XXXXXXXXXX"
 unsorted=$(mktemp /tmp/unsorted.XXXXXXXXXX)
@@ -98,9 +98,9 @@ done
 cp -a /usr/lib/firmware $WDIR/usr/lib
 
 # Copy the RAID configuration file if present
-# if [ -f /etc/mdadm.conf ] ; then
-  # cp /etc/mdadm.conf $WDIR/etc
-# fi
+if [ -f /etc/mdadm.conf ] ; then
+  cp /etc/mdadm.conf $WDIR/etc
+fi
 
 # Install the init file
 install -m0755 $DATADIR/$INITIN $WDIR/init
