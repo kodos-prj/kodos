@@ -66,7 +66,7 @@ unsorted=$(mktemp /tmp/unsorted.XXXXXXXXXX)
 DATADIR=.
 INITIN=init.in
 
-printf "Making /tmp/initrd-work.XXXXXXXXXX"
+printf "Making /tmp/initrd-work.XXXXXXXXXX\n"
 # Create a temporary working directory
 WDIR=$(mktemp -d /tmp/initrd-work.XXXXXXXXXX)
 
@@ -90,7 +90,7 @@ if [ -f /etc/udev/udev.conf ]; then
   cp /etc/udev/udev.conf $WDIR/etc/udev/udev.conf
 fi
 
-for file in $(find /etc/udev/rules.d/ -type f) ; do
+for file in $(find /etc/udev/rules.d/ -follow -type f) ; do
   cp $file $WDIR/etc/udev/rules.d
 done
 
@@ -194,7 +194,7 @@ if [ -n "$KERNEL_VERSION" ]; then
      /usr/lib/modules/$KERNEL_VERSION/kernel/drivers/{block,ata,nvme,md,firewire} \
      /usr/lib/modules/$KERNEL_VERSION/kernel/drivers/{scsi,message,pcmcia,virtio} \
      /usr/lib/modules/$KERNEL_VERSION/kernel/drivers/usb/{host,storage}           \
-     -type f 2> /dev/null | cpio --make-directories -p --quiet $WDIR
+     -follow -type f 2> /dev/null | cpio --make-directories -p --quiet $WDIR
 
   cp /usr/lib/modules/$KERNEL_VERSION/modules.{builtin,order} \
             $WDIR/usr/lib/modules/$KERNEL_VERSION
