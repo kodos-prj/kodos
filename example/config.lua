@@ -99,6 +99,9 @@ return {
         "util-linux",
         "strace",
         -- "pacman",
+        "libmnl",
+        "openssh",
+        "networkmanager",
     },
 
     services = {

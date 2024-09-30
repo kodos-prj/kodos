@@ -32,7 +32,8 @@ def init_root(c, root = "rootfs"):
 
     c.run(f"cd {root} && touch etc/shells")
 
-    # c.run("genfstab -U /mnt > /mnt/etc/fstab")
+    c.run("genfstab -U /mnt > /mnt/etc/fstab")
+    c.run("cat /mnt/etc/fstab | grep /boot > /mnt/etc/fstab.initrd")
 
     os_release = '''NAME="KodOS Linux"
 PRETTY_NAME="KodOS Linux"
@@ -387,7 +388,7 @@ def install_boot(c, config):
     kver = linux_desc["version"]
     c.run(f"arch-chroot /mnt depmod {kver}")
     # depmod 6.10.10-arch1-1
-    c.run(f"arch-chroot /mnt dracut -v -H --fstab --kver {kver} --libdirs lib64")
+    c.run(f"arch-chroot /mnt dracut -v --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 
     # loader processing
@@ -430,6 +431,22 @@ def install_boot(c, config):
     print("-------------------------------")
 
 
+# -----------------------------------------------------
+# Intall bootloader
+# -----------------------------------------------------
+@task(help={"config":"system configuration file"})
+def install_network(c, config):
+
+    conf = load_config(config)
+
+    network = conf.network
+    print(f"{network=}")
+
+    if "hostanme" in network:
+        c.run(f"arch-chroot /mnt hostnamectl set-hostname {network.hostname}")
+
+    c.run(f"arch-chroot /mnt systemctl enable systemd-networkd")
+
 # ToDO
 # create /etc/eo-release
 # NAME="KodOS Linux"
@@ -462,7 +479,7 @@ def install_boot(c, config):
 
 # mkdir -p /boot/kod
 # depmod 6.10.10-arch1-1                                    # <--- ok
-# dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
+# dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok  
 # cp /boot/initramfs-6.10.10-arch1-1.img /boot/kod
 # cp /mnt/kod/generations/current/linux/usr/lib/models/6.10.10-arch1-1/vmlinuz /mnt/boot/kod/vmlinuz-6.10.10-arch1-1
 
@@ -493,3 +510,11 @@ def install_boot(c, config):
 
 
 # sudo chroot mnt /usr/bin/env -i HOME=/root TERM="$TERM" PS1='(kodos) \u:\w\$ ' PATH=/usr/bin /bin/bash --login
+
+
+# git clone https://github.com/kodos-prj/kodos
+
+# fstab only with /boot
+# rd.driver.pre=ext4 rd.driver.pre=vfat rd.shell rd.debugg log_buf_len=1M root=/dev/vda2 rw
+
+# 10.0.2.15/24  gw 10.0.2.2
