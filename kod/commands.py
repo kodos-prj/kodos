@@ -61,6 +61,21 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
     with open(f"{root}/etc/gshadow","w") as f:
         f.write("root:::root\n")
 
+    with open(f"{root}/etc/hostname","w") as f:
+        f.write("kodos\n")
+
+    with open(f"{root}/etc/hosts","w") as f:
+        f.write("127.0.0.1 localhost\n")
+
+    with open(f"{root}/etc/resolv.conf","w") as f:
+        f.write("nameserver 8.8.8.8\n")
+
+    with open(f"{root}/etc/motd","w") as f:
+        f.write("Welcome to KodOS\n")
+
+    with open(f"{root}/etc/issue","w") as f:
+        f.write("KodOS Linux \r (\l)\n")
+
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
 
