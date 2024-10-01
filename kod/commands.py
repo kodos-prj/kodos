@@ -76,8 +76,11 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
     with open(f"{root}/etc/issue","w") as f:
         f.write("KodOS Linux \\r (\\l)\n")
 
-    rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
-    print("Rootfs:", rootfs)
+    # c.run(f"rm -f {root} /etc/locale.gen")
+    # c.run(f"echo 'en_US.UTF-8 UTF-8' > {root}/etc/locale.gen")
+
+    # rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
+    # print("Rootfs:", rootfs)
 
 # ----------------------------------
 
@@ -418,7 +421,7 @@ def install_boot(c, config):
     kver = "6.10.10-arch1-1"
     c.run(f"arch-chroot /mnt depmod {kver}")
     # depmod 6.10.10-arch1-1
-    c.run(f"arch-chroot /mnt dracut -v --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
+    c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 
     # loader processing
@@ -476,6 +479,13 @@ def install_network(c, config):
         c.run(f"arch-chroot /mnt hostnamectl set-hostname {network.hostname}")
 
     c.run(f"arch-chroot /mnt systemctl enable systemd-networkd")
+
+    c.run(f'arch-chroot /mnt timedatectl set-timezone "America/Edmonton"')
+
+    # c.run(f'arch-chroot /mnt timedatectl set-ntp true')
+
+    c.run(f"arch-chroot /mnt passwd -d root")
+
 
 # ToDO
 # create /etc/eo-release
