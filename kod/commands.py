@@ -26,13 +26,13 @@ def init_root(c, root = "rootfs"):
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
-    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib && ln -s usr/lib lib64")
+    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib && ln -s usr/lib lib64 && ln -s usr/bin sbin && ln -s usr/bin usr/sbin && ln -s usr/lib usr/lib64")
 
     c.run(f"cd {root}/usr/lib && ln -s ld-linux-x86-64.so.2 ld-linux.so.2")
 
     c.run(f"cd {root} && touch etc/shells")
 
-    c.run("genfstab -U /mnt > /mnt/etc/fstab")
+    c.run(f"genfstab -U {root} > /mnt/etc/fstab")
     c.run("cat /mnt/etc/fstab | grep /boot > /mnt/etc/fstab.initrd")
 
     os_release = '''NAME="KodOS Linux"
@@ -47,6 +47,20 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
     with open(f"{root}/etc/os-release","w") as f:
         f.write(os_release)
    
+    # Create user/group files
+    with open(f"{root}/etc/passwd","w") as f:
+        f.write("root:x:0:0:root:/root:/bin/bash\n")
+
+    with open(f"{root}/etc/shadow","w") as f:
+        f.write("root:*:14871::::::\n")
+
+
+    with open(f"{root}/etc/group","w") as f:
+        f.write("root:x:0:root\n")
+
+    with open(f"{root}/etc/gshadow","w") as f:
+        f.write("root:::root\n")
+
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
 
@@ -385,7 +399,8 @@ def install_boot(c, config):
         catalog = json.load(f)
 
     linux_desc = catalog["linux"]
-    kver = linux_desc["version"]
+    # kver = linux_desc["version"]
+    kver = "6.10.10-arch1-1"
     c.run(f"arch-chroot /mnt depmod {kver}")
     # depmod 6.10.10-arch1-1
     c.run(f"arch-chroot /mnt dracut -v --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
@@ -442,7 +457,7 @@ def install_network(c, config):
     network = conf.network
     print(f"{network=}")
 
-    if "hostanme" in network:
+    if "hostname" in network:
         c.run(f"arch-chroot /mnt hostnamectl set-hostname {network.hostname}")
 
     c.run(f"arch-chroot /mnt systemctl enable systemd-networkd")
