@@ -484,7 +484,7 @@ def install_network(c, config):
 
     # c.run(f'arch-chroot /mnt timedatectl set-ntp true')
 
-    c.run(f"arch-chroot /mnt passwd -d root")
+    # c.run(f"arch-chroot /mnt passwd -d root")
 
 
 # ToDO
