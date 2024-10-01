@@ -74,7 +74,7 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
         f.write("Welcome to KodOS\n")
 
     with open(f"{root}/etc/issue","w") as f:
-        f.write("KodOS Linux \r (\l)\n")
+        f.write("KodOS Linux \\r (\\l)\n")
 
     rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     print("Rootfs:", rootfs)
