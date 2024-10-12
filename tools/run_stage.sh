@@ -10,12 +10,15 @@ else
   exit
 fi
 
-case $STAGE in
-  "post_install" ) 
-      echo "Running $SCRIPT post_install stage";
-      post_install ;;
-  "post_update" ) 
-      echo "Running $SCRIPT post_update stage";
-      post_update ;;
-esac
+echo "Running $SCRIPT $STAGE stage";
+$($STAGE)
+
+# case $STAGE in
+#   "post_install" ) 
+#       echo "Running $SCRIPT post_install stage";
+#       post_install ;;
+#   "post_update" ) 
+#       echo "Running $SCRIPT post_update stage";
+#       post_update ;;
+# esac
 
