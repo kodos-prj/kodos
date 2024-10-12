@@ -52,7 +52,8 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
         f.write("root:x:0:0:root:/root:/bin/bash\n")
 
     with open(f"{root}/etc/shadow","w") as f:
-        f.write("root:*:14871::::::\n")
+        # f.write("root:*:14871::::::\n")
+        f.write("root:$y$j9T$aRpZHGL.MWbgguXhPvSnC1$PdAp4fJ7VpwetSPHyf.dX5sR0z/hXdo6qVaxDy/kNS8:19997::::::\n")
 
 
     with open(f"{root}/etc/group","w") as f:
@@ -208,17 +209,17 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         # New installed packages
         if pkg in new_added_pkgs:
             if search_string("post_install", pkg_path):
-                print(f". {pkg_path} && post_install")
-                c.run(f". {pkg_path} && post_install")
+                print(f"arch-chroot /mnt . {pkg_path} && post_install")
+                c.run(f"arch-chroot /mnt . {pkg_path} && post_install")
             if search_string("post_upgrade", pkg_path):
-                print(f". {pkg_path} && post_upgrade")
-                c.run(f". {pkg_path} && post_upgrade")
+                print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
+                c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
 
         # Packages that are updated
         if pkg in updated_pkgs:
             if search_string("post_upgrade", pkg_path):
-                print(f". {pkg_path} && post_upgrade")
-                c.run(f". {pkg_path} && post_upgrade")
+                print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
+                c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
 
 
 def load_catalog(c, sources):
@@ -487,6 +488,48 @@ def install_network(c, config):
     # c.run(f"arch-chroot /mnt passwd -d root")
 
 
+# -----------------------------------------------------
+# Intall bootloader
+# -----------------------------------------------------
+
+@task(help={"config":"system configuration file"})
+def test_rebuild(c, config):
+    # [x] Check if catalog existsx
+    # If not,
+    #   [x] read config and get the sources
+    #   [x] Download the catalog and create catalog.json
+    # [x] Read the catalog.json
+
+    # New rebuild:
+    # - [ ] A new generation is created, and the list of packages, pkgs's configurations are recreated
+    # - [ ] If new  packages are added, they are downloaded and stored in pkgs directory
+    # - [ ] from the list os selected packages, link pkgs in the new generation
+
+    conf = load_config(config)
+
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
+
+    # catalog = load_catalog(c, conf.sources)
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        sources = conf.source
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
+
+    all_pkgs_to_install = {}
+    packages_to_install = {}
+    for pkgname in pkg_list:
+        # print(pkgname)
+        packages_to_install = get_list_of_packages_to_install(catalog, pkgname)
+        # print(packages_to_install.keys())
+        all_pkgs_to_install.update(packages_to_install)
+
+    print(all_pkgs_to_install.keys())
+
+
+
 # ToDO
 # create /etc/eo-release
 # NAME="KodOS Linux"
@@ -552,9 +595,16 @@ def install_network(c, config):
 # sudo chroot mnt /usr/bin/env -i HOME=/root TERM="$TERM" PS1='(kodos) \u:\w\$ ' PATH=/usr/bin /bin/bash --login
 
 
+# pacman -Sy git poetry
 # git clone https://github.com/kodos-prj/kodos
+# cd kodos
+# poetry install
+# poetry shell
+
 
 # fstab only with /boot
 # rd.driver.pre=ext4 rd.driver.pre=vfat rd.shell rd.debugg log_buf_len=1M root=/dev/vda2 rw
 
 # 10.0.2.15/24  gw 10.0.2.2
+
+# timedatectl set-timezone "America/Edmonton"

@@ -10,6 +10,8 @@ import glob
 import json
 import os
 from pathlib import Path
+from pprint import pprint
+import re
 
 
 def get_desc(desc):
@@ -68,6 +70,19 @@ def init_index(c, source):
     with open("kod/config/catalog.json", "w") as f:
         json.dump(catalog, f)
 
+def get_providers(catalog):
+    providers = {}
+    for pkg,desc in catalog.items():
+        if "provides" in desc:
+            # print("---->",pkg, desc["provides"])
+            provider = desc["provides"]
+            if isinstance(provider,str):
+                provider = [provider]
+            for p in provider:            
+                if p not in providers:
+                    providers[p] = []
+                providers[p].append(pkg)
+    return providers
 
 # Download a package from a mirror, open it, and extract it to the target directory
 def install_pkg(c, repo_url, pkg_desc, target_gen):
@@ -101,30 +116,81 @@ def install_pkg(c, repo_url, pkg_desc, target_gen):
 packages_to_skip = ["filesystem", "pacman", "archlinux-keyring"]
 
 
-def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
+
+# def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
+#     print(" >>", pkg_name)
+#     if pkg_name in packages_to_skip:
+#         print("**** Skipping", pkg_name)
+#         return packages_to_install
+#     if pkg_name not in packages_to_install:
+#         print(pkg_name, "not in packages_to_install")
+#         if pkg_name in catalog:
+#             desc = catalog[pkg_name]
+#             # print("\n---------------\n",pkg_name, "\n",desc)
+#             dependencies = []
+#             if "depends" in desc:
+#                 print(" ---> ", desc["depends"])
+#                 dependencies = desc["depends"]
+#             packages_to_install[pkg_name] = desc
+
+#             if isinstance(dependencies,str):
+#                 dependencies = [dependencies]
+#             for dep in dependencies:
+#                 packages_to_install.update(
+#                     follow_dependencies_to_install(catalog, dep, packages_to_install)
+#                 )
+#     else:
+#         print(pkg_name, "already in packages_to_install")
+
+#     return packages_to_install
+
+
+def follow_dependencies_to_install(catalog, pkg_name, packages_to_install, providers=None):
     print(" >>", pkg_name)
     if pkg_name in packages_to_skip:
         print("**** Skipping", pkg_name)
         return packages_to_install
+    if not providers:
+        print("================== getting providers =================")
+        providers = get_providers(catalog)
+        # print("providers: ", providers)
     if pkg_name not in packages_to_install:
         print(pkg_name, "not in packages_to_install")
         if pkg_name in catalog:
             desc = catalog[pkg_name]
-            # print("\n---------------\n",pkg_name, "\n",desc)
-            dependencies = []
-            if "depends" in desc:
-                print(" ---> ", desc["depends"])
-                dependencies = desc["depends"]
+            print("\n---------------\n",pkg_name,desc['version'])
+            # pprint(desc)
+            libdepend = []
+            pkgdepend = []
+            depends = desc["depends"] if "depends" in desc else []
+            if isinstance(depends, str):
+                depends = [depends]
+            # print(f"{depends = }")
+            for line in depends:
+                if re.match(r"^([^=]+)=(.*)", line):
+                    libdepend.append(line)
+                else:
+                    pkgdepend.append(line)
+            # libdepend = [line for line in desc["depends"] if re.match(r"^([^=]+)=(.*)", line)]
+            # print(f"{pkgdepend = }")
+            dependencies = pkgdepend
+            # print(f"{libdepend = }")
+            for lib in libdepend:
+                if lib in providers:
+                    for p in providers[lib]:
+                        dependencies += [p]
+                name,ver = re.split("=|>=|>=|<|<=", lib)
+                if name[-3:] != ".so":
+                    dependencies += [name]
+            print(f"{dependencies = }")
+
             packages_to_install[pkg_name] = desc
 
-            if isinstance(dependencies,str):
-                dependencies = [dependencies]
             for dep in dependencies:
                 packages_to_install.update(
-                    follow_dependencies_to_install(catalog, dep, packages_to_install)
+                    follow_dependencies_to_install(catalog, dep, packages_to_install, providers)
                 )
     else:
         print(pkg_name, "already in packages_to_install")
 
     return packages_to_install
-
