@@ -68,7 +68,10 @@ def init_index(c, source):
         catalog.update(repo_catalog)
     # Write unified catalog to disk
     with open("kod/config/catalog.json", "w") as f:
-        json.dump(catalog, f)
+        json.dump(catalog, f, indent=4)
+    providers = get_providers(catalog)
+    with open("kod/config/providers.json", "w") as f:
+        json.dump(providers, f, indent=4)
 
 def get_providers(catalog):
     providers = {}
@@ -78,10 +81,12 @@ def get_providers(catalog):
             provider = desc["provides"]
             if isinstance(provider,str):
                 provider = [provider]
-            for p in provider:            
-                if p not in providers:
-                    providers[p] = []
-                providers[p].append(pkg)
+            for p in provider:
+                if p != pkg:            
+                    if p not in providers:
+                        providers[p] = []
+                    if pkg not in providers[p]:
+                        providers[p].append(pkg)
     return providers
 
 # Download a package from a mirror, open it, and extract it to the target directory
@@ -112,48 +117,13 @@ def install_pkg(c, repo_url, pkg_desc, target_gen):
         print(f"{install_path} already installed")
 
 
-
 packages_to_skip = ["filesystem", "pacman", "archlinux-keyring"]
 
-
-
-# def follow_dependencies_to_install(catalog, pkg_name, packages_to_install):
-#     print(" >>", pkg_name)
-#     if pkg_name in packages_to_skip:
-#         print("**** Skipping", pkg_name)
-#         return packages_to_install
-#     if pkg_name not in packages_to_install:
-#         print(pkg_name, "not in packages_to_install")
-#         if pkg_name in catalog:
-#             desc = catalog[pkg_name]
-#             # print("\n---------------\n",pkg_name, "\n",desc)
-#             dependencies = []
-#             if "depends" in desc:
-#                 print(" ---> ", desc["depends"])
-#                 dependencies = desc["depends"]
-#             packages_to_install[pkg_name] = desc
-
-#             if isinstance(dependencies,str):
-#                 dependencies = [dependencies]
-#             for dep in dependencies:
-#                 packages_to_install.update(
-#                     follow_dependencies_to_install(catalog, dep, packages_to_install)
-#                 )
-#     else:
-#         print(pkg_name, "already in packages_to_install")
-
-#     return packages_to_install
-
-
-def follow_dependencies_to_install(catalog, pkg_name, packages_to_install, providers=None):
+def follow_dependencies_to_install(catalog, providers, pkg_name, packages_to_install):
     print(" >>", pkg_name)
     if pkg_name in packages_to_skip:
         print("**** Skipping", pkg_name)
         return packages_to_install
-    if not providers:
-        print("================== getting providers =================")
-        providers = get_providers(catalog)
-        # print("providers: ", providers)
     if pkg_name not in packages_to_install:
         print(pkg_name, "not in packages_to_install")
         if pkg_name in catalog:
@@ -188,7 +158,7 @@ def follow_dependencies_to_install(catalog, pkg_name, packages_to_install, provi
 
             for dep in dependencies:
                 packages_to_install.update(
-                    follow_dependencies_to_install(catalog, dep, packages_to_install, providers)
+                    follow_dependencies_to_install(catalog, providers, dep, packages_to_install)
                 )
     else:
         print(pkg_name, "already in packages_to_install")

@@ -8,7 +8,6 @@ return {
         url = "https://mirror.rackspace.com/archlinux",
         arch = "x86_64",
         repo = { "core", "extra" },
-        -- repo = {"core" },
         type = "arch",
     },
     -- source = {
@@ -86,11 +85,12 @@ return {
         -- "openssl",
         -- "neovim",
         -- "libvterm",
+        -- "zlib",
         -- "lua51-lpeg",
         -- "ca-certificates-utils",
         -- "p11-kit",
         -- "libp11-kit"
-
+        -- "curl",
         -- "btrfs-progs",
         -- "dracut",
         -- "grub",

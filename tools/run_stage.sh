@@ -1,4 +1,4 @@
-#!bash
+#!/usr/bin/bash
 
 SCRIPT=$1
 STAGE=$2

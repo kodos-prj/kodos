@@ -107,10 +107,10 @@ def get_next_generation():
     print(f"{generation=}")
     return generation
 
-def get_list_of_packages_to_install(catalog, pkg_name):
+def get_list_of_packages_to_install(catalog, providers, pkg_name):
     packages_to_install = {}
     packages_to_install = follow_dependencies_to_install(
-        catalog, pkg_name, packages_to_install
+        catalog, providers,pkg_name, packages_to_install
     )
     return packages_to_install
 
@@ -211,9 +211,9 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
             if search_string("post_install", pkg_path):
                 print(f"arch-chroot /mnt . {pkg_path} && post_install")
                 c.run(f"arch-chroot /mnt . {pkg_path} && post_install")
-            if search_string("post_upgrade", pkg_path):
-                print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
-                c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
+            # if search_string("post_upgrade", pkg_path):
+            #     print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
+            #     c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
 
         # Packages that are updated
         if pkg in updated_pkgs:
@@ -289,6 +289,9 @@ def rebuild(c, config):
     with open("kod/config/catalog.json") as f:
         catalog = json.load(f)
 
+    with open("kod/config/providers.json") as f:
+        providers = json.load(f)
+
     # created_dirs = []
     # if Path("kod/generations/current/.created_dirs.txt").exists():
     #     with open("kod/generations/current/.created_dirs.txt") as f:
@@ -314,7 +317,7 @@ def rebuild(c, config):
     packages_to_install = {}
     for pkgname in pkg_list:
         # print(pkgname)
-        packages_to_install = get_list_of_packages_to_install(catalog, pkgname)
+        packages_to_install = get_list_of_packages_to_install(catalog, providers, pkgname)
         # print(packages_to_install.keys())
         all_pkgs_to_install.update(packages_to_install)
 
@@ -607,4 +610,7 @@ def test_rebuild(c, config):
 
 # 10.0.2.15/24  gw 10.0.2.2
 
-# timedatectl set-timezone "America/Edmonton"
+# # timedatectl set-timezone "America/Edmonton"
+
+# list of packages to install
+# pacman -Sp --config pacman.conf base linux linux-firmware mc | awk -F/ '{print $NF}' 
