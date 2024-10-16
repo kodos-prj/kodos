@@ -75,7 +75,7 @@ return {
         -- "coreutils",
         "linux",
         -- "pacman",
-        -- "mkinitcpio",
+        "mkinitcpio",
         -- "python",
         -- "poetry",
         -- "grep",
@@ -104,6 +104,7 @@ return {
         -- "libmnl",
         -- "openssh",
         -- "networkmanager",
+        "iptables",
     },
 
     services = {

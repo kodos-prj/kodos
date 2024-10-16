@@ -77,8 +77,17 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
     with open(f"{root}/etc/issue","w") as f:
         f.write("KodOS Linux \\r (\\l)\n")
 
-    # c.run(f"rm -f {root} /etc/locale.gen")
-    # c.run(f"echo 'en_US.UTF-8 UTF-8' > {root}/etc/locale.gen")
+    timezone = "America/Edmonton"
+    c.run(f"cd {root}/usr/lib && ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime")
+
+    # c.run(f"rm -f {root}/etc/locale.gen")
+    c.run(f"echo 'en_US.UTF-8 UTF-8' > {root}/etc/locale.gen")
+
+    hostname = "kodos"
+    c.run(f"echo '{hostname}' > {root}/etc/hostname")
+
+    # Copy tools
+    c.run(f"cp tools/run_stage.sh {root}/usr/bin")
 
     # rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     # print("Rootfs:", rootfs)
@@ -209,8 +218,8 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         # New installed packages
         if pkg in new_added_pkgs:
             if search_string("post_install", pkg_path):
-                print(f"arch-chroot /mnt . {pkg_path} && post_install")
-                c.run(f"arch-chroot /mnt . {pkg_path} && post_install")
+                print(f"arch-chroot /mnt /usr/bin/run_stage.sh {pkg_path} post_install")
+                c.run(f"arch-chroot /mnt /usr/bin/run_stage.sh {pkg_path} post_install")
             # if search_string("post_upgrade", pkg_path):
             #     print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
             #     c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
@@ -218,8 +227,8 @@ def report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs):
         # Packages that are updated
         if pkg in updated_pkgs:
             if search_string("post_upgrade", pkg_path):
-                print(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
-                c.run(f"arch-chroot /mnt . {pkg_path} && post_upgrade")
+                print(f"arch-chroot /mnt /usr/bin/run_stage.sh {pkg_path} post_upgrade")
+                c.run(f"arch-chroot /mnt /usr/bin/run_stage.sh {pkg_path} post_upgrade")
 
 
 def load_catalog(c, sources):
@@ -252,11 +261,9 @@ def rebuild(c, config):
     #   [x] read config and get the sources
     #   [x] Download the catalog and create catalog.json
     # [x] Read the catalog.json
-
-    # New rebuild:
-    # - [ ] A new generation is created, and the list of packages, pkgs's configurations are recreated
-    # - [ ] If new  packages are added, they are downloaded and stored in pkgs directory
-    # - [ ] from the list os selected packages, link pkgs in the new generation
+    # - [x] A new generation is created, and the list of packages, pkgs's configurations are recreated
+    # - [x] If new  packages are added, they are downloaded and stored in pkgs directory
+    # - [x] from the list os selected packages, link pkgs in the new generation
 
     absolute = False
 
@@ -402,6 +409,17 @@ def install(c, config):
 # -----------------------------------------------------
 # Intall bootloader
 # -----------------------------------------------------
+# mkinitcpio preset file for the 'linux' package on archiso
+
+PRESETS=('archiso')
+
+ALL_kver='/boot/vmlinuz-linux'
+ALL_config='/etc/mkinitcpio.conf'
+
+archiso_image="/boot/initramfs-linux.img"
+
+
+
 @task(help={"config":"system configuration file"})
 def install_boot(c, config):
 
@@ -422,10 +440,27 @@ def install_boot(c, config):
 
     linux_desc = catalog["linux"]
     # kver = linux_desc["version"]
-    kver = "6.10.10-arch1-1"
+    kver = "6.11.3-arch1-1"
     c.run(f"arch-chroot /mnt depmod {kver}")
+
+    c.run("echo \"PRESETS=('default')\" > /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"ALL_kver='/boot/vmlinuz-linux'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"ALL_config='/etc/mkinitcpio.conf'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"default_image=\"/boot/initramfs-linux.img\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+
+    mkinitcpio_conf = '''# MODULES
+MODULES=(vfat ext4)
+BINARIES=()
+FILES=()
+HOOKS=(base udev modconf memdisk kms block filesystems keyboard)
+COMPRESSION="zstd"
+"'''
+    with open("/mnt/etc/mkinitcpio.conf","w") as f:
+        f.write(mkinitcpio_conf)
+
     # depmod 6.10.10-arch1-1
-    c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
+    c.run("arch-chroot /mnt /usr/bin/mkinitcpio -P linux")
+    # c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
 
     # loader processing
@@ -447,10 +482,33 @@ def install_boot(c, config):
 
         # ------------
         # bootctl --make-entry-directory=yes install 
-        c.run(f"arch-chroot /mnt bootctl --make-entry-directory=yes install")
+        c.run(f"arch-chroot /mnt bootctl install")
 
         # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
-        c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+        # c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+
+        loader_conf = '''default kodos.conf
+timeout  10
+console-mode max
+"'''
+        with open("/mnt/boot/loader/loader.conf","w") as f:
+            f.write(loader_conf)
+
+        kodos_conf = '''title   KodOS Linux
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=/dev/vda2 rw
+"'''
+        with open("/mnt/boot/loader/entries/kodos.conf","w") as f:
+            f.write(kodos_conf)
+
+        kodos_conf = '''title   KodOS Linux - Debug
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=/dev/vda2 rw debug console=tty0 console=ttyS0
+"'''
+        with open("/mnt/boot/loader/entries/kodos_debug.conf","w") as f:
+            f.write(kodos_conf)
 
         # ------------
         # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
@@ -466,6 +524,72 @@ def install_boot(c, config):
         print(f"Create /boot/loader/entries/{entry}.conf")
         print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
     print("-------------------------------")
+
+# @task(help={"config":"system configuration file"})
+# def install_boot(c, config):
+
+#     conf = load_config(config)
+
+#     boot = conf.boot
+#     print(f"{boot=}")
+
+#     initrd = boot.initrd
+#     print(f"{initrd=}")
+
+#     if not Path("kod/config/catalog.json").exists():
+#         # Init catalog
+#         sources = conf.source
+#         init_index(c, sources)
+#     with open("kod/config/catalog.json") as f:
+#         catalog = json.load(f)
+
+#     linux_desc = catalog["linux"]
+#     # kver = linux_desc["version"]
+#     kver = "6.11.3-arch1-1"
+#     c.run(f"arch-chroot /mnt depmod {kver}")
+#     # depmod 6.10.10-arch1-1
+#     c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
+#     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
+
+#     # loader processing
+#     loader = boot.loader
+#     for item,value in loader.items():
+#         print(item,value)
+
+#     loader_type = loader.type
+
+#     if loader_type == "systemd-boot":
+#         print("Using systemd-boot")
+        
+#         # Remove the linked fie to avoid cross partion links
+#         efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+#         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
+#         c.run(f"mv /mnt{efi_systemd_boot} /mnt{efi_systemd_boot}-lnk")
+#         # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+#         c.run(f"cp /mnt/kod/generations/current/systemd/{efi_systemd_boot} /mnt{efi_systemd_boot}")
+
+#         # ------------
+#         # bootctl --make-entry-directory=yes install 
+#         c.run(f"arch-chroot /mnt bootctl --make-entry-directory=yes install")
+
+#         # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
+#         c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+
+#         # ------------
+#         # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+#         c.run(f"rm /mnt{efi_systemd_boot}")
+#         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+#         c.run(f"mv /mnt{efi_systemd_boot}-lnk /mnt{efi_systemd_boot}")
+
+#     entries_to_include = loader.include
+
+#     for entry in entries_to_include.values():
+#         print(f"Include {entry}")
+#         print(f"install '{entry}-efi' if not installed")
+#         print(f"Create /boot/loader/entries/{entry}.conf")
+#         print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
+#     print("-------------------------------")
+
 
 
 # -----------------------------------------------------
@@ -484,7 +608,7 @@ def install_network(c, config):
 
     c.run(f"arch-chroot /mnt systemctl enable systemd-networkd")
 
-    c.run(f'arch-chroot /mnt timedatectl set-timezone "America/Edmonton"')
+    # c.run(f'arch-chroot /mnt timedatectl set-timezone "America/Edmonton"')
 
     # c.run(f'arch-chroot /mnt timedatectl set-ntp true')
 
