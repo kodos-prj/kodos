@@ -16,78 +16,164 @@ from kod.filesytem import create_partitions
 @task(help={"root":"root path for the installation"})
 def init_root(c, root = "rootfs"):
     # kod hierarchy
-    kod_dirs = ["kod/config", "kod/generations", "kod/pkgs"]
-    c.config["run"]["env"]["KOD_ROOTFS"] = root 
-    root_kod_dirs = [root + "/" + d for d in kod_dirs]
-    c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
+    # kod_dirs = ["kod/config", "kod/generations", "kod/pkgs"]
+    # c.config["run"]["env"]["KOD_ROOTFS"] = root 
+    # root_kod_dirs = [root + "/" + d for d in kod_dirs]
+    # c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
 
     # File hierarchy
-    fhs_dirs = ["usr/bin", "usr/lib", "usr/share", "etc", "proc", "tmp", "dev", "var", "run", "root", "sys", "var/tmp" ]
+    fhs_dirs = ["boot", "dev", "home", "mnt", "proc", "root", "run", "sys", "tmp", "kod/generations/1", "kod/config", "kod/cache", "kod/log" ]
     root_fhs_dirs = [root + "/" + d for d in fhs_dirs]
     c.run(f"mkdir -p {' '.join(root_fhs_dirs)}")
 
-    c.run(f"cd {root} && ln -s usr/bin bin && ln -s usr/lib lib && ln -s usr/lib lib64 && ln -s usr/bin sbin && ln -s usr/bin usr/sbin && ln -s usr/lib usr/lib64")
+    # kod file hierarchy
+    kod_dirs = ["bin", "etc", "lib", "lib64", "sbin", "usr", "var" ]
+    root_kod_dirs = [root + "/kod/generations/1/" + d for d in kod_dirs]
+    c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
+    c.run(f"cd {root}/kod/generations && ln -s 1 current")
 
-    c.run(f"cd {root}/usr/lib && ln -s ld-linux-x86-64.so.2 ld-linux.so.2")
+    # fhs links hierarchy
+    fhs_links = ["bin", "etc", "lib", "lib64", "sbin", "usr", "var" ]
+    links = " && ".join([f"ln -s kod/generations/current/{d} {d}" for d in fhs_links])
+    c.run(f"cd {root} && {links}")
 
-    c.run(f"cd {root} && touch etc/shells")
+    # pacman file hierarchy
+    kod_dirs = ["bin", "etc", "lib", "lib64", "sbin", "usr", "var" ]
+    root_kod_dirs = [root + "/kod/generations/1/" + d for d in kod_dirs]
+    c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
+    c.run(f"cd {root}/kod/generations && ln -s 1 current")
+
+    # pacman metadata file hierarchy
+    kod_dirs = ["config", "cache/pkg", "log", "hooks", "gnupg" ]
+    root_kod_dirs = [root + "/kod/pacman/" + d for d in kod_dirs]
+    c.run(f"mkdir -p {' '.join(root_kod_dirs)}")
+
+    pacman_config = """[options]
+RootDir = mnt
+DBPath = /kod/pacman/config/
+CacheDir = /kod/pacman/cache/pkg/
+LogFile = /kod/pacman/log/pacman.log
+HookDir = /kod/pacman/hooks/
+GPGDir = /kod/pacman/gnupg/
+ParallelDownloads = 2
+CleanMethod = KeepInstalled
+SigLevel = PackageOptional
+SigLevel = PackageTrustedOnly
+SigLevel = DatabaseOptional
+SigLevel = DatabaseTrustedOnly
+Architecture = auto
+
+CheckSpace
+
+[core]
+Include = /kod/pacman/mirrorlist
+
+#[extra-testing]
+#Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /kod/pacman/mirrorlist
+
+"""
+    with open(f"{root}/kod/pacman/pacman.conf","w") as f:
+        f.write(pacman_config)
+
+    mirrorlist = """## Mirrors
+Server = http://mirror.accuris.ca/archlinux/$repo/os/$arch
+#Server = https://mirror.accuris.ca/archlinux/$repo/os/$arch
+Server = https://arch.mirror.winslow.cloud/$repo/os/$arch
+#Server = http://mirror.cedille.club/archlinux/$repo/os/$arch
+#Server = http://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
+#Server = https://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
+#Server = http://archlinux.mirror.colo-serv.net/$repo/os/$arch
+#Server = http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch
+#Server = https://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch
+Server = http://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch"""
+
+    with open(f"{root}/kod/pacman/mirrorlist","w") as f:
+        f.write(mirrorlist)
 
     c.run(f"genfstab -U {root} > /mnt/etc/fstab")
     c.run("cat /mnt/etc/fstab | grep /boot > /mnt/etc/fstab.initrd")
+    
+    # # Refresh package lists, pacman-key --init
+    # exec_chroot(['pacman-key', '--init'])
+    # exec_chroot(['pacman-key', '--populate', 'archlinux'])
+    # # Add akshara and encrypt hooks
+    # exec_chroot(['bash', '-c', 'echo "MODULES=()" > /etc/mkinitcpio.conf'])
+    # exec_chroot(['bash', '-c', 'echo "BINARIES=()" >> /etc/mkinitcpio.conf'])
+    # exec_chroot(['bash', '-c', 'echo "FILES=()" >> /etc/mkinitcpio.conf'])
+    # if config['partition']['password'] == '':
+    #     exec_chroot(['bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap modconf block filesystems fsck)" >> /etc/mkinitcpio.conf'])
+    # else:
+    #     exec_chroot(['bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)" >> /etc/mkinitcpio.conf'])
+    # # Install linux-zen
+    # exec_chroot(['pacman', '-Sy', '--noconfirm', 'linux-zen', 'xorriso'])
+    # # Remove jade-gui
 
-    os_release = '''NAME="KodOS Linux"
-PRETTY_NAME="KodOS Linux"
-ID=kodos
-ANSI_COLOR="38;2;23;147;209"
-HOME_URL="https://github.com/kodos-prj/kodos/"
-DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
-SUPPORT_URL="https://github.com/kodos-prj/kodos/"
-BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
 
-    with open(f"{root}/etc/os-release","w") as f:
-        f.write(os_release)
+
+    # c.run(f"cd {root}/usr/lib && ln -s libc.so.6 libc.so.5")
+    # c.run(f"cd {root}/usr/lib && ln -s ld-linux-x86-64.so.2 ld-linux.so.2")
+
+    # c.run(f"cd {root} && touch etc/shells")
+
+    # c.run(f"genfstab -U {root} > /mnt/etc/fstab")
+    # c.run("cat /mnt/etc/fstab | grep /boot > /mnt/etc/fstab.initrd")
+
+#     os_release = '''NAME="KodOS Linux"
+# PRETTY_NAME="KodOS Linux"
+# ID=kodos
+# ANSI_COLOR="38;2;23;147;209"
+# HOME_URL="https://github.com/kodos-prj/kodos/"
+# DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
+# SUPPORT_URL="https://github.com/kodos-prj/kodos/"
+# BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"'''
+
+#     with open(f"{root}/etc/os-release","w") as f:
+#         f.write(os_release)
    
-    # Create user/group files
-    with open(f"{root}/etc/passwd","w") as f:
-        f.write("root:x:0:0:root:/root:/bin/bash\n")
+    # # Create user/group files
+    # with open(f"{root}/etc/passwd","w") as f:
+    #     f.write("root:x:0:0:root:/root:/bin/bash\n")
 
-    with open(f"{root}/etc/shadow","w") as f:
-        # f.write("root:*:14871::::::\n")
-        f.write("root:$y$j9T$aRpZHGL.MWbgguXhPvSnC1$PdAp4fJ7VpwetSPHyf.dX5sR0z/hXdo6qVaxDy/kNS8:19997::::::\n")
+    # with open(f"{root}/etc/shadow","w") as f:
+    #     # f.write("root:*:14871::::::\n")
+    #     f.write("root:$y$j9T$aRpZHGL.MWbgguXhPvSnC1$PdAp4fJ7VpwetSPHyf.dX5sR0z/hXdo6qVaxDy/kNS8:19997::::::\n")
 
 
-    with open(f"{root}/etc/group","w") as f:
-        f.write("root:x:0:root\n")
+    # with open(f"{root}/etc/group","w") as f:
+    #     f.write("root:x:0:root\n")
 
-    with open(f"{root}/etc/gshadow","w") as f:
-        f.write("root:::root\n")
+    # with open(f"{root}/etc/gshadow","w") as f:
+    #     f.write("root:::root\n")
 
-    with open(f"{root}/etc/hostname","w") as f:
-        f.write("kodos\n")
+    # with open(f"{root}/etc/hostname","w") as f:
+    #     f.write("kodos\n")
 
-    with open(f"{root}/etc/hosts","w") as f:
-        f.write("127.0.0.1 localhost\n")
+    # with open(f"{root}/etc/hosts","w") as f:
+    #     f.write("127.0.0.1 localhost\n")
 
-    with open(f"{root}/etc/resolv.conf","w") as f:
-        f.write("nameserver 8.8.8.8\n")
+    # with open(f"{root}/etc/resolv.conf","w") as f:
+    #     f.write("nameserver 8.8.8.8\n")
 
-    with open(f"{root}/etc/motd","w") as f:
-        f.write("Welcome to KodOS\n")
+    # with open(f"{root}/etc/motd","w") as f:
+    #     f.write("Welcome to KodOS\n")
 
-    with open(f"{root}/etc/issue","w") as f:
-        f.write("KodOS Linux \\r (\\l)\n")
+    # with open(f"{root}/etc/issue","w") as f:
+    #     f.write("KodOS Linux \\r (\\l)\n")
 
-    timezone = "America/Edmonton"
-    c.run(f"cd {root}/usr/lib && ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime")
+    # timezone = "America/Edmonton"
+    # c.run(f"cd {root}/usr/lib && ln -sf /usr/share/zoneinfo/{timezone} /etc/localtime")
 
-    # c.run(f"rm -f {root}/etc/locale.gen")
-    c.run(f"echo 'en_US.UTF-8 UTF-8' > {root}/etc/locale.gen")
+    # # c.run(f"rm -f {root}/etc/locale.gen")
+    # c.run(f"echo 'en_US.UTF-8 UTF-8' > {root}/etc/locale.gen")
 
-    hostname = "kodos"
-    c.run(f"echo '{hostname}' > {root}/etc/hostname")
+    # hostname = "kodos"
+    # c.run(f"echo '{hostname}' > {root}/etc/hostname")
 
-    # Copy tools
-    c.run(f"cp tools/run_stage.sh {root}/usr/bin")
+    # # Copy tools
+    # c.run(f"cp tools/run_stage.sh {root}/usr/bin")
 
     # rootfs = c.config["run"]["env"]["KOD_ROOTFS"]
     # print("Rootfs:", rootfs)

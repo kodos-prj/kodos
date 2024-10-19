@@ -1,6 +1,6 @@
 ########################################################################################
 
-from .units import add_value_unit, convert2byte
+from .units import add_value_unit
 
 
 _filesystem_cmd = {
