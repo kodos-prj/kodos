@@ -3,6 +3,9 @@ import json
 from operator import ne
 import os
 from pathlib import Path
+import signal
+import subprocess
+import sys
 from invoke import task
 import lupa as lua
 
@@ -13,7 +16,442 @@ from pprint import pprint
 from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 from kod.filesytem import create_partitions
 
-@task(help={"root":"root path for the installation"})
+
+#####################################################################################################
+
+def preexec():
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGQUIT, signal.SIG_IGN)
+
+
+def exec(c, cmd, input=None, testing=False):
+    if testing:
+        if input != None:
+            print(' '.join(cmd), '<--', input)
+        else:
+            print(' '.join(cmd))
+    else:
+        c.run(cmd)
+        # if input != None:
+        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
+        #                     stderr=sys.stderr, preexec_fn=preexec, input=input.encode()).returncode
+        # else:
+        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
+        #                     stderr=sys.stderr, preexec_fn=preexec).returncode
+
+
+def exec_chroot(c,cmd):
+    chroot_cmd = 'arch-chroot /mnt '
+    chroot_cmd += cmd
+    exec(c, chroot_cmd)
+
+
+def enable_service(c, service):
+    exec_chroot(c, f"systemctl enable {service}")
+
+
+def enable_user_service(c, service):
+    exec_chroot(c, f"systemctl --global enable {service}")
+
+
+def mount(c, part, path):
+    exec(c, f"mount {part} {path}")
+
+
+def mkdir(c, path):
+    exec(c, f"mkdir -p {path}")
+
+
+#####################################################################################################
+
+
+
+def load_config(config_filename: str):
+    luart = lua.LuaRuntime(unpack_returned_tuples=True)
+    config_path = Path(config_filename).resolve().parents[0]
+    luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
+    with open(config_filename) as f:
+        config_data = f.read()
+        conf = luart.execute(config_data)
+    return conf
+
+
+def install_essentials_pkgs(c):
+    exec(c, "pacstrap -K /mnt base linux linux-firmware")
+
+
+def configure_system(c):
+    
+    # fstab
+    exec(c, "genfstab -U /mnt >> /mnt/etc/fstab")
+    
+    # time
+    time_zone = "America/Edmonton"
+    exec_chroot(c, f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
+    exec_chroot(c, "hwclock --systohc")
+    
+    # Localization
+    exec_chroot(c, "echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen")
+    exec_chroot(c, "locale-gen")
+    exec_chroot(c, "echo 'LANG=en_US.UTF-8' > /etc/locale.conf")
+    
+    # Network
+    exec_chroot(c, "systemctl enable systemd-networkd")
+    
+    # hostname
+    hostname = "kodos"
+    exec_chroot(c, f"echo '{hostname}' > /etc/hostname")
+    eth0_network = """[Match]
+Name=*
+[Network]
+DHCP=ipv4"""
+    with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
+        f.write(eth0_network)
+    exec_chroot(c, "systemctl enable systemd-networkd.service")
+    exec_chroot(c, "systemctl start systemd-networkd.service")
+    # hosts
+    exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
+    exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
+    # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
+
+    # initramfs
+    exec_chroot(c, "mkinitcpio -P")
+
+    # Change root password
+    exec_chroot(c, "passwd")
+
+    # bootloader
+    exec_chroot(c, "bootctl install")
+    loader_conf = """
+default arch
+timeout 3
+console-mode max
+editor no"""
+    with open("/mnt/boot/loader/loader.conf", "w") as f:
+        f.write(loader_conf)
+    
+    kodos_conf = """
+title KodOS Linux
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options root=/dev/vda2 rw
+"""
+    with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
+        f.write(kodos_conf)
+
+    kodos_fb_conf = """
+title KodOS Linux - fallback
+linux /vmlinuz-linux
+initrd /initramfs-linux-fallback.img
+options root=/dev/vda2 rw
+"""
+    with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
+        f.write(kodos_fb_conf)
+
+
+    # exec_chroot(c, "pacman -S --noconfirm grub")
+    # exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
+    # exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+
+@task(help={"config":"system configuration file"})
+def install(c, config):
+
+    conf = load_config(config)
+
+    devices = conf.devices
+    print(f"{devices=}")
+
+    print(f"{list(devices.keys())=}")
+    print("->>",devices.disk0)
+    for d_id, disk in devices.items():
+        print(d_id)
+        create_partitions(c, disk)
+    print("-------------------------------")
+    install_essentials_pkgs(c)
+    configure_system(c)
+
+    print("Done")
+
+
+# @task(help={"config":"system configuration file"})
+def rebuild(c, config):
+    # [x] Check if catalog existsx
+    # If not,
+    #   [x] read config and get the sources
+    #   [x] Download the catalog and create catalog.json
+    # [x] Read the catalog.json
+    # - [x] A new generation is created, and the list of packages, pkgs's configurations are recreated
+    # - [x] If new  packages are added, they are downloaded and stored in pkgs directory
+    # - [x] from the list os selected packages, link pkgs in the new generation
+
+    absolute = False
+
+    conf = load_config(config)
+
+
+    devices = conf.devices
+    print(f"{devices=}")
+
+    boot = conf.boot
+    print(f"{boot=}")
+
+    locale = conf.locale
+    print(f"{locale=}")
+
+    network = conf.network
+    print(f"{network=}")
+
+    users = conf.users
+    print(f"{users=}")
+
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
+
+    # catalog = load_catalog(c, conf.sources)
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        sources = conf.source
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
+
+    with open("kod/config/providers.json") as f:
+        providers = json.load(f)
+
+    # created_dirs = []
+    # if Path("kod/generations/current/.created_dirs.txt").exists():
+    #     with open("kod/generations/current/.created_dirs.txt") as f:
+    #         created_dirs = f.read().split("\n")
+
+    # created_symlinks = []
+    # if Path("kod/generations/current/.created_symlink.txt").exists():
+    #     with open("kod/generations/current/.created_symlink.txt") as f:
+    #         created_symlinks = f.read().split("\n")
+
+    previous_installed = None
+    generation = get_next_generation()
+    c.run(f"mkdir -p kod/generations/{generation}")
+    if generation > 1:
+        previous_installed = load_installed("kod/generations/current")
+        c.run("rm kod/generations/current")
+    c.run(f"cd kod/generations && ln -s {generation} current")
+
+    # pkg_list = list(conf.packages.values())
+    # print(pkg_list)
+
+    all_pkgs_to_install = {}
+    packages_to_install = {}
+    for pkgname in pkg_list:
+        # print(pkgname)
+        packages_to_install = get_list_of_packages_to_install(catalog, providers, pkgname)
+        # print(packages_to_install.keys())
+        all_pkgs_to_install.update(packages_to_install)
+
+    save_installed(generation, all_pkgs_to_install)
+
+    if previous_installed:
+        new_added_pkgs = set(all_pkgs_to_install.keys()) - set(previous_installed.keys())
+    else:
+        new_added_pkgs = set(all_pkgs_to_install.keys())
+    print(f"{new_added_pkgs = }")
+
+    updated_pkgs = []
+    if previous_installed:
+        same_pkgs = set(all_pkgs_to_install.keys()) & set(previous_installed.keys())
+        for pkg in same_pkgs:
+            if previous_installed[pkg] != all_pkgs_to_install[pkg]['version']:
+                updated_pkgs.append(pkg)
+    print(f"{updated_pkgs = }")
+
+    removed_pkgs = []
+    if previous_installed:
+        removed_pkgs = set(previous_installed.keys() - set(all_pkgs_to_install.keys()))
+    print(f"{removed_pkgs = }")
+
+    
+    print("========= packages ==========")
+    for pkg in all_pkgs_to_install.keys():
+        print("-",pkg)
+    print("=============================")
+
+    for pkg, desc in all_pkgs_to_install.items():
+        download_size, install_size = calc_sizes(packages_to_install)
+        print(f"Download size: {download_size}, Install size: {install_size}\n")
+        print(pkg, desc["filename"])
+        mirror_url = f"{conf.source.url}/{desc['repo']}/os/{conf.source.arch}/"
+        # mirror_url = get_mirror_url(globals.source, desc['repo'])
+        print(mirror_url)
+        install_pkg(c, mirror_url, desc, "")
+
+    make_pkg_generation_links(c, all_pkgs_to_install, generation, absolute=absolute)
+    # remove_previous_current(created_symlinks, created_dirs)
+    # make_file_generation_links(all_pkgs_to_install, "kod/generations/current/.rootfs")
+    make_file_generation_links(c, all_pkgs_to_install, "", absolute=absolute)
+
+    # # TODO:
+    # # Remove broken links (files are not used)
+    # # Check for packages that have .INSTALL file
+
+    print("************ ****** ***** *** ** *")
+    for pkg, desc in all_pkgs_to_install.items():
+        print(pkg, desc["version"])
+
+    print("====== ==== == =")
+    report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs)
+    # -------
+
+
+# -----------------------------------------------------
+# Intall/create partitions
+# -----------------------------------------------------
+# @task(help={"config":"system configuration file"})
+def partiotions(c, config):
+
+    conf = load_config(config)
+
+    devices = conf.devices
+    print(f"{devices=}")
+
+    print(f"{list(devices.keys())=}")
+    # for k,v in devices.disk.items():
+    #     print(f"  {k} = {v}")
+    print("->>",devices.disk0)
+    for d_id, disk in devices.items():
+        print(d_id)
+        create_partitions(c, disk)
+    print("-------------------------------")
+
+    # boot = conf.boot
+    # print(f"{boot=}")
+
+
+# -----------------------------------------------------
+# Intall bootloader
+# -----------------------------------------------------
+# mkinitcpio preset file for the 'linux' package on archiso
+
+PRESETS=('archiso')
+
+ALL_kver='/boot/vmlinuz-linux'
+ALL_config='/etc/mkinitcpio.conf'
+
+archiso_image="/boot/initramfs-linux.img"
+
+
+
+# @task(help={"config":"system configuration file"})
+def install_boot(c, config):
+
+    conf = load_config(config)
+
+    boot = conf.boot
+    print(f"{boot=}")
+
+    initrd = boot.initrd
+    print(f"{initrd=}")
+
+    if not Path("kod/config/catalog.json").exists():
+        # Init catalog
+        sources = conf.source
+        init_index(c, sources)
+    with open("kod/config/catalog.json") as f:
+        catalog = json.load(f)
+
+    linux_desc = catalog["linux"]
+    # kver = linux_desc["version"]
+    kver = "6.11.3-arch1-1"
+    c.run(f"arch-chroot /mnt depmod {kver}")
+
+    c.run("echo \"PRESETS=('default')\" > /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"ALL_kver='/boot/vmlinuz-linux'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"ALL_config='/etc/mkinitcpio.conf'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+    c.run("echo \"default_image=\"/boot/initramfs-linux.img\" >> /mnt/etc/mkinitcpio.d/linux.preset")
+
+    mkinitcpio_conf = '''# MODULES
+MODULES=(vfat ext4)
+BINARIES=()
+FILES=()
+HOOKS=(base udev modconf memdisk kms block filesystems keyboard)
+COMPRESSION="zstd"
+"'''
+    with open("/mnt/etc/mkinitcpio.conf","w") as f:
+        f.write(mkinitcpio_conf)
+
+    # depmod 6.10.10-arch1-1
+    c.run("arch-chroot /mnt /usr/bin/mkinitcpio -P linux")
+    # c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
+    # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
+
+    # loader processing
+    loader = boot.loader
+    for item,value in loader.items():
+        print(item,value)
+
+    loader_type = loader.type
+
+    if loader_type == "systemd-boot":
+        print("Using systemd-boot")
+        
+        # Remove the linked fie to avoid cross partion links
+        efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
+        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
+        c.run(f"mv /mnt{efi_systemd_boot} /mnt{efi_systemd_boot}-lnk")
+        # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"cp /mnt/kod/generations/current/systemd/{efi_systemd_boot} /mnt{efi_systemd_boot}")
+
+        # ------------
+        # bootctl --make-entry-directory=yes install 
+        c.run(f"arch-chroot /mnt bootctl install")
+
+        # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
+        # c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
+
+        loader_conf = '''default kodos.conf
+timeout  10
+console-mode max
+"'''
+        with open("/mnt/boot/loader/loader.conf","w") as f:
+            f.write(loader_conf)
+
+        kodos_conf = '''title   KodOS Linux
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=/dev/vda2 rw
+"'''
+        with open("/mnt/boot/loader/entries/kodos.conf","w") as f:
+            f.write(kodos_conf)
+
+        kodos_conf = '''title   KodOS Linux - Debug
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=/dev/vda2 rw debug console=tty0 console=ttyS0
+"'''
+        with open("/mnt/boot/loader/entries/kodos_debug.conf","w") as f:
+            f.write(kodos_conf)
+
+        # ------------
+        # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"rm /mnt{efi_systemd_boot}")
+        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+        c.run(f"mv /mnt{efi_systemd_boot}-lnk /mnt{efi_systemd_boot}")
+
+    entries_to_include = loader.include
+
+    for entry in entries_to_include.values():
+        print(f"Include {entry}")
+        print(f"install '{entry}-efi' if not installed")
+        print(f"Create /boot/loader/entries/{entry}.conf")
+        print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
+    print("-------------------------------")
+
+
+
+##############################################################################
+
+
+
+# @task(help={"root":"root path for the installation"})
 def init_root(c, root = "rootfs"):
     # kod hierarchy
     # kod_dirs = ["kod/config", "kod/generations", "kod/pkgs"]
@@ -180,15 +618,6 @@ Server = http://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch"""
 
 # ----------------------------------
 
-def load_config(config_filename: str):
-    luart = lua.LuaRuntime(unpack_returned_tuples=True)
-    config_path = Path(config_filename).resolve().parents[0]
-    luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
-    with open(config_filename) as f:
-        config_data = f.read()
-        conf = luart.execute(config_data)
-    return conf
-
 def get_next_generation():
     generations = glob.glob("kod/generations/*")
     generations = [p for p in generations if not os.path.islink(p)]
@@ -340,277 +769,6 @@ def save_installed(generation, inst_pkgs):
             f.write(f"{pkg} {info['version']}\n")
 
 
-@task(help={"config":"system configuration file"})
-def rebuild(c, config):
-    # [x] Check if catalog existsx
-    # If not,
-    #   [x] read config and get the sources
-    #   [x] Download the catalog and create catalog.json
-    # [x] Read the catalog.json
-    # - [x] A new generation is created, and the list of packages, pkgs's configurations are recreated
-    # - [x] If new  packages are added, they are downloaded and stored in pkgs directory
-    # - [x] from the list os selected packages, link pkgs in the new generation
-
-    absolute = False
-
-    conf = load_config(config)
-
-
-    devices = conf.devices
-    print(f"{devices=}")
-
-    boot = conf.boot
-    print(f"{boot=}")
-
-    locale = conf.locale
-    print(f"{locale=}")
-
-    network = conf.network
-    print(f"{network=}")
-
-    users = conf.users
-    print(f"{users=}")
-
-    pkg_list = list(conf.packages.values())
-    print("packages\n",pkg_list)
-
-    # catalog = load_catalog(c, conf.sources)
-    if not Path("kod/config/catalog.json").exists():
-        # Init catalog
-        sources = conf.source
-        init_index(c, sources)
-    with open("kod/config/catalog.json") as f:
-        catalog = json.load(f)
-
-    with open("kod/config/providers.json") as f:
-        providers = json.load(f)
-
-    # created_dirs = []
-    # if Path("kod/generations/current/.created_dirs.txt").exists():
-    #     with open("kod/generations/current/.created_dirs.txt") as f:
-    #         created_dirs = f.read().split("\n")
-
-    # created_symlinks = []
-    # if Path("kod/generations/current/.created_symlink.txt").exists():
-    #     with open("kod/generations/current/.created_symlink.txt") as f:
-    #         created_symlinks = f.read().split("\n")
-
-    previous_installed = None
-    generation = get_next_generation()
-    c.run(f"mkdir -p kod/generations/{generation}")
-    if generation > 1:
-        previous_installed = load_installed("kod/generations/current")
-        c.run("rm kod/generations/current")
-    c.run(f"cd kod/generations && ln -s {generation} current")
-
-    # pkg_list = list(conf.packages.values())
-    # print(pkg_list)
-
-    all_pkgs_to_install = {}
-    packages_to_install = {}
-    for pkgname in pkg_list:
-        # print(pkgname)
-        packages_to_install = get_list_of_packages_to_install(catalog, providers, pkgname)
-        # print(packages_to_install.keys())
-        all_pkgs_to_install.update(packages_to_install)
-
-    save_installed(generation, all_pkgs_to_install)
-
-    if previous_installed:
-        new_added_pkgs = set(all_pkgs_to_install.keys()) - set(previous_installed.keys())
-    else:
-        new_added_pkgs = set(all_pkgs_to_install.keys())
-    print(f"{new_added_pkgs = }")
-
-    updated_pkgs = []
-    if previous_installed:
-        same_pkgs = set(all_pkgs_to_install.keys()) & set(previous_installed.keys())
-        for pkg in same_pkgs:
-            if previous_installed[pkg] != all_pkgs_to_install[pkg]['version']:
-                updated_pkgs.append(pkg)
-    print(f"{updated_pkgs = }")
-
-    removed_pkgs = []
-    if previous_installed:
-        removed_pkgs = set(previous_installed.keys() - set(all_pkgs_to_install.keys()))
-    print(f"{removed_pkgs = }")
-
-    
-    print("========= packages ==========")
-    for pkg in all_pkgs_to_install.keys():
-        print("-",pkg)
-    print("=============================")
-
-    for pkg, desc in all_pkgs_to_install.items():
-        download_size, install_size = calc_sizes(packages_to_install)
-        print(f"Download size: {download_size}, Install size: {install_size}\n")
-        print(pkg, desc["filename"])
-        mirror_url = f"{conf.source.url}/{desc['repo']}/os/{conf.source.arch}/"
-        # mirror_url = get_mirror_url(globals.source, desc['repo'])
-        print(mirror_url)
-        install_pkg(c, mirror_url, desc, "")
-
-    make_pkg_generation_links(c, all_pkgs_to_install, generation, absolute=absolute)
-    # remove_previous_current(created_symlinks, created_dirs)
-    # make_file_generation_links(all_pkgs_to_install, "kod/generations/current/.rootfs")
-    make_file_generation_links(c, all_pkgs_to_install, "", absolute=absolute)
-
-    # # TODO:
-    # # Remove broken links (files are not used)
-    # # Check for packages that have .INSTALL file
-
-    print("************ ****** ***** *** ** *")
-    for pkg, desc in all_pkgs_to_install.items():
-        print(pkg, desc["version"])
-
-    print("====== ==== == =")
-    report_install_scripts(c, new_added_pkgs, updated_pkgs, removed_pkgs)
-    # -------
-
-
-# -----------------------------------------------------
-# Intall/create partitions
-# -----------------------------------------------------
-@task(help={"config":"system configuration file"})
-def install(c, config):
-
-    conf = load_config(config)
-
-    devices = conf.devices
-    print(f"{devices=}")
-
-    print(f"{list(devices.keys())=}")
-    # for k,v in devices.disk.items():
-    #     print(f"  {k} = {v}")
-    print("->>",devices.disk0)
-    for d_id, disk in devices.items():
-        print(d_id)
-        create_partitions(c, disk)
-    print("-------------------------------")
-
-    # boot = conf.boot
-    # print(f"{boot=}")
-
-
-# -----------------------------------------------------
-# Intall bootloader
-# -----------------------------------------------------
-# mkinitcpio preset file for the 'linux' package on archiso
-
-PRESETS=('archiso')
-
-ALL_kver='/boot/vmlinuz-linux'
-ALL_config='/etc/mkinitcpio.conf'
-
-archiso_image="/boot/initramfs-linux.img"
-
-
-
-@task(help={"config":"system configuration file"})
-def install_boot(c, config):
-
-    conf = load_config(config)
-
-    boot = conf.boot
-    print(f"{boot=}")
-
-    initrd = boot.initrd
-    print(f"{initrd=}")
-
-    if not Path("kod/config/catalog.json").exists():
-        # Init catalog
-        sources = conf.source
-        init_index(c, sources)
-    with open("kod/config/catalog.json") as f:
-        catalog = json.load(f)
-
-    linux_desc = catalog["linux"]
-    # kver = linux_desc["version"]
-    kver = "6.11.3-arch1-1"
-    c.run(f"arch-chroot /mnt depmod {kver}")
-
-    c.run("echo \"PRESETS=('default')\" > /mnt/etc/mkinitcpio.d/linux.preset")
-    c.run("echo \"ALL_kver='/boot/vmlinuz-linux'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
-    c.run("echo \"ALL_config='/etc/mkinitcpio.conf'\" >> /mnt/etc/mkinitcpio.d/linux.preset")
-    c.run("echo \"default_image=\"/boot/initramfs-linux.img\" >> /mnt/etc/mkinitcpio.d/linux.preset")
-
-    mkinitcpio_conf = '''# MODULES
-MODULES=(vfat ext4)
-BINARIES=()
-FILES=()
-HOOKS=(base udev modconf memdisk kms block filesystems keyboard)
-COMPRESSION="zstd"
-"'''
-    with open("/mnt/etc/mkinitcpio.conf","w") as f:
-        f.write(mkinitcpio_conf)
-
-    # depmod 6.10.10-arch1-1
-    c.run("arch-chroot /mnt /usr/bin/mkinitcpio -P linux")
-    # c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
-    # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
-
-    # loader processing
-    loader = boot.loader
-    for item,value in loader.items():
-        print(item,value)
-
-    loader_type = loader.type
-
-    if loader_type == "systemd-boot":
-        print("Using systemd-boot")
-        
-        # Remove the linked fie to avoid cross partion links
-        efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
-        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
-        c.run(f"mv /mnt{efi_systemd_boot} /mnt{efi_systemd_boot}-lnk")
-        # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"cp /mnt/kod/generations/current/systemd/{efi_systemd_boot} /mnt{efi_systemd_boot}")
-
-        # ------------
-        # bootctl --make-entry-directory=yes install 
-        c.run(f"arch-chroot /mnt bootctl install")
-
-        # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
-        # c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
-
-        loader_conf = '''default kodos.conf
-timeout  10
-console-mode max
-"'''
-        with open("/mnt/boot/loader/loader.conf","w") as f:
-            f.write(loader_conf)
-
-        kodos_conf = '''title   KodOS Linux
-linux   /vmlinuz-linux
-initrd  /initramfs-linux.img
-options root=/dev/vda2 rw
-"'''
-        with open("/mnt/boot/loader/entries/kodos.conf","w") as f:
-            f.write(kodos_conf)
-
-        kodos_conf = '''title   KodOS Linux - Debug
-linux   /vmlinuz-linux
-initrd  /initramfs-linux.img
-options root=/dev/vda2 rw debug console=tty0 console=ttyS0
-"'''
-        with open("/mnt/boot/loader/entries/kodos_debug.conf","w") as f:
-            f.write(kodos_conf)
-
-        # ------------
-        # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"rm /mnt{efi_systemd_boot}")
-        # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-        c.run(f"mv /mnt{efi_systemd_boot}-lnk /mnt{efi_systemd_boot}")
-
-    entries_to_include = loader.include
-
-    for entry in entries_to_include.values():
-        print(f"Include {entry}")
-        print(f"install '{entry}-efi' if not installed")
-        print(f"Create /boot/loader/entries/{entry}.conf")
-        print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
-    print("-------------------------------")
-
 # @task(help={"config":"system configuration file"})
 # def install_boot(c, config):
 
@@ -681,7 +839,7 @@ options root=/dev/vda2 rw debug console=tty0 console=ttyS0
 # -----------------------------------------------------
 # Intall bootloader
 # -----------------------------------------------------
-@task(help={"config":"system configuration file"})
+# @task(help={"config":"system configuration file"})
 def install_network(c, config):
 
     conf = load_config(config)
@@ -705,7 +863,7 @@ def install_network(c, config):
 # Intall bootloader
 # -----------------------------------------------------
 
-@task(help={"config":"system configuration file"})
+# @task(help={"config":"system configuration file"})
 def test_rebuild(c, config):
     # [x] Check if catalog existsx
     # If not,

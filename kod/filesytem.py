@@ -22,38 +22,6 @@ _filesystem_cmd = {
 }
 
 
-# wipefs -a /dev/vda
-# sync
-
-# parted -s /dev/vda mklabel gpt
-
-# ---- 1 -----
-# parted -s /dev/vda -a opt mkpart Boot fat32 1 1024MiB
-# parted -s /dev/vda set 1 boot on
-# mkfs.vfat -F32 /dev/vda1
-#### parted -s /dev/vda set 1 esp on
-
-# ---- 2 -----
-# parted -s /dev/vda -a opt mkpart Swap linux-swap 1024MiB 2048MiB
-# mkswap /dev/vda2
-
-# ---- 3 ----
-# parted -s /dev/vda -a opt mkpart Root btrfs 2048MiB 100%
-# mkfs.btrfs /dev/vda3
-# mount /dev/vda3 /mnt
-
-# btrfs subvolume create /mnt/rootfs
-# btrfs subvolume create /mnt/home
-# btrfs subvolume create /mnt/kod
-
-# umount /mnt
-# mount -o subvol=rootfs /dev/vda3 /mnt
-# mkdir -p /mnt/home
-# mkdir -p /mnt/kod
-# mount -o compress=zstd,subvol=home /dev/vda3 /mnt/home
-# mount -o compress=zstd,noatime,subvol=kod /dev/vda3 /mnt/kod
-
-
 def create_btrfs(c,delay_action, part, blockdevice):
     print("Cheking subvolumes")
     c.run(f"mount {blockdevice} /mnt")
@@ -78,7 +46,7 @@ def create_btrfs(c,delay_action, part, blockdevice):
             delay_action.append(f"mkdir -p {install_mountpoint}")
             delay_action.append(f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}")
 
-    c.run("umount /mnt")
+    #c.run("umount -R /mnt")
     # mount -o subvol=rootfs /dev/vda3 /mnt
     # mkdir -p /mnt/home
     # mkdir -p /mnt/kod
