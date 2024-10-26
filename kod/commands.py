@@ -81,31 +81,44 @@ def install_essentials_pkgs(c):
     exec(c, "pacstrap -K /mnt base linux linux-firmware")
 
 
-def configure_system(c):
+def create_users(c, conf):
+    pass
+
+def configure_system(c, conf):
     
     # fstab
     exec(c, "genfstab -U /mnt >> /mnt/etc/fstab")
     
-    # time
-    time_zone = "America/Edmonton"
+    # Locale
+    locale_conf = conf["locale"]
+    time_zone = locale_conf.get("timezone", "GMT")
     exec_chroot(c, f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
     exec_chroot(c, "hwclock --systohc")
     
     # Localization
-    exec_chroot(c, "echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen")
+    locale = locale_conf["locale"]
+    exec_chroot(c, f"echo '{locale}' > /etc/locale.gen")
     exec_chroot(c, "locale-gen")
-    exec_chroot(c, "echo 'LANG=en_US.UTF-8' > /etc/locale.conf")
+    locale_name = locale.split()[0]
+    exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
     
     # Network
+    network_conf = conf["network"]
     exec_chroot(c, "systemctl enable systemd-networkd")
     
     # hostname
-    hostname = "kodos"
+    hostname = network_conf.get("hostname", "kodos")
     exec_chroot(c, f"echo '{hostname}' > /etc/hostname")
+    use_ipv4 = network_conf.get("ipv4", True)
+    use_ipv6 = network_conf.get("ipv6", True)
     eth0_network = """[Match]
 Name=*
 [Network]
-DHCP=ipv4"""
+"""
+    if use_ipv4:
+        eth0_network += "DHCP=ipv4\n"
+    if use_ipv6:
+        eth0_network += "DHCP=ipv6\n"
     with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
         f.write(eth0_network)
     exec_chroot(c, "systemctl enable systemd-networkd.service")
@@ -127,7 +140,7 @@ DHCP=ipv4"""
 default arch
 timeout 3
 console-mode max
-editor no"""
+#editor no"""
     with open("/mnt/boot/loader/loader.conf", "w") as f:
         f.write(loader_conf)
     
@@ -154,22 +167,16 @@ options root=/dev/vda2 rw
     # exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
     # exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
+
 @task(help={"config":"system configuration file"})
 def install(c, config):
 
     conf = load_config(config)
-
-    devices = conf.devices
-    print(f"{devices=}")
-
-    print(f"{list(devices.keys())=}")
-    print("->>",devices.disk0)
-    for d_id, disk in devices.items():
-        print(d_id)
-        create_partitions(c, disk)
     print("-------------------------------")
+    create_partitions(c, conf)
     install_essentials_pkgs(c)
-    configure_system(c)
+    configure_system(c, conf)
+    create_users(c, conf)
 
     print("Done")
 
@@ -982,3 +989,7 @@ def test_rebuild(c, config):
 
 # list of packages to install
 # pacman -Sp --config pacman.conf base linux linux-firmware mc | awk -F/ '{print $NF}' 
+
+
+# boot btrfs ratition subvolume
+# ]linux	/@/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=@ cryptdevice=/dev/disk/by-uuid/bb7396f5-f246-4edf-9f1f-298c9ca560ac:cryptroot:allow-discards modprobe.blacklist=ehci_pci i915.semaphores=1 quiet loglevel=3 udev.log-priority=3

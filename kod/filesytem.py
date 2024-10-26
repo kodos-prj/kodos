@@ -56,8 +56,17 @@ def create_btrfs(c,delay_action, part, blockdevice):
     print(".......................")
     return delay_action
 
+def create_partitions(c, conf):
+    devices = conf.devices
+    print(f"{devices=}")
 
-def create_partitions(c, disk_info):
+    print(f"{list(devices.keys())=}")
+    print("->>",devices.disk0)
+    for d_id, disk in devices.items():
+        print(d_id)
+        create_disk_partitions(c, disk)
+
+def create_disk_partitions(c, disk_info):
 
     device = disk_info['device']
     efi = disk_info['efi']
