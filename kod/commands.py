@@ -1,15 +1,11 @@
 import glob
 import json
-from operator import ne
 import os
 from pathlib import Path
 import signal
-import subprocess
-import sys
 from invoke import task
 import lupa as lua
 
-from pprint import pprint
 
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 # from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
@@ -42,9 +38,10 @@ def exec(c, cmd, input=None, testing=False):
 
 
 def exec_chroot(c,cmd):
+    print(cmd)
     chroot_cmd = 'arch-chroot /mnt '
     chroot_cmd += cmd
-    exec(c, chroot_cmd)
+    # exec(c, chroot_cmd)
 
 
 def enable_service(c, service):
@@ -90,27 +87,30 @@ def configure_system(c, conf):
     exec(c, "genfstab -U /mnt >> /mnt/etc/fstab")
     
     # Locale
-    locale_conf = conf["locale"]
-    time_zone = locale_conf.get("timezone", "GMT")
+    locale_conf = conf.locale
+    if locale_conf:
+        time_zone = locale_conf["timezone"]
+    else:
+        time_zone = "GMT"
     exec_chroot(c, f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
     exec_chroot(c, "hwclock --systohc")
     
     # Localization
-    locale = locale_conf["locale"]
+    locale = dict(locale_conf["locale"])["default"]
     exec_chroot(c, f"echo '{locale}' > /etc/locale.gen")
     exec_chroot(c, "locale-gen")
     locale_name = locale.split()[0]
     exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
     
     # Network
-    network_conf = conf["network"]
+    network_conf = conf.network
     exec_chroot(c, "systemctl enable systemd-networkd")
     
     # hostname
-    hostname = network_conf.get("hostname", "kodos")
-    exec_chroot(c, f"echo '{hostname}' > /etc/hostname")
-    use_ipv4 = network_conf.get("ipv4", True)
-    use_ipv6 = network_conf.get("ipv6", True)
+    hostname = network_conf["hostname"]
+    print(f"echo '{hostname}' > /etc/hostname")
+    use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
+    use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
 Name=*
 [Network]
@@ -136,6 +136,20 @@ Name=*
 
     # bootloader
     exec_chroot(c, "bootctl install")
+
+    res = c.run("cat /tmp/fstab | grep '[ \t]/[ \t]'")
+    mount_point = res.stdout.split()
+    root_part = mount_point[0].strip()
+    part_type = mount_point[2].strip()
+    mount_options = mount_point[3].strip().split(",")
+    print(root_part, part_type, mount_options)
+    option = ""
+    if part_type == "btrfs":
+        for opt in mount_options:
+            if opt.startswith("subvol"):
+                option = "rootflags="+opt
+
+
     loader_conf = """
 default arch
 timeout 3
@@ -144,11 +158,11 @@ console-mode max
     with open("/mnt/boot/loader/loader.conf", "w") as f:
         f.write(loader_conf)
     
-    kodos_conf = """
+    kodos_conf = f"""
 title KodOS Linux
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
-options root=/dev/vda2 rw
+options root={root_part} rw {option}
 """
     with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
         f.write(kodos_conf)
@@ -157,7 +171,7 @@ options root=/dev/vda2 rw
 title KodOS Linux - fallback
 linux /vmlinuz-linux
 initrd /initramfs-linux-fallback.img
-options root=/dev/vda2 rw
+options root={root_part} rw {option}
 """
     with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
         f.write(kodos_fb_conf)
@@ -179,6 +193,152 @@ def install(c, config):
     create_users(c, conf)
 
     print("Done")
+
+
+# ----------------------------------------------------
+
+def configure_system_test(c, conf):
+    
+    # fstab
+    print("genfstab -U /mnt >> /mnt/etc/fstab")
+    
+    # Locale
+    locale_conf = conf.locale
+    if locale_conf:
+        time_zone = locale_conf["timezone"]
+    else:
+        time_zone = "GMT"
+    print(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
+    print("hwclock --systohc")
+    
+    # Localization
+    locale = dict(locale_conf["locale"])["default"]
+    print(f"echo '{locale}' > /etc/locale.gen")
+    print("locale-gen")
+    locale_name = locale.split()[0]
+    print(f"echo 'LANG={locale_name}' > /etc/locale.conf")
+    
+    # Network
+    network_conf = conf.network
+    print("systemctl enable systemd-networkd")
+    
+    # hostname
+    hostname = network_conf["hostname"]
+    print(f"echo '{hostname}' > /etc/hostname")
+    use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
+    use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
+    # use_ipv6 = network_conf.get("ipv6", True)
+    eth0_network = """[Match]
+Name=*
+[Network]
+"""
+    if use_ipv4:
+        eth0_network += "DHCP=ipv4\n"
+    if use_ipv6:
+        eth0_network += "DHCP=ipv6\n"
+    print(eth0_network)
+
+    print(r"\/\/\/\/\/\/\/")
+    res = c.run("cat /tmp/fstab | grep '[ \t]/[ \t]'")
+    mount_point = res.stdout.split()
+    root_part = mount_point[0].strip()
+    part_type = mount_point[2].strip()
+    mount_options = mount_point[3].strip().split(",")
+    print(root_part, part_type, mount_options)
+    option = ""
+    if part_type == "btrfs":
+        for opt in mount_options:
+            if opt.startswith("subvol"):
+                option = "rootflags="+opt
+    # with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
+        # f.write(eth0_network)
+    # exec_chroot(c, "systemctl enable systemd-networkd.service")
+    # exec_chroot(c, "systemctl start systemd-networkd.service")
+    # hosts
+#     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
+#     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
+#     # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
+
+#     # initramfs
+#     exec_chroot(c, "mkinitcpio -P")
+
+#     # Change root password
+#     exec_chroot(c, "passwd")
+
+#     # bootloader
+#     exec_chroot(c, "bootctl install")
+    loader_conf = """
+default arch
+timeout 3
+console-mode max
+#editor no"""
+    # print(loader_conf)
+#     with open("/mnt/boot/loader/loader.conf", "w") as f:
+#         f.write(loader_conf)
+    
+    kodos_conf = f"""
+title KodOS Linux
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options root={root_part} rw {option}
+"""
+    print(kodos_conf)
+#     with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
+#         f.write(kodos_conf)
+
+#     kodos_fb_conf = """
+# title KodOS Linux - fallback
+# linux /vmlinuz-linux
+# initrd /initramfs-linux-fallback.img
+# options root=/dev/vda2 rw
+# """
+#     with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
+#         f.write(kodos_fb_conf)
+
+
+
+@task(help={"config":"system configuration file"})
+def test_config(c, config):
+
+    conf = load_config(config)
+
+
+    devices = conf.devices
+    print(f"{devices=}")
+    for k,v in devices.items():
+        print(f"  {k} = {v}")
+        disk = devices.disk
+        print(f"{disk = }")
+        print(dict(v))
+        # print(list(disk))
+        # for k,v in disk_dict.items():
+            # print(f"  {k} = {v}")
+        
+
+    boot = conf.boot
+    print(f"{boot=}")
+    for k,v in boot.items():
+        print(f"  {k} = {v}")
+
+    locale = conf.locale
+    print(f"{locale=}")
+    for k,v in locale.items():
+        print(f"  {k} = {v}")
+    print(locale['timezone'])
+
+    network = conf.network
+    print(f"{network=}")
+    for k,v in network.items():
+        print(f"  {k} = {v}")
+
+    users = conf.users
+    print(f"{users=}")
+    for k,v in users.items():
+        print(f"  {k} = {v}")
+
+    print("========================================")
+    configure_system_test(c, conf)
+
 
 
 # @task(help={"config":"system configuration file"})
@@ -993,3 +1153,4 @@ def test_rebuild(c, config):
 
 # boot btrfs ratition subvolume
 # ]linux	/@/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=@ cryptdevice=/dev/disk/by-uuid/bb7396f5-f246-4edf-9f1f-298c9ca560ac:cryptroot:allow-discards modprobe.blacklist=ehci_pci i915.semaphores=1 quiet loglevel=3 udev.log-priority=3
+# linux	/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=/rootfs i915.semaphores=1 loglevel=3

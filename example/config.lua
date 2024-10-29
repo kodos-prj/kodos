@@ -42,10 +42,10 @@ return {
 
     locale = {
         locale = {
-            "en_US.UTF-8 UTF-8"
+            default = "en_US.UTF-8 UTF-8",
         },
         keymap = "us",
-        timezone = "GMT-7"
+        timezone = "America/Edmonton"
     },
 
     network = {
@@ -75,7 +75,7 @@ return {
         -- "coreutils",
         "linux",
         -- "pacman",
-        "mkinitcpio",
+        -- "mkinitcpio",
         -- "python",
         -- "poetry",
         -- "grep",
@@ -104,7 +104,7 @@ return {
         -- "libmnl",
         -- "openssh",
         -- "networkmanager",
-        "iptables",
+        -- "iptables",
     },
 
     services = {
