@@ -21,7 +21,7 @@ return {
     -- },
 
     devices = {
-        disk0 = require "disk",
+        disk0 = require "disk-btrfs",
     },
 
     -- bootloader = {

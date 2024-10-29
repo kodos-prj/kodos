@@ -5,6 +5,7 @@ from pathlib import Path
 import signal
 from invoke import task
 import lupa as lua
+import sys
 
 
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
@@ -41,7 +42,7 @@ def exec_chroot(c,cmd):
     print(cmd)
     chroot_cmd = 'arch-chroot /mnt '
     chroot_cmd += cmd
-    # exec(c, chroot_cmd)
+    exec(c, chroot_cmd)
 
 
 def enable_service(c, service):
@@ -131,13 +132,15 @@ Name=*
     # initramfs
     exec_chroot(c, "mkinitcpio -P")
 
+    print("--------")
+    sys.stdin.flush()
     # Change root password
     exec_chroot(c, "passwd")
 
     # bootloader
     exec_chroot(c, "bootctl install")
 
-    res = c.run("cat /tmp/fstab | grep '[ \t]/[ \t]'")
+    res = c.run("cat /etc/fstab | grep '[ \t]/[ \t]'")
     mount_point = res.stdout.split()
     root_part = mount_point[0].strip()
     part_type = mount_point[2].strip()
@@ -238,8 +241,7 @@ Name=*
         eth0_network += "DHCP=ipv6\n"
     print(eth0_network)
 
-    print(r"\/\/\/\/\/\/\/")
-    res = c.run("cat /tmp/fstab | grep '[ \t]/[ \t]'")
+    res = c.run("cat /etc/fstab | grep '[ \t]/[ \t]'")
     mount_point = res.stdout.split()
     root_part = mount_point[0].strip()
     part_type = mount_point[2].strip()
