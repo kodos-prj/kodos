@@ -140,7 +140,7 @@ Name=*
     # bootloader
     exec_chroot(c, "bootctl install")
 
-    res = c.run("cat /etc/fstab | grep '[ \t]/[ \t]'")
+    res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
     mount_point = res.stdout.split()
     root_part = mount_point[0].strip()
     part_type = mount_point[2].strip()
