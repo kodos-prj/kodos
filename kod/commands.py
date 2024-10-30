@@ -76,7 +76,7 @@ def load_config(config_filename: str):
 
 
 def install_essentials_pkgs(c):
-    exec(c, "pacstrap -K /mnt base linux linux-firmware")
+    exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
 
 
 def create_users(c, conf):
