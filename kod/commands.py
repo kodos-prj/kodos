@@ -85,7 +85,7 @@ def create_users(c, conf):
 def configure_system(c, conf):
     
     # fstab
-    exec(c, "genfstab -U /mnt >> /mnt/etc/fstab")
+    exec(c, "genfstab -U /mnt > /mnt/etc/fstab")
     
     # Locale
     locale_conf = conf.locale
@@ -109,7 +109,7 @@ def configure_system(c, conf):
     
     # hostname
     hostname = network_conf["hostname"]
-    print(f"echo '{hostname}' > /etc/hostname")
+    print(f"echo '{hostname}' > /mnt/etc/hostname")
     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
@@ -132,8 +132,6 @@ Name=*
     # initramfs
     exec_chroot(c, "mkinitcpio -P")
 
-    print("--------")
-    sys.stdin.flush()
     # Change root password
     exec_chroot(c, "passwd")
 
@@ -170,7 +168,7 @@ options root={root_part} rw {option}
     with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
         f.write(kodos_conf)
 
-    kodos_fb_conf = """
+    kodos_fb_conf = f"""
 title KodOS Linux - fallback
 linux /vmlinuz-linux
 initrd /initramfs-linux-fallback.img
