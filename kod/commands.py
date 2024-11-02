@@ -82,7 +82,7 @@ def install_essentials_pkgs(c):
 def create_users(c, conf):
     pass
 
-def configure_system(c, conf):
+def configure_system(c, conf, boot="systemd-boot"):
     
     # fstab
     exec(c, "genfstab -U /mnt > /mnt/etc/fstab")
@@ -102,6 +102,10 @@ def configure_system(c, conf):
     exec_chroot(c, "locale-gen")
     locale_name = locale.split()[0]
     exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
+    
+    # akshara
+    c.run("cp /root/kodos/tools/akshara-dir/akshara/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
+    c.run("cp /root/kodos/tools/akshara-dir/akshara/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
     
     # Network
     network_conf = conf.network
@@ -136,51 +140,52 @@ Name=*
     exec_chroot(c, "passwd")
 
     # bootloader
-    exec_chroot(c, "bootctl install")
+    if boot == "systemd-boot":
+        exec_chroot(c, "bootctl install")
 
-    res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
-    mount_point = res.stdout.split()
-    root_part = mount_point[0].strip()
-    part_type = mount_point[2].strip()
-    mount_options = mount_point[3].strip().split(",")
-    print(root_part, part_type, mount_options)
-    option = ""
-    if part_type == "btrfs":
-        for opt in mount_options:
-            if opt.startswith("subvol"):
-                option = "rootflags="+opt
+        res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
+        mount_point = res.stdout.split()
+        root_part = mount_point[0].strip()
+        part_type = mount_point[2].strip()
+        mount_options = mount_point[3].strip().split(",")
+        print(root_part, part_type, mount_options)
+        option = ""
+        if part_type == "btrfs":
+            for opt in mount_options:
+                if opt.startswith("subvol"):
+                    option = "rootflags="+opt
 
 
-    loader_conf = """
+        loader_conf = """
 default arch
 timeout 3
 console-mode max
 #editor no"""
-    with open("/mnt/boot/loader/loader.conf", "w") as f:
-        f.write(loader_conf)
-    
-    kodos_conf = f"""
+        with open("/mnt/boot/loader/loader.conf", "w") as f:
+            f.write(loader_conf)
+        
+        kodos_conf = f"""
 title KodOS Linux
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options root={root_part} rw {option}
-"""
-    with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
-        f.write(kodos_conf)
+    """
+        with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
+            f.write(kodos_conf)
 
-    kodos_fb_conf = f"""
+        kodos_fb_conf = f"""
 title KodOS Linux - fallback
 linux /vmlinuz-linux
 initrd /initramfs-linux-fallback.img
 options root={root_part} rw {option}
-"""
-    with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
-        f.write(kodos_fb_conf)
+    """
+        with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
+            f.write(kodos_fb_conf)
 
-
-    # exec_chroot(c, "pacman -S --noconfirm grub")
-    # exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
-    # exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+    if boot == "grub":
+        exec_chroot(c, "pacman -S --noconfirm grub")
+        exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
+        exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
 
 @task(help={"config":"system configuration file"})
@@ -194,6 +199,21 @@ def install(c, config):
     create_users(c, conf)
 
     print("Done")
+
+
+
+@task(help={"config":"system configuration file"})
+def install2(c, config):
+
+    conf = load_config(config)
+    print("-------------------------------")
+    create_partitions(c, conf)
+    install_essentials_pkgs(c)
+    configure_system(c, conf, boot="grub")
+    create_users(c, conf)
+
+    print("Done")
+
 
 
 # ----------------------------------------------------
