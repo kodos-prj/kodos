@@ -147,30 +147,30 @@ def update_system():
         info('downloading Arch tarball...')
 
         if not os.path.isfile('/.update.tar.zst'):
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', 'https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 warn('failed download')
                 print()
                 info('trying download again...')
                 print()
                 exec('rm', '-f', '/.update.tar.zst')
-                if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+                if exec('wget', '-q', '--show-progress', 'https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                     error('failed download')
                     print()
                     error('update failed')
                     sys.exit(50)
 
-        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://mirror.rackspace.com/archlinux/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
             error('failed checksum verification')
             print()
             info('trying download again...')
             exec('rm', '-f', '/.update.tar.zst')
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', 'https://mirror.rackspace.com/archlinux/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 error('failed download')
                 print()
                 error('update failed')
                 sys.exit(50)
                 return
-            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://mirror.rackspace.com/archlinux/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
                 error('failed checksum verification')
                 print()
                 error('update failed')
@@ -247,7 +247,7 @@ def update_system():
             if type(blend_release.get('arch-repo')) == str:
                 pacman_mirrorlist_conf.write(f'Server = {blend_release.get("arch-repo")}/$repo/os/$arch\n')
             else:
-                pacman_mirrorlist_conf.write('Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n')
+                pacman_mirrorlist_conf.write('Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch\n')
 
         exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
         exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
