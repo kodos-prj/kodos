@@ -116,7 +116,7 @@ def create_disk_partitions(c, disk_info):
         # print(f"{pid} {name=}, {size=}, {partition_type=}, {filesystem_type=}, {mountpoint=} {blockdevice=}")
 
         # c.run(f"parted -s {device} -a opt mkpart {name} {filesystem_type} {start} {end}")
-        c.run(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {blockdevice}") 
+        c.run(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}") 
         # print(f"sgdisk -n 0:0:+{size} -t 0:{partition_type} -c 0:{name} {blockdevice}") 
         
         # Format filesystem
