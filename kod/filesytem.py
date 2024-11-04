@@ -4,6 +4,7 @@ from .units import add_value_unit
 
 
 _filesystem_cmd = {
+    "esp": "mkfs.vfat -F32",
     "fat32": "mkfs.vfat -F32",
     "vfat": "mkfs.vfat",
     "bfs": "mkfs.bfs",
@@ -21,6 +22,13 @@ _filesystem_cmd = {
     "noformat": None,
 }
 
+_filesystem_type = {
+    "esp": "ef00",
+    # "vfat": "",
+    "btrfs": "8300",
+    "linux-swap": "8200",
+    "noformat": None,
+}
 
 def create_btrfs(c,delay_action, part, blockdevice):
     print("Cheking subvolumes")
@@ -66,13 +74,12 @@ def create_partitions(c, conf):
         print(d_id)
         create_disk_partitions(c, disk)
 
+
 def create_disk_partitions(c, disk_info):
 
     device = disk_info['device']
     efi = disk_info['efi']
-    # efi_size = disk_info['efi_size']
     partitions = disk_info['partitions']
-# Filesystem
 
     if 'nvme' in device or 'mmcblk' in device:
         device_sufix = "p"
@@ -83,15 +90,15 @@ def create_disk_partitions(c, disk_info):
     c.run(f"wipefs -a {device}")
     c.run('sync')
 
-    if efi:
+    # if efi:
         # Create GPT label
-        c.run(f"parted -s {device} mklabel gpt")
+        # c.run(f"parted -s {device} mklabel gpt")
 
     print(f"{partitions=}")
     if not partitions:
         return
 
-    start = "1048KB"
+    # start = "1048KB"
     delay_action = []
     for pid, part in partitions.items():
 
@@ -101,20 +108,25 @@ def create_disk_partitions(c, disk_info):
         filesystem_type = part['type']
         mountpoint = part['mountpoint']
         blockdevice = f"{device}{device_sufix}{pid}"
-        end = "{}{}".format(*add_value_unit(start, size))
+        
+        end = 0 if size == "100%" else f"+{size}"
+        partition_type = _filesystem_type[filesystem_type]
+        # end = "{}{}".format(*add_value_unit(start, size))
 
-        print(f"{pid} {name=}, {size=}, {filesystem_type=}, {mountpoint=} {blockdevice=}")
+        # print(f"{pid} {name=}, {size=}, {partition_type=}, {filesystem_type=}, {mountpoint=} {blockdevice=}")
 
-        c.run(f"parted -s {device} -a opt mkpart {name} {filesystem_type} {start} {end}")
-
+        # c.run(f"parted -s {device} -a opt mkpart {name} {filesystem_type} {start} {end}")
+        c.run(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {blockdevice}") 
+        # print(f"sgdisk -n 0:0:+{size} -t 0:{partition_type} -c 0:{name} {blockdevice}") 
+        
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
                 c.run(f"{cmd} {blockdevice}")
         
-        if mountpoint == "/boot":
-            c.run(f"parted -s {device} set {pid} boot on")
+        # if mountpoint == "/boot":
+            # c.run(f"parted -s {device} set {pid} boot on")
 
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(c,delay_action, part, blockdevice)
@@ -132,10 +144,85 @@ def create_disk_partitions(c, disk_info):
                     f"mount {blockdevice} {install_mountpoint}"
                 ] + delay_action
 
-        start = end
+        # start = end
 
     print("=======================")
     if delay_action:
         for cmd_action in delay_action:
                 c.run(cmd_action)
+
+
+
+# def create_disk_partitions(c, disk_info):
+
+#     device = disk_info['device']
+#     efi = disk_info['efi']
+#     # efi_size = disk_info['efi_size']
+#     partitions = disk_info['partitions']
+# # Filesystem
+
+#     if 'nvme' in device or 'mmcblk' in device:
+#         device_sufix = "p"
+#     else:
+#         device_sufix = ""
+
+#     # Delete partition table
+#     c.run(f"wipefs -a {device}")
+#     c.run('sync')
+
+#     if efi:
+#         # Create GPT label
+#         c.run(f"parted -s {device} mklabel gpt")
+
+#     print(f"{partitions=}")
+#     if not partitions:
+#         return
+
+#     start = "1048KB"
+#     delay_action = []
+#     for pid, part in partitions.items():
+
+#         # print(pid, part)
+#         name = part['name']
+#         size = part['size']
+#         filesystem_type = part['type']
+#         mountpoint = part['mountpoint']
+#         blockdevice = f"{device}{device_sufix}{pid}"
+#         end = "{}{}".format(*add_value_unit(start, size))
+
+#         print(f"{pid} {name=}, {size=}, {filesystem_type=}, {mountpoint=} {blockdevice=}")
+
+#         c.run(f"parted -s {device} -a opt mkpart {name} {filesystem_type} {start} {end}")
+
+#         # Format filesystem
+#         if filesystem_type in _filesystem_cmd.keys():
+#             cmd = _filesystem_cmd[filesystem_type]
+#             if cmd:
+#                 c.run(f"{cmd} {blockdevice}")
+        
+#         if mountpoint == "/boot":
+#             c.run(f"parted -s {device} set {pid} boot on")
+
+#         if filesystem_type == "btrfs":
+#             delay_action = create_btrfs(c,delay_action, part, blockdevice)
+
+#         if mountpoint and mountpoint != 'none':
+#             install_mountpoint = "/mnt" + mountpoint
+#             if mountpoint != "/":
+#                 print(f"[DELAY] mkdir -p {install_mountpoint}")
+#                 print(f"[DELAY] mount {blockdevice} {install_mountpoint}")
+#                 delay_action.append(f"mkdir -p {install_mountpoint}")
+#                 delay_action.append(f"mount {blockdevice} {install_mountpoint}")
+#             else:
+#                 delay_action = [
+#                     f"mkdir -p {install_mountpoint}",
+#                     f"mount {blockdevice} {install_mountpoint}"
+#                 ] + delay_action
+
+#         start = end
+
+#     print("=======================")
+#     if delay_action:
+#         for cmd_action in delay_action:
+#                 c.run(cmd_action)
 

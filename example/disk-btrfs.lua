@@ -10,7 +10,7 @@ return  {
       {
          name = "Boot",
          size = "1GB",
-         type = "fat32",
+         type = "esp",
          mountpoint = "/boot",
       },
       {

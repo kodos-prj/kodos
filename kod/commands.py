@@ -104,8 +104,8 @@ def configure_system(c, conf, boot="systemd-boot"):
     exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
     
     # akshara
-    c.run("cp /root/kodos/tools/akshara-dir/akshara/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
-    c.run("cp /root/kodos/tools/akshara-dir/akshara/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
+    c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
+    c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
     
     # Network
     network_conf = conf.network
@@ -183,8 +183,8 @@ options root={root_part} rw {option}
             f.write(kodos_fb_conf)
 
     if boot == "grub":
-        exec_chroot(c, "pacman -S --noconfirm grub")
-        exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB")
+        exec_chroot(c, "pacman -S --noconfirm grub efibootmgr")
+        exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
 
@@ -215,106 +215,17 @@ def install2(c, config):
     print("Done")
 
 
+@task(help={"config":"system configuration file"})
+def test_partition(c, config):
 
-# ----------------------------------------------------
+    conf = load_config(config)
+    print("-------------------------------")
+    create_partitions(c, conf)
+    # install_essentials_pkgs(c)
+    # configure_system(c, conf, boot="grub")
+    # create_users(c, conf)
 
-# def configure_system_test(c, conf):
-    
-#     # fstab
-#     print("genfstab -U /mnt >> /mnt/etc/fstab")
-    
-#     # Locale
-#     locale_conf = conf.locale
-#     if locale_conf:
-#         time_zone = locale_conf["timezone"]
-#     else:
-#         time_zone = "GMT"
-#     print(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
-#     print("hwclock --systohc")
-    
-#     # Localization
-#     locale = dict(locale_conf["locale"])["default"]
-#     print(f"echo '{locale}' > /etc/locale.gen")
-#     print("locale-gen")
-#     locale_name = locale.split()[0]
-#     print(f"echo 'LANG={locale_name}' > /etc/locale.conf")
-    
-#     # Network
-#     network_conf = conf.network
-#     print("systemctl enable systemd-networkd")
-    
-#     # hostname
-#     hostname = network_conf["hostname"]
-#     print(f"echo '{hostname}' > /etc/hostname")
-#     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
-#     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
-#     # use_ipv6 = network_conf.get("ipv6", True)
-#     eth0_network = """[Match]
-# Name=*
-# [Network]
-# """
-#     if use_ipv4:
-#         eth0_network += "DHCP=ipv4\n"
-#     if use_ipv6:
-#         eth0_network += "DHCP=ipv6\n"
-#     print(eth0_network)
-
-#     res = c.run("cat /etc/fstab | grep '[ \t]/[ \t]'")
-#     mount_point = res.stdout.split()
-#     root_part = mount_point[0].strip()
-#     part_type = mount_point[2].strip()
-#     mount_options = mount_point[3].strip().split(",")
-#     print(root_part, part_type, mount_options)
-#     option = ""
-#     if part_type == "btrfs":
-#         for opt in mount_options:
-#             if opt.startswith("subvol"):
-#                 option = "rootflags="+opt
-#     # with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
-#         # f.write(eth0_network)
-#     # exec_chroot(c, "systemctl enable systemd-networkd.service")
-#     # exec_chroot(c, "systemctl start systemd-networkd.service")
-#     # hosts
-# #     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
-# #     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
-# #     # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
-
-# #     # initramfs
-# #     exec_chroot(c, "mkinitcpio -P")
-
-# #     # Change root password
-# #     exec_chroot(c, "passwd")
-
-# #     # bootloader
-# #     exec_chroot(c, "bootctl install")
-#     loader_conf = """
-# default arch
-# timeout 3
-# console-mode max
-# #editor no"""
-#     # print(loader_conf)
-# #     with open("/mnt/boot/loader/loader.conf", "w") as f:
-# #         f.write(loader_conf)
-    
-#     kodos_conf = f"""
-# title KodOS Linux
-# linux /vmlinuz-linux
-# initrd /initramfs-linux.img
-# options root={root_part} rw {option}
-# """
-#     print(kodos_conf)
-# #     with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
-# #         f.write(kodos_conf)
-
-# #     kodos_fb_conf = """
-# # title KodOS Linux - fallback
-# # linux /vmlinuz-linux
-# # initrd /initramfs-linux-fallback.img
-# # options root=/dev/vda2 rw
-# # """
-# #     with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
-# #         f.write(kodos_fb_conf)
-
+    print("Done")
 
 
 @task(help={"config":"system configuration file"})
