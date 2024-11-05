@@ -61,6 +61,7 @@ def create_btrfs(c,delay_action, part, blockdevice):
     mountpoints = ['.snapshots', 'var/cache', 'var/lib/libvirt', 'var/log', 'var/tmp']
     for svol, mpoint in zip(subvolumes, mountpoints):
         c.run(f"btrfs subvolume create /mnt{svol}")
+        delay_action.append(f"mkdir -p /mnt/{mpoint}")
         delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
 
     # btrfs subvolume create /mnt/@home
