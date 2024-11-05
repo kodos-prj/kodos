@@ -54,6 +54,33 @@ def create_btrfs(c,delay_action, part, blockdevice):
             delay_action.append(f"mkdir -p {install_mountpoint}")
             delay_action.append(f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}")
 
+    
+    # Adding extra subvolumes
+    sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
+    subvolumes = ['/snapshots', '/cache', '/libvirt', '/log', '/tmp']
+    mountpoints = ['.snapshots', 'var/cache', 'var/lib/libvirt', 'var/log', 'var/tmp']
+    for svol, mpoint in zip(subvolumes, mountpoints):
+        c.run(f"btrfs subvolume create /mnt{svol}")
+        delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
+
+    # btrfs subvolume create /mnt/@home
+    # btrfs subvolume create /mnt/@snapshots
+    # btrfs subvolume create /mnt/@cache
+    # btrfs subvolume create /mnt/@libvirt
+    # btrfs subvolume create /mnt/@log
+    # btrfs subvolume create /mnt/@tmp
+    # mkdir -p /mnt/{home,.snapshots,var/cache,var/lib/libvirt,var/log,var/tmp}
+
+    # Mount the additional subvolumes ...
+
+    # mount -o ${sv_opts},subvol=@home /dev/mapper/cryptdev /mnt/home
+    # mount -o ${sv_opts},subvol=@snapshots /dev/mapper/cryptdev /mnt/.snapshots
+    # mount -o ${sv_opts},subvol=@cache /dev/mapper/cryptdev /mnt/var/cache
+    # mount -o ${sv_opts},subvol=@libvirt /dev/mapper/cryptdev /mnt/var/lib/libvirt
+    # mount -o ${sv_opts},subvol=@log /dev/mapper/cryptdev /mnt/var/log
+    # mount -o ${sv_opts},subvol=@tmp /dev/mapper/cryptdev /mnt/var/tmp
+
+
     #c.run("umount -R /mnt")
     # mount -o subvol=rootfs /dev/vda3 /mnt
     # mkdir -p /mnt/home

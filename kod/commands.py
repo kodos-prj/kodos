@@ -76,10 +76,19 @@ def load_config(config_filename: str):
 
 
 def install_essentials_pkgs(c):
-    exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
+    # cpuinfo = c.run("grep vendor_id /proc/cpuinfo | head -n 1")
+    microcode = "intel-ucode"
+    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
+                 "networkmanager", "openssh", "sudo"]
+
+    exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
+    # exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
 
 
 def create_users(c, conf):
+    # useradd -m -G wheel -s /bin/bash foo
+    # passwd foo
+    # sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
     pass
 
 def configure_system(c, conf, boot="systemd-boot"):
@@ -109,7 +118,6 @@ def configure_system(c, conf, boot="systemd-boot"):
     
     # Network
     network_conf = conf.network
-    exec_chroot(c, "systemctl enable systemd-networkd")
     
     # hostname
     hostname = network_conf["hostname"]
@@ -126,14 +134,27 @@ Name=*
         eth0_network += "DHCP=ipv6\n"
     with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
         f.write(eth0_network)
-    exec_chroot(c, "systemctl enable systemd-networkd.service")
-    exec_chroot(c, "systemctl start systemd-networkd.service")
+
+    # exec_chroot(c, "systemctl enable systemd-networkd")
+    # exec_chroot(c, "systemctl enable systemd-resolved")
+
+
+    # exec_chroot(c, "systemctl enable systemd-networkd.service")
+    # exec_chroot(c, "systemctl start systemd-networkd.service")
     # hosts
     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
     # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
 
+    exec_chroot(c, "systemctl enable NetworkManager")
+    exec_chroot(c, "systemctl enable sshd.service")
+
     # initramfs
+    exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
+    exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
+    exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
+    exec_chroot(c, "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck)' >> /etc/mkinitcpio.conf")
+
     exec_chroot(c, "mkinitcpio -P")
 
     # Change root password
@@ -221,7 +242,7 @@ def test_partition(c, config):
     conf = load_config(config)
     print("-------------------------------")
     create_partitions(c, conf)
-    # install_essentials_pkgs(c)
+    install_essentials_pkgs(c)
     # configure_system(c, conf, boot="grub")
     # create_users(c, conf)
 
