@@ -65,7 +65,7 @@ def create_btrfs(c,delay_action, part, blockdevice):
         delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
 
     delay_action.append(f"mkdir -p /mnt/kod/cache")
-    delay_action.append(f"cd mnt && ln -s /kod/cache var/cache")
+    delay_action.append(f"cd /mnt && ln -s /kod/cache var/cache")
 
 
     # btrfs subvolume create /mnt/@home
