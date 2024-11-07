@@ -36,11 +36,11 @@ return  {
                mountpoint = "/home",
             },
             -- Parent is not mounted so the mountpoint must be set
-            kod = {
-               subvol = "/kod",
-               mountOptions = "compress=zstd,noatime",
-               mountpoint = "/kod",
-            }
+            -- kod = {
+            --    subvol = "/kod",
+            --    mountOptions = "compress=zstd,noatime",
+            --    mountpoint = "/kod",
+            -- }
          }
       },
    },

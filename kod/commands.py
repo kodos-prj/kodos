@@ -5,7 +5,6 @@ from pathlib import Path
 import signal
 from invoke import task
 import lupa as lua
-import sys
 
 
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
@@ -121,7 +120,7 @@ def configure_system(c, conf, boot="systemd-boot"):
     
     # hostname
     hostname = network_conf["hostname"]
-    print(f"echo '{hostname}' > /mnt/etc/hostname")
+    c.run(f"echo '{hostname}' > /mnt/etc/hostname")
     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
@@ -161,7 +160,10 @@ Name=*
     exec_chroot(c, "passwd")
 
     # bootloader
-    if boot == "systemd-boot":
+    boot_conf = conf.boot
+    loader_conf = boot_conf["loader"]
+    boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
+    if boot_type == "systemd-boot":
         exec_chroot(c, "bootctl install")
 
         res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
@@ -203,7 +205,7 @@ options root={root_part} rw {option}
         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
             f.write(kodos_fb_conf)
 
-    if boot == "grub":
+    if boot_type == "grub":
         exec_chroot(c, "pacman -S --noconfirm grub efibootmgr")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")

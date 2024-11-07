@@ -57,12 +57,16 @@ def create_btrfs(c,delay_action, part, blockdevice):
     
     # Adding extra subvolumes
     sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
-    subvolumes = ['/snapshots', '/cache', '/libvirt', '/log', '/tmp']
-    mountpoints = ['.snapshots', 'var/cache', 'var/lib/libvirt', 'var/log', 'var/tmp']
+    subvolumes = ['/kod', '/etc', '/usr', '/var','/log', '/tmp']
+    mountpoints = ['kod', 'etc', 'usr', 'var', 'kod/log', 'var/tmp']
     for svol, mpoint in zip(subvolumes, mountpoints):
         c.run(f"btrfs subvolume create /mnt{svol}")
         delay_action.append(f"mkdir -p /mnt/{mpoint}")
         delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
+
+    delay_action.append(f"mkdir -p /mnt/kod/cache")
+    delay_action.append(f"cd mnt && ln -s /kod/cache var/cache")
+
 
     # btrfs subvolume create /mnt/@home
     # btrfs subvolume create /mnt/@snapshots
