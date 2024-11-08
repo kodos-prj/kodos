@@ -57,8 +57,10 @@ def create_btrfs(c,delay_action, part, blockdevice):
     
     # Adding extra subvolumes
     sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
-    subvolumes = ['/kod', '/etc', '/usr', '/var','/log', '/tmp']
-    mountpoints = ['kod', 'etc', 'usr', 'var', 'kod/log', 'var/tmp']
+    # subvolumes = ['/kod', '/etc', '/usr', '/var','/log', '/tmp']
+    # mountpoints = ['kod', 'etc', 'usr', 'var', 'kod/log', 'var/tmp']
+    subvolumes = ['/kod', '/log', '/tmp']
+    mountpoints = ['kod', 'kod/log', 'var/tmp']
     for svol, mpoint in zip(subvolumes, mountpoints):
         c.run(f"btrfs subvolume create /mnt{svol}")
         delay_action.append(f"mkdir -p /mnt/{mpoint}")
