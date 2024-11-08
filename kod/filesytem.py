@@ -86,7 +86,7 @@ def create_btrfs(c,delay_action, part, blockdevice):
     # mount -o ${sv_opts},subvol=@tmp /dev/mapper/cryptdev /mnt/var/tmp
 
 
-    #c.run("umount -R /mnt")
+    c.run("umount -R /mnt")
     # mount -o subvol=rootfs /dev/vda3 /mnt
     # mkdir -p /mnt/home
     # mkdir -p /mnt/kod
