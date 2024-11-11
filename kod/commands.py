@@ -75,6 +75,7 @@ def load_config(config_filename: str):
 
 
 def install_essentials_pkgs(c):
+    global pkgs_installed
     # cpuinfo = c.run("grep vendor_id /proc/cpuinfo | head -n 1")
     microcode = "amd-ucode"
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
@@ -100,6 +101,7 @@ def create_users(c, conf):
     # pass
 
 def configure_system(c, conf, boot="systemd-boot"):
+    global pkgs_installed
     
     # fstab
     exec(c, "genfstab -U /mnt > /mnt/etc/fstab")
@@ -221,6 +223,7 @@ options root={root_part} rw {option}
         pkgs_installed += ["efibootmgr"]
 
 def install_packages(c, conf):
+    global pkgs_installed
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
     exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(pkg_list)))
@@ -228,6 +231,7 @@ def install_packages(c, conf):
 
 
 def base_snapshot(c):
+    global pkgs_installed
     exec_chroot(c, "mkdir -p /kod/generation/0/")
     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
     pkgs = "\n".join(pkgs_installed)
