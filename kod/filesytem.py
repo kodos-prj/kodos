@@ -56,15 +56,15 @@ def create_btrfs(c,delay_action, part, blockdevice):
 
     
     # Adding extra subvolumes
-    sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
+    # sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
     # subvolumes = ['/kod', '/etc', '/usr', '/var','/log', '/tmp']
     # mountpoints = ['kod', 'etc', 'usr', 'var', 'kod/log', 'var/tmp']
-    subvolumes = ['/kod', '/log', '/tmp']
-    mountpoints = ['kod', 'kod/log', 'var/tmp']
-    for svol, mpoint in zip(subvolumes, mountpoints):
-        c.run(f"btrfs subvolume create /mnt{svol}")
-        delay_action.append(f"mkdir -p /mnt/{mpoint}")
-        delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
+    # subvolumes = ['/kod', '/log', '/tmp']
+    # mountpoints = ['kod', 'kod/log', 'var/tmp']
+    # for svol, mpoint in zip(subvolumes, mountpoints):
+    #     c.run(f"btrfs subvolume create /mnt{svol}")
+    #     delay_action.append(f"mkdir -p /mnt/{mpoint}")
+    #     delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
 
     # delay_action.append(f"mkdir -p /mnt/kod/cache")
     # delay_action.append(f"cd /mnt && ln -s /kod/cache var/cache")

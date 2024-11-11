@@ -62,7 +62,7 @@ def mkdir(c, path):
 
 #####################################################################################################
 
-
+pkgs_installed = []
 
 def load_config(config_filename: str):
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
@@ -76,19 +76,28 @@ def load_config(config_filename: str):
 
 def install_essentials_pkgs(c):
     # cpuinfo = c.run("grep vendor_id /proc/cpuinfo | head -n 1")
-    microcode = "intel-ucode"
+    microcode = "amd-ucode"
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
                  "networkmanager", "openssh", "sudo"]
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
+    pkgs_installed += base_pkgs
     # exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
 
 
 def create_users(c, conf):
+    users = conf.users
+    for user, info in users.items():
+        print(f"Creating user {user}")
+        user_name = info["name"]
+        # user_pass = info["password"]
+        exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c {user_name}")
+        exec_chroot(c, f"passwd {user}")
+        exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
     # useradd -m -G wheel -s /bin/bash foo
     # passwd foo
     # sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
-    pass
+    # pass
 
 def configure_system(c, conf, boot="systemd-boot"):
     
@@ -112,8 +121,8 @@ def configure_system(c, conf, boot="systemd-boot"):
     exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
     
     # akshara
-    c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
-    c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
+    # c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
+    # c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
     
     # Network
     network_conf = conf.network
@@ -209,7 +218,21 @@ options root={root_part} rw {option}
         exec_chroot(c, "pacman -S --noconfirm grub efibootmgr")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+        pkgs_installed += ["efibootmgr"]
 
+def install_packages(c, conf):
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
+    exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(pkg_list)))
+    pkgs_installed += pkg_list
+
+
+def base_snapshot(c):
+    exec_chroot(c, "mkdir -p /kod/generation/0/")
+    exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
+    pkgs = "\n".join(pkgs_installed)
+    exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+    # with open("/kod/generation/0/installed_packages", "w") as f:
 
 @task(help={"config":"system configuration file"})
 def install(c, config):
@@ -219,7 +242,10 @@ def install(c, config):
     create_partitions(c, conf)
     install_essentials_pkgs(c)
     configure_system(c, conf)
+    install_packages(c, conf)
     create_users(c, conf)
+
+    base_snapshot(c)
 
     print("Done")
 
