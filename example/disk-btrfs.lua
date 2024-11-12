@@ -34,35 +34,33 @@ return  {
             -- Subvolume name is the same as the mountpoint
             home = {
                subvol = "/home",
-               -- mountOptions = "compress=zstd",
-               mountOptions = btrfs_options,
                mountpoint = "/home",
+               mountOptions = btrfs_options,
             },
-            -- Parent is not mounted so the mountpoint must be set
             root = {
                subvol = "/root",
-               mountOptions = btrfs_options,
                mountpoint = "/root",
+               mountOptions = btrfs_options,
             },
             cache = {
                subvol = "/cache",
-               mountOptions = btrfs_options,
                mountpoint = "/var/cache",
+               mountOptions = btrfs_options,
             },
             tmp = {
                subvol = "/tmp",
-               mountOptions = btrfs_options,
                mountpoint = "/var/tmp",
+               mountOptions = btrfs_options,
             },
             log = {
                subvol = "/log",
-               mountOptions = btrfs_options,
                mountpoint = "/var/log",
+               mountOptions = btrfs_options,
             },
             kod = {
                subvol = "/kod",
-               mountOptions = btrfs_options,
                mountpoint = "/kod",
+               mountOptions = btrfs_options,
             }
          }
       },

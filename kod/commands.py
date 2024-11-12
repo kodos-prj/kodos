@@ -92,13 +92,9 @@ def create_users(c, conf):
         print(f"Creating user {user}")
         user_name = info["name"]
         # user_pass = info["password"]
-        exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c {user_name}")
+        exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c '{user_name}'")
         exec_chroot(c, f"passwd {user}")
         exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
-    # useradd -m -G wheel -s /bin/bash foo
-    # passwd foo
-    # sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers
-    # pass
 
 def configure_system(c, conf, boot="systemd-boot"):
     global pkgs_installed
@@ -236,6 +232,10 @@ def base_snapshot(c):
     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
     pkgs = "\n".join(pkgs_installed)
     exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+    exec_chroot(c, "mkdir -p /kod/generation/current/")
+    exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
+    exec_chroot(c, f"echo '0' > /kod/generation/current/generation")
+    exec_chroot(c, f"grub-mkconfig -o /boot/grub/grub.cfg")
     # with open("/kod/generation/0/installed_packages", "w") as f:
 
 @task(help={"config":"system configuration file"})

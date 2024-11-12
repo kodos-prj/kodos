@@ -38,17 +38,17 @@ def create_btrfs(c,delay_action, part, blockdevice):
         mountpoint = subvol_info["mountpoint"]
         mount_options = subvol_info["mountOptions"]
 
-        install_mountpoint = "/mnt" + subvol
+        create_svol = "/mnt" + subvol
         # print(subvol, mountpoint, mount_options)
-        c.run(f"btrfs subvolume create {install_mountpoint}")
+        c.run(f"btrfs subvolume create {create_svol}")
 
         if mount_options:
             mount_options = f"{mount_options},"
         else:
             mount_options = ""
         
+        install_mountpoint = "/mnt" + mountpoint
         if mountpoint == "/":
-            install_mountpoint = "/mnt" + mountpoint
             delay_action = [f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"] + delay_action
         else:
             delay_action.append(f"mkdir -p {install_mountpoint}")
