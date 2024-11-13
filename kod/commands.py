@@ -300,8 +300,10 @@ def rebuild(c, config):
     remove_pkg = set(inst_pkgs) - set(pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
-    c.run(f"sudo pacman -R {" ".join(remove_pkg)}")
-    c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
+    if remove_pkg:
+        c.run(f"sudo pacman -Rssn --noconfirm {" ".join(remove_pkg)}")
+    if added_pkgs:
+        c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
     
     new_generation = int(generation)+1
     c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
