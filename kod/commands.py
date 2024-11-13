@@ -301,7 +301,10 @@ def rebuild(c, config):
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
     if remove_pkg:
-        c.run(f"sudo pacman -Rssn --noconfirm {" ".join(remove_pkg)}")
+        try:
+            c.run(f"sudo pacman -Rssn --noconfirm {" ".join(remove_pkg)}")
+        except:
+            pass
     if added_pkgs:
         c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
     

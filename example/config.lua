@@ -72,15 +72,21 @@ return {
 
     packages = {
         "flatpak",
-        "gnome",
-        "gnome-extra",
-        "gnome-themes-extra",
-        "gdm",
+        -- "gnome",
+        -- "gnome-extra",
+        -- "gnome-themes-extra",
+        -- "gdm",
+        "sddm",
+        "plasma",
+        "kde-applications",
         "pipewire",
         "pipewire-pulse",
-        "gnome-tweaks",
+        -- "gnome-tweaks",
         "mc",
         "neovim",
+        -- "cosmic",
+        "python-invoke",
+        "rustup",
     },
 
     services = {
