@@ -1,1 +1,3 @@
 mnt/
+.venv/
+__pycache__

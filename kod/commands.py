@@ -213,7 +213,7 @@ options root={root_part} rw {option}
             f.write(kodos_fb_conf)
 
     if boot_type == "grub":
-        exec_chroot(c, "pacman -S --noconfirm grub efibootmgr")
+        exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         pkgs_installed += ["efibootmgr"]
@@ -282,6 +282,39 @@ def test_partition(c, config):
 
 
 @task(help={"config":"system configuration file"})
+def rebuild(c, config):
+
+    conf = load_config(config)
+    print("========================================")
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
+    # configure_system_test(c, conf)
+    with open("/kod/generation/current/generation") as f:
+        generation = f.readline().strip()
+    print(generation)
+
+    with open(f"/kod/generation/{generation}/installed_packages") as f:
+        inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    print(inst_pkgs)
+
+    remove_pkg = set(inst_pkgs) - set(pkg_list)
+    added_pkgs = set(pkg_list) - set(inst_pkgs)
+
+    c.run(f"sudo pacman -R {" ".join(remove_pkg)}")
+    c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
+    
+    new_generation = int(generation)+1
+    c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
+    c.run(f"sudo btrfs subvol snap -r / /kod/generation/{new_generation}/rootfs")
+    with open(f"/kod/generation/{new_generation}/installed_packages", "w") as f:
+        f.write("\n".join(pkg_list))
+    c.run(f"sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
+    c.run(f"sudo btrfs subvol snap /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
+    c.run(f"sudo sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
+    c.run(f"grub-mkconfig -o /boot/grub/grub.cfg")
+    print("Done")
+
+# @task(help={"config":"system configuration file"})
 def test_config(c, config):
 
     conf = load_config(config)
@@ -324,9 +357,8 @@ def test_config(c, config):
     # configure_system_test(c, conf)
 
 
-
 # @task(help={"config":"system configuration file"})
-def rebuild(c, config):
+def rebuild_old(c, config):
     # [x] Check if catalog existsx
     # If not,
     #   [x] read config and get the sources
