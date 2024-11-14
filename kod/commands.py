@@ -2,40 +2,27 @@ import glob
 import json
 import os
 from pathlib import Path
-import signal
+# import signal
 from invoke import task
 import lupa as lua
 
 
 # from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 # from kod.debpkgs import follow_dependencies_to_install, init_index, install_pkg
-from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
+# from kod.archpkgs import follow_dependencies_to_install, init_index, install_pkg
 from kod.filesytem import create_partitions
 
 
 #####################################################################################################
 
-def preexec():
-    signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGQUIT, signal.SIG_IGN)
+# def preexec():
+#     signal.signal(signal.SIGHUP, signal.SIG_IGN)
+#     signal.signal(signal.SIGINT, signal.SIG_IGN)
+#     signal.signal(signal.SIGQUIT, signal.SIG_IGN)
 
 
-def exec(c, cmd, input=None, testing=False):
-    if testing:
-        if input != None:
-            print(' '.join(cmd), '<--', input)
-        else:
-            print(' '.join(cmd))
-    else:
-        c.run(cmd)
-        # if input != None:
-        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
-        #                     stderr=sys.stderr, preexec_fn=preexec, input=input.encode()).returncode
-        # else:
-        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
-        #                     stderr=sys.stderr, preexec_fn=preexec).returncode
-
+def exec(c, cmd):
+    c.run(cmd)
 
 def exec_chroot(c,cmd):
     print(cmd)
@@ -59,6 +46,17 @@ def mount(c, part, path):
 def mkdir(c, path):
     exec(c, f"mkdir -p {path}")
 
+
+#####################################################################################################
+os_release = '''NAME="KodOS Linux"
+PRETTY_NAME="KodOS Linux"
+ID=kodos
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://github.com/kodos-prj/kodos/"
+DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
+SUPPORT_URL="https://github.com/kodos-prj/kodos/"
+BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
+'''
 
 #####################################################################################################
 
@@ -118,10 +116,6 @@ def configure_system(c, conf, boot="systemd-boot"):
     locale_name = locale.split()[0]
     exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
     
-    # akshara
-    # c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/hooks/akshara /mnt/usr/lib/initcpio/hooks/")
-    # c.run("cp /root/kodos/tools/akshara-dir/usr/lib/initcpio/install/akshara /mnt/usr/lib/initcpio/install/")
-    
     # Network
     network_conf = conf.network
     
@@ -141,19 +135,19 @@ Name=*
     with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
         f.write(eth0_network)
 
-    # exec_chroot(c, "systemctl enable systemd-networkd")
-    # exec_chroot(c, "systemctl enable systemd-resolved")
-
-
-    # exec_chroot(c, "systemctl enable systemd-networkd.service")
-    # exec_chroot(c, "systemctl start systemd-networkd.service")
     # hosts
     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
     # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
 
-    exec_chroot(c, "systemctl enable NetworkManager")
-    exec_chroot(c, "systemctl enable sshd.service")
+    # Replace default os-release
+    with open("/mnt/etc/os-release","w") as f:
+        f.write(os_release)
+
+    # exec_chroot(c, "systemctl enable NetworkManager")
+    enable_service(c, "NetworkManager")
+    # exec_chroot(c, "systemctl enable sshd.service")
+    enable_service(c, "shd.service")
 
     # initramfs
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
@@ -170,6 +164,8 @@ Name=*
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
     boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
+
+    # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         exec_chroot(c, "bootctl install")
 
@@ -212,11 +208,13 @@ options root={root_part} rw {option}
         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
             f.write(kodos_fb_conf)
 
+    # Using Grub as bootloader
     if boot_type == "grub":
         exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         pkgs_installed += ["efibootmgr"]
+
 
 def install_packages(c, conf):
     global pkgs_installed
@@ -235,8 +233,10 @@ def base_snapshot(c):
     exec_chroot(c, "mkdir -p /kod/generation/current/")
     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
     exec_chroot(c, f"echo '0' > /kod/generation/current/generation")
+    exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
+    exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
     exec_chroot(c, f"grub-mkconfig -o /boot/grub/grub.cfg")
-    # with open("/kod/generation/0/installed_packages", "w") as f:
+
 
 @task(help={"config":"system configuration file"})
 def install(c, config):
@@ -254,20 +254,6 @@ def install(c, config):
     print("Done")
 
 
-
-@task(help={"config":"system configuration file"})
-def install2(c, config):
-
-    conf = load_config(config)
-    print("-------------------------------")
-    create_partitions(c, conf)
-    install_essentials_pkgs(c)
-    configure_system(c, conf, boot="grub")
-    create_users(c, conf)
-
-    print("Done")
-
-
 @task(help={"config":"system configuration file"})
 def test_partition(c, config):
 
@@ -281,6 +267,20 @@ def test_partition(c, config):
     print("Done")
 
 
+def get_next_generation():
+    generations = glob.glob("kod/generations/*")
+    generations = [p for p in generations if not os.path.islink(p)]
+    generations = [int(p.split('/')[-1]) for p in generations]
+    print(f"{generations=}")
+    if generations:
+        generation = max(generations)+1
+    else:
+        generation = 1
+    print(f"{generation=}")
+    return generation
+
+
+
 @task(help={"config":"system configuration file"})
 def rebuild(c, config):
 
@@ -288,9 +288,9 @@ def rebuild(c, config):
     print("========================================")
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
-    # configure_system_test(c, conf)
-    with open("/kod/generation/current/generation") as f:
-        generation = f.readline().strip()
+    generation = get_next_generation()
+    # with open("/kod/generation/current/generation") as f:
+        # generation = f.readline().strip()
     print(generation)
 
     with open(f"/kod/generation/{generation}/installed_packages") as f:
@@ -302,7 +302,7 @@ def rebuild(c, config):
 
     if remove_pkg:
         try:
-            c.run(f"sudo pacman -Rssn --noconfirm {" ".join(remove_pkg)}")
+            c.run(f"sudo pacman -Rssn --noconfirm {' '.join(remove_pkg)}")
         except:
             pass
     if added_pkgs:
@@ -806,18 +806,6 @@ Server = http://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch"""
 
 # ----------------------------------
 
-def get_next_generation():
-    generations = glob.glob("kod/generations/*")
-    generations = [p for p in generations if not os.path.islink(p)]
-    generations = [int(p.split('/')[-1]) for p in generations]
-    print(f"{generations=}")
-    if generations:
-        generation = max(generations)+1
-        # generation = int(last_generation.split("/")[-1]) + 1
-    else:
-        generation = 1
-    print(f"{generation=}")
-    return generation
 
 def get_list_of_packages_to_install(catalog, providers, pkg_name):
     packages_to_install = {}
@@ -957,221 +945,3 @@ def save_installed(generation, inst_pkgs):
             f.write(f"{pkg} {info['version']}\n")
 
 
-# @task(help={"config":"system configuration file"})
-# def install_boot(c, config):
-
-#     conf = load_config(config)
-
-#     boot = conf.boot
-#     print(f"{boot=}")
-
-#     initrd = boot.initrd
-#     print(f"{initrd=}")
-
-#     if not Path("kod/config/catalog.json").exists():
-#         # Init catalog
-#         sources = conf.source
-#         init_index(c, sources)
-#     with open("kod/config/catalog.json") as f:
-#         catalog = json.load(f)
-
-#     linux_desc = catalog["linux"]
-#     # kver = linux_desc["version"]
-#     kver = "6.11.3-arch1-1"
-#     c.run(f"arch-chroot /mnt depmod {kver}")
-#     # depmod 6.10.10-arch1-1
-#     c.run(f"arch-chroot /mnt dracut -v -H --add-fstab /etc/fstab.initrd --kver {kver} --libdirs lib64")
-#     # dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok
-
-#     # loader processing
-#     loader = boot.loader
-#     for item,value in loader.items():
-#         print(item,value)
-
-#     loader_type = loader.type
-
-#     if loader_type == "systemd-boot":
-#         print("Using systemd-boot")
-        
-#         # Remove the linked fie to avoid cross partion links
-#         efi_systemd_boot = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
-#         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
-#         c.run(f"mv /mnt{efi_systemd_boot} /mnt{efi_systemd_boot}-lnk")
-#         # cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-#         c.run(f"cp /mnt/kod/generations/current/systemd/{efi_systemd_boot} /mnt{efi_systemd_boot}")
-
-#         # ------------
-#         # bootctl --make-entry-directory=yes install 
-#         c.run(f"arch-chroot /mnt bootctl --make-entry-directory=yes install")
-
-#         # kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img 
-#         c.run(f"arch-chroot /mnt kernel-install -v add {kver} /usr/lib/modules/{kver}/vmlinuz /boot/initramfs-{kver}.img ")
-
-#         # ------------
-#         # rm /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-#         c.run(f"rm /mnt{efi_systemd_boot}")
-#         # mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-#         c.run(f"mv /mnt{efi_systemd_boot}-lnk /mnt{efi_systemd_boot}")
-
-#     entries_to_include = loader.include
-
-#     for entry in entries_to_include.values():
-#         print(f"Include {entry}")
-#         print(f"install '{entry}-efi' if not installed")
-#         print(f"Create /boot/loader/entries/{entry}.conf")
-#         print(f"title\t {entry}\nefi\t /{entry}/{entry}.efi")
-#     print("-------------------------------")
-
-
-
-# -----------------------------------------------------
-# Intall bootloader
-# -----------------------------------------------------
-# @task(help={"config":"system configuration file"})
-def install_network(c, config):
-
-    conf = load_config(config)
-
-    network = conf.network
-    print(f"{network=}")
-
-    if "hostname" in network:
-        c.run(f"arch-chroot /mnt hostnamectl set-hostname {network.hostname}")
-
-    c.run(f"arch-chroot /mnt systemctl enable systemd-networkd")
-
-    # c.run(f'arch-chroot /mnt timedatectl set-timezone "America/Edmonton"')
-
-    # c.run(f'arch-chroot /mnt timedatectl set-ntp true')
-
-    # c.run(f"arch-chroot /mnt passwd -d root")
-
-
-# -----------------------------------------------------
-# Intall bootloader
-# -----------------------------------------------------
-
-# @task(help={"config":"system configuration file"})
-def test_rebuild(c, config):
-    # [x] Check if catalog existsx
-    # If not,
-    #   [x] read config and get the sources
-    #   [x] Download the catalog and create catalog.json
-    # [x] Read the catalog.json
-
-    # New rebuild:
-    # - [ ] A new generation is created, and the list of packages, pkgs's configurations are recreated
-    # - [ ] If new  packages are added, they are downloaded and stored in pkgs directory
-    # - [ ] from the list os selected packages, link pkgs in the new generation
-
-    conf = load_config(config)
-
-    pkg_list = list(conf.packages.values())
-    print("packages\n",pkg_list)
-
-    # catalog = load_catalog(c, conf.sources)
-    if not Path("kod/config/catalog.json").exists():
-        # Init catalog
-        sources = conf.source
-        init_index(c, sources)
-    with open("kod/config/catalog.json") as f:
-        catalog = json.load(f)
-
-    all_pkgs_to_install = {}
-    packages_to_install = {}
-    for pkgname in pkg_list:
-        # print(pkgname)
-        packages_to_install = get_list_of_packages_to_install(catalog, pkgname)
-        # print(packages_to_install.keys())
-        all_pkgs_to_install.update(packages_to_install)
-
-    print(all_pkgs_to_install.keys())
-
-
-
-# ToDO
-# create /etc/eo-release
-# NAME="KodOS Linux"
-# PRETTY_NAME="KodOS Linux"
-# ID=kodos
-# ANSI_COLOR="38;2;23;147;209"
-# HOME_URL="https://github.com/kodos-prj/kodos/"
-# DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
-# SUPPORT_URL="https://github.com/kodos-prj/kodos/"
-# BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
-## LOGO=archlinux-logo
-
-# To install boot manager (system-boot)
-# copy /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-# On an x64 UEFI, /usr/lib/systemd/boot/efi/systemd-bootx64.efi will be copied 
-# to esp/EFI/systemd/systemd-bootx64.efi and esp/EFI/BOOT/BOOTX64.EFI
-
-# mkdir -p /boot/EFI/systemd/
-# mkdir -p /boot/EFI/BOOT/
-# cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/systemd/
-# cp /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI
-
-
-# bootctl will do the copy <--- ok
-# mv /usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi-lnk
-# cp /kod/generations/current/systemd/usr/lib/systemd/boot/efi/systemd-bootx64.efi /usr/lib/systemd/boot/efi/systemd-bootx64.efi
-
-# bootctl --make-entry-directory=yes install   # <-- ok
-
-
-# mkdir -p /boot/kod
-# depmod 6.10.10-arch1-1                                    # <--- ok
-# dracut -v --fstab --kver 6.10.10-arch1-1 --libdirs lib64  # <--- ok  
-# cp /boot/initramfs-6.10.10-arch1-1.img /boot/kod
-# cp /mnt/kod/generations/current/linux/usr/lib/models/6.10.10-arch1-1/vmlinuz /mnt/boot/kod/vmlinuz-6.10.10-arch1-1
-
-# /boot/loader/entries/kodos.conf
-# title   KodOS Linux
-# linux   /kod/vmlinuz-6.10.10-arch1-1
-# initrd  /kod/initramfs-6.10.10-arch1-1.img
-
-# /usr/lib/kernel/install.d/50-depmod.install add 6.10.10-arch1-1 /boot/kodos/6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
-# kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /initrd
-
-# kernel-install -v add 6.10.10-arch1-1 /usr/lib/modules/6.10.10-arch1-1/vmlinuz /boot/initramfs-6.10.10-arch1-1.img  # <-- ok
-
-
-# memtest86+ should use copy instead of link
-# '/kod/generations/current/memtest86+-efi/boot/memtest86+/memtest.efi' -> 'boot/memtest86+/memtest.efi'
-
-
-# rd.driver.pre=btrfs
-
-# root=UUID=9ffd9206-5b27-4b36-be06-3c50fd22ab34 rootfstype=ext4 rootflags=rw,relatime
-
-
-# mkinitcpio -k 6.10.10-arch1-1 -A "systemd" -g /boot/initramfs-6.10.10-arch1-1-mkcpio.img 
-
-# dracut --kver 6.10.10-arch1-1 --force --add "busybox bash shutdown test"
-# root=UUID=a1e30583-57d2-4aa0-98e2-b80226d57ae7 rootfstype=ext4 rootflags=rw,relatime
-
-
-# sudo chroot mnt /usr/bin/env -i HOME=/root TERM="$TERM" PS1='(kodos) \u:\w\$ ' PATH=/usr/bin /bin/bash --login
-
-
-# pacman -Sy git poetry
-# git clone https://github.com/kodos-prj/kodos
-# cd kodos
-# poetry install
-# poetry shell
-
-
-# fstab only with /boot
-# rd.driver.pre=ext4 rd.driver.pre=vfat rd.shell rd.debugg log_buf_len=1M root=/dev/vda2 rw
-
-# 10.0.2.15/24  gw 10.0.2.2
-
-# # timedatectl set-timezone "America/Edmonton"
-
-# list of packages to install
-# pacman -Sp --config pacman.conf base linux linux-firmware mc | awk -F/ '{print $NF}' 
-
-
-# boot btrfs ratition subvolume
-# ]linux	/@/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=@ cryptdevice=/dev/disk/by-uuid/bb7396f5-f246-4edf-9f1f-298c9ca560ac:cryptroot:allow-discards modprobe.blacklist=ehci_pci i915.semaphores=1 quiet loglevel=3 udev.log-priority=3
-# linux	/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=/rootfs i915.semaphores=1 loglevel=3
