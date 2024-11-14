@@ -1,5 +1,7 @@
 -- Disk partition definition
 
+btrfs_options = "rw,noatime,compress-force=zstd:1,space_cache=v2"
+
 return  {
    device = "/dev/vda",
    efi = true,
@@ -10,7 +12,7 @@ return  {
       {
          name = "Boot",
          size = "1GB",
-         type = "fat32",
+         type = "esp",
          mountpoint = "/boot",
       },
       {
@@ -32,14 +34,33 @@ return  {
             -- Subvolume name is the same as the mountpoint
             home = {
                subvol = "/home",
-               mountOptions = "compress=zstd",
                mountpoint = "/home",
+               mountOptions = btrfs_options,
             },
-            -- Parent is not mounted so the mountpoint must be set
+            root = {
+               subvol = "/root",
+               mountpoint = "/root",
+               mountOptions = btrfs_options,
+            },
+            cache = {
+               subvol = "/cache",
+               mountpoint = "/var/cache",
+               mountOptions = btrfs_options,
+            },
+            tmp = {
+               subvol = "/tmp",
+               mountpoint = "/var/tmp",
+               mountOptions = btrfs_options,
+            },
+            log = {
+               subvol = "/log",
+               mountpoint = "/var/log",
+               mountOptions = btrfs_options,
+            },
             kod = {
                subvol = "/kod",
-               mountOptions = "compress=zstd,noatime",
                mountpoint = "/kod",
+               mountOptions = btrfs_options,
             }
          }
       },

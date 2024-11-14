@@ -21,7 +21,7 @@ return {
     -- },
 
     devices = {
-        disk0 = require "disk",
+        disk0 = require "disk-btrfs",
     },
 
     -- bootloader = {
@@ -34,7 +34,8 @@ return {
             kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
         },
         loader = {
-            type = "systemd-boot",
+            -- type = "systemd-boot",
+            type = "grub",
             timeout = 10,
             include = { "memtest86+" },
         },
@@ -42,10 +43,10 @@ return {
 
     locale = {
         locale = {
-            "en_US.UTF-8 UTF-8"
+            default = "en_US.UTF-8 UTF-8",
         },
         keymap = "us",
-        timezone = "GMT-7"
+        timezone = "America/Edmonton"
     },
 
     network = {
@@ -70,41 +71,22 @@ return {
     },
 
     packages = {
-        "base",
-        -- "bash",
-        -- "coreutils",
-        "linux",
-        -- "pacman",
-        "mkinitcpio",
-        -- "python",
-        -- "poetry",
-        -- "grep",
-        -- "mc",
-        -- "systemd",
-        -- "git",
-        -- "openssl",
-        -- "neovim",
-        -- "libvterm",
-        -- "zlib",
-        -- "lua51-lpeg",
-        -- "ca-certificates-utils",
-        -- "p11-kit",
-        -- "libp11-kit"
-        -- "curl",
-        -- "btrfs-progs",
-        -- "dracut",
-        -- "grub",
-        -- "grub-btrfs",
-        -- "efibootmgr",
-        -- "memtest86+-efi",
-        "linux-firmware",
-        -- "util-linux",
-        -- "strace",
-        -- "pacman",
-        -- "libmnl",
-        -- "openssh",
-        -- "networkmanager",
-        "iptables",
+        "flatpak",
+        -- "gnome",
+        -- "gnome-extra",
+        -- "gnome-themes-extra",
+        -- "gdm",
+        "sddm",
+        "plasma",
+        "kde-applications",
+        "pipewire",
+        "pipewire-pulse",
+        -- "gnome-tweaks",
+        "mc",
+        "neovim",
+        -- "cosmic",
+        "python-invoke",
+        "rustup",
     },
 
     services = {
