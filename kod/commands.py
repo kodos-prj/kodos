@@ -249,15 +249,16 @@ def base_snapshot(c):
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
 
-def get_next_generation():
+def get_max_generation():
     generations = glob.glob("/kod/generations/*")
-    generations = [p for p in generations if not os.path.islink(p)]
-    generations = [int(p.split('/')[-1]) for p in generations]
+    # generations = [p for p in generations if not os.path.islink(p)]
+    generations = [p.split('/')[-1] for p in generations]
+    generations = [int(p) for p in generations if p != "current"]
     print(f"{generations=}")
     if generations:
-        generation = max(generations)+1
+        generation = max(generations)
     else:
-        generation = 1
+        generation = 0
     print(f"{generation=}")
     return generation
 
@@ -288,12 +289,12 @@ def rebuild(c, config):
     print("========================================")
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
-    generation = get_next_generation()
-    # with open("/kod/generation/current/generation") as f:
-        # generation = f.readline().strip()
-    print(generation)
+    generation = get_max_generation()
+    with open("/kod/generation/current/generation") as f:
+        current_generation = f.readline().strip()
+    print(f"{current_generation = }")
 
-    with open(f"/kod/generation/{generation}/installed_packages") as f:
+    with open(f"/kod/generation/{current_generation}/installed_packages") as f:
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
