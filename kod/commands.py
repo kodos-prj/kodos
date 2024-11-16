@@ -330,6 +330,7 @@ def rebuild(c, config):
         c.run(f"sudo sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
     else:
         c.run(f"sudo echo '{new_generation} > /kod/generation/current/generation")
+    c.run("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
 
     print("Recreating grub.cfg")
     c.run("grub-mkconfig -o /boot/grub/grub.cfg")
