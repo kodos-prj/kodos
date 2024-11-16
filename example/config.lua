@@ -87,6 +87,8 @@ return {
         -- "cosmic",
         "python-invoke",
         "rustup",
+        "git",
+        "poetry",
     },
 
     services = {
