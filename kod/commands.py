@@ -230,14 +230,19 @@ def base_snapshot(c):
     exec_chroot(c, "mkdir -p /kod/generation/0/")
     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
     pkgs = "\n".join(pkgs_installed)
-    exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+    with open("/mnt/kod/generation/0/installed_packages","w") as f:
+        f.write(pkgs)
+    # exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+    
     print("Creating current snapshot")
     exec_chroot(c, "mkdir -p /kod/generation/current/")
     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
     exec_chroot(c, "echo '0' > /kod/generation/current/generation")
+    
     print("Updating /etc/default/grub")
     exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
     exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
+    
     print("Recreating grub.cfg")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
