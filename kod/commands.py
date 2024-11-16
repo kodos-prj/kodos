@@ -250,7 +250,7 @@ def base_snapshot(c):
 
 
 def get_max_generation():
-    generations = glob.glob("/kod/generations/*")
+    generations = glob.glob("/kod/generation/*")
     # generations = [p for p in generations if not os.path.islink(p)]
     generations = [p.split('/')[-1] for p in generations]
     generations = [int(p) for p in generations if p != "current"]
