@@ -237,7 +237,9 @@ def base_snapshot(c):
     print("Creating current snapshot")
     exec_chroot(c, "mkdir -p /kod/generation/current/")
     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
-    exec_chroot(c, "echo '0' > /kod/generation/current/generation")
+    with open("/mnt/kod/generation/current/generation","w") as f:
+        f.write("0")
+    # exec_chroot(c, "echo '0' > /kod/generation/current/generation")
     
     print("Updating /etc/default/grub")
     exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
