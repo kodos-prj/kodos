@@ -73,14 +73,14 @@ def load_config(config_filename: str):
 
 
 def install_essentials_pkgs(c):
-    global pkgs_installed
+    # global pkgs_installed
     # cpuinfo = c.run("grep vendor_id /proc/cpuinfo | head -n 1")
     microcode = "amd-ucode"
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
                  "networkmanager", "openssh", "sudo"]
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
-    pkgs_installed += base_pkgs
+    # pkgs_installed += base_pkgs
     # exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
 
 
@@ -95,7 +95,7 @@ def create_users(c, conf):
         exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
 
 def configure_system(c, conf, boot="systemd-boot"):
-    global pkgs_installed
+    # global pkgs_installed
     
     # fstab
     exec(c, "genfstab -U /mnt > /mnt/etc/fstab")
@@ -147,7 +147,7 @@ Name=*
     # exec_chroot(c, "systemctl enable NetworkManager")
     enable_service(c, "NetworkManager")
     # exec_chroot(c, "systemctl enable sshd.service")
-    enable_service(c, "shd.service")
+    enable_service(c, "sshd.service")
 
     # initramfs
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
@@ -213,7 +213,7 @@ options root={root_part} rw {option}
         exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
-        pkgs_installed += ["efibootmgr"]
+        # pkgs_installed += ["efibootmgr"]
 
 
 def install_packages(c, conf):
@@ -221,24 +221,29 @@ def install_packages(c, conf):
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
     exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(pkg_list)))
-    pkgs_installed += pkg_list
+    pkgs_installed = pkg_list
 
 
 def base_snapshot(c):
     global pkgs_installed
+    print("Creating base snapshot")
     exec_chroot(c, "mkdir -p /kod/generation/0/")
     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
     pkgs = "\n".join(pkgs_installed)
     exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+    print("Creating current snapshot")
     exec_chroot(c, "mkdir -p /kod/generation/current/")
     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
-    exec_chroot(c, f"echo '0' > /kod/generation/current/generation")
+    exec_chroot(c, "echo '0' > /kod/generation/current/generation")
+    print("Updating /etc/default/grub")
     exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
     exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
-    exec_chroot(c, f"grub-mkconfig -o /boot/grub/grub.cfg")
+    print("Recreating grub.cfg")
+    exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+
 
 def get_next_generation():
-    generations = glob.glob("kod/generations/*")
+    generations = glob.glob("/kod/generations/*")
     generations = [p for p in generations if not os.path.islink(p)]
     generations = [int(p.split('/')[-1]) for p in generations]
     print(f"{generations=}")
@@ -288,23 +293,38 @@ def rebuild(c, config):
     remove_pkg = set(inst_pkgs) - set(pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
+
     if remove_pkg:
-        try:
-            c.run(f"sudo pacman -Rssn --noconfirm {' '.join(remove_pkg)}")
-        except:
-            pass
+        print("Packages to remove:",remove_pkg)
+        for pkg in remove_pkg:
+            try:
+                c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+            except:
+                print(f"Unable to remove {pkg}")
+                pass
     if added_pkgs:
+        print("Packages to install:", added_pkgs)
         c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
     
     new_generation = int(generation)+1
+    print(f"New generation: {new_generation}")
     c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
     c.run(f"sudo btrfs subvol snap -r / /kod/generation/{new_generation}/rootfs")
     with open(f"/kod/generation/{new_generation}/installed_packages", "w") as f:
         f.write("\n".join(pkg_list))
-    c.run(f"sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
+    
+    print("Updating current generation")
+    # Check if rootfs exists
+    if os.path.isdir("/kod/generation/current/rootfs"):
+        c.run("sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
     c.run(f"sudo btrfs subvol snap /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
-    c.run(f"sudo sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
-    c.run(f"grub-mkconfig -o /boot/grub/grub.cfg")
+    if os.path.isfile("/kod/generation/current/generation"):
+        c.run(f"sudo sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
+    else:
+        c.run(f"sudo echo '{new_generation} > /kod/generation/current/generation")
+
+    print("Recreating grub.cfg")
+    c.run("grub-mkconfig -o /boot/grub/grub.cfg")
     print("Done")
 
 
