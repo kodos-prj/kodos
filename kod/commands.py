@@ -73,9 +73,17 @@ def load_config(config_filename: str):
 
 
 def install_essentials_pkgs(c):
-    # global pkgs_installed
-    # cpuinfo = c.run("grep vendor_id /proc/cpuinfo | head -n 1")
-    microcode = "amd-ucode"
+    # CPU microcode
+    with open("/proc/cpuinfo") as f:
+        while True:
+            line = f.readline()
+            if "AuthenticAMD" in line:
+                microcode = "amd-ucode"
+                break
+            if "GenuineIntel" in line:
+                microcode = "intel-ucode"
+                break
+
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
                  "networkmanager", "openssh", "sudo"]
 
@@ -160,6 +168,69 @@ Name=*
     # Change root password
     exec_chroot(c, "passwd")
 
+#     # bootloader
+#     boot_conf = conf.boot
+#     loader_conf = boot_conf["loader"]
+#     boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
+
+#     # Using systemd-boot as bootloader
+#     if boot_type == "systemd-boot":
+#         exec_chroot(c, "bootctl install")
+
+#         res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
+#         mount_point = res.stdout.split()
+#         root_part = mount_point[0].strip()
+#         part_type = mount_point[2].strip()
+#         mount_options = mount_point[3].strip().split(",")
+#         print(root_part, part_type, mount_options)
+#         option = ""
+#         if part_type == "btrfs":
+#             for opt in mount_options:
+#                 if opt.startswith("subvol"):
+#                     option = "rootflags="+opt
+
+
+#         loader_conf_systemd = """
+# default arch
+# timeout 3
+# console-mode max
+# #editor no"""
+#         with open("/mnt/boot/loader/loader.conf", "w") as f:
+#             f.write(loader_conf_systemd)
+        
+#         kodos_conf = f"""
+# title KodOS Linux
+# linux /vmlinuz-linux
+# initrd /initramfs-linux.img
+# options root={root_part} rw {option}
+#     """
+#         with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
+#             f.write(kodos_conf)
+
+#         kodos_fb_conf = f"""
+# title KodOS Linux - fallback
+# linux /vmlinuz-linux
+# initrd /initramfs-linux-fallback.img
+# options root={root_part} rw {option}
+#     """
+#         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
+#             f.write(kodos_fb_conf)
+
+#     # Using Grub as bootloader
+#     if boot_type == "grub":
+#         pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
+#         if "include" in loader_conf:
+#             pkgs_required += loader_conf["include"]
+
+#         # exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
+
+#         exec_chroot(c, "pacman -S --noconfirm"," ".join(pkgs_required))
+#         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
+#         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+#         # pkgs_installed += ["efibootmgr"]
+
+
+def setup_bootloader(c, conf):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
@@ -182,13 +253,13 @@ Name=*
                     option = "rootflags="+opt
 
 
-        loader_conf = """
+        loader_conf_systemd = """
 default arch
 timeout 3
 console-mode max
 #editor no"""
         with open("/mnt/boot/loader/loader.conf", "w") as f:
-            f.write(loader_conf)
+            f.write(loader_conf_systemd)
         
         kodos_conf = f"""
 title KodOS Linux
@@ -210,10 +281,18 @@ options root={root_part} rw {option}
 
     # Using Grub as bootloader
     if boot_type == "grub":
-        exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
+        pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
+        if "include" in loader_conf:
+            pkgs_required += loader_conf["include"].values()
+
+        # exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
+
+        exec_chroot(c, f"pacman -S --noconfirm {' '.join(pkgs_required)}")
         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         # pkgs_installed += ["efibootmgr"]
+
+
 
 
 def install_packages(c, conf):
@@ -274,6 +353,7 @@ def install(c, config):
     create_partitions(c, conf)
     install_essentials_pkgs(c)
     configure_system(c, conf)
+    setup_bootloader(c, conf)
     install_packages(c, conf)
     create_users(c, conf)
 
@@ -284,6 +364,7 @@ def install(c, config):
 
 @task(help={"config":"system configuration file"})
 def rebuild(c, config):
+    "Rebuild KodOS installation based on configuration file"
 
     conf = load_config(config)
     print("========================================")
@@ -312,7 +393,7 @@ def rebuild(c, config):
                 pass
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        c.run(f"sudo pacman -S --noconfirm {" ".join(added_pkgs)}")
+        c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")
@@ -392,5 +473,7 @@ def test_config(c, config):
 
     print("========================================")
     # configure_system_test(c, conf)
+    setup_bootloader(c, conf)
+    install_essentials_pkgs(c)
 
 ##############################################################################

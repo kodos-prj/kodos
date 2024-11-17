@@ -30,9 +30,9 @@ return {
     -- },
 
     boot = {
-        initrd = {
-            kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        },
+        -- initrd = {
+        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
+        -- },
         loader = {
             -- type = "systemd-boot",
             type = "grub",
