@@ -80,6 +80,9 @@
 # list of packages to install
 # pacman -Sp --config pacman.conf base linux linux-firmware mc | awk -F/ '{print $NF}' 
 
+# exclude packages:
+# pacman -Sp gnome | grep -v 'suchi\|orca'
+
 
 # boot btrfs ratition subvolume
 # ]linux	/@/boot/vmlinuz-linux root=UUID=60d2f44d-87a1-4377-bb7c-ccd161d59a78 rw rootflags=subvol=@ cryptdevice=/dev/disk/by-uuid/bb7396f5-f246-4edf-9f1f-298c9ca560ac:cryptroot:allow-discards modprobe.blacklist=ehci_pci i915.semaphores=1 quiet loglevel=3 udev.log-priority=3

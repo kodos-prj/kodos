@@ -297,10 +297,31 @@ options root={root_part} rw {option}
 
 def install_packages(c, conf):
     global pkgs_installed
+    packages_to_install = []
+    desktop_manager = conf.desktop_manager
+    if desktop_manager:
+        for desktop_mngr, dm_conf in desktop_manager.items():
+            print(f"Installing {desktop_mngr}")
+            if dm_conf["enable"]:
+                if "exclude_packages" in dm_conf:
+                    exclude_pkg_list = list(dm_conf["exclude_packages"].values())
+                else:
+                    exclude_pkg_list = []
+                if exclude_pkg_list:
+                    exclude_pkgs = '\|'.join(exclude_pkg_list)
+                    pks_to_install = c.run(f"pacman -Sgq {desktop_mngr} | grep -v '{exclude_pkgs}'").stdout.split()
+                    packages_to_install += [p.strip() for p in pks_to_install]
+                else:
+                    packages_to_install += [desktop_mngr]
+                if "display_manager" in dm_conf:
+                    display_mngr = dm_conf["display_manager"]
+                    packages_to_install += [display_mngr]
+
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
-    exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(pkg_list)))
-    pkgs_installed = pkg_list
+    packages_to_install += pkg_list
+    pkgs_installed = packages_to_install
+    return packages_to_install
 
 
 def base_snapshot(c):
@@ -354,7 +375,8 @@ def install(c, config):
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)
-    install_packages(c, conf)
+    packages_to_install = install_packages(c, conf)
+    exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(packages_to_install)))
     create_users(c, conf)
 
     base_snapshot(c)
@@ -368,7 +390,8 @@ def rebuild(c, config):
 
     conf = load_config(config)
     print("========================================")
-    pkg_list = list(conf.packages.values())
+    # pkg_list = list(conf.packages.values())
+    pkg_list = install_packages(c, conf)
     print("packages\n",pkg_list)
     generation = get_max_generation()
     with open("/kod/generation/current/generation") as f:
@@ -432,7 +455,7 @@ def test_partition(c, config):
     print("Done")
 
 
-# @task(help={"config":"system configuration file"})
+@task(help={"config":"system configuration file"})
 def test_config(c, config):
 
     conf = load_config(config)
@@ -471,9 +494,12 @@ def test_config(c, config):
     for k,v in users.items():
         print(f"  {k} = {v}")
 
-    print("========================================")
     # configure_system_test(c, conf)
-    setup_bootloader(c, conf)
-    install_essentials_pkgs(c)
+    # setup_bootloader(c, conf)
+    # install_essentials_pkgs(c)
+    # packages_to_install = install_packages(c, conf)
+    # print(packages_to_install)
+    print("========================================")
+    rebuild(c, config)
 
 ##############################################################################

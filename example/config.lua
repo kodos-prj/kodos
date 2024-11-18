@@ -70,14 +70,32 @@ return {
         },
     },
 
+    desktop_manager = {
+        gnome = {
+            enable = false,
+            display_manager = "gdm",
+            exclude_packages = {
+                "gnome-tour", "yelp"
+            }
+        },
+
+        plasma = {
+            enable = true,
+            display_manager = "sddm",
+            -- exclude_packages = {
+            --     "gnome-tour",
+            -- }
+        },
+    },
+
     packages = {
         "flatpak",
         -- "gnome",
         -- "gnome-extra",
         -- "gnome-themes-extra",
         -- "gdm",
-        "sddm",
-        "plasma",
+        -- "sddm",
+        -- "plasma",
         "kde-applications",
         "pipewire",
         "pipewire-pulse",
