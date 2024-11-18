@@ -405,9 +405,8 @@ def rebuild(c, config):
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
-    remove_pkg = set(inst_pkgs + rm_pkg_list) - set(pkg_list)
+    remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
-
 
     if remove_pkg:
         print("Packages to remove:",remove_pkg)
