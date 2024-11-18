@@ -298,6 +298,8 @@ options root={root_part} rw {option}
 def install_packages(c, conf):
     global pkgs_installed
     packages_to_install = []
+    packages_to_remove = []
+
     desktop_manager = conf.desktop_manager
     if desktop_manager:
         for desktop_mngr, dm_conf in desktop_manager.items():
@@ -305,6 +307,7 @@ def install_packages(c, conf):
             if dm_conf["enable"]:
                 if "exclude_packages" in dm_conf:
                     exclude_pkg_list = list(dm_conf["exclude_packages"].values())
+                    packages_to_remove += exclude_pkg_list
                 else:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
@@ -321,7 +324,7 @@ def install_packages(c, conf):
     print("packages\n",pkg_list)
     packages_to_install += pkg_list
     pkgs_installed = packages_to_install
-    return packages_to_install
+    return packages_to_install, packages_to_remove
 
 
 def base_snapshot(c):
@@ -375,7 +378,7 @@ def install(c, config):
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)
-    packages_to_install = install_packages(c, conf)
+    packages_to_install, _ = install_packages(c, conf)
     exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(packages_to_install)))
     create_users(c, conf)
 
@@ -391,7 +394,7 @@ def rebuild(c, config):
     conf = load_config(config)
     print("========================================")
     # pkg_list = list(conf.packages.values())
-    pkg_list = install_packages(c, conf)
+    pkg_list, rm_pkg_list = install_packages(c, conf)
     print("packages\n",pkg_list)
     generation = get_max_generation()
     with open("/kod/generation/current/generation") as f:
@@ -402,7 +405,7 @@ def rebuild(c, config):
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
-    remove_pkg = set(inst_pkgs) - set(pkg_list)
+    remove_pkg = set(inst_pkgs + rm_pkg_list) - set(pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
 
