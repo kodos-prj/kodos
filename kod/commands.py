@@ -445,9 +445,13 @@ def rebuild(c, config):
 
 
 @task(help={"generation":"Generation number to rollback to"})
-def rollback(c, generation):
+def rollback(c, generation=None):
     "Rollback current generation to use the specified generation"
 
+    if generation is None:
+        print("Please specify a generation number")
+        return
+    
     print("Updating current generation")
     # Check if rootfs exists
     if os.path.isdir("/kod/generation/current/rootfs-old"):
