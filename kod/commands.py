@@ -444,6 +444,27 @@ def rebuild(c, config):
     print("Done")
 
 
+@task(help={"generation":"Generation number to rollback to"})
+def rollback(c, generation):
+    "Rollback current generation to use the specified generation"
+
+    print("Updating current generation")
+    # Check if rootfs exists
+    if os.path.isdir("/kod/generation/current/rootfs-old"):
+        c.run("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
+    if os.path.isdir("/kod/generation/current/rootfs"):
+        c.run("sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
+    c.run(f"sudo btrfs subvol snap /kod/generation/{generation}/rootfs /kod/generation/current/rootfs")
+    if os.path.isfile("/kod/generation/current/generation"):
+        c.run(f"sudo sed -i 's/.$/{generation}/g' /kod/generation/current/generation")
+    else:
+        c.run(f"sudo echo '{generation} > /kod/generation/current/generation")
+
+    print("Recreating grub.cfg")
+    c.run("grub-mkconfig -o /boot/grub/grub.cfg")
+    print("Done")
+
+
 @task(help={"config":"system configuration file"})
 def test_partition(c, config):
 
