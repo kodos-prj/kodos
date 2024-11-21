@@ -310,11 +310,11 @@ def proc_repos(c, conf):
             url = build_info['url']
             build_cmd = build_info['build_cmd']
             exec_chroot(c, "mkdir -p /kod/extra/")
-            exec_chroot(c, "cd /kod/extra/")
             exec_chroot(c, "pacman -S --needed git base-devel")
-            exec_chroot(c, f"git clone {url}")
-            exec_chroot(c, f"cd {repo}")
-            exec_chroot(c, f"{build_cmd}")
+            exec_chroot(c, f"cd /kod/extra/ && git clone {url} && cd {repo} && {build_cmd}")
+            # exec_chroot(c, f"git clone {url}")
+            # exec_chroot(c, f"cd {repo}")
+            # exec_chroot(c, f"{build_cmd}")
 
     return repos
 
