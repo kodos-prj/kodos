@@ -225,9 +225,6 @@ options root={root_part} rw {option}
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         # pkgs_installed += ["efibootmgr"]
 
-
-
-
 def get_packages_to_install(c, conf):
     global pkgs_installed
     packages_to_install = []
