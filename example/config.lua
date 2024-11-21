@@ -2,14 +2,46 @@ print("config.lua")
 -- require("core.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
+local function aur_helper(dry_run)
+    run("yay -S --noconfirm", dry_run)
+end
 
 return {
-    source = {
-        url = "https://mirror.rackspace.com/archlinux",
-        arch = "x86_64",
-        repo = { "core", "extra" },
-        type = "arch",
+    repos = {
+        official = {
+            mirror = "https://mirror.rackspace.com/archlinux",
+            -- arch = "x86_64",
+            repo = { "core", "extra" },
+            type = "arch",
+            commands = {
+                install = "pacman -S",
+                update = "pacman -Syu",
+                remove = "pacman -R",
+                update_db = "pacman -Sy",
+            }
+        },
+        aur = {
+            type = "aur",
+            build = {
+                name = "yay",
+                url = "https://aur.archlinux.org/yay.git",
+                build_cmd = "makepkg -si --noconfirm",
+            },
+            commands = {
+                install = "yay -S",
+                update = "yay -Syu",
+                remove = "yay -R",
+                update_db = "yay -Sy",
+            },
+        }
     },
+
+    -- source = {
+    --     url = "https://mirror.rackspace.com/archlinux",
+    --     arch = "x86_64",
+    --     repo = { "core", "extra" },
+    --     type = "arch",
+    -- },
     -- source = {
     --     -- url = "http://ftp.ca.debian.org/debian/dists/stable/main/binary-amd64/Packages.gz",
     --     url = "http://ftp.ca.debian.org/debian/dists/stable/",
@@ -70,15 +102,39 @@ return {
         },
     },
 
+    desktop_manager = {
+        gnome = {
+            enable = false,
+            display_manager = "gdm",
+            exclude_packages = {
+                "gnome-tour", "yelp"
+            },
+            packages = {
+                "gnome-tweaks",
+            },
+        },
+
+        plasma = {
+            enable = true,
+            display_manager = "sddm",
+            -- exclude_packages = {
+            --     "gnome-tour",
+            -- }
+            packages = {
+                "kde-applications",
+            },
+        },
+    },
+
     packages = {
         "flatpak",
         -- "gnome",
         -- "gnome-extra",
         -- "gnome-themes-extra",
         -- "gdm",
-        "sddm",
-        "plasma",
-        "kde-applications",
+        -- "sddm",
+        -- "plasma",
+        -- "kde-applications",
         "pipewire",
         "pipewire-pulse",
         -- "gnome-tweaks",
@@ -87,6 +143,9 @@ return {
         -- "cosmic",
         "python-invoke",
         "rustup",
+        "git",
+        "poetry",
+        "aur:visual-studio-code-bin ",
     },
 
     services = {

@@ -15,27 +15,8 @@ from kod.filesytem import create_partitions
 
 #####################################################################################################
 
-def preexec():
-    signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-    signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-
-
-def exec(c, cmd, input=None, testing=False):
-    if testing:
-        if input != None:
-            print(' '.join(cmd), '<--', input)
-        else:
-            print(' '.join(cmd))
-    else:
-        c.run(cmd)
-        # if input != None:
-        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
-        #                     stderr=sys.stderr, preexec_fn=preexec, input=input.encode()).returncode
-        # else:
-        #     subprocess.run(cmd, shell=False, stdout=sys.stdout,
-        #                     stderr=sys.stderr, preexec_fn=preexec).returncode
-
+def exec(c, cmd):
+    c.run(cmd)
 
 def exec_chroot(c,cmd):
     print(cmd)
@@ -166,6 +147,8 @@ Name=*
     # Change root password
     exec_chroot(c, "passwd")
 
+
+def setup_bootloader(c, conf):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
@@ -218,8 +201,35 @@ options root={root_part} rw {option}
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         pkgs_installed += ["efibootmgr"]
 
-def install_packages(c, conf):
+def get_packages_to_install(c, conf):
     global pkgs_installed
+    packages_to_install = []
+    packages_to_remove = []
+
+    desktop_manager = conf.desktop_manager
+    if desktop_manager:
+        for desktop_mngr, dm_conf in desktop_manager.items():
+            print(f"Installing {desktop_mngr}")
+            if dm_conf["enable"]:
+                if "packages" in dm_conf:
+                    pkg_list = list(dm_conf["packages"].values())
+                    packages_to_install += pkg_list
+
+                if "exclude_packages" in dm_conf:
+                    exclude_pkg_list = list(dm_conf["exclude_packages"].values())
+                    packages_to_remove += exclude_pkg_list
+                else:
+                    exclude_pkg_list = []
+                if exclude_pkg_list:
+                    exclude_pkgs = '\|'.join(exclude_pkg_list)
+                    pks_to_install = c.run(f"pacman -Sgq {desktop_mngr} | grep -v '{exclude_pkgs}'").stdout.split()
+                    packages_to_install += [p.strip() for p in pks_to_install]
+                else:
+                    packages_to_install += [desktop_mngr]
+                if "display_manager" in dm_conf:
+                    display_mngr = dm_conf["display_manager"]
+                    packages_to_install += [display_mngr]
+
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
     exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(pkg_list)))
@@ -234,9 +244,66 @@ def base_snapshot(c):
     exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
     exec_chroot(c, "mkdir -p /kod/generation/current/")
     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
-    exec_chroot(c, f"echo '0' > /kod/generation/current/generation")
-    exec_chroot(c, f"grub-mkconfig -o /boot/grub/grub.cfg")
-    # with open("/kod/generation/0/installed_packages", "w") as f:
+    with open("/mnt/kod/generation/current/generation","w") as f:
+        f.write("0")
+    # exec_chroot(c, "echo '0' > /kod/generation/current/generation")
+    
+    print("Updating /etc/default/grub")
+    exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
+    exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
+    
+    print("Recreating grub.cfg")
+    exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+
+
+def get_max_generation():
+    generations = glob.glob("/kod/generation/*")
+    # generations = [p for p in generations if not os.path.islink(p)]
+    generations = [p.split('/')[-1] for p in generations]
+    generations = [int(p) for p in generations if p != "current"]
+    print(f"{generations=}")
+    if generations:
+        generation = max(generations)
+    else:
+        generation = 0
+    print(f"{generation=}")
+    return generation
+
+# --------------------------------------
+def proc_repos(c, conf):
+    repos_conf = conf.repos
+    repos = {}
+    for repo, repo_desc in repos_conf.items():
+        repos[repo] = repo_desc['commands']
+        if "build" in repo_desc:
+            build_info = repo_desc['build']
+            url = build_info['url']
+            build_cmd = build_info['build_cmd']
+            exec_chroot(c, "mkdir -p /kod/extra/")
+            exec_chroot(c, "cd /kod/extra/")
+            exec_chroot(c, "pacman -S --needed git base-devel")
+            exec_chroot(c, f"git clone {url}")
+            exec_chroot(c, f"cd {repo}")
+            exec_chroot(c, f"{build_cmd}")
+
+    return repos
+
+def install_packages(c, repos, packages_to_install):
+    pkgs_per_repo = {"official":[]}
+    for pkg in packages_to_install:
+        if ":" in pkg:
+            repo, pkg_name = pkg.split(":")
+            if repo not in pkgs_per_repo:
+                pkgs_per_repo[repo] = []
+            pkgs_per_repo[repo].append(pkg_name)
+        else:
+            pkgs_per_repo["official"].append(pkg)
+
+    for repo, pkgs in pkgs_per_repo.items():
+        exec_chroot(c, f"{repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
+
+##############################################################################
+
 
 @task(help={"config":"system configuration file"})
 def install(c, config):
@@ -246,7 +313,10 @@ def install(c, config):
     create_partitions(c, conf)
     install_essentials_pkgs(c)
     configure_system(c, conf)
-    install_packages(c, conf)
+    setup_bootloader(c, conf)
+    repos = proc_repos(c, conf)
+    packages_to_install, _ = get_packages_to_install(c, conf)
+    install_packages(c, repos, packages_to_install)
     create_users(c, conf)
 
     base_snapshot(c)
@@ -259,11 +329,14 @@ def install(c, config):
 def install2(c, config):
 
     conf = load_config(config)
-    print("-------------------------------")
-    create_partitions(c, conf)
-    install_essentials_pkgs(c)
-    configure_system(c, conf, boot="grub")
-    create_users(c, conf)
+    print("========================================")
+    # pkg_list = list(conf.packages.values())
+    pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
+    print("packages\n",pkg_list)
+    generation = get_max_generation()
+    with open("/kod/generation/current/generation") as f:
+        current_generation = f.readline().strip()
+    print(f"{current_generation = }")
 
     print("Done")
 
