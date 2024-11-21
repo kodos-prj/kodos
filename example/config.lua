@@ -30,9 +30,9 @@ return {
     -- },
 
     boot = {
-        initrd = {
-            kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        },
+        -- initrd = {
+        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
+        -- },
         loader = {
             -- type = "systemd-boot",
             type = "grub",
@@ -70,14 +70,32 @@ return {
         },
     },
 
+    desktop_manager = {
+        gnome = {
+            enable = false,
+            display_manager = "gdm",
+            exclude_packages = {
+                "gnome-tour", "yelp"
+            }
+        },
+
+        plasma = {
+            enable = true,
+            display_manager = "sddm",
+            -- exclude_packages = {
+            --     "gnome-tour",
+            -- }
+        },
+    },
+
     packages = {
         "flatpak",
         -- "gnome",
         -- "gnome-extra",
         -- "gnome-themes-extra",
         -- "gdm",
-        "sddm",
-        "plasma",
+        -- "sddm",
+        -- "plasma",
         "kde-applications",
         "pipewire",
         "pipewire-pulse",
@@ -87,6 +105,8 @@ return {
         -- "cosmic",
         "python-invoke",
         "rustup",
+        "git",
+        "poetry",
     },
 
     services = {
