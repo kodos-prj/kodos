@@ -318,6 +318,7 @@ def proc_repos(c, conf):
 
             exec_chroot(c, "mkdir -p /kod/extra/")
             exec_chroot(c, "chown kod:kod /kod/extra/")
+            exec_chroot(c, "chmod 777 /kod/extra/")
             exec_chroot(c, "pacman -S --needed --noconfirm git base-devel")
             exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd /kod/extra/ && git clone {url} {name} && cd {name} && {build_cmd}'")
 
