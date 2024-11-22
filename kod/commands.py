@@ -312,12 +312,14 @@ def proc_repos(c, conf):
             build_cmd = build_info['build_cmd']
             # Check if use kod already exists
             exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
-            exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
+            with open("/mnt/sudoers.d/kod","w") as f:
+                f.write("kod ALL=(ALL) NOPASSWD: ALL")
+            # exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
 
             exec_chroot(c, "mkdir -p /kod/extra/")
             exec_chroot(c, "chown kod:kod /kod/extra/")
             exec_chroot(c, "pacman -S --needed --noconfirm git base-devel")
-            exec_chroot(c, f"/bin/bash -c 'runuser -u kod -- cd /kod/extra/ && git clone {url} {name} && cd {name} && {build_cmd}'")
+            exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd /kod/extra/ && git clone {url} {name} && cd {name} && {build_cmd}'")
 
             # exec_chroot(c, 'userdel -r kod')
             # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
