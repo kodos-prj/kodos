@@ -306,17 +306,39 @@ def proc_repos(c, conf):
     for repo, repo_desc in repos_conf.items():
         repos[repo] = repo_desc['commands']
         if "build" in repo_desc:
+            name = repo_desc['name']
             build_info = repo_desc['build']
             url = build_info['url']
             build_cmd = build_info['build_cmd']
-            exec_chroot(c, "mkdir -p /kod/extra/")
-            exec_chroot(c, "pacman -S --needed git base-devel")
-            exec_chroot(c, f"cd /kod/extra/ && git clone {url} && cd {repo} && {build_cmd}")
-            # exec_chroot(c, f"git clone {url}")
-            # exec_chroot(c, f"cd {repo}")
-            # exec_chroot(c, f"{build_cmd}")
+            # Check if use kod already exists
+            exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
+            exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
 
+            exec_chroot(c, "mkdir -p /kod/extra/")
+            exec_chroot(c, "chown kod:kod /kod/extra/")
+            exec_chroot(c, "pacman -S --needed git base-devel")
+            exec_chroot(c, f"/bin/bash -c 'cd /kod/extra/ && git clone {url} {name} && cd {name} && {build_cmd}'")
+
+            # exec_chroot(c, 'userdel -r kod')
+            # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
+            
     return repos
+
+# def create_kod_user(c):
+#     exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
+#     exec_chroot(c, "bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
+#     # exec_chroot('userdel', '-r', 'aur')
+#     # exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
+
+
+# def install_aur_packages(c, aur_packages):
+#     return_val = exec_chroot(
+#         'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
+#         '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
+#         *aur_packages)
+#     exec_chroot('userdel', '-r', 'aur')
+#     exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
+
 
 def install_packages(c, repos, packages_to_install):
     pkgs_per_repo = {"official":[]}
@@ -344,6 +366,7 @@ def install(c, config):
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)
+    # create_kod_user(c)
     repos = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
     install_packages(c, repos, packages_to_install)
