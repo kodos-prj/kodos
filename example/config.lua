@@ -145,7 +145,8 @@ return {
         "rustup",
         "git",
         "poetry",
-        "aur:visual-studio-code-bin ",
+        "aur:visual-studio-code-bin",
+        "aur:floorp-bin",
     },
 
     services = {
