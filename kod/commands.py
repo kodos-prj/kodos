@@ -312,7 +312,7 @@ def proc_repos(c, conf):
             build_cmd = build_info['build_cmd']
             # Check if use kod already exists
             exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
-            with open("/mnt/sudoers.d/kod","w") as f:
+            with open("/mnt/etc/sudoers.d/kod","w") as f:
                 f.write("kod ALL=(ALL) NOPASSWD: ALL")
             # exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
 
