@@ -310,24 +310,40 @@ def proc_repos(c, conf):
             url = build_info['url']
             build_cmd = build_info['build_cmd']
             name = build_info['name']
+
             # Check if use kod already exists
-            exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
-            with open("/mnt/etc/sudoers.d/kod","w") as f:
-                f.write("kod ALL=(ALL) NOPASSWD: ALL")
+            # exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /kod/.home kod")
+            # with open("/mnt/etc/sudoers.d/kod","w") as f:
+            #     f.write("kod ALL=(ALL) NOPASSWD: ALL")
             # exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
 
-            exec_chroot(c, "mkdir -p /kod/extra/")
-            exec_chroot(c, "chown kod:kod /kod/extra/")
-            exec_chroot(c, "chmod 777 /kod/extra/")
+            # exec_chroot(c, "mkdir -p /kod/extra/")
+            # exec_chroot(c, "chown kod:kod /kod/extra/")
+            # exec_chroot(c, "chmod 777 /kod/extra/")
             exec_chroot(c, "pacman -S --needed --noconfirm git base-devel")
-            exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd /kod/extra/ && git clone {url} {name} && cd {name} && {build_cmd}'")
+            exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'")
 
             # exec_chroot(c, 'userdel -r kod')
             # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
             
+    with open("/kod/repos.json", "w") as f:
+        f.write(json.dumps(repos, indent=2))
+
     return repos
 
-# def create_kod_user(c):
+
+def load_repos() -> dict | None:
+    repos = None
+    with open("/kod/repos.json", "w") as f:
+        repos_json = f.readlines()
+        repos = json.loads(repos_json)
+    return repos    
+
+
+def create_kod_user(c):
+    exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /kod/.home kod")
+    with open("/mnt/etc/sudoers.d/kod","w") as f:
+        f.write("kod ALL=(ALL) NOPASSWD: ALL")
 #     exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
 #     exec_chroot(c, "bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
 #     # exec_chroot('userdel', '-r', 'aur')
@@ -343,9 +359,9 @@ def proc_repos(c, conf):
 #     exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
 
 
-def install_packages(c, repos, packages_to_install):
+def manage_packages(c, repos, action, list_of_packages):
     pkgs_per_repo = {"official":[]}
-    for pkg in packages_to_install:
+    for pkg in list_of_packages:
         if ":" in pkg:
             repo, pkg_name = pkg.split(":")
             if repo not in pkgs_per_repo:
@@ -355,7 +371,50 @@ def install_packages(c, repos, packages_to_install):
             pkgs_per_repo["official"].append(pkg)
 
     for repo, pkgs in pkgs_per_repo.items():
-        exec_chroot(c, f"{repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
+        if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+            exec_chroot(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+        else:
+            exec_chroot(c, f"{repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+            
+
+
+
+# def install_packages(c, repos, packages_to_install):
+#     pkgs_per_repo = {"official":[]}
+#     for pkg in packages_to_install:
+#         if ":" in pkg:
+#             repo, pkg_name = pkg.split(":")
+#             if repo not in pkgs_per_repo:
+#                 pkgs_per_repo[repo] = []
+#             pkgs_per_repo[repo].append(pkg_name)
+#         else:
+#             pkgs_per_repo["official"].append(pkg)
+
+#     for repo, pkgs in pkgs_per_repo.items():
+#         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+#             exec_chroot(c, f"runuser -u kod -- {repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
+#         else:
+#             exec_chroot(c, f"{repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
+            
+
+
+# def remove_packages(c, repos, packages_to_remove):
+#     pkgs_per_repo = {"official":[]}
+#     for pkg in packages_to_remove:
+#         if ":" in pkg:
+#             repo, pkg_name = pkg.split(":")
+#             if repo not in pkgs_per_repo:
+#                 pkgs_per_repo[repo] = []
+#             pkgs_per_repo[repo].append(pkg_name)
+#         else:
+#             pkgs_per_repo["official"].append(pkg)
+
+#     for repo, pkgs in pkgs_per_repo.items():
+#         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+#             exec_chroot(c, f"runuser -u kod -- {repos[repo]["remove"]} --noconfirm {" ".join(pkgs)}")
+#         else:
+#             exec_chroot(c, f"{repos[repo]["remove"]} --noconfirm {" ".join(pkgs)}")
+            
 
 ##############################################################################
 
@@ -369,10 +428,11 @@ def install(c, config):
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)
-    # create_kod_user(c)
+    create_kod_user(c)
     repos = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
-    install_packages(c, repos, packages_to_install)
+    manage_packages(c, repos, "install", packages_to_install)
+    # install_packages(c, repos, packages_to_install)
     create_users(c, conf)
 
     base_snapshot(c)
@@ -401,17 +461,24 @@ def rebuild(c, config):
     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
+    repos = load_repos()
+    if repos is None:
+        print("Missing repos information")
+        return
+
     if remove_pkg:
         print("Packages to remove:",remove_pkg)
         for pkg in remove_pkg:
             try:
-                c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+                manage_packages(c, repos, "remove", [pkg,])        
+                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
             except:
                 print(f"Unable to remove {pkg}")
                 pass
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
+        manage_packages(c, repos, "install", added_pkgs)
+        # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")

@@ -29,7 +29,8 @@ return {
             -- },
             build = {
                 name = "paru",
-                url = "https://aur.archlinux.org/paru.git",
+                -- url = "https://aur.archlinux.org/paru.git",
+                url = "https://aur.archlinux.org/paru-git.git",
                 build_cmd = "makepkg -si --noconfirm",
             },
             commands = {
@@ -37,6 +38,7 @@ return {
                 update = "paru -Syu",
                 remove = "paru -R",
                 update_db = "paru -Sy",
+                run_as_root = false,
             },
         }
     },
@@ -147,11 +149,12 @@ return {
         "neovim",
         -- "cosmic",
         "python-invoke",
-        "rustup",
+        -- "rustup",
         "git",
         "poetry",
         "aur:visual-studio-code-bin",
         "aur:floorp-bin",
+        "aur:mission-center",
     },
 
     services = {
