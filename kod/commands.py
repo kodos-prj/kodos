@@ -307,7 +307,7 @@ def proc_repos(c, conf):
         repos[repo] = {}
         for action, cmd in repo_desc['commands'].items():
             repos[repo][action] = cmd
-        # repos[repo] = repo_desc['commands']
+
         if "build" in repo_desc:
             build_info = repo_desc['build']
             url = build_info['url']
@@ -337,9 +337,8 @@ def proc_repos(c, conf):
 
 def load_repos() -> dict | None:
     repos = None
-    with open("/kod/repos.json", "w") as f:
-        repos_json = f.readlines()
-        repos = json.loads(repos_json)
+    with open("/kod/repos.json") as f:
+        repos = json.load(f)
     return repos    
 
 
@@ -353,16 +352,7 @@ def create_kod_user(c):
 #     # exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
 
 
-# def install_aur_packages(c, aur_packages):
-#     return_val = exec_chroot(
-#         'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
-#         '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
-#         *aur_packages)
-#     exec_chroot('userdel', '-r', 'aur')
-#     exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
-
-
-def manage_packages(c, repos, action, list_of_packages):
+def manage_packages(c, repos, action, list_of_packages, chroot=False):
     pkgs_per_repo = {"official":[]}
     for pkg in list_of_packages:
         if ":" in pkg:
@@ -373,51 +363,19 @@ def manage_packages(c, repos, action, list_of_packages):
         else:
             pkgs_per_repo["official"].append(pkg)
 
+    if chroot:
+        exec_fn = exec_chroot
+    else:
+        exec_fn = exec
     for repo, pkgs in pkgs_per_repo.items():
+        if len(pkgs) == 0:
+            continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            exec_chroot(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {" ".join(pkgs)}")
         else:
-            exec_chroot(c, f"{repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+            exec_fn(c, f"{repos[repo][action]} --noconfirm {" ".join(pkgs)}")
             
 
-
-
-# def install_packages(c, repos, packages_to_install):
-#     pkgs_per_repo = {"official":[]}
-#     for pkg in packages_to_install:
-#         if ":" in pkg:
-#             repo, pkg_name = pkg.split(":")
-#             if repo not in pkgs_per_repo:
-#                 pkgs_per_repo[repo] = []
-#             pkgs_per_repo[repo].append(pkg_name)
-#         else:
-#             pkgs_per_repo["official"].append(pkg)
-
-#     for repo, pkgs in pkgs_per_repo.items():
-#         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-#             exec_chroot(c, f"runuser -u kod -- {repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
-#         else:
-#             exec_chroot(c, f"{repos[repo]["install"]} --noconfirm {" ".join(pkgs)}")
-            
-
-
-# def remove_packages(c, repos, packages_to_remove):
-#     pkgs_per_repo = {"official":[]}
-#     for pkg in packages_to_remove:
-#         if ":" in pkg:
-#             repo, pkg_name = pkg.split(":")
-#             if repo not in pkgs_per_repo:
-#                 pkgs_per_repo[repo] = []
-#             pkgs_per_repo[repo].append(pkg_name)
-#         else:
-#             pkgs_per_repo["official"].append(pkg)
-
-#     for repo, pkgs in pkgs_per_repo.items():
-#         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-#             exec_chroot(c, f"runuser -u kod -- {repos[repo]["remove"]} --noconfirm {" ".join(pkgs)}")
-#         else:
-#             exec_chroot(c, f"{repos[repo]["remove"]} --noconfirm {" ".join(pkgs)}")
-            
 
 ##############################################################################
 
@@ -434,7 +392,7 @@ def install(c, config):
     create_kod_user(c)
     repos = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
-    manage_packages(c, repos, "install", packages_to_install)
+    manage_packages(c, repos, "install", packages_to_install, chroot=True)
     # install_packages(c, repos, packages_to_install)
     create_users(c, conf)
 
@@ -590,6 +548,6 @@ def test_config(c, config):
     # packages_to_install = install_packages(c, conf)
     # print(packages_to_install)
     print("========================================")
-    rebuild(c, config)
+    proc_repos(c, conf)
 
 ##############################################################################

@@ -27,20 +27,30 @@ return {
                 url = "https://aur.archlinux.org/yay-bin.git",
                 build_cmd = "makepkg -si --noconfirm",
             },
+            commands = {
+                install = "yay -S",
+                update = "yay -Syu",
+                remove = "yay -R",
+                update_db = "yay -Sy",
+                run_as_root = false,
+            },
+        },
+        -- aur = {
+            -- type = "aur",
             -- build = {
             --     name = "paru",
             --     -- url = "https://aur.archlinux.org/paru.git",
             --     url = "https://aur.archlinux.org/paru-git.git",
             --     build_cmd = "makepkg -si --noconfirm",
             -- },
-            commands = {
-                install = "paru -S",
-                update = "paru -Syu",
-                remove = "paru -R",
-                update_db = "paru -Sy",
-                run_as_root = false,
-            },
-        }
+            -- commands = {
+            --     install = "paru -S",
+            --     update = "paru -Syu",
+            --     remove = "paru -R",
+            --     update_db = "paru -Sy",
+            --     run_as_root = false,
+            -- },
+        -- }
     },
 
     -- source = {
@@ -154,7 +164,7 @@ return {
         "poetry",
         "aur:visual-studio-code-bin",
         "aur:floorp-bin",
-        "aur:mission-center",
+        -- "aur:mission-center",
     },
 
     services = {
