@@ -306,10 +306,10 @@ def proc_repos(c, conf):
     for repo, repo_desc in repos_conf.items():
         repos[repo] = repo_desc['commands']
         if "build" in repo_desc:
-            name = repo_desc['name']
             build_info = repo_desc['build']
             url = build_info['url']
             build_cmd = build_info['build_cmd']
+            name = build_info['name']
             # Check if use kod already exists
             exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
             with open("/mnt/etc/sudoers.d/kod","w") as f:
