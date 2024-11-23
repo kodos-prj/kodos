@@ -304,6 +304,7 @@ def proc_repos(c, conf):
     repos_conf = conf.repos
     repos = {}
     for repo, repo_desc in repos_conf.items():
+        repos[repo] = {}
         for action, cmd in repo_desc['commands'].items():
             repos[repo][action] = cmd
         # repos[repo] = repo_desc['commands']
