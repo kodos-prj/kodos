@@ -2,23 +2,56 @@ print("config.lua")
 -- require("core.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
+local function aur_helper(dry_run)
+    run("yay -S --noconfirm", dry_run)
+end
 
 return {
-    source = {
-        url = "https://mirror.rackspace.com/archlinux",
-        arch = "x86_64",
-        repo = { "core", "extra" },
-        type = "arch",
+    repos = {
+        official = {
+            mirror = "https://mirror.rackspace.com/archlinux",
+            -- arch = "x86_64",
+            repo = { "core", "extra" },
+            type = "arch",
+            commands = {
+                install = "pacman -S",
+                update = "pacman -Syu",
+                remove = "pacman -R",
+                update_db = "pacman -Sy",
+            }
+        },
+        aur = {
+            type = "aur",
+            build = {
+                name = "yay",
+                url = "https://aur.archlinux.org/yay-bin.git",
+                build_cmd = "makepkg -si --noconfirm",
+            },
+            commands = {
+                install = "yay -S",
+                update = "yay -Syu",
+                remove = "yay -R",
+                update_db = "yay -Sy",
+                run_as_root = false,
+            },
+        },
+        -- aur = {
+            -- type = "aur",
+            -- build = {
+            --     name = "paru",
+            --     -- url = "https://aur.archlinux.org/paru.git",
+            --     url = "https://aur.archlinux.org/paru-git.git",
+            --     build_cmd = "makepkg -si --noconfirm",
+            -- },
+            -- commands = {
+            --     install = "paru -S",
+            --     update = "paru -Syu",
+            --     remove = "paru -R",
+            --     update_db = "paru -Sy",
+            --     run_as_root = false,
+            -- },
+        -- }
     },
-    -- source = {
-    --     -- url = "http://ftp.ca.debian.org/debian/dists/stable/main/binary-amd64/Packages.gz",
-    --     url = "http://ftp.ca.debian.org/debian/dists/stable/",
-    --     -- url2 = "https://mirror.rackspace.com/archlinux",
-    --     arch = "amd64",
-    --     -- repo = { "main", "contrib" },
-    --     repo = {"main" },
-    --     type = "deb",
-    -- },
 
     devices = {
         disk0 = require "disk-btrfs",
@@ -76,7 +109,10 @@ return {
             display_manager = "gdm",
             exclude_packages = {
                 "gnome-tour", "yelp"
-            }
+            },
+            packages = {
+                "gnome-tweaks",
+            },
         },
 
         plasma = {
@@ -85,6 +121,9 @@ return {
             -- exclude_packages = {
             --     "gnome-tour",
             -- }
+            packages = {
+                "kde-applications",
+            },
         },
     },
 
@@ -96,7 +135,7 @@ return {
         -- "gdm",
         -- "sddm",
         -- "plasma",
-        "kde-applications",
+        -- "kde-applications",
         "pipewire",
         "pipewire-pulse",
         -- "gnome-tweaks",
@@ -104,9 +143,12 @@ return {
         "neovim",
         -- "cosmic",
         "python-invoke",
-        "rustup",
+        -- "rustup",
         "git",
         "poetry",
+        "aur:visual-studio-code-bin",
+        "aur:floorp-bin",
+        -- "aur:mission-center",
     },
 
     services = {

@@ -15,12 +15,6 @@ from kod.filesytem import create_partitions
 
 #####################################################################################################
 
-# def preexec():
-#     signal.signal(signal.SIGHUP, signal.SIG_IGN)
-#     signal.signal(signal.SIGINT, signal.SIG_IGN)
-#     signal.signal(signal.SIGQUIT, signal.SIG_IGN)
-
-
 def exec(c, cmd):
     c.run(cmd)
 
@@ -168,67 +162,6 @@ Name=*
     # Change root password
     exec_chroot(c, "passwd")
 
-#     # bootloader
-#     boot_conf = conf.boot
-#     loader_conf = boot_conf["loader"]
-#     boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
-
-#     # Using systemd-boot as bootloader
-#     if boot_type == "systemd-boot":
-#         exec_chroot(c, "bootctl install")
-
-#         res = c.run("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
-#         mount_point = res.stdout.split()
-#         root_part = mount_point[0].strip()
-#         part_type = mount_point[2].strip()
-#         mount_options = mount_point[3].strip().split(",")
-#         print(root_part, part_type, mount_options)
-#         option = ""
-#         if part_type == "btrfs":
-#             for opt in mount_options:
-#                 if opt.startswith("subvol"):
-#                     option = "rootflags="+opt
-
-
-#         loader_conf_systemd = """
-# default arch
-# timeout 3
-# console-mode max
-# #editor no"""
-#         with open("/mnt/boot/loader/loader.conf", "w") as f:
-#             f.write(loader_conf_systemd)
-        
-#         kodos_conf = f"""
-# title KodOS Linux
-# linux /vmlinuz-linux
-# initrd /initramfs-linux.img
-# options root={root_part} rw {option}
-#     """
-#         with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
-#             f.write(kodos_conf)
-
-#         kodos_fb_conf = f"""
-# title KodOS Linux - fallback
-# linux /vmlinuz-linux
-# initrd /initramfs-linux-fallback.img
-# options root={root_part} rw {option}
-#     """
-#         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
-#             f.write(kodos_fb_conf)
-
-#     # Using Grub as bootloader
-#     if boot_type == "grub":
-#         pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
-#         if "include" in loader_conf:
-#             pkgs_required += loader_conf["include"]
-
-#         # exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
-
-#         exec_chroot(c, "pacman -S --noconfirm"," ".join(pkgs_required))
-#         exec_chroot(c, "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB")
-#         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
-#         # pkgs_installed += ["efibootmgr"]
-
 
 def setup_bootloader(c, conf):
     # bootloader
@@ -292,10 +225,7 @@ options root={root_part} rw {option}
         exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
         # pkgs_installed += ["efibootmgr"]
 
-
-
-
-def install_packages(c, conf):
+def get_packages_to_install(c, conf):
     global pkgs_installed
     packages_to_install = []
     packages_to_remove = []
@@ -305,6 +235,10 @@ def install_packages(c, conf):
         for desktop_mngr, dm_conf in desktop_manager.items():
             print(f"Installing {desktop_mngr}")
             if dm_conf["enable"]:
+                if "packages" in dm_conf:
+                    pkg_list = list(dm_conf["packages"].values())
+                    packages_to_install += pkg_list
+
                 if "exclude_packages" in dm_conf:
                     exclude_pkg_list = list(dm_conf["exclude_packages"].values())
                     packages_to_remove += exclude_pkg_list
@@ -365,6 +299,83 @@ def get_max_generation():
     print(f"{generation=}")
     return generation
 
+# --------------------------------------
+def proc_repos(c, conf):
+    repos_conf = conf.repos
+    repos = {}
+    for repo, repo_desc in repos_conf.items():
+        repos[repo] = {}
+        for action, cmd in repo_desc['commands'].items():
+            repos[repo][action] = cmd
+
+        if "build" in repo_desc:
+            build_info = repo_desc['build']
+            url = build_info['url']
+            build_cmd = build_info['build_cmd']
+            name = build_info['name']
+
+            # Check if use kod already exists
+            # exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /kod/.home kod")
+            # with open("/mnt/etc/sudoers.d/kod","w") as f:
+            #     f.write("kod ALL=(ALL) NOPASSWD: ALL")
+            # exec_chroot(c, "/bin/bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
+
+            # exec_chroot(c, "mkdir -p /kod/extra/")
+            # exec_chroot(c, "chown kod:kod /kod/extra/")
+            # exec_chroot(c, "chmod 777 /kod/extra/")
+            exec_chroot(c, "pacman -S --needed --noconfirm git base-devel")
+            exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'")
+
+            # exec_chroot(c, 'userdel -r kod')
+            # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
+            
+    with open("/mnt/kod/repos.json", "w") as f:
+        f.write(json.dumps(repos, indent=2))
+
+    return repos
+
+
+def load_repos() -> dict | None:
+    repos = None
+    with open("/kod/repos.json") as f:
+        repos = json.load(f)
+    return repos    
+
+
+def create_kod_user(c):
+    exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /kod/.home kod")
+    with open("/mnt/etc/sudoers.d/kod","w") as f:
+        f.write("kod ALL=(ALL) NOPASSWD: ALL")
+#     exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
+#     exec_chroot(c, "bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
+#     # exec_chroot('userdel', '-r', 'aur')
+#     # exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
+
+
+def manage_packages(c, repos, action, list_of_packages, chroot=False):
+    pkgs_per_repo = {"official":[]}
+    for pkg in list_of_packages:
+        if ":" in pkg:
+            repo, pkg_name = pkg.split(":")
+            if repo not in pkgs_per_repo:
+                pkgs_per_repo[repo] = []
+            pkgs_per_repo[repo].append(pkg_name)
+        else:
+            pkgs_per_repo["official"].append(pkg)
+
+    if chroot:
+        exec_fn = exec_chroot
+    else:
+        exec_fn = exec
+    for repo, pkgs in pkgs_per_repo.items():
+        if len(pkgs) == 0:
+            continue
+        if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+        else:
+            exec_fn(c, f"{repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+            
+
 
 ##############################################################################
 
@@ -378,8 +389,11 @@ def install(c, config):
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)
-    packages_to_install, _ = install_packages(c, conf)
-    exec_chroot(c, "pacman -S --noconfirm {}".format(" ".join(packages_to_install)))
+    create_kod_user(c)
+    repos = proc_repos(c, conf)
+    packages_to_install, _ = get_packages_to_install(c, conf)
+    manage_packages(c, repos, "install", packages_to_install, chroot=True)
+    # install_packages(c, repos, packages_to_install)
     create_users(c, conf)
 
     base_snapshot(c)
@@ -394,7 +408,7 @@ def rebuild(c, config):
     conf = load_config(config)
     print("========================================")
     # pkg_list = list(conf.packages.values())
-    pkg_list, rm_pkg_list = install_packages(c, conf)
+    pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
     print("packages\n",pkg_list)
     generation = get_max_generation()
     with open("/kod/generation/current/generation") as f:
@@ -408,17 +422,24 @@ def rebuild(c, config):
     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
+    repos = load_repos()
+    if repos is None:
+        print("Missing repos information")
+        return
+
     if remove_pkg:
         print("Packages to remove:",remove_pkg)
         for pkg in remove_pkg:
             try:
-                c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+                manage_packages(c, repos, "remove", [pkg,])        
+                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
             except:
                 print(f"Unable to remove {pkg}")
                 pass
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
+        manage_packages(c, repos, "install", added_pkgs)
+        # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")
@@ -527,6 +548,6 @@ def test_config(c, config):
     # packages_to_install = install_packages(c, conf)
     # print(packages_to_install)
     print("========================================")
-    rebuild(c, config)
+    proc_repos(c, conf)
 
 ##############################################################################
