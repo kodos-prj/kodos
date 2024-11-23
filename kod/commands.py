@@ -326,7 +326,7 @@ def proc_repos(c, conf):
             # exec_chroot(c, 'userdel -r kod')
             # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
             
-    with open("/kod/repos.json", "w") as f:
+    with open("/mnt/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
 
     return repos
