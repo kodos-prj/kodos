@@ -53,22 +53,6 @@ return {
         -- }
     },
 
-    -- source = {
-    --     url = "https://mirror.rackspace.com/archlinux",
-    --     arch = "x86_64",
-    --     repo = { "core", "extra" },
-    --     type = "arch",
-    -- },
-    -- source = {
-    --     -- url = "http://ftp.ca.debian.org/debian/dists/stable/main/binary-amd64/Packages.gz",
-    --     url = "http://ftp.ca.debian.org/debian/dists/stable/",
-    --     -- url2 = "https://mirror.rackspace.com/archlinux",
-    --     arch = "amd64",
-    --     -- repo = { "main", "contrib" },
-    --     repo = {"main" },
-    --     type = "deb",
-    -- },
-
     devices = {
         disk0 = require "disk-btrfs",
     },
