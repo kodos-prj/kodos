@@ -22,17 +22,17 @@ return {
         },
         aur = {
             type = "aur",
-            -- build = {
-            --     name = "yay",
-            --     url = "https://aur.archlinux.org/yay.git",
-            --     build_cmd = "makepkg -si --noconfirm",
-            -- },
             build = {
-                name = "paru",
-                -- url = "https://aur.archlinux.org/paru.git",
-                url = "https://aur.archlinux.org/paru-git.git",
+                name = "yay",
+                url = "https://aur.archlinux.org/yay-bin.git",
                 build_cmd = "makepkg -si --noconfirm",
             },
+            -- build = {
+            --     name = "paru",
+            --     -- url = "https://aur.archlinux.org/paru.git",
+            --     url = "https://aur.archlinux.org/paru-git.git",
+            --     build_cmd = "makepkg -si --noconfirm",
+            -- },
             commands = {
                 install = "paru -S",
                 update = "paru -Syu",
