@@ -2,9 +2,7 @@ print("config.lua")
 -- require("core.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
-local function aur_helper(dry_run)
-    run("yay -S --noconfirm", dry_run)
-end
+disk = require("disk")
 
 return {
     repos = {
@@ -35,26 +33,11 @@ return {
                 run_as_root = false,
             },
         },
-        -- aur = {
-            -- type = "aur",
-            -- build = {
-            --     name = "paru",
-            --     -- url = "https://aur.archlinux.org/paru.git",
-            --     url = "https://aur.archlinux.org/paru-git.git",
-            --     build_cmd = "makepkg -si --noconfirm",
-            -- },
-            -- commands = {
-            --     install = "paru -S",
-            --     update = "paru -Syu",
-            --     remove = "paru -R",
-            --     update_db = "paru -Sy",
-            --     run_as_root = false,
-            -- },
-        -- }
     },
 
     devices = {
-        disk0 = require "disk-btrfs",
+        -- disk0 = require "disk-btrfs",
+        disk0 = disk.disk_definition("/dev/vda", "3GB"),
     },
 
     -- bootloader = {
@@ -112,6 +95,8 @@ return {
             },
             packages = {
                 "gnome-tweaks",
+                "gnome-extra",
+                "gnome-themes-extra",
             },
         },
 
@@ -129,16 +114,8 @@ return {
 
     packages = {
         "flatpak",
-        -- "gnome",
-        -- "gnome-extra",
-        -- "gnome-themes-extra",
-        -- "gdm",
-        -- "sddm",
-        -- "plasma",
-        -- "kde-applications",
         "pipewire",
         "pipewire-pulse",
-        -- "gnome-tweaks",
         "mc",
         "neovim",
         -- "cosmic",
