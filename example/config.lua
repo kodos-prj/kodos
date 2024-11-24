@@ -14,7 +14,7 @@ return {
             commands = {
                 install = "pacman -S",
                 update = "pacman -Syu",
-                remove = "pacman -R",
+                remove = "pacman -Rscn",
                 update_db = "pacman -Sy",
             }
         },
