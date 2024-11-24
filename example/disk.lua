@@ -1,29 +1,85 @@
 -- Disk partition definition
 
-return  {
-   device = "/dev/vda",
-   efi = true,
-   -- efi_size = 1024,
-   type = "gpt",
-   -- filesystem = "ext4",
+function disk_definition(device, swap_size)
+   -- device to define the partitions on. (e.g., device = "/dev/vda")
+   -- spap_size is the size of the swap partition (e.g., swap_size = "3GB") or nil
+
+   btrfs_options = "rw,noatime,compress-force=zstd:1,space_cache=v2"
+      
+   device_definition = {
+      device = device,
+      efi = true,
+      type = "gpt",
+   }
+   
    partitions = {
       {
          name = "Boot",
          size = "1GB",
-         type = "fat32",
+         type = "esp",
          mountpoint = "/boot",
-      },
-      -- {
-      --    name = "Swap",
-      --    size = "3GB",
-      --    type = "linux-swap",
-      --    resumeDevice = true,
-      -- },
-      {
-         name = "Root",
-         size = "100%",
-         type = "ext4",
-         mountpoint = "/",
-      },
-   },
-}
+      }
+   }
+   if swap_size then
+      swap_part = {
+         name = "Swap",
+         size = swap_size,
+         type = "linux-swap",
+         resumeDevice = true,
+      }
+      table.insert(partitions, swap_part)
+   end
+
+   root_part = {
+      name = "Root",
+      size = "100%",
+      type = "btrfs",
+      subvolumes = {
+         -- Subvolume name is different from mountpoint
+         rootfs = {
+            subvol = "/rootfs",
+            mountpoint = "/"
+         },
+         -- Subvolume name is the same as the mountpoint
+         home = {
+            subvol = "/home",
+            mountpoint = "/home",
+            mountOptions = btrfs_options,   -- filesystem = "ext4",
+   
+         },
+         root = {
+            subvol = "/root",
+            mountpoint = "/root",
+            mountOptions = btrfs_options,
+         },
+         cache = {
+            subvol = "/cache",
+            mountpoint = "/var/cache",
+            mountOptions = btrfs_options,
+         },
+         tmp = {
+            subvol = "/tmp",
+            mountpoint = "/var/tmp",
+            mountOptions = btrfs_options,
+         },
+         log = {
+            subvol = "/log",
+            mountpoint = "/var/log",
+            mountOptions = btrfs_options,
+         },
+         kod = {
+            subvol = "/kod",
+            mountpoint = "/kod",
+            mountOptions = btrfs_options,
+         }
+      }
+   }
+
+   table.insert(partitions, root_part)
+
+   device_definition["partitions"] = partitions
+
+   return device_definition
+end
+
+return { disk_definition = disk_definition }
