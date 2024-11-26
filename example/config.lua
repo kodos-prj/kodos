@@ -122,7 +122,7 @@ return {
         },
 
         plasma = {
-            enable = true,
+            enable = false,
             display_manager = "sddm",
             -- exclude_packages = {
             --     "gnome-tour",
@@ -130,6 +130,16 @@ return {
             packages = {
                 "kde-applications",
             },
+        },
+        cosmic = {
+            enable = false,
+            display_manager = "sddm",
+            -- exclude_packages = {
+            --     "gnome-tour",
+            -- }
+            -- packages = {
+                -- "kde-applications",
+            -- },
         },
     },
 
@@ -145,8 +155,8 @@ return {
         -- "rustup",
         "git",
         "poetry",
-        "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        -- "aur:visual-studio-code-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
     },
 
