@@ -139,6 +139,7 @@ return {
         "pipewire-pulse",
         "mc",
         "neovim",
+        "htop",
         -- "cosmic",
         "python-invoke",
         -- "rustup",
