@@ -78,8 +78,8 @@ def install_essentials_pkgs(c):
                 microcode = "intel-ucode"
                 break
 
-    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
-                 "networkmanager", "sudo"]
+    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", "sudo"] 
+    #"networkmanager", 
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
     # pkgs_installed += base_pkgs
@@ -147,9 +147,9 @@ Name=*
         f.write(os_release)
 
     # exec_chroot(c, "systemctl enable NetworkManager")
-    enable_service(c, "NetworkManager")
+    # enable_service(c, "NetworkManager")
     # exec_chroot(c, "systemctl enable sshd.service")
-    enable_service(c, "sshd.service")
+    # enable_service(c, "sshd.service")
 
     # initramfs
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")

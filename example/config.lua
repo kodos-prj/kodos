@@ -152,7 +152,12 @@ return {
     services = {
         -- Firmware update
         fwupd = { enable = true },
-            
+        
+        networkmanager = {
+            enable = true,
+            packages = "NetworkManager",
+        },
+        
         openssh = {
             enable = true,
             settings = {
