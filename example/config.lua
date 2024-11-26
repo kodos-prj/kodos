@@ -57,6 +57,27 @@ return {
         },
     },
 
+    hardware = {
+        -- pulseaudio = { enable = false },
+
+        sane = {
+            enable = true,
+            extra_packages = { "sane-airscan" },
+        },
+  
+        -- https://wiki.archlinux.org/title/Bluetooth
+        bluetooth = {
+            enable = true,
+            package = "bluez",
+            -- settings = {
+                -- General = {
+                    -- Enable = "Source,Sink,Media,Socket",
+                -- },
+            -- },
+        },
+    },
+
+
     locale = {
         locale = {
             default = "en_US.UTF-8 UTF-8",
@@ -129,6 +150,40 @@ return {
     },
 
     services = {
-        "systemd"
+        -- Firmware update
+        fwupd = { enable = true },
+            
+        openssh = {
+            enable = true,
+            settings = {
+                PermitRootLogin = false,
+            }
+        },
+
+        pipewire = {
+            enable = true,
+            extra_packages = {
+                "pipewire-alsa",
+                "pipewire-pulse",
+            },
+        },
+    
+        -- avahi = {
+        --     enable = true,
+        --     nssmdns = true,
+        --     publish = {
+        --         enable = true,
+        --         domain = true,
+        --         userServices = true
+        --     },
+        -- },
+    
+        cups = {
+            enable = true,
+            extra_packages = { "gutenprint" },
+        },
+
+        blueman = { enable = true },
+    
     }
 }

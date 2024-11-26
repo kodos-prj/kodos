@@ -79,7 +79,7 @@ def install_essentials_pkgs(c):
                 break
 
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "htop", "mlocate", "neovim", 
-                 "networkmanager", "openssh", "sudo"]
+                 "networkmanager", "sudo"]
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
     # pkgs_installed += base_pkgs
@@ -261,8 +261,7 @@ def get_packages_to_install(c, conf):
     return packages_to_install, packages_to_remove
 
 
-def base_snapshot(c):
-    global pkgs_installed
+def base_snapshot(c, pkgs_installed):
     print("Creating base snapshot")
     exec_chroot(c, "mkdir -p /kod/generation/0/")
     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
@@ -353,6 +352,7 @@ def create_kod_user(c):
 
 
 def manage_packages(c, repos, action, list_of_packages, chroot=False):
+    packages_installed = []
     pkgs_per_repo = {"official":[]}
     for pkg in list_of_packages:
         if ":" in pkg:
@@ -371,11 +371,60 @@ def manage_packages(c, repos, action, list_of_packages, chroot=False):
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {" ".join(pkgs)}")
+            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {' '.join(pkgs)}")
         else:
-            exec_fn(c, f"{repos[repo][action]} --noconfirm {" ".join(pkgs)}")
-            
+            exec_fn(c, f"{repos[repo][action]} --noconfirm {' '.join(pkgs)}")
+        packages_installed += pkgs
+    return packages_installed
 
+
+def proc_hardware(c, conf, repos):
+    packages = []
+    print("- processing hardware -----------")
+    hardware = conf.hardware
+    for name, hw in hardware.items():
+        print(name, hw.enable)
+        pkgs = []
+        if hw.enable:
+            if hw.package:
+                print("  using:",hw.package)
+                name = hw.package
+            
+            pkgs.append(name)
+            if hw.extra_packages:
+                print("  extra packages:",hw.extra_packages)
+                for _, pkg in hw.extra_packages.items():
+                    pkgs.append(pkg)
+            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=False)
+            packages += pkgs_installed
+
+    return packages
+
+
+def proc_services(c, conf, repos):
+    packages = []
+    print("- processing services -----------")
+    services = conf.services
+    for name, service in services.items():
+        print(name, service.enable)
+        if service.enable:
+            pkgs = []
+            if service.package:
+                print("  using:",service.package)
+                name = service.package
+            pkgs.append(name)
+            if service.extra_packages:
+                print("  extra packages:",service.extra_packages)
+                for _, pkg in service.extra_packages.items():
+                    pkgs.append(pkg)
+            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=False)
+            packages += pkgs_installed
+            # enable_service(c, name+".service")
+    return packages
+
+def enable_service(c, list_of_services):
+    for service in list_of_services:
+        enable_service(c, service)
 
 ##############################################################################
 
@@ -392,11 +441,15 @@ def install(c, config):
     create_kod_user(c)
     repos = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
-    manage_packages(c, repos, "install", packages_to_install, chroot=True)
-    # install_packages(c, repos, packages_to_install)
+    pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
+    pkgs_installed += proc_hardware(c, conf, repos)
+    service_installed = proc_services(c, conf, repos)
+    enable_service(c, service_installed)
+    pkgs_installed += service_installed
+
     create_users(c, conf)
 
-    base_snapshot(c)
+    base_snapshot(c, pkgs_installed)
 
     print("Done")
 
@@ -409,6 +462,10 @@ def rebuild(c, config):
     print("========================================")
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
+    pkg_list += proc_hardware(c, conf)
+    service_list = proc_services(c, conf)
+    pkg_list += service_list
+
     print("packages\n",pkg_list)
     generation = get_max_generation()
     with open("/kod/generation/current/generation") as f:
@@ -441,6 +498,7 @@ def rebuild(c, config):
         manage_packages(c, repos, "install", added_pkgs)
         # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
+    enable_service(c, service_list)
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")
     c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
@@ -548,6 +606,15 @@ def test_config(c, config):
     # packages_to_install = install_packages(c, conf)
     # print(packages_to_install)
     print("========================================")
-    proc_repos(c, conf)
+    # proc_repos(c, conf)
+    repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}}
+    pkgs_installed = manage_packages(c, repos, "install", ["mc","neovim"], chroot=True)
+    pkgs_installed += proc_hardware(c, conf, repos)
+    pkgs_installed += proc_services(c, conf, repos)
+
+    # pkgs = proc_hardware(c, conf, repos)
+    # print(pkgs)
+    # pkgs = proc_services(c, conf, repos)
+    print(pkgs_installed)
 
 ##############################################################################
