@@ -422,7 +422,7 @@ def proc_services(c, conf, repos):
             # enable_service(c, name+".service")
     return packages
 
-def enable_service(c, list_of_services):
+def enable_services(c, list_of_services):
     for service in list_of_services:
         enable_service(c, service)
 
@@ -444,7 +444,7 @@ def install(c, config):
     pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
     pkgs_installed += proc_hardware(c, conf, repos)
     service_installed = proc_services(c, conf, repos)
-    enable_service(c, service_installed)
+    enable_services(c, service_installed)
     pkgs_installed += service_installed
 
     create_users(c, conf)
@@ -498,7 +498,7 @@ def rebuild(c, config):
         manage_packages(c, repos, "install", added_pkgs)
         # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
-    enable_service(c, service_list)
+    enable_services(c, service_list)
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")
     c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
