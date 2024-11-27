@@ -428,10 +428,13 @@ def proc_services(c, conf, repos, use_chroot=False):
             # enable_service(c, name+".service")
     return packages, services_to_enable
 
-def enable_services(c, list_of_services):
+def enable_services(c, list_of_services, use_chroot=False):
     for service in list_of_services:
         print(f"Enabling service: {service}")
-        exec_chroot(c, f"systemctl enable {service}")
+        if use_chroot:
+            exec_chroot(c, f"systemctl enable {service}")
+        else:
+            exec(c, f"systemctl enable {service}")
         # enable_service(c, service)
 
 ##############################################################################
