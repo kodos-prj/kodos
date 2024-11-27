@@ -166,7 +166,7 @@ return {
         
         networkmanager = {
             enable = true,
-            packages = "NetworkManager",
+            package = "NetworkManager",
         },
         
         openssh = {
