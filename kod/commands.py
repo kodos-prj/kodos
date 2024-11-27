@@ -378,7 +378,7 @@ def manage_packages(c, repos, action, list_of_packages, chroot=False):
     return packages_installed
 
 
-def proc_hardware(c, conf, repos):
+def proc_hardware(c, conf, repos, use_chroot=False):
     packages = []
     print("- processing hardware -----------")
     hardware = conf.hardware
@@ -395,13 +395,13 @@ def proc_hardware(c, conf, repos):
                 print("  extra packages:",hw.extra_packages)
                 for _, pkg in hw.extra_packages.items():
                     pkgs.append(pkg)
-            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=False)
+            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=use_chroot)
             packages += pkgs_installed
 
     return packages
 
 
-def proc_services(c, conf, repos):
+def proc_services(c, conf, repos, use_chroot=False):
     packages = []
     print("- processing services -----------")
     services = conf.services
@@ -417,7 +417,7 @@ def proc_services(c, conf, repos):
                 print("  extra packages:",service.extra_packages)
                 for _, pkg in service.extra_packages.items():
                     pkgs.append(pkg)
-            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=False)
+            pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=use_chroot)
             packages += pkgs_installed
             # enable_service(c, name+".service")
     return packages
@@ -442,8 +442,8 @@ def install(c, config):
     repos = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
     pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
-    pkgs_installed += proc_hardware(c, conf, repos)
-    service_installed = proc_services(c, conf, repos)
+    pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
+    service_installed = proc_services(c, conf, repos, use_chroot=True)
     enable_services(c, service_installed)
     pkgs_installed += service_installed
 
