@@ -180,6 +180,7 @@ return {
         
         openssh = {
             enable = true,
+            service_name = "sshd",
             settings = {
                 PermitRootLogin = false,
             }
