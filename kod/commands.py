@@ -456,7 +456,7 @@ def install(c, config):
     pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
     service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
     print(f"Services to enable: {service_to_enable}")
-    enable_services(c, service_to_enable)
+    enable_services(c, service_to_enable, use_chroot=True)
     pkgs_installed += service_installed
 
     print("\n====== Creating users ======")
