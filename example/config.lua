@@ -75,6 +75,14 @@ return {
                 -- },
             -- },
         },
+
+        pipewire = {
+            enable = true,
+            extra_packages = {
+                "pipewire-alsa",
+                "pipewire-pulse",
+            },
+        },
     },
 
 
@@ -164,6 +172,7 @@ return {
         -- Firmware update
         fwupd = { enable = true },
         
+        -- TODO: Maybe move inside network
         networkmanager = {
             enable = true,
             service_name = "NetworkManager",
@@ -174,14 +183,6 @@ return {
             settings = {
                 PermitRootLogin = false,
             }
-        },
-
-        pipewire = {
-            enable = true,
-            extra_packages = {
-                "pipewire-alsa",
-                "pipewire-pulse",
-            },
         },
     
         -- avahi = {
