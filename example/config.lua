@@ -163,6 +163,7 @@ return {
         -- "rustup",
         "git",
         "poetry",
+        "blueman", -- TODO: Maybe a better location is required
         -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
@@ -200,8 +201,6 @@ return {
             enable = true,
             extra_packages = { "gutenprint" },
         },
-
-        blueman = { enable = true },
     
     }
 }
