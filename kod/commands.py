@@ -471,10 +471,15 @@ def rebuild(c, config):
 
     conf = load_config(config)
     print("========================================")
+    repos = load_repos()
+    if repos is None:
+        print("Missing repos information")
+        return
+
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
-    pkg_list += proc_hardware(c, conf)
-    service_list, service_to_enable = proc_services(c, conf)
+    pkg_list += proc_hardware(c, conf, repos)
+    service_list, service_to_enable = proc_services(c, conf, repos)
     pkg_list += service_list
 
     print("packages\n",pkg_list)
@@ -489,11 +494,6 @@ def rebuild(c, config):
 
     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
-
-    repos = load_repos()
-    if repos is None:
-        print("Missing repos information")
-        return
 
     if remove_pkg:
         print("Packages to remove:",remove_pkg)
