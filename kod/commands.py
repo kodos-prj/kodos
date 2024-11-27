@@ -403,15 +403,20 @@ def proc_hardware(c, conf, repos, use_chroot=False):
 
 def proc_services(c, conf, repos, use_chroot=False):
     packages = []
+    services_to_enable = []
     print("- processing services -----------")
     services = conf.services
     for name, service in services.items():
         print(name, service.enable)
+        service_name = name
         if service.enable:
             pkgs = []
             if service.package:
                 print("  using:",service.package)
                 name = service.package
+            if service.service_name:
+                print("  using:",service.service_name)
+                service_name = service.service_name
             pkgs.append(name)
             if service.extra_packages:
                 print("  extra packages:",service.extra_packages)
@@ -419,8 +424,9 @@ def proc_services(c, conf, repos, use_chroot=False):
                     pkgs.append(pkg)
             pkgs_installed = manage_packages(c, repos, "install", pkgs, chroot=use_chroot)
             packages += pkgs_installed
+            services_to_enable.append(service_name)
             # enable_service(c, name+".service")
-    return packages
+    return packages, services_to_enable
 
 def enable_services(c, list_of_services):
     for service in list_of_services:
@@ -445,9 +451,9 @@ def install(c, config):
     packages_to_install, _ = get_packages_to_install(c, conf)
     pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
     pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
-    service_installed = proc_services(c, conf, repos, use_chroot=True)
-    print(f"Services to enable: {service_installed}")
-    enable_services(c, service_installed)
+    service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
+    print(f"Services to enable: {service_to_enable}")
+    enable_services(c, service_to_enable)
     pkgs_installed += service_installed
 
     print("\n====== Creating users ======")
@@ -468,7 +474,7 @@ def rebuild(c, config):
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
     pkg_list += proc_hardware(c, conf)
-    service_list = proc_services(c, conf)
+    service_list, service_to_enable = proc_services(c, conf)
     pkg_list += service_list
 
     print("packages\n",pkg_list)
@@ -503,7 +509,7 @@ def rebuild(c, config):
         manage_packages(c, repos, "install", added_pkgs)
         # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
-    enable_services(c, service_list)
+    enable_services(c, service_to_enable)
     new_generation = int(generation)+1
     print(f"New generation: {new_generation}")
     c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
