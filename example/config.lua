@@ -132,7 +132,7 @@ return {
             },
         },
         cosmic = {
-            enable = false,
+            enable = true,
             display_manager = "sddm",
             -- exclude_packages = {
             --     "gnome-tour",
@@ -145,8 +145,8 @@ return {
 
     packages = {
         "flatpak",
-        "pipewire",
-        "pipewire-pulse",
+        -- "pipewire",
+        -- "pipewire-pulse",
         "mc",
         "neovim",
         "htop",

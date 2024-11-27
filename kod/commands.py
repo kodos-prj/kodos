@@ -444,11 +444,14 @@ def install(c, config):
     pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
     pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
     service_installed = proc_services(c, conf, repos, use_chroot=True)
+    print(f"Services to enable: {service_installed}")
     enable_services(c, service_installed)
     pkgs_installed += service_installed
 
+    print("\n====== Creating users ======")
     create_users(c, conf)
 
+    print("\n====== Creating snapshots ======")
     base_snapshot(c, pkgs_installed)
 
     print("Done")
