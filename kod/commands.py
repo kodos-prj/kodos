@@ -226,15 +226,46 @@ options root={root_part} rw {option}
         # pkgs_installed += ["efibootmgr"]
 
 def get_packages_to_install(c, conf):
-    global pkgs_installed
     packages_to_install = []
     packages_to_remove = []
 
-    desktop_manager = conf.desktop_manager
+    packages_to_install, packages_to_remove = proc_desktop(c, conf)
+
+    # Packages listed in config
+    pkg_list = list(conf.packages.values())
+    print("packages\n",pkg_list)
+    packages_to_install += pkg_list
+    return packages_to_install, packages_to_remove
+
+
+def get_list_of_dependencies(c, pkg):
+    pkgs_list = [pkg]
+    # check if it is a group
+    pkgs_list = c.run(f"pacman -Sgq {pkg}").stdout.split()
+    if len(pkgs_list) > 0:
+        pkgs_list += [pkg.strip() for pkg in pkgs_list] 
+    else:
+        # check if it is a (meta-)package 
+        depend_on = c.run(f"pacman -Si {pkg} | grep 'Depends On'").stdout.split()
+        pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split(" ")]
+    return pkgs_list
+
+
+def proc_desktop(c, conf):
+    packages_to_install = []
+    packages_to_remove = []
+    desktop = conf.desktop
+
+    display_manager = desktop.display_manager
+    if display_manager:
+        print(f"Installing {display_manager}")
+        packages_to_install += [display_manager]
+    
+    desktop_manager = desktop.desktop_manager
     if desktop_manager:
         for desktop_mngr, dm_conf in desktop_manager.items():
-            print(f"Installing {desktop_mngr}")
             if dm_conf["enable"]:
+                print(f"Installing {desktop_mngr}")
                 if "packages" in dm_conf:
                     pkg_list = list(dm_conf["packages"].values())
                     packages_to_install += pkg_list
@@ -245,20 +276,17 @@ def get_packages_to_install(c, conf):
                 else:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
-                    exclude_pkgs = '\|'.join(exclude_pkg_list)
-                    pks_to_install = c.run(f"pacman -Sgq {desktop_mngr} | grep -v '{exclude_pkgs}'").stdout.split()
-                    packages_to_install += [p.strip() for p in pks_to_install]
+                    pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
+                    pkgs_to_install = list(set(pkgs_to_install) - set(exclude_pkg_list))
+                    packages_to_install += pkgs_to_install
                 else:
                     packages_to_install += [desktop_mngr]
                 if "display_manager" in dm_conf:
                     display_mngr = dm_conf["display_manager"]
                     packages_to_install += [display_mngr]
 
-    pkg_list = list(conf.packages.values())
-    print("packages\n",pkg_list)
-    packages_to_install += pkg_list
-    pkgs_installed = packages_to_install
     return packages_to_install, packages_to_remove
+
 
 
 def base_snapshot(c, pkgs_installed):

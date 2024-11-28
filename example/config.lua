@@ -115,40 +115,34 @@ return {
         },
     },
 
-    desktop_manager = {
-        gnome = {
-            enable = false,
-            display_manager = "gdm",
-            exclude_packages = {
-                "gnome-tour", "yelp"
+    desktop = {
+        -- display_manager = "gdm",
+        -- display_manager = "sddm",
+        display_manager = "lightdm",
+        desktop_manager = {
+            gnome = {
+                enable = false,
+                exclude_packages = {
+                    "gnome-tour", "yelp"
+                },
+                packages = {
+                    "gnome-tweaks",
+                    "gnome-extra",
+                    "gnome-themes-extra",
+                },
             },
-            packages = {
-                "gnome-tweaks",
-                "gnome-extra",
-                "gnome-themes-extra",
+    
+            plasma = {
+                enable = false,
+                packages = {
+                    "kde-applications",
+                },
             },
-        },
-
-        plasma = {
-            enable = false,
-            display_manager = "sddm",
-            -- exclude_packages = {
-            --     "gnome-tour",
-            -- }
-            packages = {
-                "kde-applications",
+            cosmic = {
+                enable = true,
+                display_manager = "sddm",
             },
-        },
-        cosmic = {
-            enable = true,
-            display_manager = "sddm",
-            -- exclude_packages = {
-            --     "gnome-tour",
-            -- }
-            -- packages = {
-                -- "kde-applications",
-            -- },
-        },
+        }
     },
 
     packages = {
