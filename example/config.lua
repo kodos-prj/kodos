@@ -57,6 +57,35 @@ return {
         },
     },
 
+    hardware = {
+        -- pulseaudio = { enable = false },
+
+        sane = {
+            enable = true,
+            extra_packages = { "sane-airscan" },
+        },
+  
+        -- https://wiki.archlinux.org/title/Bluetooth
+        bluetooth = {
+            enable = true,
+            package = "bluez",
+            -- settings = {
+                -- General = {
+                    -- Enable = "Source,Sink,Media,Socket",
+                -- },
+            -- },
+        },
+
+        pipewire = {
+            enable = true,
+            extra_packages = {
+                "pipewire-alsa",
+                "pipewire-pulse",
+            },
+        },
+    },
+
+
     locale = {
         locale = {
             default = "en_US.UTF-8 UTF-8",
@@ -86,49 +115,86 @@ return {
         },
     },
 
-    desktop_manager = {
-        gnome = {
-            enable = false,
-            display_manager = "gdm",
-            exclude_packages = {
-                "gnome-tour", "yelp"
+    desktop = {
+        -- display_manager = "gdm",
+        -- display_manager = "sddm",
+        display_manager = "lightdm",
+        desktop_manager = {
+            gnome = {
+                enable = false,
+                exclude_packages = {
+                    "gnome-tour", "yelp"
+                },
+                packages = {
+                    "gnome-tweaks",
+                    "gnome-extra",
+                    "gnome-themes-extra",
+                },
             },
-            packages = {
-                "gnome-tweaks",
-                "gnome-extra",
-                "gnome-themes-extra",
+    
+            plasma = {
+                enable = false,
+                packages = {
+                    "kde-applications",
+                },
             },
-        },
-
-        plasma = {
-            enable = true,
-            display_manager = "sddm",
-            -- exclude_packages = {
-            --     "gnome-tour",
-            -- }
-            packages = {
-                "kde-applications",
+            cosmic = {
+                enable = true,
+                display_manager = "sddm",
             },
-        },
+        }
     },
 
     packages = {
         "flatpak",
-        "pipewire",
-        "pipewire-pulse",
+        -- "pipewire",
+        -- "pipewire-pulse",
         "mc",
         "neovim",
+        "htop",
         -- "cosmic",
         "python-invoke",
         -- "rustup",
         "git",
         "poetry",
-        "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        "blueman", -- TODO: Maybe a better location is required
+        -- "aur:visual-studio-code-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
     },
 
     services = {
-        "systemd"
+        -- Firmware update
+        fwupd = { enable = true },
+        
+        -- TODO: Maybe move inside network
+        networkmanager = {
+            enable = true,
+            service_name = "NetworkManager",
+        },
+        
+        openssh = {
+            enable = true,
+            service_name = "sshd",
+            settings = {
+                PermitRootLogin = false,
+            }
+        },
+    
+        -- avahi = {
+        --     enable = true,
+        --     nssmdns = true,
+        --     publish = {
+        --         enable = true,
+        --         domain = true,
+        --         userServices = true
+        --     },
+        -- },
+    
+        cups = {
+            enable = true,
+            extra_packages = { "gutenprint" },
+        },
+    
     }
 }
