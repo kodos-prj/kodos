@@ -350,7 +350,7 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
         c.run(f"{exec_prefix} mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
     
     print("Creating new snapshot in current/rootfs")
-    c.run(f"btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
+    c.run(f"{exec_prefix} btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
 
     print("Updating /kod/generation/current/generation")
     print("Updating if /kod/generation/current/generation exists")
