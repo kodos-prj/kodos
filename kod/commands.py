@@ -332,21 +332,21 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
     
     print("Creating current snapshot")
 
-    if os.path.isdir(F"{root_path}/kod/generation/current"):
+    if not os.path.exists(F"{root_path}/kod/generation/current"):
         c.run(f"{exec_prefix} mkdir -p /kod/generation/current/")
 
     # Check if old rootfs exists to remove it
-    if os.path.isdir(F"{root_path}/kod/generation/current/rootfs-old"):
+    if os.path.exists(F"{root_path}/kod/generation/current/rootfs-old"):
         c.run(F"{exec_prefix} btrfs subvol delete /kod/generation/current/rootfs-old")
     
     # Check if rootfs exists
-    if os.path.isdir(f"{root_path}/kod/generation/current/rootfs"):
+    if os.path.exists(f"{root_path}/kod/generation/current/rootfs"):
         # Create old rootfs from the current rootfs
         c.run(f"{exec_prefix} mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
     
     c.run(f"btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
 
-    if os.path.isfile("/kod/generation/current/generation"):
+    if os.path.exists("/kod/generation/current/generation"):
         c.run(f"{exec_prefix} sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
     else:
         with open(f"{root_path}/kod/generation/current/generation","w") as f:
@@ -692,15 +692,16 @@ def test_config(c, config):
     # packages_to_install = install_packages(c, conf)
     # print(packages_to_install)
     print("========================================")
-    # proc_repos(c, conf)
-    repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}}
-    pkgs_installed = manage_packages(c, repos, "install", ["mc","neovim"], chroot=True)
-    pkgs_installed += proc_hardware(c, conf, repos)
-    pkgs_installed += proc_services(c, conf, repos)
+    # # proc_repos(c, conf)
+    # repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}}
+    # pkgs_installed = manage_packages(c, repos, "install", ["mc","neovim"], chroot=True)
+    # pkgs_installed += proc_hardware(c, conf, repos)
+    # pkgs_installed += proc_services(c, conf, repos)
 
     # pkgs = proc_hardware(c, conf, repos)
     # print(pkgs)
     # pkgs = proc_services(c, conf, repos)
-    print(pkgs_installed)
+    create_next_generation(c, 0, ["mc", "neovim"], use_chroot=True, update_grub=True)
+    # print(pkgs_installed)
 
 ##############################################################################
