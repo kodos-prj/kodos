@@ -360,7 +360,7 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
     else:
         print("Creating /kod/generation/current/generation")
         with open(f"{root_path}/kod/generation/current/generation","w") as f:
-            f.write(new_generation)
+            f.write(str(new_generation))
         
     if update_grub:
         print("Updating /etc/default/grub")
