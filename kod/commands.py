@@ -333,22 +333,32 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
     print("Creating current snapshot")
 
     if not os.path.exists(F"{root_path}/kod/generation/current"):
+        print(F"{root_path}/kod/generation/current does not exists, creating directory")
         c.run(f"{exec_prefix} mkdir -p /kod/generation/current/")
 
     # Check if old rootfs exists to remove it
+    print("Checking if rootfs-old exists")
     if os.path.exists(F"{root_path}/kod/generation/current/rootfs-old"):
+        print("Deleting rootfs-old")
         c.run(F"{exec_prefix} btrfs subvol delete /kod/generation/current/rootfs-old")
     
     # Check if rootfs exists
+    print("Checking if rootfs exists")
     if os.path.exists(f"{root_path}/kod/generation/current/rootfs"):
         # Create old rootfs from the current rootfs
+        print("Moving rootfs to rootfs-old")
         c.run(f"{exec_prefix} mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
     
+    print("Creating new snapshot in current/rootfs")
     c.run(f"btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
 
+    print("Updating /kod/generation/current/generation")
+    print("Updating if /kod/generation/current/generation exists")
     if os.path.exists("/kod/generation/current/generation"):
+        print("Updating /kod/generation/current/generation")
         c.run(f"{exec_prefix} sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
     else:
+        print("Creating /kod/generation/current/generation")
         with open(f"{root_path}/kod/generation/current/generation","w") as f:
             f.write(new_generation)
         
