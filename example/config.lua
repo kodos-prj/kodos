@@ -117,8 +117,8 @@ return {
 
     desktop = {
         -- display_manager = "gdm",
-        -- display_manager = "sddm",
-        display_manager = "lightdm",
+        display_manager = "sddm",
+        -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
                 enable = false,
