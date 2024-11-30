@@ -117,7 +117,7 @@ return {
 
     desktop = {
         -- display_manager = "gdm",
-        display_manager = "sddm",
+        -- display_manager = "sddm",
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
@@ -139,7 +139,7 @@ return {
                 },
             },
             cosmic = {
-                enable = true,
+                enable = false,
                 display_manager = "sddm",
             },
         }
@@ -157,7 +157,7 @@ return {
         -- "rustup",
         "git",
         "poetry",
-        "blueman", -- TODO: Maybe a better location is required
+        -- "blueman", -- TODO: Maybe a better location is required
         -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
@@ -165,7 +165,7 @@ return {
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        -- fwupd = { enable = true },
         
         -- TODO: Maybe move inside network
         networkmanager = {
