@@ -327,7 +327,7 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
     c.run(f"{exec_prefix} btrfs subvolume snapshot -r / /kod/generation/{new_generation}/rootfs")
 
     # Create a list of installed packages
-    with open(f"{root_path}/kod/generation/0/installed_packages","w") as f:
+    with open(f"{root_path}/kod/generation/{new_generation}/installed_packages","w") as f:
         f.write("\n".join(pkgs_installed))
     
     print("Creating current snapshot")
