@@ -367,8 +367,12 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
         c.run(f"{exec_prefix} sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
         c.run(f"{exec_prefix} sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
     
-    # setting default subvolume
-    subvol_id = c.run(f"{exec_prefix} btrfs subvol list {root_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
+    # setting default 
+    if root_path == "/mnt":
+        mount_path = "/mnt"
+    else:
+        mount_path = "/"
+    subvol_id = c.run(f"{exec_prefix} btrfs subvol list {mount_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
     c.run(f"{exec_prefix} btrfs subvol set-default {subvol_id} /")
 
     print("Recreating grub.cfg")
