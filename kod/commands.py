@@ -373,6 +373,7 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
     else:
         mount_path = "/"
     subvol_id = c.run(f"{exec_prefix} btrfs subvol list {mount_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
+    print(f"{subvol_id=}")
     c.run(f"{exec_prefix} btrfs subvol set-default {subvol_id} /")
 
     print("Recreating grub.cfg")
