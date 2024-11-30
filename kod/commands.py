@@ -367,6 +367,10 @@ def create_next_generation(c, new_generation, pkgs_installed, use_chroot=False, 
         c.run(f"{exec_prefix} sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
         c.run(f"{exec_prefix} sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
     
+    # setting default subvolume
+    subvol_id = c.run(f"{exec_prefix} btrfs subvol list {root_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
+    c.run(f"{exec_prefix} btrfs subvol set-default {subvol_id} /")
+
     print("Recreating grub.cfg")
     c.run(f"{exec_prefix} grub-mkconfig -o /boot/grub/grub.cfg")  # 5
     print("Done")
@@ -596,26 +600,6 @@ def rebuild(c, config):
 
     create_next_generation(c, new_generation, pkg_list)
 
-    # print(f"New generation: {new_generation}")
-    # c.run(f"sudo mkdir -p /kod/generation/{new_generation}")
-    # c.run(f"sudo btrfs subvol snap -r / /kod/generation/{new_generation}/rootfs")
-    # with open(f"/kod/generation/{new_generation}/installed_packages", "w") as f:
-    #     f.write("\n".join(pkg_list))
-    
-    # print("Updating current generation")
-    # # Check if rootfs exists
-    # if os.path.isdir("/kod/generation/current/rootfs-old"):
-    #     c.run("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
-    # if os.path.isdir("/kod/generation/current/rootfs"):
-    #     c.run("sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
-    # c.run(f"sudo btrfs subvol snap /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
-    # if os.path.isfile("/kod/generation/current/generation"):
-    #     c.run(f"sudo sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
-    # else:
-    #     c.run(f"sudo echo '{new_generation} > /kod/generation/current/generation")
-
-    # print("Recreating grub.cfg")
-    # c.run("grub-mkconfig -o /boot/grub/grub.cfg")
     print("Done")
 
 
