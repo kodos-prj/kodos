@@ -15,11 +15,11 @@ if [ "$1" == "-p" ]; then
 
     sudo arch-chroot /home/abuss/.config/overlay/rootfs pacman -S --noconfirm $2
 
-    umount -R /home/abuss/.config/overlay/rootfs
+    sudo umount -R /home/abuss/.config/overlay/rootfs
 fi
 
 proot -r /home/abuss/.config/overlay/rootfs -b /proc -b /sys -b /dev -b /home -b /var/cache -b /var/tmp -b /var/log /bin/bash
 
 sudo umount -R /home/abuss/.config/overlay/rootfs
 
-rm -rf /home/abuss/.config/overlay
+sudo rm -rf /home/abuss/.config/overlay
