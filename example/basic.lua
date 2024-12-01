@@ -161,6 +161,8 @@ return {
         -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
+        "arch-install-scripts",
+        "uar:proot",
     },
 
     services = {

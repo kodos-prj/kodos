@@ -1,22 +1,25 @@
 #!/bin/bash
 
-mkdir -p /kod/overlay
-mkdir -p /kod/overlay/upper
-mkdir -p /kod/overlay/work
-mkdir -p /kod/overlay/rootfs
+mkdir -p ~/.config/overlay
+mkdir -p ~/.config/overlay/{upper,work,rootfs}
 
-mount -t overlay overlay -o lowerdir=/,upperdir=/kod/overlay/upper,workdir=/kod/overlay/work /kod/overlay/rootfs
+sudo mount -t overlay overlay -o lowerdir=/,upperdir=/home/abuss/.config/overlay/upper,workdir=/home/abuss/.config/overlay/work /home/abuss/.config/overlay/rootfs
 
-mount --bind /root /kod/overlay/rootfs/root
-mount --bind /home /kod/overlay/rootfs/home
-mount --bind /var/cache /kod/overlay/rootfs/var/cache
-mount --bind /var/tmp /kod/overlay/rootfs/var/tmp
-mount --bind /var/log /kod/overlay/rootfs/var/log
+if [ "$1" == "-p"]; then 
+    # sudo mount --bind /root /home/abuss/.config/overlay/rootfs/root
+    # sudo mount --bind /home /home/abuss/.config/overlay/rootfs/home
+    sudo mount --bind /var/cache /home/abuss/.config/overlay/rootfs/var/cache
+    sudo mount --bind /var/tmp /home/abuss/.config/overlay/rootfs/var/tmp
+    sudo mount --bind /var/log /home/abuss/.config/overlay/rootfs/var/log
+    # sudo mount --bind /kod /home/abuss/.config/overlay/rootfs/kod
 
-mount --bind /kod /kod/overlay/rootfs/kod
+    sudo arch-chroot /home/abuss/.config/overlay/rootfs pacman -S --noconfirm $2
 
-arch-chroot /kod/overlay/rootfs /bin/bash
+    umount -R /home/abuss/.config/overlay/rootfs
+fi
 
-umount -R /kod/overlay/rootfs
+proot -r /home/abuss/.config/overlay/rootfs -b /proc -b /sys -b /dev -d /home -d /var/cache -d /var/tmp -d /var/log /bin/bash
 
-rm -rf /kod/overlay
+# umount -R /kod/overlay/rootfs
+
+rm -rf /home/abuss/.config/overlay
