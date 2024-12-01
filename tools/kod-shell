@@ -5,7 +5,7 @@ mkdir -p ~/.config/overlay/{upper,work,rootfs}
 
 sudo mount -t overlay overlay -o lowerdir=/,upperdir=/home/abuss/.config/overlay/upper,workdir=/home/abuss/.config/overlay/work /home/abuss/.config/overlay/rootfs
 
-if [ "$1" == "-p"]; then 
+if [ "$1" == "-p" ]; then 
     # sudo mount --bind /root /home/abuss/.config/overlay/rootfs/root
     # sudo mount --bind /home /home/abuss/.config/overlay/rootfs/home
     sudo mount --bind /var/cache /home/abuss/.config/overlay/rootfs/var/cache
