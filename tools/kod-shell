@@ -1,0 +1,22 @@
+#!/bin/bash
+
+mkdir -p /kod/overlay
+mkdir -p /kod/overlay/upper
+mkdir -p /kod/overlay/work
+mkdir -p /kod/overlay/rootfs
+
+mount -t overlay overlay -o lowerdir=/,upperdir=/kod/overlay/upper,workdir=/kod/overlay/work /kod/overlay/rootfs
+
+mount --bind /root /kod/overlay/rootfs/root
+mount --bind /home /kod/overlay/rootfs/home
+mount --bind /var/cache /kod/overlay/rootfs/var/cache
+mount --bind /var/tmp /kod/overlay/rootfs/var/tmp
+mount --bind /var/log /kod/overlay/rootfs/var/log
+
+mount --bind /kod /kod/overlay/rootfs/kod
+
+arch-chroot /kod/overlay/rootfs /bin/bash
+
+umount -R /kod/overlay/rootfs
+
+rm -rf /kod/overlay
