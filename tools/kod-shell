@@ -20,6 +20,6 @@ fi
 
 proot -r /home/abuss/.config/overlay/rootfs -b /proc -b /sys -b /dev -b /home -b /var/cache -b /var/tmp -b /var/log /bin/bash
 
-# umount -R /kod/overlay/rootfs
+sudo umount -R /home/abuss/.config/overlay/rootfs
 
 rm -rf /home/abuss/.config/overlay
