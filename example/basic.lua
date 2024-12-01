@@ -162,7 +162,7 @@ return {
         -- "aur:floorp-bin",
         -- "aur:mission-center",
         "arch-install-scripts",
-        "uar:proot",
+        "aur:proot",
     },
 
     services = {
