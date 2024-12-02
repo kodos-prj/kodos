@@ -163,6 +163,7 @@ return {
         -- "aur:mission-center",
         "arch-install-scripts",
         "aur:proot",
+        "fuse-overlayfs",
     },
 
     services = {
