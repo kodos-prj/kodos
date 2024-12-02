@@ -1,25 +1,25 @@
 #!/bin/bash
 
-mkdir -p ~/.config/overlay
-mkdir -p ~/.config/overlay/{upper,work,rootfs}
+OVERLAY_ROOT="/kod/overlay/$USER"
 
-sudo mount -t overlay overlay -o lowerdir=/,upperdir=/home/abuss/.config/overlay/upper,workdir=/home/abuss/.config/overlay/work /home/abuss/.config/overlay/rootfs
+if [ ! -d /kod/overlay ]; then
+    mkdir -p /kod/overlay
+fi
+mkdir -p $OVERLAY_ROOT
+mkdir -p $OVERLAY_ROOT/{upper,work,rootfs}
+
+sudo mount -t overlay overlay -o lowerdir=/,upperdir=${OVERLAY_ROOT}/upper,workdir=${OVERLAY_ROOT}/work ${OVERLAY_ROOT}/rootfs
 
 if [ "$1" == "-p" ]; then 
-    # sudo mount --bind /root /home/abuss/.config/overlay/rootfs/root
-    # sudo mount --bind /home /home/abuss/.config/overlay/rootfs/home
-    sudo mount --bind /var/cache /home/abuss/.config/overlay/rootfs/var/cache
-    sudo mount --bind /var/tmp /home/abuss/.config/overlay/rootfs/var/tmp
-    sudo mount --bind /var/log /home/abuss/.config/overlay/rootfs/var/log
-    # sudo mount --bind /kod /home/abuss/.config/overlay/rootfs/kod
+    sudo mount --bind /var/cache ${OVERLAY_ROOT}/rootfs/var/cache
+    sudo mount --bind /var/tmp ${OVERLAY_ROOT}/rootfs/var/tmp
+    sudo mount --bind /var/log ${OVERLAY_ROOT}/rootfs/var/log
 
-    sudo arch-chroot /home/abuss/.config/overlay/rootfs pacman -S --noconfirm $2
-
-    sudo umount -R /home/abuss/.config/overlay/rootfs
+    sudo arch-chroot ${OVERLAY_ROOT}/rootfs pacman -S --noconfirm $2
 fi
 
-proot -r /home/abuss/.config/overlay/rootfs -b /proc -b /sys -b /dev -b /home -b /var/cache -b /var/tmp -b /var/log /bin/bash
+proot -R ${OVERLAY_ROOT}/rootfs -b /var/cache -b /var/tmp -b /var/log /bin/bash
 
-sudo umount -R /home/abuss/.config/overlay/rootfs
+sudo umount -R ${OVERLAY_ROOT}/rootfs
 
-sudo rm -rf /home/abuss/.config/overlay
+sudo rm -rf ${OVERLAY_ROOT}
