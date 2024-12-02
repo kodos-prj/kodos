@@ -161,6 +161,7 @@ return {
         -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
+        "aur:proot",
     },
 
     services = {

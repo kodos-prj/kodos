@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# mkdir -p ~/.config/overlay
+# mkdir -p ~/.config/overlay/{upper,work,rootfs}
+
+ROOT_PATH = "/home/abuss/kod/tmp123/rootfs"
+
+# sudo mount -t overlay overlay -o lowerdir=/,upperdir=/home/abuss/.config/overlay/upper,workdir=/home/abuss/.config/overlay/work /home/abuss/.config/overlay/rootfs
+sudo btrfs subvolume snapshot / $ROOT_PATH
+
+if [ "$1" == "-p" ]; then 
+    # sudo mount --bind /root /home/abuss/.config/overlay/rootfs/root
+    # sudo mount --bind /home /home/abuss/.config/overlay/rootfs/home
+    sudo mount --bind /var/cache $ROOT_PATH/var/cache
+    sudo mount --bind /var/tmp $ROOT_PATH/var/tmp
+    sudo mount --bind /var/log $ROOT_PATH/var/log
+    # sudo mount --bind /kod /home/abuss/.config/overlay/rootfs/kod
+
+    sudo arch-chroot $ROOT_PATH pacman -S --noconfirm $2
+
+    # sudo umount -R /home/abuss/.config/overlay/rootfs
+fi
+
+proot -R $ROOT_PATH -b /var/cache -b /var/tmp -b /var/log /bin/bash
+# proot -r /home/abuss/.config/overlay/rootfs -b /proc -b /sys -b /dev -b /home -b /var/cache -b /var/tmp -b /var/log /bin/bash
+
+# sudo umount -R /home/abuss/.config/overlay/rootfs
+
+sudo rm -rf $ROOT_PATH
