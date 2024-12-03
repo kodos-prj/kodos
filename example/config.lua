@@ -33,6 +33,23 @@ return {
                 run_as_root = false,
             },
         },
+        flatpak = {
+            type = "flatpak",
+            package = "flatpak",
+            -- build = {
+            --     name = "yay",
+            --     url = "https://aur.archlinux.org/yay-bin.git",
+            --     build_cmd = "makepkg -si --noconfirm",
+            -- },
+            commands = {
+                install = "flatpak install flathub",
+                update = "flatpak update flathub",
+                remove = "flatpak remove",
+                -- update_db = "flatpak update",
+                
+                run_as_root = false,
+            },
+        },
     },
 
     devices = {
@@ -162,6 +179,7 @@ return {
         -- "aur:floorp-bin",
         -- "aur:mission-center",
         "aur:proot",
+        "flatpak:io.github.nokse22.ultimate-tic-tac-toe"
     },
 
     services = {
