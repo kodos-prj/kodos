@@ -12,10 +12,10 @@ return {
             repo = { "core", "extra" },
             type = "arch",
             commands = {
-                install = "pacman -S",
-                update = "pacman -Syu",
-                remove = "pacman -Rscn",
-                update_db = "pacman -Sy",
+                install = "pacman -S --noconfirm",
+                update = "pacman -Syu --noconfirm",
+                remove = "pacman -Rscn --noconfirm",
+                update_db = "pacman -Sy --noconfirm",
             }
         },
         aur = {
@@ -26,10 +26,10 @@ return {
                 build_cmd = "makepkg -si --noconfirm",
             },
             commands = {
-                install = "yay -S",
-                update = "yay -Syu",
-                remove = "yay -R",
-                update_db = "yay -Sy",
+                install = "yay -S --noconfirm",
+                update = "yay -Syu --noconfirm",
+                remove = "yay -R --noconfirm",
+                update_db = "yay -Sy --noconfirm",
                 run_as_root = false,
             },
         },
@@ -42,9 +42,9 @@ return {
             --     build_cmd = "makepkg -si --noconfirm",
             -- },
             commands = {
-                install = "flatpak install flathub",
-                update = "flatpak update flathub",
-                remove = "flatpak remove",
+                install = "flatpak install -y flathub",
+                update = "flatpak update -y flathub",
+                remove = "flatpak remove -y",
                 -- update_db = "flatpak update",
                 
                 run_as_root = false,
@@ -178,7 +178,9 @@ return {
         -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
+        "less",
         "aur:proot",
+        "arch-install-scripts",
         "flatpak:io.github.nokse22.ultimate-tic-tac-toe"
     },
 

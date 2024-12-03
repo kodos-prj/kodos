@@ -458,9 +458,9 @@ def manage_packages(c, repos, action, list_of_packages, chroot=False):
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {' '.join(pkgs)}")
+            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
-            exec_fn(c, f"{repos[repo][action]} --noconfirm {' '.join(pkgs)}")
+            exec_fn(c, f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
     return packages_installed
 
