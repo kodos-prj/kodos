@@ -123,6 +123,7 @@ return {
     },
 
     packages = {
+        "bubblewrap-suid",
         "aur:proot",
         -- "flatpak",
         "mc",
