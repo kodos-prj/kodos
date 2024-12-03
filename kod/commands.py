@@ -417,7 +417,8 @@ def proc_repos(c, conf):
             # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
 
         if "package" in repo_desc:
-            packages.append(repo_desc["package"])
+            # packages.append(repo_desc["package"])
+            exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc["package"]}")
             
     with open("/mnt/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))

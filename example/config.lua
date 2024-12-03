@@ -123,7 +123,7 @@ return {
     },
 
     packages = {
-        "proot",
+        "aur:proot",
         -- "flatpak",
         "mc",
         "less",
