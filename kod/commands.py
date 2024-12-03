@@ -418,6 +418,7 @@ def proc_repos(c, conf):
 
         if "package" in repo_desc:
             # packages.append(repo_desc["package"])
+            exec_chroot(c, f"pacman -S --needed --noconfirm bubblewrap-suid")
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             
     with open("/mnt/kod/repos.json", "w") as f:
