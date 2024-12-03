@@ -418,7 +418,7 @@ def proc_repos(c, conf):
 
         if "package" in repo_desc:
             # packages.append(repo_desc["package"])
-            exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc["package"]}")
+            exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             
     with open("/mnt/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
@@ -698,15 +698,15 @@ def test_config(c, config):
     # print(packages_to_install)
     print("========================================")
     # # proc_repos(c, conf)
-    # repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}}
-    # pkgs_installed = manage_packages(c, repos, "install", ["mc","neovim"], chroot=True)
+    repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}, "flatpak":{"package":"flatpack","install":"flatpak install -y flathub"}}
+    pkgs_installed = manage_packages(c, repos, "install", ["mc","neovim", "flatpak:come.visualestudio.code"], chroot=True)
     # pkgs_installed += proc_hardware(c, conf, repos)
     # pkgs_installed += proc_services(c, conf, repos)
 
     # pkgs = proc_hardware(c, conf, repos)
     # print(pkgs)
     # pkgs = proc_services(c, conf, repos)
-    create_next_generation(c, 0, ["mc", "neovim"], use_chroot=True, update_grub=True)
+    # create_next_generation(c, 0, ["mc", "neovim"], use_chroot=True, update_grub=True)
     # print(pkgs_installed)
 
 ##############################################################################
