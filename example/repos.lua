@@ -58,7 +58,7 @@ function flatpak_repo(repo, run_as_root)
             install = "flatpak install -y " .. repo,
             update = "flatpak update -y " .. repo,
             remove = "flatpak uninstall -y " .. repo,
-            run_as_root = run_as_root or false,
+            -- run_as_root = run_as_root or true,
         }
     }
 end
