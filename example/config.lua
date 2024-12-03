@@ -3,36 +3,13 @@ print("config.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
 disk = require("disk")
+repos = require("repos")
 
 return {
     repos = {
-        official = {
-            mirror = "https://mirror.rackspace.com/archlinux",
-            -- arch = "x86_64",
-            repo = { "core", "extra" },
-            type = "arch",
-            commands = {
-                install = "pacman -S",
-                update = "pacman -Syu",
-                remove = "pacman -Rscn",
-                update_db = "pacman -Sy",
-            }
-        },
-        aur = {
-            type = "aur",
-            build = {
-                name = "yay",
-                url = "https://aur.archlinux.org/yay-bin.git",
-                build_cmd = "makepkg -si --noconfirm",
-            },
-            commands = {
-                install = "yay -S",
-                update = "yay -Syu",
-                remove = "yay -R",
-                update_db = "yay -Sy",
-                run_as_root = false,
-            },
-        },
+        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"), 
+        aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
+        flatpak = repos.flatpak_repo("flathub"),
     },
 
     devices = {
@@ -146,21 +123,22 @@ return {
     },
 
     packages = {
-        "flatpak",
-        -- "pipewire",
-        -- "pipewire-pulse",
+        "proot",
+        -- "flatpak",
         "mc",
+        "less",
         "neovim",
         "htop",
-        -- "cosmic",
         "python-invoke",
-        -- "rustup",
         "git",
         "poetry",
         "blueman", -- TODO: Maybe a better location is required
+        -- AUR packages
         -- "aur:visual-studio-code-bin",
-        -- "aur:floorp-bin",
+        "aur:floorp-bin",
         -- "aur:mission-center",
+        -- Flatpak packages
+        "flatpak:com.visualstudio.code",
     },
 
     services = {
@@ -181,15 +159,15 @@ return {
             }
         },
     
-        -- avahi = {
-        --     enable = true,
-        --     nssmdns = true,
-        --     publish = {
-        --         enable = true,
-        --         domain = true,
-        --         userServices = true
-        --     },
-        -- },
+        avahi = {
+            enable = true,
+            nssmdns = true,
+            publish = {
+                enable = true,
+                domain = true,
+                userServices = true
+            },
+        },
     
         cups = {
             enable = true,

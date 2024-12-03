@@ -398,6 +398,7 @@ def get_max_generation():
 def proc_repos(c, conf):
     repos_conf = conf.repos
     repos = {}
+    packages = []
     for repo, repo_desc in repos_conf.items():
         repos[repo] = {}
         for action, cmd in repo_desc['commands'].items():
@@ -414,11 +415,14 @@ def proc_repos(c, conf):
 
             # exec_chroot(c, 'userdel -r kod')
             # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
+
+        if "package" in repo_desc:
+            packages.append(repo_desc["package"])
             
     with open("/mnt/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
 
-    return repos
+    return repos, packages
 
 
 def load_repos() -> dict | None:
@@ -458,9 +462,9 @@ def manage_packages(c, repos, action, list_of_packages, chroot=False):
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} --noconfirm {' '.join(pkgs)}")
+            exec_fn(c, f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
-            exec_fn(c, f"{repos[repo][action]} --noconfirm {' '.join(pkgs)}")
+            exec_fn(c, f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
     return packages_installed
 
@@ -537,8 +541,9 @@ def install(c, config):
     configure_system(c, conf)
     setup_bootloader(c, conf)
     create_kod_user(c)
-    repos = proc_repos(c, conf)
+    repos, repo_packages = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
+    packages_to_install += repo_packages
     pkgs_installed = manage_packages(c, repos, "install", packages_to_install, chroot=True)
     pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
     service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
