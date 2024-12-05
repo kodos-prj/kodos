@@ -133,13 +133,13 @@ return {
         "python-invoke",
         "git",
         "poetry",
-        "blueman", -- TODO: Maybe a better location is required
+        -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
         -- "aur:visual-studio-code-bin",
         "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
-        "flatpak:com.visualstudio.code",
+        -- "flatpak:com.visualstudio.code",
     },
 
     services = {
@@ -160,15 +160,15 @@ return {
             }
         },
     
-        avahi = {
-            enable = true,
-            nssmdns = true,
-            publish = {
-                enable = true,
-                domain = true,
-                userServices = true
-            },
-        },
+        -- avahi = {
+        --     enable = true,
+        --     nssmdns = true,
+        --     publish = {
+        --         enable = true,
+        --         domain = true,
+        --         userServices = true
+        --     },
+        -- },
     
         cups = {
             enable = true,

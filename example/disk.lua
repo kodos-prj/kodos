@@ -129,6 +129,12 @@ function disk_definition_simple(device, swap_size)
             mountOptions = btrfs_options,   -- filesystem = "ext4",
    
          },
+         var = {
+            subvol = "/var",
+            mountpoint = "/var",
+            mountOptions = btrfs_options,   -- filesystem = "ext4",
+   
+         },
          kod = {
             subvol = "/kod",
             mountpoint = "/kod",
