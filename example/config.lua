@@ -160,15 +160,15 @@ return {
             }
         },
     
-        avahi = {
-            enable = true,
-            nssmdns = true,
-            publish = {
-                enable = true,
-                domain = true,
-                userServices = true
-            },
-        },
+        -- avahi = {
+        --     enable = true,
+        --     nssmdns = true,
+        --     publish = {
+        --         enable = true,
+        --         domain = true,
+        --         userServices = true
+        --     },
+        -- },
     
         cups = {
             enable = true,
