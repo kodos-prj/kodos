@@ -1,0 +1,20 @@
+#!/bin/bash
+
+LOCAL_ROOT="${HOME}/.config/overlay"
+
+# mkdir -p $LOCAL_ROOT
+mkdir -p $LOCAL_ROOT/{upper,work,rootfs}
+
+sudo mount -t overlay overlay -o lowerdir=/,upperdir=$LOCAL_ROOT/upper,workdir=$LOCAL_ROOT/work $LOCAL_ROOT/rootfs
+
+if [ "$1" == "-p" ]; then 
+
+    sudo arch-chroot /home/abuss/.config/overlay/rootfs pacman -S --noconfirm $2
+
+fi
+
+proot -R $LOCAL_ROOT/rootfs -b /var/cache -b /var/tmp -b /var/log /bin/bash
+
+sudo umount -R $LOCAL_ROOT/rootfs
+
+sudo rm -rf $LOCAL_ROOT
