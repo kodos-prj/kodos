@@ -9,12 +9,12 @@ return {
     repos = {
         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"), 
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
-        flatpak = repos.flatpak_repo("flathub"),
+        -- flatpak = repos.flatpak_repo("flathub"),
     },
 
     devices = {
         -- disk0 = require "disk-btrfs",
-        disk0 = disk.disk_definition("/dev/vda", "3GB"),
+        disk0 = disk.disk_definition_simple("/dev/vda", "3GB"),
     },
 
     -- bootloader = {
@@ -94,7 +94,7 @@ return {
 
     desktop = {
         -- display_manager = "gdm",
-        display_manager = "sddm",
+        -- display_manager = "sddm",
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
@@ -116,15 +116,15 @@ return {
                 },
             },
             cosmic = {
-                enable = true,
+                enable = false,
                 display_manager = "sddm",
             },
         }
     },
 
     packages = {
-        -- "bubblewrap-suid",
-        "aur:proot",
+        "ostree",
+        -- "aur:proot",
         -- "flatpak",
         "mc",
         "less",
@@ -136,7 +136,7 @@ return {
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
         -- "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
@@ -144,7 +144,7 @@ return {
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        -- fwupd = { enable = true },
         
         -- TODO: Maybe move inside network
         networkmanager = {
@@ -170,10 +170,10 @@ return {
         --     },
         -- },
     
-        cups = {
-            enable = true,
-            extra_packages = { "gutenprint" },
-        },
+        -- cups = {
+        --     enable = true,
+        --     extra_packages = { "gutenprint" },
+        -- },
     
     }
 }
