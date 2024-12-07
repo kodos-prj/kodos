@@ -779,30 +779,30 @@ def rebuild(c, config):
     new_generation = int(generation)+1
     root_path = create_next_generation(c, new_generation)
 
-    try:
-        if remove_pkg:
-            print("Packages to remove:",remove_pkg)
-            for pkg in remove_pkg:
-                try:
-                    manage_packages(c, root_path, repos, "remove", [pkg,])        
-                    # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
-                except:
-                    print(f"Unable to remove {pkg}")
-                    pass
-        if added_pkgs:
-            print("Packages to install:", added_pkgs)
-            manage_packages(c, root_path, repos, "install", added_pkgs)
-            # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
-        
-        enable_services(c, service_to_enable)
-
-        commit_next_generation(c, new_generation, pkg_list, root_path)
+    # try:
+    if remove_pkg:
+        print("Packages to remove:",remove_pkg)
+        for pkg in remove_pkg:
+            try:
+                manage_packages(c, root_path, repos, "remove", [pkg,])        
+                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+            except:
+                print(f"Unable to remove {pkg}")
+                pass
+    if added_pkgs:
+        print("Packages to install:", added_pkgs)
+        manage_packages(c, root_path, repos, "install", added_pkgs)
+        # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
-    except:
-        print("Something went wrong")
-        if os.path.exists(f"{root_path}/kod/generation/{new_generation}"):
-            c.run(f"sudo btrfs subvol delete {root_path}/kod/generation/{new_generation}")
-    # create_next_generation(c, new_generation, pkg_list)
+    enable_services(c, service_to_enable)
+
+    commit_next_generation(c, new_generation, pkg_list, root_path)
+
+    # except:
+    #     print("Something went wrong")
+    #     if os.path.exists(f"{root_path}/kod/generation/{new_generation}"):
+    #         c.run(f"sudo btrfs subvol delete {root_path}/kod/generation/{new_generation}")
+    # # create_next_generation(c, new_generation, pkg_list)
 
     print("Done")
 
