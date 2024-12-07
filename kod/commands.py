@@ -429,7 +429,7 @@ def commit_next_generation(c, new_generation, pkgs_installed, root_path):
     print("Done")
 
 
-def create_first_generation(c, pkgs_installed, use_chroot=False, update_grub=False):
+def create_first_generation(c, pkgs_installed):
     print("Creating snapshot")
     new_generation = "0"
     # if use_chroot:
@@ -464,10 +464,10 @@ def create_first_generation(c, pkgs_installed, use_chroot=False, update_grub=Fal
     with open(f"{root_path}/kod/generation/current/require_reboot","w") as f:
         f.write("")
     
-    if update_grub:
-        print("Updating /etc/default/grub")
-        c.run(f"{exec_prefix} sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
-        c.run(f"{exec_prefix} sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
+    # if update_grub:
+    print("Updating /etc/default/grub")
+    c.run(f"{exec_prefix} sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
+    c.run(f"{exec_prefix} sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
     
     mount_path = "/mnt"
     subvol_id = c.run(f"{exec_prefix} btrfs subvol list {mount_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
@@ -688,7 +688,7 @@ def install(c, config):
     create_users(c, conf)
 
     print("\n====== Creating snapshots ======")
-    create_first_generation(c, 0, pkgs_installed, use_chroot=True, update_grub=True)
+    create_first_generation(c, pkgs_installed)
     # base_snapshot(c, pkgs_installed)
 
     print("Done")
