@@ -646,7 +646,7 @@ def proc_services(c, conf, repos, use_chroot=False):
                 print("  extra packages:",service.extra_packages)
                 for _, pkg in service.extra_packages.items():
                     pkgs.append(pkg)
-            pkgs_installed = manage_packages(c, repos, "/mnt", "install", pkgs, chroot=use_chroot)
+            pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
             packages += pkgs_installed
             services_to_enable.append(service_name)
             # enable_service(c, name+".service")
