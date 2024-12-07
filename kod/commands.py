@@ -391,17 +391,18 @@ def create_next_generation(c, new_generation):
 
 def commit_next_generation(c, new_generation, pkgs_installed, root_path):
     print("Creating snapshot")
+    print(f"{root_path = }")
     exec_prefix = "sudo"
 
     # Create a list of installed packages
-    with open(f"{root_path}/kod/generation/{new_generation}/installed_packages","w") as f:
+    with open(f"/kod/generation/{new_generation}/installed_packages","w") as f:
         f.write("\n".join(pkgs_installed))
     
     print("Committing new snapshot")
-    if not os.path.exists(F"{root_path}/kod/generation/current/rootfs-old"):
+    if not os.path.exists("/kod/generation/current/rootfs-old"):
         c.run(f"{exec_prefix} mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old")
 
-    if os.path.exists(f"{root_path}/kod/generation/current/rootfs"):
+    if os.path.exists("/kod/generation/current/rootfs"):
         print("Deleting replacing current/rootfs")
         c.run(f"{exec_prefix} btrfs subvol delete /kod/generation/current/rootfs")
     
@@ -415,7 +416,7 @@ def commit_next_generation(c, new_generation, pkgs_installed, root_path):
         c.run(f"{exec_prefix} sed -i 's/.$/{new_generation}/g' /kod/generation/current/generation")
     else:
         print("Creating /kod/generation/current/generation")
-        with open(f"{root_path}/kod/generation/current/generation","w") as f:
+        with open("/kod/generation/current/generation","w") as f:
             f.write(str(new_generation))
     
     # setting default 
