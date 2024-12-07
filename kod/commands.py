@@ -587,17 +587,17 @@ def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False)
         else:
             pkgs_per_repo["official"].append(pkg)
 
-    # if chroot:
-    #     exec_fn = exec_chroot
-    # else:
-    #     exec_fn = exec
+    if chroot:
+        exec_prefix = f"arch-chroot {root_path}"
+    else:
+        exec_prefix = ""
     for repo, pkgs in pkgs_per_repo.items():
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            c.run(f"arch-chroot {root_path} runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+            c.run(f"{exec_prefix} runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
-            c.run(f"arch-chroot {root_path} {repos[repo][action]} {' '.join(pkgs)}")
+            c.run(f"{exec_prefix} {repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
     return packages_installed
 
