@@ -152,6 +152,21 @@ Name=*
     # enable_service(c, "sshd.service")
 
     # Configure schroot
+    system_schroot = """[system]
+type=directory
+description=KodOS
+directory=/
+groups=users,root
+root-groups=root
+root-users=abuss
+profile=kodos
+personality=linux
+"""
+    with open("/mnt/etc/schroot/chroot.d/system.conf", "w") as f:
+        f.write(system_schroot)
+
+
+
     venv_schroot = """[virtual_env]
 type=directory
 description=KodOS
