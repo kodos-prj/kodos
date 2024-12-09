@@ -78,7 +78,7 @@ def install_essentials_pkgs(c):
                 microcode = "intel-ucode"
                 break
 
-    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "mlocate", "sudo"] 
+    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "mlocate", "sudo", "schroot"] 
     #"networkmanager", 
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
@@ -150,6 +150,42 @@ Name=*
     # enable_service(c, "NetworkManager")
     # exec_chroot(c, "systemctl enable sshd.service")
     # enable_service(c, "sshd.service")
+
+    # Configure schroot
+    venv_schroot = """[virtual_env]
+type=directory
+description=KodOS
+directory=/
+union-type=overlay
+groups=users,root
+root-groups=root
+root-users=abuss
+profile=kodos
+personality=linux
+aliases=user_env
+"""
+    with open("/mnt/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
+        f.write(venv_schroot)
+
+    # Setting profile
+    os.system("mkdir -p /mnt/etc/schroot/kodos")
+    os.system("touch /mnt/etc/schroot/kodos/copyfiles")
+    os.system("touch /mnt/etc/schroot/kodos/nssdatabases")
+
+    venv_fstab = """# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+/proc           /proc           none    rw,bind         0       0
+/sys            /sys            none    rw,bind         0       0
+/dev            /dev            none    rw,bind         0       0
+/dev/pts        /dev/pts        none    rw,bind         0       0
+/home           /home           none    rw,bind         0       0
+/tmp            /tmp            none    rw,bind         0       0
+
+/var/cache	/var/cache	none	rw,bind		0	0
+/var/log	/var/log	none	rw,bind		0	0
+/var/tmp	/var/tmp	none	rw,bind		0	0
+"""
+    with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
+        f.write(venv_fstab)
 
     # initramfs
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
