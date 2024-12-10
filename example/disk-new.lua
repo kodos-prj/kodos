@@ -66,3 +66,7 @@ function disk_definition(device, swap_size)
 
    return device_definition
 end
+
+return { 
+   disk_definition = disk_definition,
+}
