@@ -1,0 +1,13 @@
+#!/bin/bash
+
+LOCAL_SESSION=$(schroot -c virtual_env -b)
+
+args=("$@")
+
+if [ "$1" == "-p" ]; then 
+    schroot -r -c $LOCAL_SESSION -u root -- pacman -S --noconfirm ${args[@]:2}
+fi
+
+schroot -r -c $LOCAL_SESSION -p 
+
+schroot -e -c $LOCAL_SESSION
