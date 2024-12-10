@@ -1,20 +1,13 @@
 #!/bin/bash
 
-LOCAL_ROOT="${HOME}/.config/overlay"
+LOCAL_SESSION=$(schroot -c virtual_env -b)
 
-# mkdir -p $LOCAL_ROOT
-mkdir -p $LOCAL_ROOT/{upper,work,rootfs}
-
-sudo mount -t overlay overlay -o lowerdir=/,upperdir=$LOCAL_ROOT/upper,workdir=$LOCAL_ROOT/work $LOCAL_ROOT/rootfs
+args=("$@")
 
 if [ "$1" == "-p" ]; then 
-
-    sudo arch-chroot /home/abuss/.config/overlay/rootfs pacman -S --noconfirm $2
-
+    schroot -r -c $LOCAL_SESSION -u root -- pacman -S --noconfirm ${args[@]:2}
 fi
 
-proot -R $LOCAL_ROOT/rootfs -b /var/cache -b /var/tmp -b /var/log /bin/bash
+schroot -r -c $LOCAL_SESSION -p 
 
-sudo umount -R $LOCAL_ROOT/rootfs
-
-sudo rm -rf $LOCAL_ROOT
+schroot -e -c $LOCAL_SESSION
