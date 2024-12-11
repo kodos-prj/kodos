@@ -93,10 +93,10 @@ return {
     },
 
     desktop = {
-        display_manager = "sddm",
+        -- display_manager = "sddm",
         desktop_manager = {
             cosmic = {
-                enable = true,
+                enable = false,
                 display_manager = "sddm",
             },
         }
@@ -115,8 +115,8 @@ return {
         "poetry",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
-        "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        -- "aur:visual-studio-code-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
