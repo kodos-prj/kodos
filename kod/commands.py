@@ -426,7 +426,7 @@ def update_fstab(c, root_path, mount_point, subvol_id):
             cols = line.split()
             if len(cols) > 4 and cols[1] == mount_point:
                 cols[3] = re.sub(r"subvol=[^,]+", f"subvol={subvol_id}", cols[3]) 
-            f.write("\t".join(cols))
+            f.write("\t".join(cols)+"\n")
 
 def create_first_generation(c, pkgs_installed):
     print("Creating snapshot")
