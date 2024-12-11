@@ -207,7 +207,7 @@ aliases=user_env
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
     exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
     exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck)' >> /etc/mkinitcpio.conf")
+    exec_chroot(c, "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf")
 
     exec_chroot(c, "mkinitcpio -P")
 
