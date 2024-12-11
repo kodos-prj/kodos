@@ -52,11 +52,11 @@ function disk_definition(device, swap_size)
             mountpoint = "/usr",
             mountOptions = btrfs_options,
          },
-         kod = {
-            subvol = "/kod",
-            mountpoint = "/kod",
-            mountOptions = btrfs_options,
-         },
+         -- kod = {
+         --    subvol = "/kod",
+         --    mountpoint = "/kod",
+         --    mountOptions = btrfs_options,
+         -- },
       }
    }
 
