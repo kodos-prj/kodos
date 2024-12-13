@@ -365,13 +365,13 @@ def proc_desktop(c, conf):
 #     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
 
-def create_next_generation(c, new_generation):
-    print(f"Creating snapshot {new_generation}")
-    exec_prefix = "sudo"
-    c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
-    new_gen_rootfs = f"/kod/generation/{new_generation}/rootfs"
-    c.run(f"{exec_prefix} btrfs subvolume snapshot -r / {new_gen_rootfs}")
-    return new_gen_rootfs
+# def create_next_generation(c, new_generation):
+#     print(f"Creating snapshot {new_generation}")
+#     exec_prefix = "sudo"
+#     c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
+#     new_gen_rootfs = f"/kod/generation/{new_generation}/rootfs"
+#     c.run(f"{exec_prefix} btrfs subvolume snapshot -r / {new_gen_rootfs}")
+#     return new_gen_rootfs
 
 
 def commit_next_generation(c, new_generation, pkgs_installed, root_path):
@@ -428,69 +428,6 @@ def update_fstab(c, root_path, mount_point, subvol_id):
                 cols[3] = re.sub(r"subvol=[^,]+", f"subvol={subvol_id}", cols[3]) 
             f.write("\t".join(cols)+"\n")
 
-def create_first_generation(c, pkgs_installed):
-    print("Creating snapshot")
-    new_generation = "0"
-    # if use_chroot:
-    exec_prefix = "arch-chroot /mnt"
-    root_path = "/mnt"
-    # else:
-        # exec_prefix = "sudo"
-        # root_path = ""
-
-    c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
-
-    c.run(f"{exec_prefix} btrfs subvolume snapshot -r /usr /kod/generation/{new_generation}/usr")
-    c.run(f"{exec_prefix} btrfs subvolume snapshot -r / /kod/generation/{new_generation}/rootfs")
-
-    # Create a list of installed packages
-    with open(f"{root_path}/kod/generation/{new_generation}/installed_packages","w") as f:
-        f.write("\n".join(pkgs_installed))
-    
-    print("Creating current snapshot")
-
-    # if not os.path.exists(F"{root_path}/kod/generation/current"):
-    # print(F"{root_path}/kod/generation/current does not exists, creating directory")
-    c.run(f"{exec_prefix} mkdir -p /kod/generation/current/")
-    
-    print("Creating new snapshot in current/rootfs")
-    c.run(f"{exec_prefix} btrfs subvolume snapshot -r /kod/generation/{new_generation}/usr /kod/generation/current/usr")
-    c.run(f"{exec_prefix} btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
-    # c.run(f"{exec_prefix} mv /usr /usr-old")
-    # c.run(f"{exec_prefix} ln -s /kod/generation/current/usr /usr")
-    # c.run(f"{exec_prefix} rm -rf /usr-old")
-
-    print("Creating /kod/generation/current/generation")
-    with open(f"{root_path}/kod/generation/current/generation","w") as f:
-        f.write(str(new_generation))
-
-    print("Creating /kod/generation/current/generation")
-    with open(f"{root_path}/kod/generation/current/require_reboot","w") as f:
-        f.write("")
-    
-    # if update_grub:
-    print("Updating /etc/default/grub")
-    c.run(f"{exec_prefix} sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
-    c.run(f"{exec_prefix} sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
-    
-    mount_path = "/mnt"
-    subvol_id = c.run(f"{exec_prefix} btrfs subvol list {mount_path} | grep 'current/rootfs$' | awk '{{print $2}}'").stdout.strip()
-    print(f"{subvol_id=}")
-    c.run(f"{exec_prefix} btrfs subvol set-default {subvol_id} /")
-
-    # Update fstab
-    update_fstab(c, root_path, "/", "/kod/generation/current/rootfs")
-    update_fstab(c, root_path, "/usr", "/kod/generation/current/usr")
-
-    # c.run(f"{exec_prefix} sed -i 's/subvol=\/rootfs/subvol=\/kod\/generation\/current\/rootfs/' /etc/fstab")
-    # c.run(f"{exec_prefix} sed -i 's/subvol=\/rootfs/subvol=\/kod\/generation\/current\/usr/' /etc/fstab")
-
-    print("Recreating grub.cfg")
-    c.run(f"{exec_prefix} grub-mkconfig -o /boot/grub/grub.cfg")  # 5
-    print("Done")
-
-
-
 # def create_first_generation(c, pkgs_installed):
 #     print("Creating snapshot")
 #     new_generation = "0"
@@ -503,6 +440,7 @@ def create_first_generation(c, pkgs_installed):
 
 #     c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
 
+#     c.run(f"{exec_prefix} btrfs subvolume snapshot -r /usr /kod/generation/{new_generation}/usr")
 #     c.run(f"{exec_prefix} btrfs subvolume snapshot -r / /kod/generation/{new_generation}/rootfs")
 
 #     # Create a list of installed packages
@@ -516,7 +454,11 @@ def create_first_generation(c, pkgs_installed):
 #     c.run(f"{exec_prefix} mkdir -p /kod/generation/current/")
     
 #     print("Creating new snapshot in current/rootfs")
+#     c.run(f"{exec_prefix} btrfs subvolume snapshot -r /kod/generation/{new_generation}/usr /kod/generation/current/usr")
 #     c.run(f"{exec_prefix} btrfs subvolume snapshot /kod/generation/{new_generation}/rootfs /kod/generation/current/rootfs")
+#     # c.run(f"{exec_prefix} mv /usr /usr-old")
+#     # c.run(f"{exec_prefix} ln -s /kod/generation/current/usr /usr")
+#     # c.run(f"{exec_prefix} rm -rf /usr-old")
 
 #     print("Creating /kod/generation/current/generation")
 #     with open(f"{root_path}/kod/generation/current/generation","w") as f:
@@ -537,19 +479,19 @@ def create_first_generation(c, pkgs_installed):
 #     c.run(f"{exec_prefix} btrfs subvol set-default {subvol_id} /")
 
 #     # Update fstab
-#     print("Updating /etc/fstab")
-#     c.run(f"{exec_prefix} sed -i 's/subvol=\/rootfs/subvol=\/kod\/generation\/current\/rootfs/' /etc/fstab")
+#     update_fstab(c, root_path, "/", "/kod/generation/current/rootfs")
+#     update_fstab(c, root_path, "/usr", "/kod/generation/current/usr")
+
+#     # c.run(f"{exec_prefix} sed -i 's/subvol=\/rootfs/subvol=\/kod\/generation\/current\/rootfs/' /etc/fstab")
+#     # c.run(f"{exec_prefix} sed -i 's/subvol=\/rootfs/subvol=\/kod\/generation\/current\/usr/' /etc/fstab")
 
 #     print("Recreating grub.cfg")
 #     c.run(f"{exec_prefix} grub-mkconfig -o /boot/grub/grub.cfg")  # 5
 #     print("Done")
 
 
-
-
 def get_max_generation():
-    generations = glob.glob("/kod/generation/*")
-    # generations = [p for p in generations if not os.path.islink(p)]
+    generations = glob.glob("/kod/generations/*")
     generations = [p.split('/')[-1] for p in generations]
     generations = [int(p) for p in generations if p != "current"]
     print(f"{generations=}")
@@ -604,10 +546,6 @@ def create_kod_user(c):
     exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
     with open("/mnt/etc/sudoers.d/kod","w") as f:
         f.write("kod ALL=(ALL) NOPASSWD: ALL")
-#     exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
-#     exec_chroot(c, "bash -c echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
-#     # exec_chroot('userdel', '-r', 'aur')
-#     # exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
 
 
 def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False):
@@ -696,43 +634,51 @@ def enable_services(c, list_of_services, use_chroot=False):
             exec(c, f"systemctl enable {service}")
         # enable_service(c, service)
 
-def create_filesystem_hierarchy(c, conf):
+def create_filesystem_hierarchy(c, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
-    # Check if /mnt is mounted
-    # if not os.path.exists("/mnt"):
     c.run("sudo mkdir -p /mnt/{store,generations,current}")
     for subv in ["home", "var", "root"]:
         c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
 
     # First generation
-    c.run("mkdir -p /mnt/generations/0")
-    c.run("btrfs subvolume create /mnt/generations/0/rootfs")
+    c.run(f"mkdir -p /mnt/generations/{generation}")
+    c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
     
     # Mounting first generation
     c.run("umount -R /mnt")
-    boot_part = "/dev/vda1"
-    device = "/dev/vda3"
-    c.run(f"mount -o subvol=generations/0/rootfs {device} /mnt")
-    c.run("mkdir -p /mnt/{home,var,root,boot}")
-    c.run(f"mount {boot_part} /mnt/boot")
+    # boot_part = "/dev/vda1"
+    root_part = "/dev/vda3"
+    c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
+    # c.run("mkdir -p /mnt/{home,var,root,boot}")
+    # c.run(f"mount {boot_part} /mnt/boot")
+    c.run("mkdir -p /mnt/{home,var,root}")
     for subv in ["home", "var", "root"]:
-        c.run(f"mount -o subvol=store/{subv} {device} /mnt/{subv}")
+        c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
     print("===================================")
 
 
-def deploy_generation(c):
+def deploy_generation(c, generation, pkgs_installed):
     print("===================================")
     print("== Deploying generation ==")
     c.run("mkdir /new_rootfs")
     c.run("mount /dev/vda3 /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
+
     c.run("umount -R /mnt")
     c.run("mount -o subvol=current/rootfs /dev/vda3 /mnt")
 
     c.run("mkdir -p /mnt/kod")
     c.run("mount /dev/vda3 /mnt/kod")
+
+    # Create a list of installed packages
+    with open(f"/mnt/kod/generations/{generation}/installed_packages","w") as f:
+        f.write("\n".join(pkgs_installed))
+
+    with open("/mnt/kod/current/generation", "w") as f:
+        f.write(str(generation))
+
     boot_part = "/dev/vda1"
     device = "/dev/vda3"
     c.run(f"mount {boot_part} /mnt/boot")
@@ -746,9 +692,85 @@ def deploy_generation(c):
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
+    c.run("rm -rf /new_rootfs")
     
-  
     print("===================================")
+
+
+def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
+    print("===================================")
+    print("== Deploying generation ==")
+    # tmp_rootfs = "/.tmp_rootfs"
+    # c.run(f"mkdir {tmp_rootfs}")
+    # c.run(f"mount /dev/vda3 {tmp_rootfs}")
+
+    c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
+    c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+
+    # if current_rootfs != "/mnt":
+        # c.run(f"umount -R {current_rootfs}")
+    new_current_rootfs = "/.new_current_rootfs"
+    # c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
+    c.run(f"mount -o subvol=current/rootfs /dev/vda3 {new_current_rootfs}")
+
+    c.run(f"mkdir -p {new_current_rootfs}/kod")
+    c.run(f"mount /dev/vda3 {new_current_rootfs}/kod")
+
+    # Create a list of installed packages
+    with open(f"{new_current_rootfs}/kod/generations/{generation}/installed_packages","w") as f:
+        f.write("\n".join(pkgs_installed))
+
+    with open(f"{new_current_rootfs}/kod/current/generation", "w") as f:
+        f.write(str(generation))
+
+    boot_part = "/dev/vda1"
+    device = "/dev/vda3"
+    c.run(f"mount {boot_part} {new_current_rootfs}/boot")
+    for subv in ["home", "var", "root"]:
+        c.run(f"mount -o subvol=store/{subv} {device} {new_current_rootfs}/{subv}")
+
+    c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
+    # TODO: Update to use read only for rootfs
+ 
+    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
+    c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
+    c.run(f"umount -R {new_current_rootfs}")
+    # c.run("umount -R /new_rootfs")
+    c.run(f"rm -rf {new_current_rootfs}")
+    
+    print("===================================")
+
+
+
+def create_next_generation(c, generation, root_part="/dev/vda3", mount_point="/.new_rootfs"):
+    # Create generation
+    c.run(f"mkdir -p /kod/generations/{generation}")
+    # c.run(f"btrfs subvolume create /kod/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
+    
+    # Mounting generation
+    if os.path.exists(mount_point):
+        c.run(f"umount -R {mount_point}")
+        c.run(f"rm -rf {mount_point}")
+    
+    c.run(f"mkdir -p {mount_point}")
+    boot_part = "/dev/vda1"
+    # root_part = "/dev/vda3"
+    c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    # c.run("mkdir -p /mnt/{home,var,root,boot}")
+    c.run(f"mount {boot_part} {mount_point}/boot")
+    # c.run("mkdir -p /mnt/{home,var,root}")
+    for subv in ["home", "var", "root"]:
+        c.run(f"mount -o subvol=store/{subv} {root_part} {mount_point}/{subv}")
+    
+    print("===================================")
+#     print(f"Creating snapshot {new_generation}")
+#     exec_prefix = "sudo"
+#     c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
+#     new_gen_rootfs = f"/kod/generation/{new_generation}/rootfs"
+#     c.run(f"{exec_prefix} btrfs subvolume snapshot -r / {new_gen_rootfs}")
+    return mount_point
+
 ##############################################################################
 
 
@@ -759,7 +781,7 @@ def install(c, config):
     print("-------------------------------")
     create_partitions(c, conf)
 
-    create_filesystem_hierarchy(c, conf)
+    create_filesystem_hierarchy(c, root_part="/dev/vda3", generation=0)
     
     install_essentials_pkgs(c)
     configure_system(c, conf)
@@ -782,7 +804,7 @@ def install(c, config):
     # create_first_generation(c, pkgs_installed)
     # base_snapshot(c, pkgs_installed)
     print("==== Deploying generation ====")
-    deploy_generation(c)
+    deploy_generation(c, 0, pkgs_installed)
 
     print("Done")
 
@@ -806,11 +828,11 @@ def rebuild(c, config):
 
     print("packages\n",pkg_list)
     generation = get_max_generation()
-    with open("/kod/generation/current/generation") as f:
+    with open("/kod/current/generation") as f:
         current_generation = f.readline().strip()
     print(f"{current_generation = }")
 
-    with open(f"/kod/generation/{current_generation}/installed_packages") as f:
+    with open(f"/kod/generations/{current_generation}/installed_packages") as f:
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
@@ -818,7 +840,7 @@ def rebuild(c, config):
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
     new_generation = int(generation)+1
-    root_path = create_next_generation(c, new_generation)
+    root_path = create_next_generation(c, new_generation, root_part="/dev/vda3", mount_point="/.new_rootfs")
 
     # try:
     if remove_pkg:
@@ -837,7 +859,8 @@ def rebuild(c, config):
     
     enable_services(c, service_to_enable)
 
-    commit_next_generation(c, new_generation, pkg_list, root_path)
+    # commit_next_generation(c, new_generation, pkg_list, root_path)
+    deploy_new_generation(c, root_path, new_generation, pkg_list)
 
     # except:
     #     print("Something went wrong")
@@ -958,7 +981,8 @@ def test_config(c, config):
     # print("\n====== Creating snapshots ======")
     # create_first_generation(c, pkgs_installed)
     # base_snapshot(c, pkgs_installed)
+    pkgs_installed = ["base", "base-devel", "linux", "linux-firmware", "btrfs-progs", "grub", "efibootmgr", "grub-btrfs"]
     print("==== Deploying generation ====")
-    deploy_generation(c)
+    deploy_generation(c, 0, pkgs_installed)
 
 ##############################################################################
