@@ -850,14 +850,14 @@ def rebuild(c, config):
         print("Packages to remove:",remove_pkg)
         for pkg in remove_pkg:
             try:
-                manage_packages(c, root_path, repos, "remove", [pkg,])        
+                manage_packages(c, root_path, repos, "remove", [pkg,], chroot=True)        
                 # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
             except:
                 print(f"Unable to remove {pkg}")
                 pass
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        manage_packages(c, root_path, repos, "install", added_pkgs)
+        manage_packages(c, root_path, repos, "install", added_pkgs, chroot=True)
         # c.run(f"sudo pacman -S --noconfirm {' '.join(added_pkgs)}")
     
     enable_services(c, service_to_enable)
