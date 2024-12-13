@@ -587,7 +587,7 @@ def proc_repos(c, conf):
             exec_chroot(c, "pacman -S --needed --noconfirm bubblewrap-suid")
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             
-    with open("/mnt/kod/repos.json", "w") as f:
+    with open("/mnt/var/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
 
     return repos, packages
@@ -595,7 +595,7 @@ def proc_repos(c, conf):
 
 def load_repos() -> dict | None:
     repos = None
-    with open("/kod/repos.json") as f:
+    with open("/var/kod/repos.json") as f:
         repos = json.load(f)
     return repos    
 
@@ -710,7 +710,7 @@ def create_filesystem_hierarchy(c, conf):
     c.run("btrfs subvolume create /mnt/generations/0/rootfs")
     
     # Mounting first generation
-    c.run("umount /mnt")
+    c.run("umount -R /mnt")
     boot_part = "/dev/vda1"
     device = "/dev/vda3"
     c.run(f"mount -o subvol=generations/0/rootfs {device} /mnt")
