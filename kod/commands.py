@@ -341,28 +341,28 @@ def proc_desktop(c, conf):
 
 
 
-def base_snapshot(c, pkgs_installed):
-    print("Creating base snapshot")
-    exec_chroot(c, "mkdir -p /kod/generation/0/")
-    exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
-    pkgs = "\n".join(pkgs_installed)
-    with open("/mnt/kod/generation/0/installed_packages","w") as f:
-        f.write(pkgs)
-    # exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
+# def base_snapshot(c, pkgs_installed):
+#     print("Creating base snapshot")
+#     exec_chroot(c, "mkdir -p /kod/generation/0/")
+#     exec_chroot(c, "btrfs subvolume snapshot -r / /kod/generation/0/rootfs")
+#     pkgs = "\n".join(pkgs_installed)
+#     with open("/mnt/kod/generation/0/installed_packages","w") as f:
+#         f.write(pkgs)
+#     # exec_chroot(c, f"echo '{pkgs}' > /kod/generation/0/installed_packages")
     
-    print("Creating current snapshot")
-    exec_chroot(c, "mkdir -p /kod/generation/current/")
-    exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
-    with open("/mnt/kod/generation/current/generation","w") as f:
-        f.write("0")
-    # exec_chroot(c, "echo '0' > /kod/generation/current/generation")
+#     print("Creating current snapshot")
+#     exec_chroot(c, "mkdir -p /kod/generation/current/")
+#     exec_chroot(c, "btrfs subvolume snapshot /kod/generation/0/rootfs /kod/generation/current/rootfs")
+#     with open("/mnt/kod/generation/current/generation","w") as f:
+#         f.write("0")
+#     # exec_chroot(c, "echo '0' > /kod/generation/current/generation")
     
-    print("Updating /etc/default/grub")
-    exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
-    exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
+#     print("Updating /etc/default/grub")
+#     exec_chroot(c, "sed -i 's/GRUB_DEFAULT=0/GRUB_DEFAULT=saved/' /etc/default/grub")
+#     exec_chroot(c, "sed -i 's/#GRUB_SAVEDEFAULT=true/GRUB_SAVEDEFAULT=true/' /etc/default/grub")
     
-    print("Recreating grub.cfg")
-    exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+#     print("Recreating grub.cfg")
+#     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
 
 
 def create_next_generation(c, new_generation):
@@ -742,7 +742,7 @@ def deploy_generation(c):
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # TODO: Update to use read only for rootfs
  
-    exec_chroot(c, "mkinicpio -P")
+    exec_chroot(c, "mkinitcpio -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
