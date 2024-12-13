@@ -647,12 +647,12 @@ def create_filesystem_hierarchy(c, root_part, generation=0):
     
     # Mounting first generation
     c.run("umount -R /mnt")
-    # boot_part = "/dev/vda1"
+    boot_part = "/dev/vda1"
     root_part = "/dev/vda3"
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
-    # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    # c.run(f"mount {boot_part} /mnt/boot")
-    c.run("mkdir -p /mnt/{home,var,root}")
+    c.run("mkdir -p /mnt/{home,var,root,boot}")
+    c.run(f"mount {boot_part} /mnt/boot")
+    # c.run("mkdir -p /mnt/{home,var,root}")
     for subv in ["home", "var", "root"]:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
