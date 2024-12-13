@@ -584,7 +584,7 @@ def proc_repos(c, conf):
 
         if "package" in repo_desc:
             # packages.append(repo_desc["package"])
-            exec_chroot(c, f"pacman -S --needed --noconfirm bubblewrap-suid")
+            exec_chroot(c, "pacman -S --needed --noconfirm bubblewrap-suid")
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             
     with open("/mnt/kod/repos.json", "w") as f:
@@ -601,7 +601,7 @@ def load_repos() -> dict | None:
 
 
 def create_kod_user(c):
-    exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /kod/.home kod")
+    exec_chroot(c, "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
     with open("/mnt/etc/sudoers.d/kod","w") as f:
         f.write("kod ALL=(ALL) NOPASSWD: ALL")
 #     exec_chroot(c, "useradd -m -G wheel -s /bin/bash kod")
@@ -728,7 +728,7 @@ def deploy_generation(c):
     c.run("mkdir /new_rootfs")
     c.run("mount /dev/vda3 /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
-    c.run("umount /mnt")
+    c.run("umount -R /mnt")
     c.run("mount -o subvol=current/rootfs /dev/vda3 /mnt")
 
     c.run("mkdir -p /mnt/kod")
@@ -744,7 +744,9 @@ def deploy_generation(c):
  
     exec_chroot(c, "mkinicpio -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
-
+    c.run("umount -R /mnt")
+    c.run("umount -R /new_rootfs")
+    
   
     print("===================================")
 ##############################################################################
@@ -776,9 +778,11 @@ def install(c, config):
     print("\n====== Creating users ======")
     create_users(c, conf)
 
-    print("\n====== Creating snapshots ======")
-    create_first_generation(c, pkgs_installed)
+    # print("\n====== Creating snapshots ======")
+    # create_first_generation(c, pkgs_installed)
     # base_snapshot(c, pkgs_installed)
+    print("==== Deploying generation ====")
+    deploy_generation(c)
 
     print("Done")
 
@@ -927,16 +931,34 @@ def test_config(c, config):
     # packages_to_install = install_packages(c, conf)
     # print(packages_to_install)
     print("========================================")
-    # # proc_repos(c, conf)
-    repos = {"official":{"install":"pacman -S"}, "aur":{"install":"yay -S"}, "flatpak":{"package":"flatpack","install":"flatpak install -y flathub"}}
-    pkgs_installed = manage_packages(c, "/mnt", repos, "install", ["mc","neovim", "flatpak:come.visualestudio.code"], chroot=True)
-    # pkgs_installed += proc_hardware(c, conf, repos)
-    # pkgs_installed += proc_services(c, conf, repos)
+#    "Install KodOS in /mnt"
+    conf = load_config(config)
+    print("-------------------------------")
+    create_partitions(c, conf)
 
-    # pkgs = proc_hardware(c, conf, repos)
-    # print(pkgs)
-    # pkgs = proc_services(c, conf, repos)
-    # create_next_generation(c, 0, ["mc", "neovim"], use_chroot=True, update_grub=True)
-    # print(pkgs_installed)
+    create_filesystem_hierarchy(c, conf)
+    
+    install_essentials_pkgs(c)
+    # configure_system(c, conf)
+    setup_bootloader(c, conf)
+    # create_kod_user(c)
+    # repos, repo_packages = proc_repos(c, conf)
+    # packages_to_install, _ = get_packages_to_install(c, conf)
+    # packages_to_install += repo_packages
+    # pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
+    # pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
+    # service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
+    # print(f"Services to enable: {service_to_enable}")
+    # enable_services(c, service_to_enable, use_chroot=True)
+    # pkgs_installed += service_installed
+
+    # print("\n====== Creating users ======")
+    # create_users(c, conf)
+
+    # print("\n====== Creating snapshots ======")
+    # create_first_generation(c, pkgs_installed)
+    # base_snapshot(c, pkgs_installed)
+    print("==== Deploying generation ====")
+    deploy_generation(c)
 
 ##############################################################################
