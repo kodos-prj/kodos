@@ -710,6 +710,7 @@ def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
     # if current_rootfs != "/mnt":
         # c.run(f"umount -R {current_rootfs}")
     new_current_rootfs = "/.new_current_rootfs"
+    c.run(f"mkdir -p {new_current_rootfs}")
     # c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"mount -o subvol=current/rootfs /dev/vda3 {new_current_rootfs}")
 
@@ -754,6 +755,7 @@ def create_next_generation(c, generation, root_part="/dev/vda3", mount_point="/.
         c.run(f"rm -rf {mount_point}")
     
     c.run(f"mkdir -p {mount_point}")
+
     boot_part = "/dev/vda1"
     # root_part = "/dev/vda3"
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
