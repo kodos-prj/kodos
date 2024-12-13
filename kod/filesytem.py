@@ -30,9 +30,11 @@ _filesystem_type = {
     "noformat": None,
 }
 
-def create_btrfs(c,delay_action, part, blockdevice):
+def create_btrfs(c, delay_action, part, blockdevice):
     print("Cheking subvolumes")
     c.run(f"mount {blockdevice} /mnt")
+    if not part.subvolumes:
+        return delay_action
     for subvol_info in part["subvolumes"].values():
         subvol = subvol_info["subvol"]
         mountpoint = subvol_info["mountpoint"]

@@ -696,6 +696,57 @@ def enable_services(c, list_of_services, use_chroot=False):
             exec(c, f"systemctl enable {service}")
         # enable_service(c, service)
 
+def create_filesystem_hierarchy(c, conf):
+    print("===================================")
+    print("== Creating filesystem hierarchy ==")
+    # Check if /mnt is mounted
+    # if not os.path.exists("/mnt"):
+    c.run("sudo mkdir -p /mnt/{store,generations,current}")
+    for subv in ["home", "var", "root"]:
+        c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
+
+    # First generation
+    c.run("mkdir -p /mnt/generations/0")
+    c.run("btrfs subvolume create /mnt/generations/0/rootfs")
+    
+    # Mounting first generation
+    c.run("umount /mnt")
+    boot_part = "/dev/vda1"
+    device = "/dev/vda3"
+    c.run(f"mount -o subvol=generations/0/rootfs {device} /mnt")
+    c.run("mkdir -p /mnt/{home,var,root,boot}")
+    c.run(f"mount {boot_part} /mnt/boot")
+    for subv in ["home", "var", "root"]:
+        c.run(f"mount -o subvol=store/{subv} {device} /mnt/{subv}")
+    
+    print("===================================")
+
+
+def deploy_generation(c):
+    print("===================================")
+    print("== Deploying generation ==")
+    c.run("mkdir /new_rootfs")
+    c.run("mount /dev/vda3 /new_rootfs")
+    c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
+    c.run("umount /mnt")
+    c.run("mount -o subvol=current/rootfs /dev/vda3 /mnt")
+
+    c.run("mkdir -p /mnt/kod")
+    c.run("mount /dev/vda3 /mnt/kod")
+    boot_part = "/dev/vda1"
+    device = "/dev/vda3"
+    c.run(f"mount {boot_part} /mnt/boot")
+    for subv in ["home", "var", "root"]:
+        c.run(f"mount -o subvol=store/{subv} {device} /mnt/{subv}")
+
+    c.run("genfstab -U /mnt > /mnt/etc/fstab")
+    # TODO: Update to use read only for rootfs
+ 
+    exec_chroot(c, "mkinicpio -P")
+    exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+
+  
+    print("===================================")
 ##############################################################################
 
 
@@ -705,6 +756,9 @@ def install(c, config):
     conf = load_config(config)
     print("-------------------------------")
     create_partitions(c, conf)
+
+    create_filesystem_hierarchy(c, conf)
+    
     install_essentials_pkgs(c)
     configure_system(c, conf)
     setup_bootloader(c, conf)

@@ -34,30 +34,30 @@ function disk_definition(device, swap_size)
       name = "Root",
       size = "100%",
       type = "btrfs",
-      subvolumes = {
-         -- Subvolume name is different from mountpoint
-         rootfs = {
-            subvol = "/rootfs",
-            mountpoint = "/"
-         },
-         -- Subvolume name is the same as the mountpoint
-         home = {
-            subvol = "/home",
-            mountpoint = "/home",
-            mountOptions = btrfs_options,
+      -- subvolumes = {
+      --    -- Subvolume name is different from mountpoint
+      --    var = {
+      --       subvol = "/store/var",
+      --       mountpoint = "/"
+      --    },
+      --    -- Subvolume name is the same as the mountpoint
+      --    home = {
+      --       subvol = "/home",
+      --       mountpoint = "/home",
+      --       mountOptions = btrfs_options,
    
-         },
-         root = {
-            subvol = "/usr",
-            mountpoint = "/usr",
-            mountOptions = btrfs_options,
-         },
-         -- kod = {
-         --    subvol = "/kod",
-         --    mountpoint = "/kod",
-         --    mountOptions = btrfs_options,
-         -- },
-      }
+      --    },
+      --    root = {
+      --       subvol = "/usr",
+      --       mountpoint = "/usr",
+      --       mountOptions = btrfs_options,
+      --    },
+      --    -- kod = {
+      --    --    subvol = "/kod",
+      --    --    mountpoint = "/kod",
+      --    --    mountOptions = btrfs_options,
+      --    -- },
+      -- }
    }
 
    table.insert(partitions, root_part)
