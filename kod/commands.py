@@ -790,16 +790,19 @@ def test_config(c, config):
 #    "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
-    create_partitions(c, conf)
+    boot_partition, root_partition = create_partitions(c, conf)
+    print(f"{boot_partition=}")
+    print(f"{root_partition=}")
+    # create_partitions(c, conf)
 
-    create_filesystem_hierarchy(c, conf)
+    # create_filesystem_hierarchy(c, conf)
     
-    install_essentials_pkgs(c)
-    # configure_system(c, conf)
-    setup_bootloader(c, conf)
-    # print("\n====== Creating snapshots ======")
-    pkgs_installed = ["base", "base-devel", "linux", "linux-firmware", "btrfs-progs", "grub", "efibootmgr", "grub-btrfs"]
-    print("==== Deploying generation ====")
-    deploy_generation(c, 0, pkgs_installed)
+    # install_essentials_pkgs(c)
+    # # configure_system(c, conf)
+    # setup_bootloader(c, conf)
+    # # print("\n====== Creating snapshots ======")
+    # pkgs_installed = ["base", "base-devel", "linux", "linux-firmware", "btrfs-progs", "grub", "efibootmgr", "grub-btrfs"]
+    # print("==== Deploying generation ====")
+    # deploy_generation(c, 0, pkgs_installed)
 
 ##############################################################################

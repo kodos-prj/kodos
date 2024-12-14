@@ -148,9 +148,9 @@ def create_disk_partitions(c, disk_info):
         mountpoint = part['mountpoint']
         blockdevice = f"{device}{device_sufix}{pid}"
         
-        if name == "boot":
+        if name.lower() == "boot":
             boot_partition = blockdevice
-        elif name == "root":
+        elif name.lower() == "root":
             root_partition = blockdevice
 
         end = 0 if size == "100%" else f"+{size}"
