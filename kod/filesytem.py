@@ -1,8 +1,5 @@
 ########################################################################################
 
-from .units import add_value_unit
-
-
 _filesystem_cmd = {
     "esp": "mkfs.vfat -F32",
     "fat32": "mkfs.vfat -F32",
