@@ -9,12 +9,12 @@ return {
     repos = {
         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"), 
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
-        -- flatpak = repos.flatpak_repo("flathub"),
+        flatpak = repos.flatpak_repo("flathub"),
     },
 
     devices = {
         -- disk0 = require "disk-btrfs",
-        disk0 = disk.disk_definition_simple("/dev/vda", "3GB"),
+        disk0 = disk.disk_definition("/dev/vda", "3GB"),
     },
 
     -- bootloader = {
@@ -93,28 +93,8 @@ return {
     },
 
     desktop = {
-        -- display_manager = "gdm",
         -- display_manager = "sddm",
-        -- display_manager = "lightdm",
         desktop_manager = {
-            gnome = {
-                enable = false,
-                exclude_packages = {
-                    "gnome-tour", "yelp"
-                },
-                packages = {
-                    "gnome-tweaks",
-                    "gnome-extra",
-                    "gnome-themes-extra",
-                },
-            },
-    
-            plasma = {
-                enable = false,
-                packages = {
-                    "kde-applications",
-                },
-            },
             cosmic = {
                 enable = false,
                 display_manager = "sddm",
@@ -123,7 +103,7 @@ return {
     },
 
     packages = {
-        "ostree",
+        -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
         "mc",

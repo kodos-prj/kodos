@@ -13,7 +13,6 @@ return {
     },
 
     devices = {
-        -- disk0 = require "disk-btrfs",
         disk0 = disk.disk_definition("/dev/vda", "3GB"),
     },
 
@@ -124,7 +123,7 @@ return {
 
     packages = {
         -- "bubblewrap-suid",
-        "aur:proot",
+        -- "aur:proot",
         -- "flatpak",
         "mc",
         "less",

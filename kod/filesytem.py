@@ -1,8 +1,5 @@
 ########################################################################################
 
-from .units import add_value_unit
-
-
 _filesystem_cmd = {
     "esp": "mkfs.vfat -F32",
     "fat32": "mkfs.vfat -F32",
@@ -30,9 +27,11 @@ _filesystem_type = {
     "noformat": None,
 }
 
-def create_btrfs(c,delay_action, part, blockdevice):
+def create_btrfs(c, delay_action, part, blockdevice):
     print("Cheking subvolumes")
     c.run(f"mount {blockdevice} /mnt")
+    if not part.subvolumes:
+        return delay_action
     for subvol_info in part["subvolumes"].values():
         subvol = subvol_info["subvol"]
         mountpoint = subvol_info["mountpoint"]
@@ -104,9 +103,16 @@ def create_partitions(c, conf):
 
     print(f"{list(devices.keys())=}")
     print("->>",devices.disk0)
+    boot_partition = None 
+    root_partition = None
     for d_id, disk in devices.items():
         print(d_id)
-        create_disk_partitions(c, disk)
+        boot_part, root_part = create_disk_partitions(c, disk)
+        if boot_part:
+            boot_partition = boot_part
+        if root_part:
+            root_partition = root_part
+    return boot_partition, root_partition
 
 
 def create_disk_partitions(c, disk_info):
@@ -132,26 +138,25 @@ def create_disk_partitions(c, disk_info):
     if not partitions:
         return
 
-    # start = "1048KB"
     delay_action = []
+    boot_partition = None
+    root_partition = None
     for pid, part in partitions.items():
-
-        # print(pid, part)
         name = part['name']
         size = part['size']
         filesystem_type = part['type']
         mountpoint = part['mountpoint']
         blockdevice = f"{device}{device_sufix}{pid}"
         
+        if name.lower() == "boot":
+            boot_partition = blockdevice
+        elif name.lower() == "root":
+            root_partition = blockdevice
+
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _filesystem_type[filesystem_type]
-        # end = "{}{}".format(*add_value_unit(start, size))
 
-        # print(f"{pid} {name=}, {size=}, {partition_type=}, {filesystem_type=}, {mountpoint=} {blockdevice=}")
-
-        # c.run(f"parted -s {device} -a opt mkpart {name} {filesystem_type} {start} {end}")
         c.run(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}") 
-        # print(f"sgdisk -n 0:0:+{size} -t 0:{partition_type} -c 0:{name} {blockdevice}") 
         
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
@@ -159,9 +164,6 @@ def create_disk_partitions(c, disk_info):
             if cmd:
                 c.run(f"{cmd} {blockdevice}")
         
-        # if mountpoint == "/boot":
-            # c.run(f"parted -s {device} set {pid} boot on")
-
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(c,delay_action, part, blockdevice)
 
@@ -178,9 +180,35 @@ def create_disk_partitions(c, disk_info):
                     f"mount {blockdevice} {install_mountpoint}"
                 ] + delay_action
 
-        # start = end
-
     print("=======================")
     if delay_action:
         for cmd_action in delay_action:
                 c.run(cmd_action)
+
+    return boot_partition, root_partition
+
+def get_partition_devices(conf):
+    devices = conf.devices
+
+    boot_partition = None
+    root_partition = None
+    for d_id, disk in devices.items():
+
+        device = disk['device']
+        partitions = disk['partitions']
+
+        if 'nvme' in device or 'mmcblk' in device:
+            device_sufix = "p"
+        else:
+            device_sufix = ""
+
+        for pid, part in partitions.items():
+            name = part['name']
+            blockdevice = f"{device}{device_sufix}{pid}"
+            
+            if name.lower() == "boot":
+                boot_partition = blockdevice
+            elif name.lower() == "root":
+                root_partition = blockdevice
+
+    return boot_partition, root_partition
