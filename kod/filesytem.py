@@ -187,7 +187,7 @@ def create_disk_partitions(c, disk_info):
 
     return boot_partition, root_partition
 
-def get_partition_deviced(conf):
+def get_partition_devices(conf):
     devices = conf.devices
 
     boot_partition = None

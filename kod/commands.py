@@ -7,7 +7,7 @@ import re
 from invoke import task
 import lupa as lua
 
-from kod.filesytem import create_partitions, get_partition_deviced
+from kod.filesytem import create_partitions, get_partition_devices
 
 
 #####################################################################################################
@@ -669,7 +669,7 @@ def rebuild(c, config):
     if repos is None:
         print("Missing repos information")
         return
-    boot_partition, root_partition = get_partition_deviced(config)
+    boot_partition, root_partition = get_partition_devices(conf)
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
     pkg_list += proc_hardware(c, conf, repos)
