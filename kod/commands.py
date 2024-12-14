@@ -497,9 +497,11 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
     
     # Mounting first generation
+    print("umount -R /mnt")
     c.run("umount -R /mnt")
     # boot_part = "/dev/vda1"
     # root_part = "/dev/vda3"
+    print(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run("mkdir -p /mnt/{home,var,root,boot}")
     c.run(f"mount {boot_part} /mnt/boot")
