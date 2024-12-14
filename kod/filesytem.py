@@ -103,7 +103,8 @@ def create_partitions(c, conf):
 
     print(f"{list(devices.keys())=}")
     print("->>",devices.disk0)
-    boot_partition, root_partition = None
+    boot_partition = None 
+    root_partition = None
     for d_id, disk in devices.items():
         print(d_id)
         boot_part, root_part = create_disk_partitions(c, disk)
