@@ -13,7 +13,6 @@ return {
     },
 
     devices = {
-        -- disk0 = require "disk-btrfs",
         disk0 = disk.disk_definition("/dev/vda", "3GB"),
     },
 

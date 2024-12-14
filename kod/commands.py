@@ -7,7 +7,7 @@ import re
 from invoke import task
 import lupa as lua
 
-from kod.filesytem import create_partitions
+from kod.filesytem import create_partitions, get_partition_deviced
 
 
 #####################################################################################################
@@ -485,7 +485,7 @@ def enable_services(c, list_of_services, use_chroot=False):
             exec(c, f"systemctl enable {service}")
         # enable_service(c, service)
 
-def create_filesystem_hierarchy(c, root_part, generation=0):
+def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     c.run("sudo mkdir -p /mnt/{store,generations,current}")
@@ -498,8 +498,8 @@ def create_filesystem_hierarchy(c, root_part, generation=0):
     
     # Mounting first generation
     c.run("umount -R /mnt")
-    boot_part = "/dev/vda1"
-    root_part = "/dev/vda3"
+    # boot_part = "/dev/vda1"
+    # root_part = "/dev/vda3"
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run("mkdir -p /mnt/{home,var,root,boot}")
     c.run(f"mount {boot_part} /mnt/boot")
@@ -510,18 +510,18 @@ def create_filesystem_hierarchy(c, root_part, generation=0):
     print("===================================")
 
 
-def deploy_generation(c, generation, pkgs_installed):
+def deploy_generation(c, boot_part, root_part, generation, pkgs_installed):
     print("===================================")
     print("== Deploying generation ==")
     c.run("mkdir /new_rootfs")
-    c.run("mount /dev/vda3 /new_rootfs")
+    c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
 
     c.run("umount -R /mnt")
-    c.run("mount -o subvol=current/rootfs /dev/vda3 /mnt")
+    c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
 
     c.run("mkdir -p /mnt/kod")
-    c.run("mount /dev/vda3 /mnt/kod")
+    c.run(f"mount {root_part} /mnt/kod")
 
     # Create a list of installed packages
     with open(f"/mnt/kod/generations/{generation}/installed_packages","w") as f:
@@ -530,11 +530,11 @@ def deploy_generation(c, generation, pkgs_installed):
     with open("/mnt/kod/current/generation", "w") as f:
         f.write(str(generation))
 
-    boot_part = "/dev/vda1"
-    device = "/dev/vda3"
+    # boot_part = "/dev/vda1"
+    # device = "/dev/vda3"
     c.run(f"mount {boot_part} /mnt/boot")
     for subv in ["home", "var", "root"]:
-        c.run(f"mount -o subvol=store/{subv} {device} /mnt/{subv}")
+        c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # TODO: Update to use read only for rootfs
@@ -547,8 +547,8 @@ def deploy_generation(c, generation, pkgs_installed):
     
     print("===================================")
 
-
-def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
+# Used for rebuild
+def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_installed):
     print("===================================")
     print("== Deploying generation ==")
     # tmp_rootfs = "/.tmp_rootfs"
@@ -563,10 +563,10 @@ def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
     new_current_rootfs = "/.new_current_rootfs"
     c.run(f"mkdir -p {new_current_rootfs}")
     # c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
-    c.run(f"mount -o subvol=current/rootfs /dev/vda3 {new_current_rootfs}")
+    c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
 
     c.run(f"mkdir -p {new_current_rootfs}/kod")
-    c.run(f"mount /dev/vda3 {new_current_rootfs}/kod")
+    c.run(f"mount {root_part} {new_current_rootfs}/kod")
 
     # Create a list of installed packages
     with open(f"{new_current_rootfs}/kod/generations/{generation}/installed_packages","w") as f:
@@ -575,11 +575,9 @@ def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
     with open(f"{new_current_rootfs}/kod/current/generation", "w") as f:
         f.write(str(generation))
 
-    boot_part = "/dev/vda1"
-    device = "/dev/vda3"
     c.run(f"mount {boot_part} {new_current_rootfs}/boot")
     for subv in ["home", "var", "root"]:
-        c.run(f"mount -o subvol=store/{subv} {device} {new_current_rootfs}/{subv}")
+        c.run(f"mount -o subvol=store/{subv} {root_part} {new_current_rootfs}/{subv}")
 
     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
     # TODO: Update to use read only for rootfs
@@ -593,7 +591,8 @@ def deploy_new_generation(c, new_rootfs, generation, pkgs_installed):
     print("===================================")
 
 
-def create_next_generation(c, generation, root_part="/dev/vda3", mount_point="/.new_rootfs"):
+# Used for rebuild
+def create_next_generation(c, boot_part, root_part, generation, mount_point="/.new_rootfs"):
     # Create generation
     c.run(f"mkdir -p /kod/generations/{generation}")
     # c.run(f"btrfs subvolume create /kod/generations/{generation}/rootfs")
@@ -606,7 +605,7 @@ def create_next_generation(c, generation, root_part="/dev/vda3", mount_point="/.
     
     c.run(f"mkdir -p {mount_point}")
 
-    boot_part = "/dev/vda1"
+    # boot_part = "/dev/vda1"
     # root_part = "/dev/vda3"
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
@@ -631,9 +630,9 @@ def install(c, config):
     "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
-    create_partitions(c, conf)
+    boot_partition, root_partition = create_partitions(c, conf)
 
-    create_filesystem_hierarchy(c, root_part="/dev/vda3", generation=0)
+    create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
     
     install_essentials_pkgs(c)
     configure_system(c, conf)
@@ -653,7 +652,7 @@ def install(c, config):
     create_users(c, conf)
 
     print("==== Deploying generation ====")
-    deploy_generation(c, 0, pkgs_installed)
+    deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed)
 
     print("Done")
 
@@ -668,7 +667,7 @@ def rebuild(c, config):
     if repos is None:
         print("Missing repos information")
         return
-
+    boot_partition, root_partition = get_partition_deviced(config)
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
     pkg_list += proc_hardware(c, conf, repos)
@@ -689,7 +688,7 @@ def rebuild(c, config):
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
     new_generation = int(generation)+1
-    root_path = create_next_generation(c, new_generation, root_part="/dev/vda3", mount_point="/.new_rootfs")
+    root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
 
     # try:
     if remove_pkg:
@@ -707,7 +706,7 @@ def rebuild(c, config):
     
     enable_services(c, service_to_enable)
 
-    deploy_new_generation(c, root_path, new_generation, pkg_list)
+    deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
 
     print("Done")
 
@@ -754,7 +753,6 @@ def test_partition(c, config):
 def test_config(c, config):
 
     conf = load_config(config)
-
 
     devices = conf.devices
     print(f"{devices=}")

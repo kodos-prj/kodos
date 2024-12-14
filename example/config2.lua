@@ -2,7 +2,7 @@ print("config.lua")
 -- require("core.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
-disk = require("disk-new")
+disk = require("disk")
 repos = require("repos")
 
 return {
