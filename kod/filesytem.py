@@ -206,9 +206,9 @@ def get_partition_devices(conf):
             name = part['name']
             blockdevice = f"{device}{device_sufix}{pid}"
             
-            if name == "boot":
+            if name.lower() == "boot":
                 boot_partition = blockdevice
-            elif name == "root":
+            elif name.lower() == "root":
                 root_partition = blockdevice
 
     return boot_partition, root_partition

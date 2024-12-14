@@ -792,7 +792,8 @@ def test_config(c, config):
 #    "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
-    boot_partition, root_partition = create_partitions(c, conf)
+    # boot_partition, root_partition = create_partitions(c, conf)
+    boot_partition, root_partition = get_partition_devices(conf)
     print(f"{boot_partition=}")
     print(f"{root_partition=}")
     # create_partitions(c, conf)
