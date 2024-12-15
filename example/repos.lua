@@ -9,7 +9,7 @@ function arch_repo(mirrors)
         -- arch = "x86_64",
         repo = { "core", "extra" },
         commands = {
-            install = "pacman -S --noconfirm",
+            install = "pacman -S --noconfirm --needed",
             update = "pacman -Syu --noconfirm",
             remove = "pacman -Rscn --noconfirm",
             update_db = "pacman -Sy --noconfirm",

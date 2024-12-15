@@ -509,6 +509,10 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     for subv in ["home", "var", "root"]:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
+    # Write generation number
+    with open(f"/mnt/.generation","w") as f:
+        f.write(str(generation))
+    
     print("===================================")
 
 
@@ -557,7 +561,9 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     # c.run(f"mkdir {tmp_rootfs}")
     # c.run(f"mount /dev/vda3 {tmp_rootfs}")
 
-    c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
+    if os.path.isdir("/kod/current/rootfs-old"):
+        c.run("rm -rf /kod/current/rootfs-old")
+    c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
 
     # if current_rootfs != "/mnt":
@@ -574,8 +580,12 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     with open(f"{new_current_rootfs}/kod/generations/{generation}/installed_packages","w") as f:
         f.write("\n".join(pkgs_installed))
 
-    with open(f"{new_current_rootfs}/kod/current/generation", "w") as f:
+    # Write generation number
+    with open(f"{new_current_rootfs}/.generation","w") as f:
         f.write(str(generation))
+
+    # with open(f"{new_current_rootfs}/kod/current/generation", "w") as f:
+    #     f.write(str(generation))
 
     c.run(f"mount {boot_part} {new_current_rootfs}/boot")
     for subv in ["home", "var", "root"]:
@@ -601,7 +611,7 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
     
     # Mounting generation
-    if os.path.exists(mount_point):
+    if os.path.ismount(mount_point):
         c.run(f"umount -R {mount_point}")
         c.run(f"rm -rf {mount_point}")
     
@@ -616,6 +626,10 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
     for subv in ["home", "var", "root"]:
         c.run(f"mount -o subvol=store/{subv} {root_part} {mount_point}/{subv}")
     
+    # Write generation number
+    with open(f"{mount_point}/.generation","w") as f:
+        f.write(str(generation))
+
     print("===================================")
 #     print(f"Creating snapshot {new_generation}")
 #     exec_prefix = "sudo"
@@ -678,7 +692,7 @@ def rebuild(c, config):
 
     print("packages\n",pkg_list)
     generation = get_max_generation()
-    with open("/kod/current/generation") as f:
+    with open("/.generation") as f:
         current_generation = f.readline().strip()
     print(f"{current_generation = }")
 
