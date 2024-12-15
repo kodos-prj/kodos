@@ -561,7 +561,9 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     # c.run(f"mkdir {tmp_rootfs}")
     # c.run(f"mount /dev/vda3 {tmp_rootfs}")
 
-    c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
+    if os.path.isdir("/kod/current/rootfs-old"):
+        c.run("rm -rf /kod/current/rootfs-old")
+    c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
 
     # if current_rootfs != "/mnt":
