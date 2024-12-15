@@ -609,7 +609,7 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
     
     # Mounting generation
-    if os.path.exists(mount_point):
+    if os.path.ismount(mount_point):
         c.run(f"umount -R {mount_point}")
         c.run(f"rm -rf {mount_point}")
     
