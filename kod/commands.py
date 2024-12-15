@@ -490,7 +490,9 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("== Creating filesystem hierarchy ==")
     c.run("sudo mkdir -p /mnt/{store,generations,current}")
     for subv in ["home", "var", "root"]:
-        c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
+        c.run(f"btrfs subvolume create /mnt/store/{subv}")
+    for subv in ["var/log", "var/tmp", "var/cache", "var/kod", "var/spool"]:
+        c.run(f"mkdir -p /mnt/store/{subv}")
 
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
@@ -504,9 +506,13 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run("mkdir -p /mnt/{home,var,root,boot}")
+    for subv in ["var/log", "var/tmp", "var/cache", "var/kod", "var/spool"]:
+        c.run(f"ln -s /mnt/store/{subv} /mnt/{subv}")
+
     c.run(f"mount {boot_part} /mnt/boot")
     # c.run("mkdir -p /mnt/{home,var,root}")
-    for subv in ["home", "var", "root"]:
+    # for subv in ["home", "var", "root"]:
+    for subv in ["home", "root"]:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
     # Write generation number
@@ -821,5 +827,14 @@ def test_config(c, config):
     # pkgs_installed = ["base", "base-devel", "linux", "linux-firmware", "btrfs-progs", "grub", "efibootmgr", "grub-btrfs"]
     # print("==== Deploying generation ====")
     # deploy_generation(c, 0, pkgs_installed)
+
+@task(help={"config":"system configuration file"})
+def test_install(c, config):
+    "Install KodOS in /mnt"
+    conf = load_config(config)
+    print("-------------------------------")
+    boot_partition, root_partition = create_partitions(c, conf)
+
+    create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
 
 ##############################################################################
