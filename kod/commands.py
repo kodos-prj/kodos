@@ -485,34 +485,31 @@ def enable_services(c, list_of_services, use_chroot=False):
             exec(c, f"systemctl enable {service}")
         # enable_service(c, service)
 
+
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
-    c.run("sudo mkdir -p /mnt/{store,generations,current}")
-    for subv in ["home", "var", "root"]:
-        c.run(f"btrfs subvolume create /mnt/store/{subv}")
-    for subv in ["var/log", "var/tmp", "var/cache", "var/kod", "var/spool"]:
-        c.run(f"mkdir -p /mnt/store/{subv}")
+    c.run("mkdir -p /mnt/{store,generations,current}")
+    c.run("mkdir -p /mnt/store/var")
+    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for subv in subvolumes:
+        c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
 
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
     
     # Mounting first generation
-    print("umount -R /mnt")
     c.run("umount -R /mnt")
-    # boot_part = "/dev/vda1"
-    # root_part = "/dev/vda3"
-    print(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
-    c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in ["var/log", "var/tmp", "var/cache", "var/kod", "var/spool"]:
-        c.run(f"ln -s /mnt/store/{subv} /mnt/{subv}")
-
+    
+    # c.run("mkdir -p /mnt/{home,var,root,boot}")
+    for subv in subvolumes + ["boot"]:
+        c.run(f"mkdir -p /mnt/{subv}")
+    
     c.run(f"mount {boot_part} /mnt/boot")
-    # c.run("mkdir -p /mnt/{home,var,root}")
-    # for subv in ["home", "var", "root"]:
-    for subv in ["home", "root"]:
+    
+    for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
     # Write generation number
