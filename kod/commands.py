@@ -536,13 +536,14 @@ def deploy_generation(c, boot_part, root_part, generation, pkgs_installed):
     with open(f"/mnt/kod/generations/{generation}/installed_packages","w") as f:
         f.write("\n".join(pkgs_installed))
 
-    with open("/mnt/kod/current/generation", "w") as f:
-        f.write(str(generation))
+    # with open("/mnt/kod/current/generation", "w") as f:
+    #     f.write(str(generation))
 
     # boot_part = "/dev/vda1"
     # device = "/dev/vda3"
     c.run(f"mount {boot_part} /mnt/boot")
-    for subv in ["home", "var", "root"]:
+    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
@@ -591,7 +592,8 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     #     f.write(str(generation))
 
     c.run(f"mount {boot_part} {new_current_rootfs}/boot")
-    for subv in ["home", "var", "root"]:
+    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} {new_current_rootfs}/{subv}")
 
     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
@@ -626,7 +628,8 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
     c.run(f"mount {boot_part} {mount_point}/boot")
     # c.run("mkdir -p /mnt/{home,var,root}")
-    for subv in ["home", "var", "root"]:
+    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} {mount_point}/{subv}")
     
     # Write generation number
