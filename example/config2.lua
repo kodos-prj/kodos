@@ -83,7 +83,7 @@ return {
         },
         abuss = {
             name = "Antal Buss",
-            hashed_password = "$6$z5w/XmP.iY9YNd1A$GsJmzFKkZLnVVmPaB689LuXOm3dm1aWY25kTAu1xGziFqKh9./HFVCEtso8UhsfivEvTWNXr4NcTswjWLUKbg.",
+            hashed_password = "$6$abcdefgh$cU8yoI9jjlh1SkfFFB4XK4Y31V7b1QSGv8a66nIpIiGJmB8xizuovMoXg.gnjDGDvZKtWKFWEwhBG5FxnWRZg/",
             -- password = "changeme",
             shell = "/bin/zsh",
 
