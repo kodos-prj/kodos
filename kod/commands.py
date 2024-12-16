@@ -207,7 +207,7 @@ aliases=user_env
     exec_chroot(c, "mkinitcpio -P")
 
     # Change root password
-    exec_chroot(c, "passwd")
+    # exec_chroot(c, "passwd")
 
 
 def setup_bootloader(c, conf):
@@ -522,7 +522,7 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
     
     # Write generation number
-    with open(f"/mnt/.generation","w") as f:
+    with open("/mnt/.generation","w") as f:
         f.write(str(generation))
     
     print("===================================")
