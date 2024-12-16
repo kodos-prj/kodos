@@ -118,11 +118,11 @@ def create_users(c, conf):
         # Password
         if info.hashed_password:
             print("Assign the provided password")
-            exec_chroot(c, f"usermod -p {info.hashed_password} {user}")
+            print(f"usermod -p '{info.hashed_password}' {user}")
+            exec_chroot(c, f"usermod -p '{info.hashed_password}' {user}")
         elif info.password:
             print("Assign the provided password after encryption")
-            hashed_passwd = c.run(f"arch-chroot /mnt mkpasswd -m sha-512 -S abcdefgh {info.password}").stdout.strip()
-            exec_chroot(c, f"usermod -p {hashed_passwd} {user}")
+            exec_chroot(c, f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
         else:
             exec_chroot(c, f"passwd {user}")
 
