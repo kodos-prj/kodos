@@ -88,8 +88,14 @@ def create_users(c, conf):
     for user, info in users.items():
         if user == "root":
             print(f"Change {user} password")
-            if info.password:
-                print("Assign the provided posword")
+            if info.hash_password:
+                print("Assign the provided password")
+                exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
+            elif info.password:
+                print("Assign the provided password after encryption")
+                # exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
+                # TODO: Remove this. Added for testing
+                exec_chroot(c, f"passwd {user}")
             else:
                 exec_chroot(c, f"passwd {user}")
         else:
