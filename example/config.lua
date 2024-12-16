@@ -92,12 +92,12 @@ return {
     },
 
     desktop = {
-        -- display_manager = "gdm",
-        display_manager = "sddm",
+        display_manager = "gdm",
+        -- display_manager = "sddm",
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = false,
+                enable = true,
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
@@ -105,6 +105,9 @@ return {
                     "gnome-tweaks",
                     "gnome-extra",
                     "gnome-themes-extra",
+                    "gnome-shell-extension-appindicator",
+                    -- "gnome-shell-extension-dash-to-panel",
+                    "aur:gnome-shell-extension-dash-to-dock"
                 },
             },
     
@@ -115,7 +118,7 @@ return {
                 },
             },
             cosmic = {
-                enable = true,
+                enable = false,
                 display_manager = "sddm",
             },
         }
@@ -125,6 +128,7 @@ return {
         -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
+        "stow",
         "mc",
         "less",
         "neovim",
@@ -134,7 +138,7 @@ return {
         "poetry",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
-        -- "aur:visual-studio-code-bin",
+        "aur:visual-studio-code-bin",
         "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
