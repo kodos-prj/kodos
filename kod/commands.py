@@ -75,24 +75,30 @@ def install_essentials_pkgs(c):
                 microcode = "intel-ucode"
                 break
 
-    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", "mlocate", "sudo", "schroot"]
+    base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", 
+                 "mlocate", "sudo", "schroot"]
+    # TODO: remove this package dependency
     base_pkgs += ["arch-install-scripts"]
-    #"networkmanager", 
 
     exec(c, f"pacstrap -K /mnt {' '.join(base_pkgs)}")
-    # pkgs_installed += base_pkgs
-    # exec(c, "pacstrap -K /mnt base linux linux-firmware btrfs-progs")
 
 
 def create_users(c, conf):
     users = conf.users
     for user, info in users.items():
-        print(f"Creating user {user}")
-        user_name = info["name"]
-        # user_pass = info["password"]
-        exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c '{user_name}'")
-        exec_chroot(c, f"passwd {user}")
-        exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
+        if user == "root":
+            print(f"Change {user} password")
+            if info.password:
+                print("Assign the provided posword")
+            else:
+                exec_chroot(c, f"passwd {user}")
+        else:
+            print(f"Creating user {user}")
+            user_name = info["name"]
+            # user_pass = info["password"]
+            exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c '{user_name}'")
+            exec_chroot(c, f"passwd {user}")
+            exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
 
 def configure_system(c, conf, boot="systemd-boot"):
     
@@ -184,7 +190,10 @@ aliases=user_env
 /dev/pts        /dev/pts        none    rw,bind         0       0
 /home           /home           none    rw,bind         0       0
 /tmp            /tmp            none    rw,bind         0       0
-/var	        /var        	none	rw,bind		    0   	0
+/var/cache	    /var/cache      none	rw,bind		    0   	0
+/var/log	    /var/log        none	rw,bind		    0   	0
+/var/tmp	    /var/tmp        none	rw,bind		    0   	0
+/var/kod	    /var/kod        none	rw,bind		    0   	0
 """
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
@@ -377,7 +386,7 @@ def proc_repos(c, conf):
 
         if "package" in repo_desc:
             # packages.append(repo_desc["package"])
-            exec_chroot(c, "pacman -S --needed --noconfirm bubblewrap-suid")
+            # exec_chroot(c, "pacman -S --needed --noconfirm bubblewrap-suid")
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             
     with open("/mnt/var/kod/repos.json", "w") as f:
@@ -561,20 +570,14 @@ def deploy_generation(c, boot_part, root_part, generation, pkgs_installed):
 def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_installed):
     print("===================================")
     print("== Deploying generation ==")
-    # tmp_rootfs = "/.tmp_rootfs"
-    # c.run(f"mkdir {tmp_rootfs}")
-    # c.run(f"mount /dev/vda3 {tmp_rootfs}")
 
     if os.path.isdir("/kod/current/rootfs-old"):
         c.run("rm -rf /kod/current/rootfs-old")
     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
 
-    # if current_rootfs != "/mnt":
-        # c.run(f"umount -R {current_rootfs}")
     new_current_rootfs = "/.new_current_rootfs"
     c.run(f"mkdir -p {new_current_rootfs}")
-    # c.run(f"mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
 
     c.run(f"mkdir -p {new_current_rootfs}/kod")
@@ -588,9 +591,6 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     with open(f"{new_current_rootfs}/.generation","w") as f:
         f.write(str(generation))
 
-    # with open(f"{new_current_rootfs}/kod/current/generation", "w") as f:
-    #     f.write(str(generation))
-
     c.run(f"mount {boot_part} {new_current_rootfs}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
@@ -602,7 +602,14 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
-    # c.run("umount -R /new_rootfs")
+
+    for subv in subvolumes + ["boot"]:
+        try:
+            c.run(f"umount -R /{new_rootfs}/{subv}")
+        except:
+            print(f"Subvolume /{new_rootfs}/{subv} is not mounted")
+    c.run(f"rm -rf /{new_rootfs}")
+
     c.run(f"rm -rf {new_current_rootfs}")
     
     print("===================================")
@@ -612,7 +619,6 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
 def create_next_generation(c, boot_part, root_part, generation, mount_point="/.new_rootfs"):
     # Create generation
     c.run(f"mkdir -p /kod/generations/{generation}")
-    # c.run(f"btrfs subvolume create /kod/generations/{generation}/rootfs")
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
     
     # Mounting generation
@@ -622,12 +628,8 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
     
     c.run(f"mkdir -p {mount_point}")
 
-    # boot_part = "/dev/vda1"
-    # root_part = "/dev/vda3"
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
-    # c.run("mkdir -p /mnt/{home,var,root,boot}")
     c.run(f"mount {boot_part} {mount_point}/boot")
-    # c.run("mkdir -p /mnt/{home,var,root}")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} {mount_point}/{subv}")
@@ -637,11 +639,7 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point="/.n
         f.write(str(generation))
 
     print("===================================")
-#     print(f"Creating snapshot {new_generation}")
-#     exec_prefix = "sudo"
-#     c.run(f"{exec_prefix} mkdir -p /kod/generation/{new_generation}")
-#     new_gen_rootfs = f"/kod/generation/{new_generation}/rootfs"
-#     c.run(f"{exec_prefix} btrfs subvolume snapshot -r / {new_gen_rootfs}")
+
     return mount_point
 
 ##############################################################################
@@ -763,10 +761,10 @@ def test_partition(c, config):
 
     conf = load_config(config)
     print("-------------------------------")
-    create_partitions(c, conf)
+    # create_partitions(c, conf)
     install_essentials_pkgs(c)
     # configure_system(c, conf, boot="grub")
-    # create_users(c, conf)
+    create_users(c, conf)
 
     print("Done")
 

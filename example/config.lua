@@ -76,6 +76,9 @@ return {
     },
 
     users = {
+        root = {
+            password = "changeme",
+        },
         abuss = {
             name = "Antal Buss",
             password = "changeme",
