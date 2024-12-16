@@ -76,7 +76,7 @@ def install_essentials_pkgs(c):
                 break
 
     base_pkgs = ["base","base-devel", microcode,  "btrfs-progs", "linux", "linux-firmware", "bash-completion", 
-                 "mlocate", "sudo", "schroot"]
+                 "mlocate", "sudo", "schroot", "whois"]
     # TODO: remove this package dependency
     base_pkgs += ["arch-install-scripts"]
 
@@ -86,25 +86,46 @@ def install_essentials_pkgs(c):
 def create_users(c, conf):
     users = conf.users
     for user, info in users.items():
-        if user == "root":
-            print(f"Change {user} password")
-            if info.hash_password:
-                print("Assign the provided password")
-                exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
-            elif info.password:
-                print("Assign the provided password after encryption")
-                # exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
-                # TODO: Remove this. Added for testing
-                exec_chroot(c, f"passwd {user}")
-            else:
-                exec_chroot(c, f"passwd {user}")
-        else:
+        # if user == "root":
+        #     print(f"Change {user} password")
+        #     if info.hash_password:
+        #         print("Assign the provided password")
+        #         exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
+        #     elif info.password:
+        #         print("Assign the provided password after encryption")
+        #         # exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
+        #         # TODO: Remove this. Added for testing
+        #         exec_chroot(c, f"passwd {user}")
+        #     else:
+        #         exec_chroot(c, f"passwd {user}")
+        # else:
+
+        if user != "root":
             print(f"Creating user {user}")
             user_name = info["name"]
             # user_pass = info["password"]
-            exec_chroot(c, f"useradd -m -G wheel -s /bin/bash {user} -c '{user_name}'")
-            exec_chroot(c, f"passwd {user}")
+            exec_chroot(c, f"useradd -m -G wheel {user} -c '{user_name}'")
             exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
+            # TODO: Add groups
+
+        # Shell 
+        if not info.shell:
+            shell = "/bin/bash"
+        else:
+            shell = info["shell"]
+        exec_chroot(c, f"usermod -s {shell} {user}")
+
+        # Password
+        if info.hashed_password:
+            print("Assign the provided password")
+            exec_chroot(c, f"echo '{user}:{info.hashed_password}' | chpasswd")
+        elif info.password:
+            print("Assign the provided password after encryption")
+            hashed_passwd = exec_chroot(c, f"mkpasswd -m SHA-512 {info.password}")
+            exec_chroot(c, f"echo '{user}:{hashed_passwd}' | chpasswd")
+        else:
+            exec_chroot(c, f"passwd {user}")
+
 
 def configure_system(c, conf, boot="systemd-boot"):
     

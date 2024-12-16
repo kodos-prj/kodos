@@ -83,7 +83,8 @@ return {
         },
         abuss = {
             name = "Antal Buss",
-            password = "changeme",
+            hashed_password = "$6$z5w/XmP.iY9YNd1A$GsJmzFKkZLnVVmPaB689LuXOm3dm1aWY25kTAu1xGziFqKh9./HFVCEtso8UhsfivEvTWNXr4NcTswjWLUKbg.",
+            -- password = "changeme",
             shell = "bash",
 
             packages = {
