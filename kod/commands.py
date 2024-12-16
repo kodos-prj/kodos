@@ -602,7 +602,18 @@ def deploy_new_generation(c, boot_part, root_part, new_rootfs, generation, pkgs_
     c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
-    # c.run("umount -R /new_rootfs")
+
+    for subv in subvolumes + ["boot"]:
+        try:
+            c.run(f"umount -R {new_rootfs}/{subv}")
+        except:
+            print(f"Subvolume {new_rootfs}/{subv} is not mounted")
+    try:
+        c.run(f"umount -R {new_rootfs}")
+    except:
+        print(f"Subvolume {new_rootfs} is not mounted")
+    c.run(f"rm -rf {new_rootfs}")
+
     c.run(f"rm -rf {new_current_rootfs}")
     
     print("===================================")
