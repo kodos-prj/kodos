@@ -86,27 +86,13 @@ def install_essentials_pkgs(c):
 def create_users(c, conf):
     users = conf.users
     for user, info in users.items():
-        # if user == "root":
-        #     print(f"Change {user} password")
-        #     if info.hash_password:
-        #         print("Assign the provided password")
-        #         exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
-        #     elif info.password:
-        #         print("Assign the provided password after encryption")
-        #         # exec_chroot(c, f"echo '{user}:{info.password}' | chpasswd")
-        #         # TODO: Remove this. Added for testing
-        #         exec_chroot(c, f"passwd {user}")
-        #     else:
-        #         exec_chroot(c, f"passwd {user}")
-        # else:
-
+        # Normal users (no root)
         if user != "root":
             print(f"Creating user {user}")
             user_name = info["name"]
-            # user_pass = info["password"]
             exec_chroot(c, f"useradd -m -G wheel {user} -c '{user_name}'")
             exec_chroot(c, "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers")
-            # TODO: Add groups
+            # TODO: Add extra groups
 
         # Shell 
         if not info.shell:
