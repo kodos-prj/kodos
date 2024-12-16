@@ -76,10 +76,14 @@ return {
     },
 
     users = {
+        root = {
+            no_password = true,
+            shell = "/bin/bash",
+        },
         abuss = {
             name = "Antal Buss",
-            password = "changeme",
-            shell = "bash",
+            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
+            shell = "/bin/zsh",
 
             packages = {
                 "helix"
@@ -128,6 +132,7 @@ return {
         -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
+        "zsh",
         "stow",
         "mc",
         "less",
