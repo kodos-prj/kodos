@@ -79,13 +79,13 @@ return {
     users = {
         root = {
             password = "changeme",
-            shell = "bash",
+            shell = "/bin/bash",
         },
         abuss = {
             name = "Antal Buss",
             hashed_password = "$6$z5w/XmP.iY9YNd1A$GsJmzFKkZLnVVmPaB689LuXOm3dm1aWY25kTAu1xGziFqKh9./HFVCEtso8UhsfivEvTWNXr4NcTswjWLUKbg.",
             -- password = "changeme",
-            shell = "bash",
+            shell = "/bin/zsh",
 
             packages = {
                 "helix"
@@ -111,6 +111,7 @@ return {
         -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
+        "zsh",
         "mc",
         "less",
         "neovim",
