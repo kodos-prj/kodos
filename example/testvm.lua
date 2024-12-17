@@ -140,7 +140,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = true,
+                enable = false,
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
