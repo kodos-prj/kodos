@@ -550,12 +550,14 @@ def proc_user_programs(c, conf):
 
 
 def configure_users(c, dotfile_mngrs, configs_to_deploy):
+    print(f"{dotfile_mngrs=}")
+    print(f"{configs_to_deploy=}")
     print("- configuring users -----------")
     for user, dotmng in dotfile_mngrs.items():
         if user in configs_to_deploy:
-            c.run(f"arch-chroot /mnt runuser -u {user} -- {dotmng.init()}")
+            c.run(f"arch-chroot /mnt su {user} -c '{dotmng.init()}'")
             for config in configs_to_deploy[user]:
-                c.run(f"arch-chroot /mnt runuser -u {user} -- {dotmng.deploy(config)}")
+                c.run(f"arch-chroot /mnt su {user} -c '{dotmng.deploy(config)}'")
 
 
 def enable_services(c, list_of_services, use_chroot=False):
