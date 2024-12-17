@@ -146,8 +146,8 @@ return {
                 },
                 packages = {
                     "gnome-tweaks",
-                    "gnome-extra",
-                    "gnome-themes-extra",
+                    -- "gnome-extra",
+                    -- "gnome-themes-extra",
                     "gnome-shell-extension-appindicator",
                     -- "gnome-shell-extension-dash-to-panel",
                     "aur:gnome-shell-extension-dash-to-dock"
