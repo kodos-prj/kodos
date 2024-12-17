@@ -4,6 +4,7 @@ print("config.lua")
 
 disk = require("disk")
 repos = require("repos")
+dotmgr = require("dotfile_manager")
 
 return {
     repos = {
@@ -85,6 +86,12 @@ return {
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/bin/zsh",
 
+            dotfile_manager = dotmgr.stow({
+                    source_dir = "~/.dotfiles",
+                    target_dir = "~/",
+                    repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
+                }),
+
             programs = {
                 git = {
                     enable = true,
@@ -92,7 +99,10 @@ return {
                     user_name = "Antal Buss"
                 },
 
-                starship = { enable = true },
+                starship = { 
+                    enable = true,
+                    deploy_config = true,
+                },
 
                 zsh = {
                     enable = true,
@@ -107,12 +117,16 @@ return {
                     }
                 },
 
-                dotfile_mngr = {
-                    package = "stow"
-                }
+                neovim = {
+                    enable = true,
+                    deploy_config = true,
+                },
             },
 
-
+            deploy_configs = {
+                "home", -- General config for home directory (face, background, etc.)
+                "gtk", -- GTK themes
+            },
 
             services = {
                 "syncthing"
