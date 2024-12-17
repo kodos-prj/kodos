@@ -553,9 +553,9 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy):
     print("- configuring users -----------")
     for user, dotmng in dotfile_mngrs.items():
         if user in configs_to_deploy:
-            c.run(f"runuser -u {user} -- {dotmng.init()}")
+            c.run(f"arch-chroot /mnt runuser -u {user} -- {dotmng.init()}")
             for config in configs_to_deploy[user]:
-                c.run(f"runuser -u {user} -- {dotmng.deploy(config)}")
+                c.run(f"arch-chroot /mnt runuser -u {user} -- {dotmng.deploy(config)}")
 
 
 def enable_services(c, list_of_services, use_chroot=False):
