@@ -378,6 +378,7 @@ def get_max_generation():
 
 # --------------------------------------
 def proc_repos(c, conf):
+    # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
     repos = {}
     packages = []
@@ -392,16 +393,13 @@ def proc_repos(c, conf):
             build_cmd = build_info['build_cmd']
             name = build_info['name']
 
+            # TODO: Generalize this code to support other distros
             exec_chroot(c, "pacman -S --needed --noconfirm git base-devel")
             exec_chroot(c, f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'")
 
-            # exec_chroot(c, 'userdel -r kod')
-            # exec_chroot(c, 'rm -f /etc/sudoers.d/kod')
-
         if "package" in repo_desc:
-            # packages.append(repo_desc["package"])
-            # exec_chroot(c, "pacman -S --needed --noconfirm bubblewrap-suid")
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
+            packages += [repo_desc['package']]
             
     with open("/mnt/var/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
@@ -466,8 +464,9 @@ def proc_hardware(c, conf, repos, use_chroot=False):
                 print("  extra packages:",hw.extra_packages)
                 for _, pkg in hw.extra_packages.items():
                     pkgs.append(pkg)
-            pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
-            packages += pkgs_installed
+            # pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
+            # packages += pkgs_installed
+            packages += pkgs
 
     return packages
 
@@ -493,11 +492,73 @@ def proc_services(c, conf, repos, use_chroot=False):
                 print("  extra packages:",service.extra_packages)
                 for _, pkg in service.extra_packages.items():
                     pkgs.append(pkg)
-            pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
-            packages += pkgs_installed
+            # pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
+            # packages += pkgs_installed
+            packages += pkgs
             services_to_enable.append(service_name)
             # enable_service(c, name+".service")
     return packages, services_to_enable
+
+
+def proc_user_dotfile_manager(conf):
+    print("- processing user dotfile manager -----------")
+    users = conf.users
+    dotfile_mngs = {}
+    configs_to_deploy = {}
+    for user, info in users.items():
+        if info.dotfile_manager:
+            print(f"Processing dotfile manager for {user}")
+            dotfile_mngs[user] = info.dotfile_manager
+        if info.deploy_configs:
+            print(f"Processing deploy configs for {user}")
+            configs_to_deploy[user] = [config for _, config in info.deploy_configs.items()]
+    print(configs_to_deploy)
+    return dotfile_mngs, configs_to_deploy
+
+
+def proc_user_programs(c, conf):
+    packages = []
+    configs_to_deploy = {}
+    # services_to_enable = []
+    print("- processing user programs -----------")
+    users = conf.users
+
+    for user, info in users.items():
+        deploy_configs = []
+        if info.programs:
+            print(f"Processing programs for {user}")
+            pkgs = []
+            for name, prog in info.programs.items():
+                print(name, prog.enable)
+                if prog.enable:
+                    if prog.deploy_config:
+                        # Program requires deploy config
+                        deploy_configs.append(name)
+                    else:
+                        # Configure based on the specified parameters
+                        # TODO: Implement this
+                        print(f"Configuring {name} with {prog.items()}")
+                    if prog.package:
+                        print("  using:",prog.package)
+                        name = prog.package
+                    pkgs.append(name)
+            packages += pkgs
+        if deploy_configs:
+            configs_to_deploy[user] = deploy_configs
+
+    return packages, configs_to_deploy
+
+
+def configure_users(c, dotfile_mngrs, configs_to_deploy):
+    print(f"{dotfile_mngrs=}")
+    print(f"{configs_to_deploy=}")
+    print("- configuring users -----------")
+    for user, dotmng in dotfile_mngrs.items():
+        if user in configs_to_deploy:
+            c.run(f"arch-chroot /mnt su {user} -c '{dotmng.init()}'")
+            for config in configs_to_deploy[user]:
+                c.run(f"arch-chroot /mnt su {user} -c '{dotmng.deploy(config)}'")
+
 
 def enable_services(c, list_of_services, use_chroot=False):
     for service in list_of_services:
@@ -676,18 +737,39 @@ def install(c, config):
     configure_system(c, conf)
     setup_bootloader(c, conf)
     create_kod_user(c)
+
     repos, repo_packages = proc_repos(c, conf)
     packages_to_install, _ = get_packages_to_install(c, conf)
     packages_to_install += repo_packages
-    pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
-    pkgs_installed += proc_hardware(c, conf, repos, use_chroot=True)
+
+    packages_to_install += proc_hardware(c, conf, repos, use_chroot=True)
+
+    # User configurations
+    dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
+    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    packages_to_install += user_packages
+    configs_to_deploy = {
+        k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
+        for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
+    }
+
+    # Services
     service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
-    print(f"Services to enable: {service_to_enable}")
-    enable_services(c, service_to_enable, use_chroot=True)
-    pkgs_installed += service_installed
+    packages_to_install += service_installed
+
+    packages_to_install = list(set(packages_to_install))
+
+    pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
 
     print("\n====== Creating users ======")
     create_users(c, conf)
+
+    print("\n====== Configuring users ======")
+    configure_users(c, dotfile_mngrs, configs_to_deploy)    
+
+    print(f"Services to enable: {service_to_enable}")
+    enable_services(c, service_to_enable, use_chroot=True)
+    # pkgs_installed += service_installed
 
     print("==== Deploying generation ====")
     deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed)
@@ -849,8 +931,57 @@ def test_install(c, config):
     "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
-    boot_partition, root_partition = create_partitions(c, conf)
+    # boot_partition, root_partition = create_partitions(c, conf)
 
-    create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
+    # create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
+    
+    # install_essentials_pkgs(c)
+    # configure_system(c, conf)
+    # setup_bootloader(c, conf)
+    # create_kod_user(c)
+
+    # repos, repo_packages = proc_repos(c, conf)
+    # packages_to_install, _ = get_packages_to_install(c, conf)
+    # packages_to_install += repo_packages
+
+    # packages_to_install += proc_hardware(c, conf, repos, use_chroot=True)
+
+    # User configurations
+
+    dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
+    print(f"{configs_to_deploy = }")
+    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    # packages_to_install += user_packages
+    # configs_to_deploy |= prog_configs_to_deploy
+    configs_to_deploy = {
+        k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
+        for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
+    }
+
+    print(f">> {configs_to_deploy = }")
+    print(f">> {user_packages = }")
+
+    # Services
+    # service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
+    # packages_to_install += service_installed
+
+    # packages_to_install = list(set(packages_to_install))
+
+    # pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
+
+    print("\n====== Creating users ======")
+    create_users(c, conf)
+
+    print("\n====== Configuring users ======")
+    configure_users(c, dotfile_mngrs, configs_to_deploy)    
+
+    # print(f"Services to enable: {service_to_enable}")
+    # enable_services(c, service_to_enable, use_chroot=True)
+    # # pkgs_installed += service_installed
+
+    # print("==== Deploying generation ====")
+    # deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed)
+
+    print("Done")
 
 ##############################################################################
