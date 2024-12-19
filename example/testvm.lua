@@ -106,15 +106,16 @@ return {
 
                 zsh = {
                     enable = true,
-                    autosuggestion = true,
-                    enable_vfe_integration = true,
-                    default_keymap = "emacs",
+                    deploy_config = true,
+                    -- autosuggestion = true,
+                    -- enable_vfe_integration = true,
+                    -- default_keymap = "emacs",
 
-                    oh_my_zsh = {
-                        enable = true,
-                        plugins = {"sudo"},
-                        theme = "lukerandall"
-                    }
+                    -- oh_my_zsh = {
+                    --     enable = true,
+                    --     plugins = {"sudo"},
+                    --     theme = "lukerandall"
+                    -- }
                 },
 
                 neovim = {
@@ -140,7 +141,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = false,
+                enable = true,
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
@@ -171,8 +172,10 @@ return {
         -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
-        -- "starship",
-        -- "zsh",
+        "starship",
+        "zsh",
+	"zsh-autosuggestions",
+	"zsh-completions",
         "stow",
         "mc",
         "less",
@@ -185,11 +188,16 @@ return {
         "helix",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
-        -- "aur:visual-studio-code-bin",
-        -- "aur:floorp-bin",
+        "aur:visual-studio-code-bin",
+        "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
+        -- Fonts
+	"ttf-firacode-nerd",
+	"ttf-nerd-fonts-symbols",
+	"ttf-nerd-fonts-symbols-common",
+	"ttf-sourcecodepro-nerd",
     },
 
     services = {
