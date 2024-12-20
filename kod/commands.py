@@ -800,7 +800,11 @@ def rebuild(c, config):
         current_generation = f.readline().strip()
     print(f"{current_generation = }")
 
-    with open(f"/kod/generations/{current_generation}/installed_packages") as f:
+    if os.path.isdir("/kod/current/installed_packages"):
+        installed_packages_path = "/kod/current/installed_packages"
+    else:
+        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+    with open(installed_packages_path) as f:
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
@@ -827,6 +831,68 @@ def rebuild(c, config):
     enable_services(c, service_to_enable)
 
     deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
+
+    print("Done")
+
+
+@task(help={"config":"system configuration file"})
+def rebuild_inplace(c, config):
+    "Rebuild KodOS installation based on configuration file"
+
+    conf = load_config(config)
+    print("========================================")
+    repos = load_repos()
+    if repos is None:
+        print("Missing repos information")
+        return
+    boot_partition, root_partition = get_partition_devices(conf)
+    # pkg_list = list(conf.packages.values())
+    pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
+    pkg_list += proc_hardware(c, conf, repos)
+    service_list, service_to_enable = proc_services(c, conf, repos)
+    pkg_list += service_list
+
+    print("packages\n",pkg_list)
+    # generation = get_max_generation()
+    with open("/.generation") as f:
+        current_generation = f.readline().strip()
+    print(f"{current_generation = }")
+
+    if os.path.isdir("/kod/current/installed_packages"):
+        installed_packages_path = "/kod/current/installed_packages"
+    else:
+        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+    with open(installed_packages_path) as f:
+        inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    print(inst_pkgs)
+
+    remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
+    added_pkgs = set(pkg_list) - set(inst_pkgs)
+
+    # new_generation = int(generation)+1
+    # root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
+    root_path = "/"
+
+    # try:
+    if remove_pkg:
+        print("Packages to remove:",remove_pkg)
+        for pkg in remove_pkg:
+            try:
+                manage_packages(c, root_path, repos, "remove", [pkg,], chroot=False)        
+                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+            except:
+                print(f"Unable to remove {pkg}")
+                pass
+    if added_pkgs:
+        print("Packages to install:", added_pkgs)
+        manage_packages(c, root_path, repos, "install", added_pkgs, chroot=False)
+    
+    enable_services(c, service_to_enable)
+
+    # deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
+    # Create a list of installed packages
+    with open("/kod/current/installed_packages","w") as f:
+        f.write("\n".join(pkgs_installed))
 
     print("Done")
 
