@@ -800,7 +800,7 @@ def rebuild(c, config, new_generation=False):
     boot_partition, root_partition = get_partition_devices(conf)
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
-    pkg_list += proc_hardware(c, conf, repos)
+    pkg_list += proc_hardware(c, conf)
     service_list, service_to_enable = proc_services(c, conf, repos)
     pkg_list += service_list
 
