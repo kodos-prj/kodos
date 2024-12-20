@@ -749,7 +749,7 @@ def install(c, config):
     packages_to_install, _ = get_packages_to_install(c, conf)
     packages_to_install += repo_packages
 
-    packages_to_install += proc_hardware(c, conf, repos, use_chroot=True)
+    packages_to_install += proc_hardware(c, conf)
 
     # User configurations
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
@@ -761,7 +761,7 @@ def install(c, config):
     }
 
     # Services
-    service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
+    service_installed, service_to_enable = proc_services(c, conf)
     packages_to_install += service_installed
 
     packages_to_install = list(set(packages_to_install))
