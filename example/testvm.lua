@@ -5,6 +5,7 @@ print("config.lua")
 disk = require("disk")
 repos = require("repos")
 dotmgr = require("dotfile_manager")
+genconf = require("generate_config")
 
 return {
     repos = {
@@ -95,8 +96,10 @@ return {
             programs = {
                 git = {
                     enable = true,
-                    user_email = "antal.buss@gmail.com",
-                    user_name = "Antal Buss"
+                    create_config = genconf.config_git({
+                        user_name = "Antal Buss",
+                        user_email = "antal.buss@gmail.com",
+                    })
                 },
 
                 starship = { 
@@ -145,7 +148,7 @@ return {
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
-                packages = {
+                extra_packages = {
                     "gnome-tweaks",
                     -- "gnome-extra",
                     -- "gnome-themes-extra",
@@ -157,13 +160,13 @@ return {
     
             plasma = {
                 enable = false,
-                packages = {
+                extra_packages = {
                     "kde-applications",
                 },
             },
             cosmic = {
                 enable = false,
-                display_manager = "sddm",
+                -- display_manager = "sddm",
             },
         }
     },
@@ -194,10 +197,10 @@ return {
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
         -- Fonts
-	"ttf-firacode-nerd",
-	"ttf-nerd-fonts-symbols",
-	"ttf-nerd-fonts-symbols-common",
-	"ttf-sourcecodepro-nerd",
+        "ttf-firacode-nerd",
+        "ttf-nerd-fonts-symbols",
+        "ttf-nerd-fonts-symbols-common",
+        "ttf-sourcecodepro-nerd",
     },
 
     services = {
