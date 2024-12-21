@@ -411,12 +411,9 @@ def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False)
 
 # --------------------------------------
 # packages_to_install, packages_to_remove, packages_to_exclude
-
 def proc_desktop(c, conf):
     packages_to_install = []
     packages_to_remove = []
-    # packages_to_exclude = []
-
     desktop = conf.desktop
 
     display_manager = desktop.display_manager
@@ -429,17 +426,13 @@ def proc_desktop(c, conf):
         for desktop_mngr, dm_conf in desktop_manager.items():
             if dm_conf.enable:
                 print(f"Installing {desktop_mngr}")
-                if dm_conf.package:
-                    desktop_mngr = dm_conf.package
-                
-                if dm_conf.extra_packages:
-                    pkg_list = list(dm_conf.extra_packages.values())
+                if "packages" in dm_conf:
+                    pkg_list = list(dm_conf.packages.values())
                     packages_to_install += pkg_list
 
-                if dm_conf.exclude_packages:
+                if "exclude_packages" in dm_conf:
                     exclude_pkg_list = list(dm_conf.exclude_packages.values())
                     packages_to_remove += exclude_pkg_list
-                    # packages_to_exclude += exclude_pkg_list
                 else:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
@@ -447,7 +440,6 @@ def proc_desktop(c, conf):
                     pkgs_to_install = list(set(pkgs_to_install) - set(exclude_pkg_list))
                     packages_to_install += pkgs_to_install
                 # else:
-                #     packages_to_install += [desktop_mngr]
                 packages_to_install += [desktop_mngr]
                 # if "display_manager" in dm_conf:
                 #     display_mngr = dm_conf["display_manager"]
