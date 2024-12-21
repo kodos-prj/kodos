@@ -159,7 +159,6 @@ return {
                     -- "gnome-extra",
                     -- "gnome-themes-extra",
                     "gnome-shell-extension-appindicator",
-                    -- "gnome-shell-extension-dash-to-panel",
                     "aur:gnome-shell-extension-dash-to-dock"
                 },
             },
@@ -172,19 +171,11 @@ return {
             },
             cosmic = {
                 enable = false,
-                -- display_manager = "sddm",
             },
         }
     },
 
     packages = {
-        -- "bubblewrap-suid",
-        -- "aur:proot",
-        -- "flatpak",
-        -- "starship",
-        -- "zsh",
-	    -- "zsh-autosuggestions",
-        -- "zsh-completions",
         "stow",
         "mc",
         "less",
