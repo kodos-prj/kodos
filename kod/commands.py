@@ -533,10 +533,15 @@ def proc_user_programs(c, conf):
                     if prog.deploy_config:
                         # Program requires deploy config
                         deploy_configs.append(name)
-                    else:
-                        # Configure based on the specified parameters
-                        # TODO: Implement this
-                        print(f"Configuring {name} with {prog.items()}")
+                    # else:
+                    # Configure based on the specified parameters
+                    if prog.create_config:
+                        prog_conf = prog.create_config
+                        if "command" in prog_conf:
+                            c.run(f"su {user} -c '{prog_conf.command}'")
+                        else:
+                            # TODO: Implement this
+                            print(f"Configuring {name} with {prog.items()}")
                     if prog.package:
                         print("  using:",prog.package)
                         name = prog.package
