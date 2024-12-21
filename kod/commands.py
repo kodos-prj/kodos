@@ -805,6 +805,9 @@ def rebuild(c, config, new_generation=False):
     service_list, service_to_enable = proc_services(c, conf)
     pkg_list += service_list
 
+    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    pkg_list += user_packages
+
     print("packages\n",pkg_list)
     generation = get_max_generation()
     with open("/.generation") as f:
