@@ -5,6 +5,7 @@ print("config.lua")
 disk = require("disk")
 repos = require("repos")
 dotmgr = require("dotfile_manager")
+genconf = require("generate_config")
 
 return {
     repos = {
@@ -95,8 +96,10 @@ return {
             programs = {
                 git = {
                     enable = true,
-                    user_email = "antal.buss@gmail.com",
-                    user_name = "Antal Buss"
+                    create_config = genconf.config_git({
+                        user_name = "Antal Buss",
+                        user_email = "antal.buss@gmail.com",
+                    })
                 },
 
                 starship = { 
@@ -107,6 +110,12 @@ return {
                 zsh = {
                     enable = true,
                     deploy_config = true,
+                    extra_packages = {
+                        -- "zsh-syntax-highlighting",
+                        "zsh-autosuggestions",
+                        "zsh-completions",
+                        -- "zsh-history-substring-search",
+                    }
                     -- autosuggestion = true,
                     -- enable_vfe_integration = true,
                     -- default_keymap = "emacs",
@@ -145,37 +154,28 @@ return {
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
-                packages = {
+                extra_packages = {
                     "gnome-tweaks",
                     -- "gnome-extra",
                     -- "gnome-themes-extra",
                     "gnome-shell-extension-appindicator",
-                    -- "gnome-shell-extension-dash-to-panel",
                     "aur:gnome-shell-extension-dash-to-dock"
                 },
             },
     
             plasma = {
                 enable = false,
-                packages = {
+                extra_packages = {
                     "kde-applications",
                 },
             },
             cosmic = {
                 enable = false,
-                display_manager = "sddm",
             },
         }
     },
 
     packages = {
-        -- "bubblewrap-suid",
-        -- "aur:proot",
-        -- "flatpak",
-        "starship",
-        "zsh",
-	"zsh-autosuggestions",
-	"zsh-completions",
         "stow",
         "mc",
         "less",
@@ -194,10 +194,10 @@ return {
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
         -- Fonts
-	"ttf-firacode-nerd",
-	"ttf-nerd-fonts-symbols",
-	"ttf-nerd-fonts-symbols-common",
-	"ttf-sourcecodepro-nerd",
+        "ttf-firacode-nerd",
+        "ttf-nerd-fonts-symbols",
+        "ttf-nerd-fonts-symbols-common",
+        "ttf-sourcecodepro-nerd",
     },
 
     services = {

@@ -313,43 +313,6 @@ def get_list_of_dependencies(c, pkg):
     return pkgs_list
 
 
-def proc_desktop(c, conf):
-    packages_to_install = []
-    packages_to_remove = []
-    desktop = conf.desktop
-
-    display_manager = desktop.display_manager
-    if display_manager:
-        print(f"Installing {display_manager}")
-        packages_to_install += [display_manager]
-    
-    desktop_manager = desktop.desktop_manager
-    if desktop_manager:
-        for desktop_mngr, dm_conf in desktop_manager.items():
-            if dm_conf["enable"]:
-                print(f"Installing {desktop_mngr}")
-                if "packages" in dm_conf:
-                    pkg_list = list(dm_conf["packages"].values())
-                    packages_to_install += pkg_list
-
-                if "exclude_packages" in dm_conf:
-                    exclude_pkg_list = list(dm_conf["exclude_packages"].values())
-                    packages_to_remove += exclude_pkg_list
-                else:
-                    exclude_pkg_list = []
-                if exclude_pkg_list:
-                    pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
-                    pkgs_to_install = list(set(pkgs_to_install) - set(exclude_pkg_list))
-                    packages_to_install += pkgs_to_install
-                else:
-                    packages_to_install += [desktop_mngr]
-                if "display_manager" in dm_conf:
-                    display_mngr = dm_conf["display_manager"]
-                    packages_to_install += [display_mngr]
-
-    return packages_to_install, packages_to_remove
-
-
 def update_fstab(c, root_path, mount_point, subvol_id):
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
@@ -376,7 +339,7 @@ def get_max_generation():
     print(f"{generation=}")
     return generation
 
-# --------------------------------------
+
 def proc_repos(c, conf):
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
@@ -446,8 +409,46 @@ def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False)
         packages_installed += pkgs
     return packages_installed
 
+# --------------------------------------
+# packages_to_install, packages_to_remove, packages_to_exclude
+def proc_desktop(c, conf):
+    packages_to_install = []
+    packages_to_remove = []
+    desktop = conf.desktop
 
-def proc_hardware(c, conf, repos, use_chroot=False):
+    display_manager = desktop.display_manager
+    if display_manager:
+        print(f"Installing {display_manager}")
+        packages_to_install += [display_manager]
+    
+    desktop_manager = desktop.desktop_manager
+    if desktop_manager:
+        for desktop_mngr, dm_conf in desktop_manager.items():
+            if dm_conf.enable:
+                print(f"Installing {desktop_mngr}")
+                if "packages" in dm_conf:
+                    pkg_list = list(dm_conf.packages.values())
+                    packages_to_install += pkg_list
+
+                if "exclude_packages" in dm_conf:
+                    exclude_pkg_list = list(dm_conf.exclude_packages.values())
+                    packages_to_remove += exclude_pkg_list
+                else:
+                    exclude_pkg_list = []
+                if exclude_pkg_list:
+                    pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
+                    pkgs_to_install = list(set(pkgs_to_install) - set(exclude_pkg_list))
+                    packages_to_install += pkgs_to_install
+                # else:
+                packages_to_install += [desktop_mngr]
+                # if "display_manager" in dm_conf:
+                #     display_mngr = dm_conf["display_manager"]
+                #     packages_to_install += [display_mngr]
+
+    return packages_to_install, packages_to_remove
+
+
+def proc_hardware(c, conf): #, repos, use_chroot=False):
     packages = []
     print("- processing hardware -----------")
     hardware = conf.hardware
@@ -464,15 +465,13 @@ def proc_hardware(c, conf, repos, use_chroot=False):
                 print("  extra packages:",hw.extra_packages)
                 for _, pkg in hw.extra_packages.items():
                     pkgs.append(pkg)
-            # pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
-            # packages += pkgs_installed
             packages += pkgs
 
     return packages
 
 
-def proc_services(c, conf, repos, use_chroot=False):
-    packages = []
+def proc_services(c, conf): #, repos, use_chroot=False):
+    packages_to_install = []
     services_to_enable = []
     print("- processing services -----------")
     services = conf.services
@@ -494,10 +493,10 @@ def proc_services(c, conf, repos, use_chroot=False):
                     pkgs.append(pkg)
             # pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
             # packages += pkgs_installed
-            packages += pkgs
+            packages_to_install += pkgs
             services_to_enable.append(service_name)
             # enable_service(c, name+".service")
-    return packages, services_to_enable
+    return packages_to_install, services_to_enable
 
 
 def proc_user_dotfile_manager(conf):
@@ -534,13 +533,22 @@ def proc_user_programs(c, conf):
                     if prog.deploy_config:
                         # Program requires deploy config
                         deploy_configs.append(name)
-                    else:
-                        # Configure based on the specified parameters
-                        # TODO: Implement this
-                        print(f"Configuring {name} with {prog.items()}")
+                    # else:
+                    # Configure based on the specified parameters
+                    if prog.create_config:
+                        prog_conf = prog.create_config
+                        if "command" in prog_conf:
+                            c.run(f"su {user} -c '{prog_conf.command}'")
+                        else:
+                            # TODO: Implement this
+                            print(f"Configuring {name} with {prog.items()}")
                     if prog.package:
                         print("  using:",prog.package)
                         name = prog.package
+                    if prog.extra_packages:
+                        print("  extra packages:",prog.extra_packages)
+                        for _, pkg in prog.extra_packages.items():
+                            pkgs.append(pkg)
                     pkgs.append(name)
             packages += pkgs
         if deploy_configs:
@@ -742,7 +750,7 @@ def install(c, config):
     packages_to_install, _ = get_packages_to_install(c, conf)
     packages_to_install += repo_packages
 
-    packages_to_install += proc_hardware(c, conf, repos, use_chroot=True)
+    packages_to_install += proc_hardware(c, conf)
 
     # User configurations
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
@@ -754,7 +762,7 @@ def install(c, config):
     }
 
     # Services
-    service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
+    service_installed, service_to_enable = proc_services(c, conf)
     packages_to_install += service_installed
 
     packages_to_install = list(set(packages_to_install))
@@ -778,8 +786,10 @@ def install(c, config):
 
 
 @task(help={"config":"system configuration file"})
-def rebuild(c, config):
+def rebuild(c, config, new_generation=False):
     "Rebuild KodOS installation based on configuration file"
+    if new_generation:
+        print("Creating a new generation")
 
     conf = load_config(config)
     print("========================================")
@@ -787,11 +797,12 @@ def rebuild(c, config):
     if repos is None:
         print("Missing repos information")
         return
+    
     boot_partition, root_partition = get_partition_devices(conf)
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
-    pkg_list += proc_hardware(c, conf, repos)
-    service_list, service_to_enable = proc_services(c, conf, repos)
+    pkg_list += proc_hardware(c, conf)
+    service_list, service_to_enable = proc_services(c, conf)
     pkg_list += service_list
 
     print("packages\n",pkg_list)
@@ -811,8 +822,11 @@ def rebuild(c, config):
     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
-    new_generation = int(generation)+1
-    root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
+    if new_generation:
+        new_generation_id = int(generation)+1
+        root_path = create_next_generation(c, boot_partition, root_partition, new_generation_id, mount_point="/.new_rootfs")
+    else:
+        root_path = "/"
 
     # try:
     if remove_pkg:
@@ -830,7 +844,12 @@ def rebuild(c, config):
     
     enable_services(c, service_to_enable)
 
-    deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
+    if new_generation:
+        deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation_id, pkg_list)
+    else:
+        # Create a list of installed packages
+        with open("/kod/current/installed_packages","w") as f:
+            f.write("\n".join(pkgs_installed))
 
     print("Done")
 
@@ -845,6 +864,7 @@ def rebuild_inplace(c, config):
     if repos is None:
         print("Missing repos information")
         return
+    
     boot_partition, root_partition = get_partition_devices(conf)
     # pkg_list = list(conf.packages.values())
     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
@@ -993,7 +1013,7 @@ def test_config(c, config):
     # deploy_generation(c, 0, pkgs_installed)
 
 @task(help={"config":"system configuration file"})
-def test_install(c, config):
+def test_install(c, config, switch=False):
     "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
@@ -1007,39 +1027,46 @@ def test_install(c, config):
     # create_kod_user(c)
 
     # repos, repo_packages = proc_repos(c, conf)
-    # packages_to_install, _ = get_packages_to_install(c, conf)
+    repos = {"official":{"install":"pacman -S"},"aur":{"install":"yay -S"}} #load_repos()
+    if repos is None:
+        print("Missing repos information")
+        return
+    
+    packages_to_install = []
+    # packages_to_install, packages_to_remove, packages_to_exclude = get_packages_to_install(c, conf)
     # packages_to_install += repo_packages
+    # print("packages:",packages_to_install)
 
-    # packages_to_install += proc_hardware(c, conf, repos, use_chroot=True)
+    # packages_to_install += proc_hardware(c, conf)
+    # print("packages:",packages_to_install)
 
     # User configurations
-
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
-    print(f"{configs_to_deploy = }")
     user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
-    # packages_to_install += user_packages
-    # configs_to_deploy |= prog_configs_to_deploy
+    packages_to_install += user_packages
     configs_to_deploy = {
         k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
         for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
     }
-
-    print(f">> {configs_to_deploy = }")
-    print(f">> {user_packages = }")
+    print(f"{user_packages=}")
 
     # Services
-    # service_installed, service_to_enable = proc_services(c, conf, repos, use_chroot=True)
-    # packages_to_install += service_installed
+    service_installed, service_to_enable = proc_services(c, conf)
+    packages_to_install += service_installed
 
-    # packages_to_install = list(set(packages_to_install))
+    packages_to_install = list(set(packages_to_install))
 
-    # pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
+    print(f"Installing packages: {packages_to_install}")
+    # print(f"Excluding packages: {packages_to_exclude}")
+    # print(f"Removing packages: {packages_to_remove}")
 
-    print("\n====== Creating users ======")
-    create_users(c, conf)
+    pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
 
-    print("\n====== Configuring users ======")
-    configure_users(c, dotfile_mngrs, configs_to_deploy)    
+    # print("\n====== Creating users ======")
+    # create_users(c, conf)
+
+    # print("\n====== Configuring users ======")
+    # configure_users(c, dotfile_mngrs, configs_to_deploy)    
 
     # print(f"Services to enable: {service_to_enable}")
     # enable_services(c, service_to_enable, use_chroot=True)
@@ -1049,5 +1076,6 @@ def test_install(c, config):
     # deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed)
 
     print("Done")
+
 
 ##############################################################################
