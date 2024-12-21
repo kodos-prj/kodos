@@ -110,6 +110,12 @@ return {
                 zsh = {
                     enable = true,
                     deploy_config = true,
+                    extra_packages = {
+                        -- "zsh-syntax-highlighting",
+                        "zsh-autosuggestions",
+                        "zsh-completions",
+                        -- "zsh-history-substring-search",
+                    }
                     -- autosuggestion = true,
                     -- enable_vfe_integration = true,
                     -- default_keymap = "emacs",
@@ -175,10 +181,10 @@ return {
         -- "bubblewrap-suid",
         -- "aur:proot",
         -- "flatpak",
-        "starship",
-        "zsh",
-	"zsh-autosuggestions",
-	"zsh-completions",
+        -- "starship",
+        -- "zsh",
+	    -- "zsh-autosuggestions",
+        -- "zsh-completions",
         "stow",
         "mc",
         "less",

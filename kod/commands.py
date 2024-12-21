@@ -540,6 +540,10 @@ def proc_user_programs(c, conf):
                     if prog.package:
                         print("  using:",prog.package)
                         name = prog.package
+                    if prog.extra_packages:
+                        print("  extra packages:",prog.extra_packages)
+                        for _, pkg in prog.extra_packages.items():
+                            pkgs.append(pkg)
                     pkgs.append(name)
             packages += pkgs
         if deploy_configs:
@@ -1023,12 +1027,13 @@ def test_install(c, config, switch=False):
         print("Missing repos information")
         return
     
-    packages_to_install, packages_to_remove, packages_to_exclude = get_packages_to_install(c, conf)
+    packages_to_install = []
+    # packages_to_install, packages_to_remove, packages_to_exclude = get_packages_to_install(c, conf)
     # packages_to_install += repo_packages
-    print("packages:",packages_to_install)
+    # print("packages:",packages_to_install)
 
-    packages_to_install += proc_hardware(c, conf)
-    print("packages:",packages_to_install)
+    # packages_to_install += proc_hardware(c, conf)
+    # print("packages:",packages_to_install)
 
     # User configurations
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
@@ -1038,6 +1043,7 @@ def test_install(c, config, switch=False):
         k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
         for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
     }
+    print(f"{user_packages=}")
 
     # Services
     service_installed, service_to_enable = proc_services(c, conf)
@@ -1046,8 +1052,8 @@ def test_install(c, config, switch=False):
     packages_to_install = list(set(packages_to_install))
 
     print(f"Installing packages: {packages_to_install}")
-    print(f"Excluding packages: {packages_to_exclude}")
-    print(f"Removing packages: {packages_to_remove}")
+    # print(f"Excluding packages: {packages_to_exclude}")
+    # print(f"Removing packages: {packages_to_remove}")
 
     pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
 
