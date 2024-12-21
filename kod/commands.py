@@ -291,13 +291,13 @@ def get_packages_to_install(c, conf):
     packages_to_install = []
     packages_to_remove = []
 
-    packages_to_install, packages_to_remove = proc_desktop(c, conf)
+    packages_to_install, packages_to_remove, services_to_enable = proc_desktop(c, conf)
 
     # Packages listed in config
     pkg_list = list(conf.packages.values())
     print("packages\n",pkg_list)
     packages_to_install += pkg_list
-    return packages_to_install, packages_to_remove
+    return packages_to_install, packages_to_remove, services_to_enable
 
 
 def get_list_of_dependencies(c, pkg):
@@ -414,12 +414,14 @@ def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False)
 def proc_desktop(c, conf):
     packages_to_install = []
     packages_to_remove = []
+    services_to_enable = []
     desktop = conf.desktop
 
     display_manager = desktop.display_manager
     if display_manager:
         print(f"Installing {display_manager}")
         packages_to_install += [display_manager]
+        services_to_enable += [display_manager]
     
     desktop_manager = desktop.desktop_manager
     if desktop_manager:
@@ -445,7 +447,7 @@ def proc_desktop(c, conf):
                 #     display_mngr = dm_conf["display_manager"]
                 #     packages_to_install += [display_mngr]
 
-    return packages_to_install, packages_to_remove
+    return packages_to_install, packages_to_remove, services_to_enable
 
 
 def proc_hardware(c, conf): #, repos, use_chroot=False):
@@ -518,6 +520,7 @@ def proc_user_dotfile_manager(conf):
 def proc_user_programs(c, conf):
     packages = []
     configs_to_deploy = {}
+    services_to_enable_user = {}
     # services_to_enable = []
     print("- processing user programs -----------")
     users = conf.users
@@ -553,8 +556,18 @@ def proc_user_programs(c, conf):
             packages += pkgs
         if deploy_configs:
             configs_to_deploy[user] = deploy_configs
+        # USer services
+        services = []
+        if info.services:
+            for name, service_desc in info.services.items():
+                if service_desc:
+                    print(f"Checking {name} service discription")
+                services.append(name)
+                packages.append(name)
+        if services:
+            services_to_enable_user[user] = services
 
-    return packages, configs_to_deploy
+    return packages, configs_to_deploy, services_to_enable_user
 
 
 def configure_users(c, dotfile_mngrs, configs_to_deploy):
@@ -574,9 +587,26 @@ def enable_services(c, list_of_services, use_chroot=False):
         if use_chroot:
             exec_chroot(c, f"systemctl enable {service}")
         else:
-            exec(c, f"systemctl enable {service}")
+            exec(c, f"systemctl enable --now {service}")
         # enable_service(c, service)
 
+
+def disable_services(c, list_of_services, use_chroot=False):
+    for service in list_of_services:
+        print(f"Disabling service: {service}")
+        if use_chroot:
+            exec_chroot(c, f"systemctl disable {service}")
+        else:
+            exec(c, f"systemctl disable --now {service}")
+
+
+def enable_user_services(c, list_of_services_user, use_chroot=False):
+    for user, service in list_of_services_user.items():
+        print(f"Enabling service: {service} for {user}")
+        if use_chroot:
+            exec_chroot(c, f"su {user} -c 'systemctl --user enable {service}'")
+        else:
+            c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
 
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
@@ -611,7 +641,7 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
 
 
-def deploy_generation(c, boot_part, root_part, generation, pkgs_installed):
+def deploy_generation(c, boot_part, root_part, generation, pkgs_installed, service_to_enable):
     print("===================================")
     print("== Deploying generation ==")
     c.run("mkdir /new_rootfs")
@@ -628,11 +658,10 @@ def deploy_generation(c, boot_part, root_part, generation, pkgs_installed):
     with open(f"/mnt/kod/generations/{generation}/installed_packages","w") as f:
         f.write("\n".join(pkgs_installed))
 
-    # with open("/mnt/kod/current/generation", "w") as f:
-    #     f.write(str(generation))
+    # Create a list of services enabled
+    with open(f"/mnt/kod/generations/{generation}/enabled_services","w") as f:
+        f.write("\n".join(service_to_enable))
 
-    # boot_part = "/dev/vda1"
-    # device = "/dev/vda3"
     c.run(f"mount {boot_part} /mnt/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
@@ -747,14 +776,14 @@ def install(c, config):
     create_kod_user(c)
 
     repos, repo_packages = proc_repos(c, conf)
-    packages_to_install, _ = get_packages_to_install(c, conf)
+    packages_to_install, _, services_to_enable = get_packages_to_install(c, conf)
     packages_to_install += repo_packages
 
     packages_to_install += proc_hardware(c, conf)
 
     # User configurations
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
-    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
     packages_to_install += user_packages
     configs_to_deploy = {
         k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
@@ -762,8 +791,9 @@ def install(c, config):
     }
 
     # Services
-    service_installed, service_to_enable = proc_services(c, conf)
-    packages_to_install += service_installed
+    service_installed, system_services_to_enable = proc_services(c, conf)
+    packages_to_install += system_services_to_enable
+    services_to_enable += system_services_to_enable
 
     packages_to_install = list(set(packages_to_install))
 
@@ -775,12 +805,13 @@ def install(c, config):
     print("\n====== Configuring users ======")
     configure_users(c, dotfile_mngrs, configs_to_deploy)    
 
-    print(f"Services to enable: {service_to_enable}")
-    enable_services(c, service_to_enable, use_chroot=True)
+    print(f"Services to enable: {services_to_enable}")
+    enable_services(c, services_to_enable, use_chroot=True)
+    enable_user_services(c, user_services, use_chroot=True)
     # pkgs_installed += service_installed
 
     print("==== Deploying generation ====")
-    deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed)
+    deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed, services_to_enable)
 
     print("Done")
 
@@ -800,10 +831,13 @@ def rebuild(c, config, new_generation=False):
     
     boot_partition, root_partition = get_partition_devices(conf)
     # pkg_list = list(conf.packages.values())
-    pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
+    pkg_list, rm_pkg_list, services_to_enable = get_packages_to_install(c, conf)
     pkg_list += proc_hardware(c, conf)
-    service_list, service_to_enable = proc_services(c, conf)
+    service_list, sys_services_to_enable = proc_services(c, conf)
     pkg_list += service_list
+
+    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    pkg_list += user_packages
 
     print("packages\n",pkg_list)
     generation = get_max_generation()
@@ -813,14 +847,29 @@ def rebuild(c, config, new_generation=False):
 
     if os.path.isdir("/kod/current/installed_packages"):
         installed_packages_path = "/kod/current/installed_packages"
+        services_enabled_path = "/kod/current/enabled_services"
     else:
         installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+        services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
+
     with open(installed_packages_path) as f:
         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(inst_pkgs)
 
+    with open(services_enabled_path) as f:
+        services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    print(services_enabled)
+
+    # Package filtering
     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
     added_pkgs = set(pkg_list) - set(inst_pkgs)
+
+    # Services filtering
+    services_to_enable += sys_services_to_enable
+    services_to_disable = list(set(services_enabled) - set(services_to_enable))
+    new_service_to_enable = list(set(services_to_enable) - set(services_enabled))
+
+    disable_services(c, services_to_disable)
 
     if new_generation:
         new_generation_id = int(generation)+1
@@ -833,8 +882,10 @@ def rebuild(c, config, new_generation=False):
         print("Packages to remove:",remove_pkg)
         for pkg in remove_pkg:
             try:
+                # if pkg in services_to_disable:
+                #     disable_services(c, [pkg,])
+                #     services_to_disable.remove(pkg)
                 manage_packages(c, root_path, repos, "remove", [pkg,], chroot=True)        
-                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
             except:
                 print(f"Unable to remove {pkg}")
                 pass
@@ -842,7 +893,10 @@ def rebuild(c, config, new_generation=False):
         print("Packages to install:", added_pkgs)
         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=True)
     
-    enable_services(c, service_to_enable)
+    # print("\n====== Configuring users ======")
+    # configure_users(c, dotfile_mngrs, configs_to_deploy)    
+
+    enable_services(c, new_service_to_enable)
 
     if new_generation:
         deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation_id, pkg_list)
@@ -854,67 +908,67 @@ def rebuild(c, config, new_generation=False):
     print("Done")
 
 
-@task(help={"config":"system configuration file"})
-def rebuild_inplace(c, config):
-    "Rebuild KodOS installation based on configuration file"
+# @task(help={"config":"system configuration file"})
+# def rebuild_inplace(c, config):
+#     "Rebuild KodOS installation based on configuration file"
 
-    conf = load_config(config)
-    print("========================================")
-    repos = load_repos()
-    if repos is None:
-        print("Missing repos information")
-        return
+#     conf = load_config(config)
+#     print("========================================")
+#     repos = load_repos()
+#     if repos is None:
+#         print("Missing repos information")
+#         return
     
-    boot_partition, root_partition = get_partition_devices(conf)
-    # pkg_list = list(conf.packages.values())
-    pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
-    pkg_list += proc_hardware(c, conf, repos)
-    service_list, service_to_enable = proc_services(c, conf, repos)
-    pkg_list += service_list
+#     boot_partition, root_partition = get_partition_devices(conf)
+#     # pkg_list = list(conf.packages.values())
+#     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
+#     pkg_list += proc_hardware(c, conf, repos)
+#     service_list, service_to_enable = proc_services(c, conf, repos)
+#     pkg_list += service_list
 
-    print("packages\n",pkg_list)
-    # generation = get_max_generation()
-    with open("/.generation") as f:
-        current_generation = f.readline().strip()
-    print(f"{current_generation = }")
+#     print("packages\n",pkg_list)
+#     # generation = get_max_generation()
+#     with open("/.generation") as f:
+#         current_generation = f.readline().strip()
+#     print(f"{current_generation = }")
 
-    if os.path.isdir("/kod/current/installed_packages"):
-        installed_packages_path = "/kod/current/installed_packages"
-    else:
-        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
-    with open(installed_packages_path) as f:
-        inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-    print(inst_pkgs)
+#     if os.path.isdir("/kod/current/installed_packages"):
+#         installed_packages_path = "/kod/current/installed_packages"
+#     else:
+#         installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+#     with open(installed_packages_path) as f:
+#         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+#     print(inst_pkgs)
 
-    remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
-    added_pkgs = set(pkg_list) - set(inst_pkgs)
+#     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
+#     added_pkgs = set(pkg_list) - set(inst_pkgs)
 
-    # new_generation = int(generation)+1
-    # root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
-    root_path = "/"
+#     # new_generation = int(generation)+1
+#     # root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
+#     root_path = "/"
 
-    # try:
-    if remove_pkg:
-        print("Packages to remove:",remove_pkg)
-        for pkg in remove_pkg:
-            try:
-                manage_packages(c, root_path, repos, "remove", [pkg,], chroot=False)        
-                # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
-            except:
-                print(f"Unable to remove {pkg}")
-                pass
-    if added_pkgs:
-        print("Packages to install:", added_pkgs)
-        manage_packages(c, root_path, repos, "install", added_pkgs, chroot=False)
+#     # try:
+#     if remove_pkg:
+#         print("Packages to remove:",remove_pkg)
+#         for pkg in remove_pkg:
+#             try:
+#                 manage_packages(c, root_path, repos, "remove", [pkg,], chroot=False)        
+#                 # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
+#             except:
+#                 print(f"Unable to remove {pkg}")
+#                 pass
+#     if added_pkgs:
+#         print("Packages to install:", added_pkgs)
+#         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=False)
     
-    enable_services(c, service_to_enable)
+#     enable_services(c, service_to_enable)
 
-    # deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
-    # Create a list of installed packages
-    with open("/kod/current/installed_packages","w") as f:
-        f.write("\n".join(pkgs_installed))
+#     # deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
+#     # Create a list of installed packages
+#     with open("/kod/current/installed_packages","w") as f:
+#         f.write("\n".join(pkgs_installed))
 
-    print("Done")
+#     print("Done")
 
 
 @task(help={"generation":"Generation number to rollback to"})
@@ -939,19 +993,6 @@ def rollback(c, generation=None):
 
     print("Recreating grub.cfg")
     c.run("grub-mkconfig -o /boot/grub/grub.cfg")
-    print("Done")
-
-
-@task(help={"config":"system configuration file"})
-def test_partition(c, config):
-
-    conf = load_config(config)
-    print("-------------------------------")
-    # create_partitions(c, conf)
-    install_essentials_pkgs(c)
-    # configure_system(c, conf, boot="grub")
-    create_users(c, conf)
-
     print("Done")
 
 
