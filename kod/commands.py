@@ -588,9 +588,9 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy):
         if user_configs["run"]:
             for command in user_configs["run"]:
                 c.run(f"arch-chroot /mnt su {user} -c '{command}'")
-        if user_configs["deploy"]:
+        if user_configs["configs"]:
             c.run(f"arch-chroot /mnt su {user} -c '{dotfile_mngrs[user].init()}'")
-            for config in user_configs["deploy"]:
+            for config in user_configs["configs"]:
                 c.run(f"arch-chroot /mnt su {user} -c '{dotfile_mngrs[user].deploy(config)}'")
 
 
