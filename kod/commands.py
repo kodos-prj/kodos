@@ -564,11 +564,15 @@ def proc_user_programs(c, conf):
         # USer services
         services = []
         if info.services:
-            for name, service_desc in info.services.items():
-                if service_desc:
+            for _, service in info.services.items():
+                if service:
                     print(f"Checking {name} service discription")
-                services.append(name)
-                packages.append(name)
+                    if service.package:
+                        name = service.package
+                    else:
+                        name = service
+                    services.append(name)
+                    packages.append(name)
         if services:
             services_to_enable_user[user] = services
 
