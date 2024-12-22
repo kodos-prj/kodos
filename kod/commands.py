@@ -809,8 +809,8 @@ def install(c, config):
     # }
 
     # Services
-    service_installed, system_services_to_enable = proc_services(c, conf)
-    packages_to_install += system_services_to_enable
+    service_pkgs_to_install, system_services_to_enable = proc_services(c, conf)
+    packages_to_install += service_pkgs_to_install
     services_to_enable += system_services_to_enable
 
     packages_to_install = list(set(packages_to_install))
