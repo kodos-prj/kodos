@@ -520,6 +520,7 @@ def proc_user_dotfile_manager(conf):
 def proc_user_programs(c, conf):
     packages = []
     configs_to_deploy = {}
+    commands_to_run = []
     services_to_enable_user = {}
     # services_to_enable = []
     print("- processing user programs -----------")
@@ -541,7 +542,8 @@ def proc_user_programs(c, conf):
                     if prog.create_config:
                         prog_conf = prog.create_config
                         if "command" in prog_conf:
-                            c.run(f"su {user} -c '{prog_conf.command}'")
+                            commands_to_run.append(prog_conf.command)
+                            # c.run(f"su {user} -c '{prog_conf.command}'")
                         else:
                             # TODO: Implement this
                             print(f"Configuring {name} with {prog.items()}")
@@ -555,7 +557,7 @@ def proc_user_programs(c, conf):
                     pkgs.append(name)
             packages += pkgs
         if deploy_configs:
-            configs_to_deploy[user] = deploy_configs
+            configs_to_deploy[user] = {"deploy": deploy_configs, "run": commands_to_run}
         # USer services
         services = []
         if info.services:
@@ -574,11 +576,15 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy):
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
     print("- configuring users -----------")
-    for user, dotmng in dotfile_mngrs.items():
-        if user in configs_to_deploy:
-            c.run(f"arch-chroot /mnt su {user} -c '{dotmng.init()}'")
-            for config in configs_to_deploy[user]:
-                c.run(f"arch-chroot /mnt su {user} -c '{dotmng.deploy(config)}'")
+    for user, user_configs in configs_to_deploy.items():
+        print(f"Configuring user {user}")
+        if user_configs["run"]:
+            for command in user_configs["run"]:
+                c.run(f"arch-chroot /mnt su {user} -c '{command}'")
+        if user_configs["deploy"]:
+            c.run(f"arch-chroot /mnt su {user} -c '{dotfile_mngrs[user].init()}'")
+            for config in user_configs["deploy"]:
+                c.run(f"arch-chroot /mnt su {user} -c '{dotfile_mngrs[user].deploy(config)}'")
 
 
 def enable_services(c, list_of_services, use_chroot=False):
