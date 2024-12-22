@@ -507,12 +507,14 @@ def proc_user_dotfile_manager(conf):
     dotfile_mngs = {}
     configs_to_deploy = {}
     for user, info in users.items():
+        configs = []
         if info.dotfile_manager:
             print(f"Processing dotfile manager for {user}")
             dotfile_mngs[user] = info.dotfile_manager
         if info.deploy_configs:
             print(f"Processing deploy configs for {user}")
-            configs_to_deploy[user] = [config for _, config in info.deploy_configs.items()]
+            configs = [config for _, config in info.deploy_configs.items()]
+    configs_to_deploy[user] = {"configs": configs}
     print(configs_to_deploy)
     return dotfile_mngs, configs_to_deploy
 
@@ -520,7 +522,7 @@ def proc_user_dotfile_manager(conf):
 def proc_user_programs(c, conf):
     packages = []
     configs_to_deploy = {}
-    commands_to_run = []
+    
     services_to_enable_user = {}
     # services_to_enable = []
     print("- processing user programs -----------")
@@ -528,6 +530,7 @@ def proc_user_programs(c, conf):
 
     for user, info in users.items():
         deploy_configs = []
+        commands_to_run = []
         if info.programs:
             print(f"Processing programs for {user}")
             pkgs = []
@@ -556,8 +559,8 @@ def proc_user_programs(c, conf):
                             pkgs.append(pkg)
                     pkgs.append(name)
             packages += pkgs
-        if deploy_configs:
-            configs_to_deploy[user] = {"deploy": deploy_configs, "run": commands_to_run}
+        # if deploy_configs:
+        configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
         # USer services
         services = []
         if info.services:
@@ -791,10 +794,15 @@ def install(c, config):
     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
     user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
     packages_to_install += user_packages
-    configs_to_deploy = {
-        k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
-        for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
-    }
+
+    for user, configs in prog_configs_to_deploy.items():
+        prog_configs_to_deploy[user]["configs"] = configs["configs"] + configs_to_deploy[user].get("configs", [])
+    configs_to_deploy = prog_configs_to_deploy
+
+    # configs_to_deploy = {
+    #     k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, []) 
+    #     for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
+    # }
 
     # Services
     service_installed, system_services_to_enable = proc_services(c, conf)
