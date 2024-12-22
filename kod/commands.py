@@ -810,6 +810,7 @@ def install(c, config):
     services_to_enable += system_services_to_enable
 
     packages_to_install = list(set(packages_to_install))
+    print("packages\n",packages_to_install)
 
     pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
 
