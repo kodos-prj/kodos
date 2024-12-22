@@ -796,7 +796,7 @@ def install(c, config):
     packages_to_install += user_packages
 
     for user, configs in prog_configs_to_deploy.items():
-        prog_configs_to_deploy[user]["configs"] = configs["configs"] + configs_to_deploy[user].get("configs", [])
+        prog_configs_to_deploy[user]["configs"] = configs["configs"] + configs_to_deploy.get(user, {}).get("configs", [])
     configs_to_deploy = prog_configs_to_deploy
 
     # configs_to_deploy = {
