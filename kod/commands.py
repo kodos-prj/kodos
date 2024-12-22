@@ -614,12 +614,14 @@ def disable_services(c, list_of_services, use_chroot=False):
 
 
 def enable_user_services(c, list_of_services_user, use_chroot=False):
-    for user, service in list_of_services_user.items():
-        print(f"Enabling service: {service} for {user}")
+    for user, services in list_of_services_user.items():
+        print(f"Enabling service: {services} for {user}")
         if use_chroot:
-            exec_chroot(c, f"su {user} -c 'systemctl --user enable {service}'")
+            for service in services:
+                exec_chroot(c, f"su {user} -c 'systemctl --user enable {service}'")
         else:
-            c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
+            for service in services:
+                c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
 
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
