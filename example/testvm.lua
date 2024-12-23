@@ -145,7 +145,7 @@ return {
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
                     }),
-                    extra_packages = { "syncthing-gtk" },
+                    extra_packages = { "aur:syncthing-gtk" },
                 }
             }
         },

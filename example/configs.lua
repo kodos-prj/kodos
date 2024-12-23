@@ -10,7 +10,8 @@ function git(config)
 end
 
 function syncthing(config)
-    command = [[cat > ~/.config/systemd/user//etc/{service_name}.service << EOL
+    command = [[mkdir -p ~/.config/systemd/user/ &&
+cat > ~/.config/systemd/user/{service_name}.service << EOL
 [Unit]
 After=network.target
 Description=Syncthing - Open Source Continuous File Synchronization
