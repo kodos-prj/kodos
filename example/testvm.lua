@@ -5,7 +5,7 @@ print("config.lua")
 disk = require("disk")
 repos = require("repos")
 dotmgr = require("dotfile_manager")
-genconf = require("generate_config")
+configs = require("configs")
 
 return {
     repos = {
@@ -96,7 +96,7 @@ return {
             programs = {
                 git = {
                     enable = true,
-                    create_config = genconf.config_git({
+                    config = configs.git({
                         user_name = "Antal Buss",
                         user_email = "antal.buss@gmail.com",
                     })
@@ -139,7 +139,14 @@ return {
             },
 
             services = {
-                "syncthing"
+                syncthing = {
+                    enable = true,
+                    config = configs.syncthing({
+                        service_name = "syncthing",
+                        options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                    }),
+                    extra_packages = { "syncthing-gtk" },
+                }
             }
         },
     },
@@ -171,8 +178,27 @@ return {
             },
             cosmic = {
                 enable = false,
+                display_manager = "cosmic-greeter",
             },
         }
+    },
+
+    fonts = {
+        font_dir = true,
+        packages = {
+            -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
+            "ttf-firacode-nerd",
+            "ttf-nerd-fonts-symbols",
+            "ttf-nerd-fonts-symbols-common",
+            "ttf-sourcecodepro-nerd",
+            -- "fira",
+            -- "fira-code-symbols",
+            -- "liberation_ttf,",
+            -- "noto-fonts-emoji",
+            -- "source-serif",
+            -- "ubuntu_font_family",
+            -- "work-sans",
+        },
     },
 
     packages = {

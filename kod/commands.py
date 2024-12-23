@@ -418,10 +418,12 @@ def proc_desktop(c, conf):
     desktop = conf.desktop
 
     display_manager = desktop.display_manager
+    selected_display_manager = False
     if display_manager:
         print(f"Installing {display_manager}")
         packages_to_install += [display_manager]
         services_to_enable += [display_manager]
+        selected_display_manager = True
     
     desktop_manager = desktop.desktop_manager
     if desktop_manager:
@@ -443,9 +445,13 @@ def proc_desktop(c, conf):
                     packages_to_install += pkgs_to_install
                 # else:
                 packages_to_install += [desktop_mngr]
-                # if "display_manager" in dm_conf:
-                #     display_mngr = dm_conf["display_manager"]
-                #     packages_to_install += [display_mngr]
+
+                if "display_manager" in dm_conf:
+                    display_mngr = dm_conf["display_manager"]
+                    packages_to_install += [display_mngr]
+                    if not selected_display_manager:
+                        services_to_enable += [display_mngr]
+                        selected_display_manager = True
 
     return packages_to_install, packages_to_remove, services_to_enable
 
@@ -493,8 +499,7 @@ def proc_services(c, conf): #, repos, use_chroot=False):
                 print("  extra packages:",service.extra_packages)
                 for _, pkg in service.extra_packages.items():
                     pkgs.append(pkg)
-            # pkgs_installed = manage_packages(c, "/mnt", repos, "install", pkgs, chroot=use_chroot)
-            # packages += pkgs_installed
+
             packages_to_install += pkgs
             services_to_enable.append(service_name)
             # enable_service(c, name+".service")
@@ -540,19 +545,18 @@ def proc_user_programs(c, conf):
                     if prog.deploy_config:
                         # Program requires deploy config
                         deploy_configs.append(name)
-                    # else:
+
                     # Configure based on the specified parameters
-                    if prog.create_config:
-                        prog_conf = prog.create_config
+                    if prog.config:
+                        prog_conf = prog.config
                         if "command" in prog_conf:
+                            command = prog_conf.command.format(**prog_conf.config)
                             commands_to_run.append(prog_conf.command)
-                            # c.run(f"su {user} -c '{prog_conf.command}'")
-                        else:
-                            # TODO: Implement this
-                            print(f"Configuring {name} with {prog.items()}")
+
                     if prog.package:
                         print("  using:",prog.package)
                         name = prog.package
+
                     if prog.extra_packages:
                         print("  extra packages:",prog.extra_packages)
                         for _, pkg in prog.extra_packages.items():
@@ -564,18 +568,26 @@ def proc_user_programs(c, conf):
         # USer services
         services = []
         if info.services:
-            for _, service in info.services.items():
-                if isinstance(service, str):
+            for service, desc in info.services.items():
+                if desc.enable:
+                    print(f"Checking {service} service discription")
                     name = service
-                else:
-                    print(f"Checking {name} service discription")
-                    if service.package:
-                        name = service.package
-                    if service.options:
-                        # TODO: implement this
-                        print("  using:",service.options)
-                services.append(name)
-                packages.append(name)
+                    if "package" in desc:
+                        name = desc.package
+                    
+                    if desc.config:
+                        serv_conf = desc.config
+                        if "command" in serv_conf:
+                            command = serv_conf.command.format(**serv_conf.config)
+                            commands_to_run.append(command)
+
+                    if desc.extra_packages:
+                        print("  extra packages:",prog.extra_packages)
+                        for _, pkg in desc.extra_packages.items():
+                            packages.append(pkg)
+
+                    services.append(name)
+                    packages.append(name)
         if services:
             services_to_enable_user[user] = services
 
@@ -931,69 +943,6 @@ def rebuild(c, config, new_generation=False):
             f.write("\n".join(pkgs_installed))
 
     print("Done")
-
-
-# @task(help={"config":"system configuration file"})
-# def rebuild_inplace(c, config):
-#     "Rebuild KodOS installation based on configuration file"
-
-#     conf = load_config(config)
-#     print("========================================")
-#     repos = load_repos()
-#     if repos is None:
-#         print("Missing repos information")
-#         return
-    
-#     boot_partition, root_partition = get_partition_devices(conf)
-#     # pkg_list = list(conf.packages.values())
-#     pkg_list, rm_pkg_list = get_packages_to_install(c, conf)
-#     pkg_list += proc_hardware(c, conf, repos)
-#     service_list, service_to_enable = proc_services(c, conf, repos)
-#     pkg_list += service_list
-
-#     print("packages\n",pkg_list)
-#     # generation = get_max_generation()
-#     with open("/.generation") as f:
-#         current_generation = f.readline().strip()
-#     print(f"{current_generation = }")
-
-#     if os.path.isdir("/kod/current/installed_packages"):
-#         installed_packages_path = "/kod/current/installed_packages"
-#     else:
-#         installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
-#     with open(installed_packages_path) as f:
-#         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-#     print(inst_pkgs)
-
-#     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
-#     added_pkgs = set(pkg_list) - set(inst_pkgs)
-
-#     # new_generation = int(generation)+1
-#     # root_path = create_next_generation(c, boot_partition, root_partition, new_generation, mount_point="/.new_rootfs")
-#     root_path = "/"
-
-#     # try:
-#     if remove_pkg:
-#         print("Packages to remove:",remove_pkg)
-#         for pkg in remove_pkg:
-#             try:
-#                 manage_packages(c, root_path, repos, "remove", [pkg,], chroot=False)        
-#                 # c.run(f"sudo pacman -Rscn --noconfirm {pkg}")
-#             except:
-#                 print(f"Unable to remove {pkg}")
-#                 pass
-#     if added_pkgs:
-#         print("Packages to install:", added_pkgs)
-#         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=False)
-    
-#     enable_services(c, service_to_enable)
-
-#     # deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation, pkg_list)
-#     # Create a list of installed packages
-#     with open("/kod/current/installed_packages","w") as f:
-#         f.write("\n".join(pkgs_installed))
-
-#     print("Done")
 
 
 @task(help={"generation":"Generation number to rollback to"})
