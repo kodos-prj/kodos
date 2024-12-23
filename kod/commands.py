@@ -586,7 +586,7 @@ def proc_user_programs(c, conf):
                         for _, pkg in desc.extra_packages.items():
                             packages.append(pkg)
 
-                    services.append(name)
+                    # services.append(name)
                     packages.append(name)
         if services:
             services_to_enable_user[user] = services
