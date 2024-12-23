@@ -440,8 +440,8 @@ def proc_desktop(c, conf):
                 else:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
-                    pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
-                    pkgs_to_install = list(set(pkgs_to_install) - set(exclude_pkg_list))
+                    all_pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
+                    pkgs_to_install = list(set(all_pkgs_to_install) - set(exclude_pkg_list))
                     packages_to_install += pkgs_to_install
                 # else:
                 packages_to_install += [desktop_mngr]
