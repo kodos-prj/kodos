@@ -15,19 +15,8 @@ function user_systemd(user, service_name, config)
 WantedBy=default.target
 
 [Service]
-ExecStart='/usr/bin/syncthing' '-no-browser' '-no-restart' '-logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'
-LockPersonality=true
-MemoryDenyWriteExecute=true
-NoNewPrivileges=true
+ExecStart='/usr/bin/syncthing' ${options} '-no-browser' '-no-restart' '-logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'
 PrivateUsers=true
-Restart=on-failure
-RestartForceExitStatus=3
-RestartForceExitStatus=4
-RestrictNamespaces=true
-SuccessExitStatus=3
-SuccessExitStatus=4
-SystemCallArchitectures=native
-SystemCallFilter=@system-service
 
 [Unit]
 After=network.target
@@ -35,8 +24,11 @@ Description=Syncthing - Open Source Continuous File Synchronization
 Documentation=man:syncthing(1)
 EOL]]
 
+    config_file = config_file:gsub("${service_name}", service_name)
+    config_file = config_file:gsub("${options}", options)
+    
     return {
-        command = config_file:gsub("${service_name}", service_name),
+        command = config_file,
         user = user,
         options = options,
     }
@@ -46,5 +38,6 @@ end
 
 
 return {
-    config_git = config_git
+    config_git = config_git,
+    user_systemd = user_systemd
 }
