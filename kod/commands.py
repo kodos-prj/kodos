@@ -571,6 +571,9 @@ def proc_user_programs(c, conf):
                     print(f"Checking {name} service discription")
                     if service.package:
                         name = service.package
+                    if service.options:
+                        # TODO: implement this
+                        print("  using:",service.options)
                 services.append(name)
                 packages.append(name)
         if services:
@@ -857,7 +860,7 @@ def rebuild(c, config, new_generation=False):
     service_list, sys_services_to_enable = proc_services(c, conf)
     pkg_list += service_list
 
-    user_packages, prog_configs_to_deploy = proc_user_programs(c, conf)
+    user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
     pkg_list += user_packages
 
     print("packages\n",pkg_list)
@@ -918,6 +921,7 @@ def rebuild(c, config, new_generation=False):
     # configure_users(c, dotfile_mngrs, configs_to_deploy)    
 
     enable_services(c, new_service_to_enable)
+    enable_user_services(c, user_services)
 
     if new_generation:
         deploy_new_generation(c, boot_partition, root_partition, root_path, new_generation_id, pkg_list)
