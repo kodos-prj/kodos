@@ -209,6 +209,7 @@ return {
         "less",
         "neovim",
         "htop",
+        "uv",
         "python-invoke",
         "git",
         "poetry",
