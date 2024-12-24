@@ -1396,6 +1396,55 @@ def test_config(c, config):
 
 
 @task(help={"config": "system configuration file"})
+def test_packages(c, config, switch=False):
+    "Install KodOS in /mnt"
+    conf = load_config(config)
+    print("-------------------------------")
+    # boot_partition, root_partition = create_partitions(c, conf)
+
+    # create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
+
+    # install_essentials_pkgs(c)
+    # configure_system(c, conf)
+    # setup_bootloader(c, conf)
+    # create_kod_user(c)
+
+    # repos, repo_packages = proc_repos(c, conf)
+    # repos = {"official":{"install":"pacman -S"},"aur":{"install":"yay -S"}} #load_repos()
+    # if repos is None:
+    #     print("Missing repos information")
+    #     return
+
+    # === Proc packages
+    repos, repo_packages = proc_repos(c, conf)
+    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+    print("packages\n",packages_to_install)
+    # packages_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
+
+    # === Proc services
+    # system_services_to_enable = get_services_to_enable(conf)
+    # print(f"Services to enable: {system_services_to_enable}")
+    # enable_services(c, system_services_to_enable, use_chroot=True)
+
+    # # === Proc users
+    # print("\n====== Creating users ======")
+    # create_users(c, conf)
+    # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
+    # user_configs = proc_user_configs(conf)
+    # configure_users(c, user_dotfile_mngrs, user_configs)
+
+    # user_services_to_enable = proc_user_services(conf)
+    # print(f"User services to enable: {user_services_to_enable}")
+    # enable_user_services(c, user_services_to_enable, use_chroot=True)
+
+    # print("==== Deploying generation ====")
+    # deploy_generation(c, boot_partition, root_partition, 0, packages_installed, system_services_to_enable)
+
+    print("Done")
+
+
+
+@task(help={"config": "system configuration file"})
 def test_install(c, config, switch=False):
     "Install KodOS in /mnt"
     conf = load_config(config)
