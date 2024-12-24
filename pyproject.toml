@@ -1,19 +1,32 @@
-[tool.poetry]
+# [tool.poetry]
+[project]
 name = "kod"
 version = "0.1.0"
 description = "Kod package management"
-authors = ["Antal Buss <antal.buss@gmail.com>"]
+authors = [{name="Antal Buss"}, {email="antal.buss@gmail.com"}]
 readme = "README.md"
+requires-python = ">= 3.12"
+dependencies = [
+  "lupa >= 2.2",
+  "invoke >= 2.2.0"
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-lupa = "^2.2"
-invoke = "^2.2.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 kod = "kod.main:program.run"
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+# [tool.poetry.dependencies]
+# python = "^3.11"
+# lupa = "^2.2"
+# invoke = "^2.2.0"
 
+# [tool.poetry.scripts]
+# kod = "kod.main:program.run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# [build-system]
+# tool.uv.package = true
+# requires = ["poetry-core"]
+# build-backend = "poetry.core.masonry.api"
