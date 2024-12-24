@@ -212,7 +212,7 @@ return {
         "uv",
         "python-invoke",
         "git",
-        "poetry",
+        -- "poetry",
         "neofetch",
         "helix",
         -- "blueman", -- TODO: Maybe a better location is required
