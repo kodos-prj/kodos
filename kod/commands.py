@@ -289,19 +289,6 @@ options root={root_part} rw {option}
         # pkgs_installed += ["efibootmgr"]
 
 
-# def get_packages_to_install(c, conf):
-#     packages_to_install = []
-#     packages_to_remove = []
-
-#     packages_to_install, packages_to_remove, services_to_enable = proc_desktop(c, conf)
-
-#     # Packages listed in config
-#     pkg_list = list(conf.packages.values())
-#     print("packages\n",pkg_list)
-#     packages_to_install += pkg_list
-#     return packages_to_install, packages_to_remove, services_to_enable
-
-
 def get_packages_to_install(c, conf):
     packages_to_install = []
     packages_to_remove = []
@@ -452,51 +439,6 @@ def manage_packages(c, root_path, repos, action, list_of_packages, chroot=False)
 
 
 # --------------------------------------
-# packages_to_install, packages_to_remove, packages_to_exclude
-# def proc_desktop(c, conf):
-#     packages_to_install = []
-#     packages_to_remove = []
-#     services_to_enable = []
-#     desktop = conf.desktop
-
-#     display_manager = desktop.display_manager
-#     selected_display_manager = False
-#     if display_manager:
-#         print(f"Installing {display_manager}")
-#         packages_to_install += [display_manager]
-#         services_to_enable += [display_manager]
-#         selected_display_manager = True
-
-#     desktop_manager = desktop.desktop_manager
-#     if desktop_manager:
-#         for desktop_mngr, dm_conf in desktop_manager.items():
-#             if dm_conf.enable:
-#                 print(f"Installing {desktop_mngr}")
-#                 if "packages" in dm_conf:
-#                     pkg_list = list(dm_conf.packages.values())
-#                     packages_to_install += pkg_list
-
-#                 if "exclude_packages" in dm_conf:
-#                     exclude_pkg_list = list(dm_conf.exclude_packages.values())
-#                     packages_to_remove += exclude_pkg_list
-#                 else:
-#                     exclude_pkg_list = []
-#                 if exclude_pkg_list:
-#                     all_pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
-#                     pkgs_to_install = list(set(all_pkgs_to_install) - set(exclude_pkg_list))
-#                     packages_to_install += pkgs_to_install
-#                 # else:
-#                 packages_to_install += [desktop_mngr]
-
-#                 if "display_manager" in dm_conf:
-#                     display_mngr = dm_conf["display_manager"]
-#                     packages_to_install += [display_mngr]
-#                     if not selected_display_manager:
-#                         services_to_enable += [display_mngr]
-#                         selected_display_manager = True
-
-#     return packages_to_install, packages_to_remove, services_to_enable
-
 
 def proc_desktop(c, conf):
     packages_to_install = []
@@ -515,8 +457,8 @@ def proc_desktop(c, conf):
         for desktop_mngr, dm_conf in desktop_manager.items():
             if dm_conf.enable:
                 print(f"Installing {desktop_mngr}")
-                if "packages" in dm_conf:
-                    pkg_list = list(dm_conf.packages.values())
+                if "extra_packages" in dm_conf:
+                    pkg_list = list(dm_conf.extra_packages.values())
                     packages_to_install += pkg_list
 
                 if "exclude_packages" in dm_conf:
@@ -525,13 +467,14 @@ def proc_desktop(c, conf):
                 else:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
+                    print(f"Excluding {exclude_pkg_list}")
                     all_pkgs_to_install = get_list_of_dependencies(c, desktop_mngr)
                     pkgs_to_install = list(
                         set(all_pkgs_to_install) - set(exclude_pkg_list)
                     )
                     packages_to_install += pkgs_to_install
-                # else:
-                packages_to_install += [desktop_mngr]
+                else:
+                    packages_to_install += [desktop_mngr]
 
                 if "display_manager" in dm_conf:
                     display_mngr = dm_conf["display_manager"]
@@ -593,34 +536,6 @@ def proc_system_packages(conf):
     return sys_packages
 
 
-# def proc_services(c, conf): #, repos, use_chroot=False):
-#     packages_to_install = []
-#     services_to_enable = []
-#     print("- processing services -----------")
-#     services = conf.services
-#     for name, service in services.items():
-#         print(name, service.enable)
-#         service_name = name
-#         if service.enable:
-#             pkgs = []
-#             if service.package:
-#                 print("  using:",service.package)
-#                 name = service.package
-#             if service.service_name:
-#                 print("  using:",service.service_name)
-#                 service_name = service.service_name
-#             pkgs.append(name)
-#             if service.extra_packages:
-#                 print("  extra packages:",service.extra_packages)
-#                 for _, pkg in service.extra_packages.items():
-#                     pkgs.append(pkg)
-
-#             packages_to_install += pkgs
-#             services_to_enable.append(service_name)
-
-#     return packages_to_install, services_to_enable
-
-
 def get_services_to_enable(conf):
     desktop_services = proc_desktop_services(conf)
     services_to_enable = proc_services_to_enable(conf)
@@ -666,24 +581,6 @@ def proc_services_to_enable(conf):
     return services_to_enable
 
 
-# def proc_user_dotfile_manager(conf):
-#     print("- processing user dotfile manager -----------")
-#     users = conf.users
-#     dotfile_mngs = {}
-#     configs_to_deploy = {}
-#     for user, info in users.items():
-#         configs = []
-#         if info.dotfile_manager:
-#             print(f"Processing dotfile manager for {user}")
-#             dotfile_mngs[user] = info.dotfile_manager
-#         if info.deploy_configs:
-#             print(f"Processing deploy configs for {user}")
-#             configs = [config for _, config in info.deploy_configs.items()]
-#     configs_to_deploy[user] = {"configs": configs}
-#     print(configs_to_deploy)
-#     return dotfile_mngs, configs_to_deploy
-
-
 def proc_user_dotfile_manager(conf):
     print("- processing user dotfile manager -----------")
     users = conf.users
@@ -694,76 +591,6 @@ def proc_user_dotfile_manager(conf):
             dotfile_mngs[user] = info.dotfile_manager
 
     return dotfile_mngs
-
-
-# def proc_user_programs(c, conf):
-#     packages = []
-#     configs_to_deploy = {}
-
-#     services_to_enable_user = {}
-#     # services_to_enable = []
-#     print("- processing user programs -----------")
-#     users = conf.users
-
-#     for user, info in users.items():
-#         deploy_configs = []
-#         commands_to_run = []
-#         if info.programs:
-#             print(f"Processing programs for {user}")
-#             pkgs = []
-#             for name, prog in info.programs.items():
-#                 print(name, prog.enable)
-#                 if prog.enable:
-#                     if prog.deploy_config:
-#                         # Program requires deploy config
-#                         deploy_configs.append(name)
-
-#                     # Configure based on the specified parameters
-#                     if prog.config:
-#                         prog_conf = prog.config
-#                         if "command" in prog_conf:
-#                             command = prog_conf.command.format(**prog_conf.config)
-#                             commands_to_run.append(prog_conf.command)
-
-#                     if prog.package:
-#                         print("  using:",prog.package)
-#                         name = prog.package
-
-#                     if prog.extra_packages:
-#                         print("  extra packages:",prog.extra_packages)
-#                         for _, pkg in prog.extra_packages.items():
-#                             pkgs.append(pkg)
-#                     pkgs.append(name)
-#             packages += pkgs
-#         # if deploy_configs:
-#         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
-#         # USer services
-#         services = []
-#         if info.services:
-#             for service, desc in info.services.items():
-#                 if desc.enable:
-#                     print(f"Checking {service} service discription")
-#                     name = service
-#                     if "package" in desc:
-#                         name = desc.package
-
-#                     if desc.config:
-#                         serv_conf = desc.config
-#                         if "command" in serv_conf:
-#                             command = serv_conf.command.format(**serv_conf.config)
-#                             commands_to_run.append(command)
-
-#                     if desc.extra_packages:
-#                         print("  extra packages:",prog.extra_packages)
-#                         for _, pkg in desc.extra_packages.items():
-#                             packages.append(pkg)
-
-#                     # services.append(name)
-#                     packages.append(name)
-#         if services:
-#             services_to_enable_user[user] = services
-
-#     return packages, configs_to_deploy, services_to_enable_user
 
 
 def proc_user_programs(conf):
@@ -1083,67 +910,6 @@ def create_next_generation(
 ##############################################################################
 
 
-# @task(help={"config":"system configuration file"})
-# def install(c, config):
-#     "Install KodOS in /mnt"
-#     conf = load_config(config)
-#     print("-------------------------------")
-#     boot_partition, root_partition = create_partitions(c, conf)
-
-#     create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
-
-#     install_essentials_pkgs(c)
-#     configure_system(c, conf)
-#     setup_bootloader(c, conf)
-#     create_kod_user(c)
-
-#     repos, repo_packages = proc_repos(c, conf)
-#     packages_to_install, _, services_to_enable = get_packages_to_install(c, conf)
-#     packages_to_install += repo_packages
-
-#     packages_to_install += proc_hardware(c, conf)
-
-#     # User configurations
-#     dotfile_mngrs, configs_to_deploy = proc_user_dotfile_manager(conf)
-#     user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
-#     packages_to_install += user_packages
-
-#     for user, configs in prog_configs_to_deploy.items():
-#         prog_configs_to_deploy[user]["configs"] = configs["configs"] + configs_to_deploy.get(user, {}).get("configs", [])
-#     configs_to_deploy = prog_configs_to_deploy
-
-#     # configs_to_deploy = {
-#     #     k: configs_to_deploy.get(k, []) + prog_configs_to_deploy.get(k, [])
-#     #     for k in configs_to_deploy.keys() | prog_configs_to_deploy.keys()
-#     # }
-
-#     # Services
-#     service_pkgs_to_install, system_services_to_enable = proc_services(c, conf)
-#     packages_to_install += service_pkgs_to_install
-#     services_to_enable += system_services_to_enable
-
-#     packages_to_install = list(set(packages_to_install))
-#     print("packages\n",packages_to_install)
-
-#     pkgs_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
-
-#     print("\n====== Creating users ======")
-#     create_users(c, conf)
-
-#     print("\n====== Configuring users ======")
-#     configure_users(c, dotfile_mngrs, configs_to_deploy)
-
-#     print(f"Services to enable: {services_to_enable}")
-#     enable_services(c, services_to_enable, use_chroot=True)
-#     enable_user_services(c, user_services, use_chroot=True)
-#     # pkgs_installed += service_installed
-
-#     print("==== Deploying generation ====")
-#     deploy_generation(c, boot_partition, root_partition, 0, pkgs_installed, services_to_enable)
-
-#     print("Done")
-
-
 @task(help={"config": "system configuration file"})
 def install(c, config):
     "Install KodOS in /mnt"
@@ -1416,9 +1182,11 @@ def test_packages(c, config, switch=False):
     #     return
 
     # === Proc packages
-    repos, repo_packages = proc_repos(c, conf)
-    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
-    print("packages\n",packages_to_install)
+    # repos, repo_packages = proc_repos(c, conf)
+    # packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+    packages_to_install, packages_to_remove = proc_desktop(c, conf)
+    print("packages to install\n",packages_to_install)
+    print("packages to remove\n",packages_to_remove)
     # packages_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
 
     # === Proc services
