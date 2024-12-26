@@ -995,6 +995,23 @@ def rebuild(c, config, new_generation=False):
         current_generation = f.readline().strip()
     print(f"{current_generation = }")
 
+    # TODO: Clone current / into a tmp snapshot
+    # TODO: Try to rebuild: 
+    #    if new generation and fails, remove new created generation
+    #    if current is used and fails, roolback by copyng? tmp snapshot (not sure it will work)
+
+    if new_generation:
+        new_generation_id = int(generation) + 1
+        root_path = create_next_generation(
+            c,
+            boot_partition,
+            root_partition,
+            new_generation_id,
+            mount_point,
+        )
+    else:
+        root_path = "/"
+
     if os.path.isdir("/kod/current/installed_packages"):
         installed_packages_path = "/kod/current/installed_packages"
         services_enabled_path = "/kod/current/enabled_services"
@@ -1034,23 +1051,6 @@ def rebuild(c, config, new_generation=False):
     disable_services(c, services_to_disable, mount_point, use_chroot=use_chroot)
 
     # ======
-
-    # TODO: Clone current / into a tmp snapshot
-    # TODO: Try to rebuild: 
-    #    if new generation and fails, remove new created generation
-    #    if current is used and fails, roolback by copyng? tmp snapshot (not sure it will work)
-
-    if new_generation:
-        new_generation_id = int(generation) + 1
-        root_path = create_next_generation(
-            c,
-            boot_partition,
-            root_partition,
-            new_generation_id,
-            mount_point,
-        )
-    else:
-        root_path = "/"
 
     # try:
     if remove_pkg:
