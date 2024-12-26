@@ -1080,10 +1080,12 @@ def rebuild(c, config, new_generation=False):
     # enable_user_services(c, user_services_to_enable, use_chroot=True)
 
     if new_generation:
+        print("==== Deploying new generation ====")
         deploy_new_generation(
             c, boot_partition, root_partition, root_path, new_generation_id, packages_to_install, system_services_to_enable
         )
     else:
+        print("==== Rebuilding current generation ====")
         # Create a list of installed packages
         with open("/kod/current/installed_packages", "w") as f:
             f.write("\n".join(pkgs_installed))
