@@ -971,8 +971,10 @@ def install(c, config):
 @task(help={"config": "system configuration file"})
 def rebuild(c, config, new_generation=False):
     "Rebuild KodOS installation based on configuration file"
+    use_chroot = False
     if new_generation:
         print("Creating a new generation")
+        use_chroot = True
 
     conf = load_config(config)
     print("========================================")
@@ -1019,13 +1021,13 @@ def rebuild(c, config, new_generation=False):
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
     print(f"Services to enable: {system_services_to_enable}")
-    enable_services(c, system_services_to_enable, use_chroot=True)
+    enable_services(c, system_services_to_enable, use_chroot=use_chroot)
 
     # Services filtering
     services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
     new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
 
-    disable_services(c, services_to_disable)
+    disable_services(c, services_to_disable, use_chroot=use_chroot)
 
     # ======
 
@@ -1034,7 +1036,6 @@ def rebuild(c, config, new_generation=False):
     #    if new generation and fails, remove new created generation
     #    if current is used and fails, roolback by copyng? tmp snapshot (not sure it will work)
 
-    use_chroot = False
     if new_generation:
         new_generation_id = int(generation) + 1
         root_path = create_next_generation(
@@ -1044,10 +1045,8 @@ def rebuild(c, config, new_generation=False):
             new_generation_id,
             mount_point="/.new_rootfs",
         )
-        use_chroot = True
     else:
         root_path = "/"
-        use_chroot = False
 
     # try:
     if remove_pkg:
@@ -1063,7 +1062,7 @@ def rebuild(c, config, new_generation=False):
         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=use_chroot)
 
     # System services
-    enable_services(c, new_service_to_enable)
+    enable_services(c, new_service_to_enable, use_chroot=use_chroot)
 
     # # === Proc users
     # print("\n====== Processing users ======")
