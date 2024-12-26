@@ -722,30 +722,33 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
                 )
 
 
-def enable_services(c, list_of_services, use_chroot=False):
+def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
         print(f"Enabling service: {service}")
         if use_chroot:
-            exec_chroot(c, f"systemctl enable {service}")
+            exec_prefix = f"arch-chroot {mount_point}"
+            c.run(f"{exec_prefix} systemctl enable {service}")
         else:
             c.run(f"systemctl enable --now {service}")
 
 
-def disable_services(c, list_of_services, use_chroot=False):
+def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
         print(f"Disabling service: {service}")
         if use_chroot:
-            exec_chroot(c, f"systemctl disable {service}")
+            exec_prefix = f"arch-chroot {mount_point}"
+            c.run(f"{exec_prefix} systemctl disable {service}")
         else:
             c.run(f"systemctl disable --now {service}")
 
 
-def enable_user_services(c, list_of_services_user, use_chroot=False):
+def enable_user_services(c, list_of_services_user, mount_point="/mnt", use_chroot=False):
     for user, services in list_of_services_user.items():
         print(f"Enabling service: {services} for {user}")
         if use_chroot:
+            exec_prefix = f"arch-chroot {mount_point}"
             for service in services:
-                exec_chroot(c, f"su {user} -c 'systemctl --user enable {service}'")
+                c.run(f"{exec_prefix} su {user} -c 'systemctl --user enable {service}'")
         else:
             for service in services:
                 c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
@@ -975,6 +978,7 @@ def rebuild(c, config, new_generation=False):
     if new_generation:
         print("Creating a new generation")
         use_chroot = True
+        mount_point="/.new_rootfs"
 
     conf = load_config(config)
     print("========================================")
@@ -1021,13 +1025,13 @@ def rebuild(c, config, new_generation=False):
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
     print(f"Services to enable: {system_services_to_enable}")
-    enable_services(c, system_services_to_enable, use_chroot=use_chroot)
+    enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
 
     # Services filtering
     services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
     new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
 
-    disable_services(c, services_to_disable, use_chroot=use_chroot)
+    disable_services(c, services_to_disable, mount_point, use_chroot=use_chroot)
 
     # ======
 
@@ -1043,7 +1047,7 @@ def rebuild(c, config, new_generation=False):
             boot_partition,
             root_partition,
             new_generation_id,
-            mount_point="/.new_rootfs",
+            mount_point,
         )
     else:
         root_path = "/"
