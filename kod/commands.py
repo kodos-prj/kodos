@@ -1043,8 +1043,6 @@ def rebuild(c, config, new_generation=False):
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
-    print(f"Services to enable: {system_services_to_enable}")
-    enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
 
     # Services filtering
     services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
@@ -1068,6 +1066,8 @@ def rebuild(c, config, new_generation=False):
         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=use_chroot)
 
     # System services
+    print(f"Services to enable: {new_service_to_enable}")
+    # enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
     enable_services(c, new_service_to_enable, mount_point, use_chroot=use_chroot)
 
     # # === Proc users

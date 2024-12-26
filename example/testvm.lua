@@ -140,7 +140,7 @@ return {
 
             services = {
                 syncthing = {
-                    enable = true,
+                    enable = false,
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
