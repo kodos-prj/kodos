@@ -979,6 +979,8 @@ def rebuild(c, config, new_generation=False):
         print("Creating a new generation")
         use_chroot = True
         mount_point="/.new_rootfs"
+    else:
+        mount_point="/"
 
     conf = load_config(config)
     print("========================================")
@@ -1066,7 +1068,7 @@ def rebuild(c, config, new_generation=False):
         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=use_chroot)
 
     # System services
-    enable_services(c, new_service_to_enable, use_chroot=use_chroot)
+    enable_services(c, new_service_to_enable, mount_point, use_chroot=use_chroot)
 
     # # === Proc users
     # print("\n====== Processing users ======")
