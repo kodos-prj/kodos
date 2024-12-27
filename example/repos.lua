@@ -10,9 +10,9 @@ function arch_repo(mirrors)
         repo = { "core", "extra" },
         commands = {
             install = "pacman -S --noconfirm --needed",
-            update = "pacman -Syu --noconfirm",
+            update = "pacman -Syu --noconfirm  --needed",
             remove = "pacman -Rscn --noconfirm",
-            update_db = "pacman -Sy --noconfirm",
+            update_db = "pacman -Syy --noconfirm",
         }
     }
 end

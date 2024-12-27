@@ -1096,7 +1096,7 @@ def rebuild(c, config, new_generation=False, update=False):
 
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        manage_packages(c, root_path, repos, "install", added_pkgs, chroot=use_chroot)
+        manage_packages(c, root_path, repos, "update", added_pkgs, chroot=use_chroot)
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
