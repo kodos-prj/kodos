@@ -309,6 +309,9 @@ def get_packages_to_install(c, conf):
     # System packages
     system_packages_to_install = proc_system_packages(conf)
 
+    # Font packages
+    font_packages_to_install = proc_fonts(conf)
+
     packages_to_install = list(
         set(
             desktop_packages_to_install
@@ -316,6 +319,7 @@ def get_packages_to_install(c, conf):
             + service_packages_to_install
             + user_packages_to_install
             + system_packages_to_install
+            + font_packages_to_install
         )
     )
     packages_to_remove = list(set(desktop_packages_to_remove))
@@ -700,6 +704,15 @@ def proc_user_services(conf):
 
     return services_to_enable_user
 
+
+
+def proc_fonts(conf):
+    packages_to_install = []
+    print("- processing fonts -----------")
+    fonts = conf.fonts
+    if fonts.packages:
+        packages_to_install += fonts.packages.values()
+    return packages_to_install
 
 def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
     print(f"{dotfile_mngrs=}")
