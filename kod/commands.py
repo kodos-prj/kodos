@@ -930,6 +930,14 @@ def create_next_generation(
     return mount_point
 
 
+def refresh_package_db(c, mount_point="/mnt", use_chroot=True):
+    if use_chroot:
+        exec_prefix = f"arch-chroot {mount_point}"
+    else:
+        exec_prefix = ""
+    c.run(f"{exec_prefix} pacman -Syy")
+
+
 ##############################################################################
 
 
@@ -985,7 +993,7 @@ def install(c, config):
 
 
 @task(help={"config": "system configuration file"})
-def rebuild(c, config, new_generation=False):
+def rebuild(c, config, new_generation=False, update=False):
     "Rebuild KodOS installation based on configuration file"
     use_chroot = False
     if new_generation:
@@ -1053,6 +1061,7 @@ def rebuild(c, config, new_generation=False):
     # Package filtering
     remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
     added_pkgs = set(packages_to_install) - set(installed_packages)
+    update_pkg = set(installed_packages) & set(packages_to_install)
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
@@ -1073,6 +1082,17 @@ def rebuild(c, config, new_generation=False):
                 manage_packages(c, root_path, repos, "remove", [pkg], chroot=use_chroot)
             except:
                 print(f"Unable to remove {pkg}")
+
+    if update and update_pkg:
+        print("Packages to update:", update_pkg)
+        refresh_package_db(c, mount_point, use_chroot=use_chroot)
+        manage_packages(c, root_path, repos, "update", update_pkg, chroot=use_chroot)
+
+        # for pkg in update_pkg:
+        #     try:
+        #         manage_packages(c, root_path, repos, "upgrade", [pkg], chroot=use_chroot)
+        #     except:
+        #         print(f"Unable to update {pkg}")
 
     if added_pkgs:
         print("Packages to install:", added_pkgs)
