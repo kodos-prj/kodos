@@ -12,11 +12,12 @@
       fhs = pkgs.buildFHSUserEnv {
         name = "kod";
         targetPkgs = pkgs: with pkgs; [
-            python311
+            python312
             poetry
             pyright
             lua
-            (with python311.pkgs; [
+            uv
+            (with python312.pkgs; [
                 pip
                 virtualenv
             ])

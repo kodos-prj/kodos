@@ -5,7 +5,7 @@ print("config.lua")
 disk = require("disk")
 repos = require("repos")
 dotmgr = require("dotfile_manager")
-genconf = require("generate_config")
+configs = require("configs")
 
 return {
     repos = {
@@ -96,7 +96,7 @@ return {
             programs = {
                 git = {
                     enable = true,
-                    create_config = genconf.config_git({
+                    config = configs.git({
                         user_name = "Antal Buss",
                         user_email = "antal.buss@gmail.com",
                     })
@@ -139,7 +139,14 @@ return {
             },
 
             services = {
-                "syncthing"
+                syncthing = {
+                    enable = false,
+                    config = configs.syncthing({
+                        service_name = "syncthing",
+                        options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                    }),
+                    -- extra_packages = { "aur:syncthing-gtk" },
+                }
             }
         },
     },
@@ -171,8 +178,29 @@ return {
             },
             cosmic = {
                 enable = false,
+                display_manager = "cosmic-greeter",
             },
         }
+    },
+
+    fonts = {
+        font_dir = true,
+        packages = {
+            -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
+            "ttf-firacode-nerd",
+            "ttf-nerd-fonts-symbols",
+            "ttf-nerd-fonts-symbols-common",
+            "ttf-sourcecodepro-nerd",
+            "ttf-fira-sans",
+            "ttf-fira-code",
+            -- "fira-code-symbols",
+            "ttf-liberation",
+            "noto-fonts-emoji",
+            "adobe-source-serif-fonts",
+            -- "source-serif",
+            "ttf-ubuntu-font-family",
+            "aur:ttf-work-sans",
+        },
     },
 
     packages = {
@@ -181,9 +209,10 @@ return {
         "less",
         "neovim",
         "htop",
+        "uv",
         "python-invoke",
         "git",
-        "poetry",
+        -- "poetry",
         "neofetch",
         "helix",
         -- "blueman", -- TODO: Maybe a better location is required
@@ -194,10 +223,19 @@ return {
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
         -- Fonts
-        "ttf-firacode-nerd",
-        "ttf-nerd-fonts-symbols",
-        "ttf-nerd-fonts-symbols-common",
-        "ttf-sourcecodepro-nerd",
+        -- "ttf-firacode-nerd",
+        -- "ttf-nerd-fonts-symbols",
+        -- "ttf-nerd-fonts-symbols-common",
+        -- "ttf-sourcecodepro-nerd",
+        -- "ttf-fira-sans",
+        -- "ttf-fira-code",
+        -- -- "fira-code-symbols",
+        -- "ttf-liberation",
+        -- "noto-fonts-emoji",
+        -- "adobe-source-serif-fonts",
+        -- -- "source-serif",
+        -- "ttf-ubuntu-font-family",
+        -- "aur:ttf-work-sans",
     },
 
     services = {
