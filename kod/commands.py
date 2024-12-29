@@ -795,16 +795,20 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume create /mnt/generations/{generation}/etc")
+    c.run(f"btrfs subvolume create /mnt/generations/{generation}/var")
 
     # Mounting first generation
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in subvolumes + ["boot"]:
+    for subv in subvolumes + ["boot", "etc", "var"]:
         c.run(f"mkdir -p /mnt/{subv}")
 
     c.run(f"mount {boot_part} /mnt/boot")
+    for subv in ["etc", "var"]:
+        c.run(f"mount -o subvol=generations/{generation}/{subv} {root_part} /mnt/{subv}")
 
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
@@ -824,9 +828,13 @@ def deploy_generation(
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
+    c.run("btrfs subvolume snapshot /mnt/etc /new_rootfs/current/etc")
+    c.run("btrfs subvolume snapshot /mnt/var /new_rootfs/current/var")
 
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
+    c.run(f"mount -o subvol=current/etc {root_part} /mnt/etc")
+    c.run(f"mount -o subvol=current/var {root_part} /mnt/var")
 
     c.run("mkdir -p /mnt/kod")
     c.run(f"mount {root_part} /mnt/kod")
@@ -1146,121 +1154,6 @@ def rebuild(c, config, new_generation=False, update=False):
             f.write("\n".join(system_services_to_enable))
 
     print("Done")
-
-
-
-# @task(help={"config": "system configuration file"})
-# def rebuild(c, config, new_generation=False):
-#     "Rebuild KodOS installation based on configuration file"
-#     if new_generation:
-#         print("Creating a new generation")
-
-#     conf = load_config(config)
-#     print("========================================")
-#     repos = load_repos()
-#     if repos is None:
-#         print("Missing repos information")
-#         return
-
-#     boot_partition, root_partition = get_partition_devices(conf)
-#     # pkg_list = list(conf.packages.values())
-#     pkg_list, rm_pkg_list, services_to_enable = get_packages_to_install(c, conf)
-#     pkg_list += proc_hardware(c, conf)
-#     service_list, sys_services_to_enable = proc_services(c, conf)
-#     pkg_list += service_list
-
-#     user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
-#     pkg_list += user_packages
-
-#     print("packages\n", pkg_list)
-#     generation = get_max_generation()
-#     with open("/.generation") as f:
-#         current_generation = f.readline().strip()
-#     print(f"{current_generation = }")
-
-#     if os.path.isdir("/kod/current/installed_packages"):
-#         installed_packages_path = "/kod/current/installed_packages"
-#         services_enabled_path = "/kod/current/enabled_services"
-#     else:
-#         installed_packages_path = (
-#             f"/kod/generations/{current_generation}/installed_packages"
-#         )
-#         services_enabled_path = (
-#             f"/kod/generations/{current_generation}/enabled_services"
-#         )
-
-#     with open(installed_packages_path) as f:
-#         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-#     print(inst_pkgs)
-
-#     with open(services_enabled_path) as f:
-#         services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-#     print(services_enabled)
-
-#     # Package filtering
-#     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
-#     added_pkgs = set(pkg_list) - set(inst_pkgs)
-
-#     # Services filtering
-#     services_to_enable += sys_services_to_enable
-#     services_to_disable = list(set(services_enabled) - set(services_to_enable))
-#     new_service_to_enable = list(set(services_to_enable) - set(services_enabled))
-
-#     disable_services(c, services_to_disable)
-
-#     if new_generation:
-#         new_generation_id = int(generation) + 1
-#         root_path = create_next_generation(
-#             c,
-#             boot_partition,
-#             root_partition,
-#             new_generation_id,
-#             mount_point="/.new_rootfs",
-#         )
-#     else:
-#         root_path = "/"
-
-#     # try:
-#     if remove_pkg:
-#         print("Packages to remove:", remove_pkg)
-#         for pkg in remove_pkg:
-#             try:
-#                 # if pkg in services_to_disable:
-#                 #     disable_services(c, [pkg,])
-#                 #     services_to_disable.remove(pkg)
-#                 manage_packages(
-#                     c,
-#                     root_path,
-#                     repos,
-#                     "remove",
-#                     [
-#                         pkg,
-#                     ],
-#                     chroot=True,
-#                 )
-#             except:
-#                 print(f"Unable to remove {pkg}")
-#                 pass
-#     if added_pkgs:
-#         print("Packages to install:", added_pkgs)
-#         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=True)
-
-#     # print("\n====== Configuring users ======")
-#     # configure_users(c, dotfile_mngrs, configs_to_deploy)
-
-#     enable_services(c, new_service_to_enable)
-#     enable_user_services(c, user_services)
-
-#     if new_generation:
-#         deploy_new_generation(
-#             c, boot_partition, root_partition, root_path, new_generation_id, pkg_list
-#         )
-#     else:
-#         # Create a list of installed packages
-#         with open("/kod/current/installed_packages", "w") as f:
-#             f.write("\n".join(pkgs_installed))
-
-#     print("Done")
 
 
 @task(help={"generation": "Generation number to rollback to"})
