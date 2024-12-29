@@ -803,12 +803,15 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in subvolumes + ["boot", "etc", "var"]:
+    for subv in ["boot", "home", "root"]:
         c.run(f"mkdir -p /mnt/{subv}")
 
     c.run(f"mount {boot_part} /mnt/boot")
     for subv in ["etc", "var"]:
         c.run(f"mount -o subvol=generations/{generation}/{subv} {root_part} /mnt/{subv}")
+
+    for subv in ["var/log", "var/tmp", "var/cache", "var/kod"]:
+        c.run(f"mkdir -p /mnt/{subv}")
 
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
