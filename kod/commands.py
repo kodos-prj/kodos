@@ -354,6 +354,22 @@ def update_fstab(c, root_path, mount_point, subvol_id):
             f.write("\t".join(cols) + "\n")
 
 
+def set_ro_mount(c, mount_point):
+    c.run(f"mount -o remount,ro {mount_point}")
+
+def change_ro_mount(c, root_path):
+    with open(f"{root_path}/etc/fstab") as f:
+        fstab = f.readlines()
+    with open(f"{root_path}/etc/fstab", "w") as f:
+        for line in fstab:
+            if line[0] == "#":
+                f.write(line)
+                continue
+            cols = line.split()
+            if len(cols) > 4 and cols[1] == "/":
+                cols[3] = re.sub(r"rw,", "ro,", cols[3])
+            f.write("\t".join(cols) + "\n")
+
 def get_max_generation():
     generations = glob.glob("/kod/generations/*")
     generations = [p.split("/")[-1] for p in generations]
@@ -778,7 +794,7 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
 
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
-    c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume create -r /mnt/generations/{generation}/rootfs")
 
     # Mounting first generation
     c.run("umount -R /mnt")
@@ -829,7 +845,8 @@ def deploy_generation(
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
-    # TODO: Update to use read only for rootfs
+    # Update to use read only for rootfs
+    change_ro_mount(c, "/mnt")
 
     exec_chroot(c, "mkinitcpio -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
