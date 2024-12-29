@@ -10,9 +10,9 @@ function arch_repo(mirrors)
         repo = { "core", "extra" },
         commands = {
             install = "pacman -S --noconfirm --needed",
-            update = "pacman -Syu --noconfirm",
+            update = "pacman -Syu --noconfirm  --needed",
             remove = "pacman -Rscn --noconfirm",
-            update_db = "pacman -Sy --noconfirm",
+            update_db = "pacman -Syy --noconfirm",
         }
     }
 end
@@ -56,7 +56,7 @@ function flatpak_repo(repo, run_as_root)
         package = "flatpak",
         commands = {
             install = "flatpak install -y " .. repo,
-            update = "flatpak update -y " .. repo,
+            update = "flatpak upgrate -y ",
             remove = "flatpak uninstall -y " .. repo,
             -- run_as_root = run_as_root or true,
         }
