@@ -212,13 +212,43 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
+    # Initcpio hooks
+    install_hook = """#!/bin/bash
+build() {
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+This is a custom initcpio hook for mounting /etc, and /var subvolumes to /var, and /etc, respectively.
+HELPEOF
+}
+    """
+    # To be added to /etc/initcpio/install
+    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+        f.write(install_hook)
+
+    run_hook = """#!/bin/bash
+run_latehook() {
+	mountopts="rw,relatime,ssd,space_cache"	
+
+	echo "→ mounting subvolume 'current/var' at '/var'"
+	mount -o "$mountopts,subvol=/current/var" /dev/vda3 /new_root/var
+    echo "→ mounting subvolume 'current/etc' at '/etc'"
+	mount -o "$mountopts,subvol=/current/etc" /dev/vda3 /new_root/etc
+}
+    """
+    # To be added to /etc/initcpio/hooks/
+    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+        f.write(run_hook)
+
     # initramfs
     exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
     exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
     exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
     exec_chroot(
         c,
-        "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf",
+        "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)' >> /etc/mkinitcpio.conf",
     )
 
     exec_chroot(c, "mkinitcpio -P")
@@ -357,6 +387,7 @@ def update_fstab(c, root_path, mount_point, subvol_id):
 def set_ro_mount(c, mount_point):
     c.run(f"mount -o remount,ro {mount_point}")
 
+
 def change_ro_mount(c, root_path):
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
@@ -369,6 +400,7 @@ def change_ro_mount(c, root_path):
             if len(cols) > 4 and cols[1] == "/":
                 cols[3] = re.sub(r"rw,", "ro,", cols[3])
             f.write("\t".join(cols) + "\n")
+
 
 def get_max_generation():
     generations = glob.glob("/kod/generations/*")
