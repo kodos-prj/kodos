@@ -243,15 +243,23 @@ run_latehook() {
         f.write(run_hook)
 
     # initramfs
-    exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(
-        c,
-        "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)' >> /etc/mkinitcpio.conf",
-    )
+    mkinitcpio_conf = """MODULES=(btrfs)
+BINARIES=()
+FILES=()
+HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+"""
+    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+        f.write(mkinitcpio_conf)
 
-    exec_chroot(c, "mkinitcpio -P")
+    # exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
+    # exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
+    # exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
+    # exec_chroot(
+    #     c,
+    #     "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)' >> /etc/mkinitcpio.conf",
+    # )
+
+    exec_chroot(c, "mkinitcpio -A kodos -P")
 
 
 def setup_bootloader(c, conf):
@@ -889,9 +897,9 @@ def deploy_generation(
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
-    change_ro_mount(c, "/mnt")
+    # change_ro_mount(c, "/mnt")
 
-    exec_chroot(c, "mkinitcpio -P")
+    exec_chroot(c, "mkinitcpio -A kodos -P ")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
@@ -940,7 +948,7 @@ def deploy_new_generation(
     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
     # TODO: Update to use read only for rootfs
 
-    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
+    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
 
