@@ -897,7 +897,7 @@ def deploy_generation(
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
-    # change_ro_mount(c, "/mnt")
+    change_ro_mount(c, "/mnt")
 
     exec_chroot(c, "mkinitcpio -A kodos -P ")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
