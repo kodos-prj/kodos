@@ -228,13 +228,13 @@ HELPEOF
     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
         f.write(install_hook)
 
-    run_hook = """#!/bin/bash
+    run_hook = """#!/usr/bin/ash
 run_latehook() {
 	mountopts="rw,relatime,ssd,space_cache"	
 
-	echo "→ mounting subvolume 'current/var' at '/var'"
+	msg "→ mounting subvolume 'current/var' at '/var'"
 	mount -o "$mountopts,subvol=/current/var" /dev/vda3 /new_root/var
-    echo "→ mounting subvolume 'current/etc' at '/etc'"
+    msg "→ mounting subvolume 'current/etc' at '/etc'"
 	mount -o "$mountopts,subvol=/current/etc" /dev/vda3 /new_root/etc
 }
     """
