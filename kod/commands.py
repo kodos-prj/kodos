@@ -919,10 +919,14 @@ def deploy_new_generation(
         c.run("rm -rf /kod/current/rootfs-old")
     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+    c.run(f"btrfs subvolume snapshot {new_rootfs}/etc /kod/current/etc")
+    c.run(f"btrfs subvolume snapshot {new_rootfs}/var /kod/current/var")
 
     new_current_rootfs = "/.new_current_rootfs"
     c.run(f"mkdir -p {new_current_rootfs}")
     c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
+    c.run(f"mount -o subvol=current/etc {root_part} {new_current_rootfs}/etc")
+    c.run(f"mount -o subvol=current/var {root_part} {new_current_rootfs}/var")
 
     c.run(f"mkdir -p {new_current_rootfs}/kod")
     c.run(f"mount {root_part} {new_current_rootfs}/kod")
@@ -952,7 +956,7 @@ def deploy_new_generation(
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
 
-    for subv in subvolumes + ["boot"]:
+    for subv in subvolumes + ["boot", "etc", "var"]:
         try:
             c.run(f"umount -R {new_rootfs}/{subv}")
         except:
@@ -975,6 +979,8 @@ def create_next_generation(
     # Create generation
     c.run(f"mkdir -p /kod/generations/{generation}")
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume snapshot /etc /kod/generations/{generation}/etc")
+    c.run(f"btrfs subvolume snapshot /var /kod/generations/{generation}/var")
 
     # Mounting generation
     if os.path.ismount(mount_point):
@@ -984,6 +990,8 @@ def create_next_generation(
     c.run(f"mkdir -p {mount_point}")
 
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    c.run(f"mount -o subvol=generations/{generation}/etc {root_part} {mount_point}/etc")
+    c.run(f"mount -o subvol=generations/{generation}/var {root_part} {mount_point}/var")
     c.run(f"mount {boot_part} {mount_point}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
