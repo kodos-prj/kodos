@@ -115,6 +115,51 @@ def create_users(c, conf):
                 exec_chroot(c, f"passwd {user}")
 
 
+def initrd_setup(c, base_subvol, root_device):
+
+    # Initcpio hooks
+    install_hook = """#!/bin/bash
+build() {
+    add_runscript
+}
+
+help() {
+    cat <<HELPEOF
+This is a custom initcpio hook for mounting /etc, and /var subvolumes to /var, and /etc, respectively.
+HELPEOF
+}
+    """
+    # To be added to /etc/initcpio/install
+    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+        f.write(install_hook)
+    
+    run_hook = f"""#!/usr/bin/ash
+run_latehook() {{
+	mountopts="rw,relatime,ssd,space_cache"	
+
+	msg "→ mounting subvolume '{base_subvol}/var' at '/var'"
+	mount -o "$mountopts,subvol={base_subvol}/var" {root_device} /new_root/var
+    msg "→ mounting subvolume '{base_subvol}/etc' at '/etc'"
+	mount -o "$mountopts,subvol={base_subvol}/etc" {root_device} /new_root/etc
+}}
+    """
+    # To be added to /etc/initcpio/hooks/
+    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+        f.write(run_hook)
+
+    # initramfs
+    mkinitcpio_conf = """MODULES=(btrfs)
+BINARIES=()
+FILES=()
+HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+"""
+    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+        f.write(mkinitcpio_conf)
+
+    exec_chroot(c, "mkinitcpio -A kodos -P")
+
+
+
 def configure_system(c, conf, boot="systemd-boot"):
     # fstab
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
@@ -212,54 +257,59 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
-    # Initcpio hooks
-    install_hook = """#!/bin/bash
-build() {
-    add_runscript
-}
 
-help() {
-    cat <<HELPEOF
-This is a custom initcpio hook for mounting /etc, and /var subvolumes to /var, and /etc, respectively.
-HELPEOF
-}
-    """
-    # To be added to /etc/initcpio/install
-    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
-        f.write(install_hook)
+    initrd_setup(c, "/current", "/dev/vda3")
 
-    run_hook = """#!/usr/bin/ash
-run_latehook() {
-	mountopts="rw,relatime,ssd,space_cache"	
+#     # Initcpio hooks
+#     install_hook = """#!/bin/bash
+# build() {
+#     add_runscript
+# }
 
-	msg "→ mounting subvolume 'current/var' at '/var'"
-	mount -o "$mountopts,subvol=/current/var" /dev/vda3 /new_root/var
-    msg "→ mounting subvolume 'current/etc' at '/etc'"
-	mount -o "$mountopts,subvol=/current/etc" /dev/vda3 /new_root/etc
-}
-    """
-    # To be added to /etc/initcpio/hooks/
-    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
-        f.write(run_hook)
+# help() {
+#     cat <<HELPEOF
+# This is a custom initcpio hook for mounting /etc, and /var subvolumes to /var, and /etc, respectively.
+# HELPEOF
+# }
+#     """
+#     # To be added to /etc/initcpio/install
+#     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+#         f.write(install_hook)
 
-    # initramfs
-    mkinitcpio_conf = """MODULES=(btrfs)
-BINARIES=()
-FILES=()
-HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
-"""
-    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
-        f.write(mkinitcpio_conf)
 
-    # exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
-    # exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
-    # exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    # exec_chroot(
-    #     c,
-    #     "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)' >> /etc/mkinitcpio.conf",
-    # )
 
-    exec_chroot(c, "mkinitcpio -A kodos -P")
+#     run_hook = """#!/usr/bin/ash
+# run_latehook() {
+# 	mountopts="rw,relatime,ssd,space_cache"	
+
+# 	msg "→ mounting subvolume 'current/var' at '/var'"
+# 	mount -o "$mountopts,subvol=/current/var" /dev/vda3 /new_root/var
+#     msg "→ mounting subvolume 'current/etc' at '/etc'"
+# 	mount -o "$mountopts,subvol=/current/etc" /dev/vda3 /new_root/etc
+# }
+#     """
+#     # To be added to /etc/initcpio/hooks/
+#     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+#         f.write(run_hook)
+
+#     # initramfs
+#     mkinitcpio_conf = """MODULES=(btrfs)
+# BINARIES=()
+# FILES=()
+# HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+# """
+#     with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+#         f.write(mkinitcpio_conf)
+
+#     # exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
+#     # exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
+#     # exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
+#     # exec_chroot(
+#     #     c,
+#     #     "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)' >> /etc/mkinitcpio.conf",
+#     # )
+
+#     exec_chroot(c, "mkinitcpio -A kodos -P")
 
 
 def setup_bootloader(c, conf):
@@ -899,7 +949,9 @@ def deploy_generation(
     # Update to use read only for rootfs
     change_ro_mount(c, "/mnt")
 
-    exec_chroot(c, "mkinitcpio -A kodos -P ")
+    # exec_chroot(c, "mkinitcpio -A kodos -P ")
+    initrd_setup(c, "/current", {root_part})
+
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
@@ -952,7 +1004,9 @@ def deploy_new_generation(
     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
     # TODO: Update to use read only for rootfs
 
-    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
+    # c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
+    initrd_setup(c, {new_current_rootfs}, {root_part})
+
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
 
