@@ -1051,6 +1051,9 @@ def install(c, config):
     )
 
     print("Done")
+    c.run("mount -o subvol=store/root /dev/vda3 /mnt")
+    c.run("cp /root/kodos /mnt")
+    print(" Done installing KodOS")
 
 
 @task(help={"config": "system configuration file"})
