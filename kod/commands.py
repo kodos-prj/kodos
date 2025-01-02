@@ -970,6 +970,10 @@ def deploy_new_generation(
     if os.path.isdir("/kod/current/rootfs-old"):
         c.run("rm -rf /kod/current/rootfs-old")
     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
+    c.run("mv /kod/current/etc /kod/current/etc-old")
+    c.run("mv /kod/current/var /kod/current/var-old")
+
+    print("Creating new current subvolumes")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
     c.run(f"btrfs subvolume snapshot {new_rootfs}/etc /kod/current/etc")
     c.run(f"btrfs subvolume snapshot {new_rootfs}/var /kod/current/var")
@@ -1005,7 +1009,7 @@ def deploy_new_generation(
     # TODO: Update to use read only for rootfs
 
     # c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
-    initrd_setup(c, new_current_rootfs, root_part, new_current_rootfs)
+    initrd_setup(c, new_current_rootfs, root_part, new_rootfs)
 
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
