@@ -898,40 +898,18 @@ def deploy_generation(
 
 
 # Used for rebuild
-def deploy_new_generation(c, boot_part, current_root_part, new_root_path, mount_point, generation):
+def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , mount_point, generation):
     print("===================================")
     print("== Deploying generation ==")
     print(f"{new_root_path=}")
-    print(f"{mount_point=}")
+    # print(f"{mount_point=}")
 
     # if os.path.isdir("/kod/current/next_rootfs"):
     #     c.run("rm -rf /kod/current/next_rootfs")
     #     c.run("rm -rf /kod/current/next_usr")
 
-    # c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
-    c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/next_rootfs")
-    c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/next_usr")
-
-    # new_current_rootfs = "/.new_current_rootfs"
-    # c.run(f"mkdir -p {new_current_rootfs}")
-    # c.run(f"mount -o subvol=current/next_rootfs {root_part} {new_current_rootfs}")
-    # c.run(f"mount -o subvol=current/next_usr {root_part} {new_current_rootfs}/usr")
-
     c.run(f"mkdir -p {new_root_path}/kod")
     c.run(f"mount {current_root_part} {new_root_path}/kod")
-
-    # Create a list of installed packages
-    # with open(
-    #     f"{new_current_rootfs}/kod/generations/{generation}/installed_packages", "w"
-    # ) as f:
-    #     f.write("\n".join(pkgs_installed))
-    # # Create a list of services enabled 
-    # with open(f"{new_current_rootfs}/kod/generations/{generation}/enabled_services", "w") as f:
-    #         f.write("\n".join(services_enabled))
-
-    # # Write generation number
-    # with open(f"{new_current_rootfs}/.generation", "w") as f:
-    #     f.write(str(generation))
 
     c.run(f"mount {boot_part} {new_root_path}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
@@ -952,8 +930,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path, mount_
     c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
     c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
 
-    # c.run(f"umount -R {new_current_rootfs}")
-
     for subv in subvolumes + ["boot", "kod"]:
         try:
             c.run(f"umount -R {new_root_path}/{subv}")
@@ -965,8 +941,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path, mount_
         print(f"Subvolume {new_root_path} is not mounted")
 
     # c.run(f"rm -rf {mount_point}")
-
-    # c.run(f"rm -rf {new_current_rootfs}")
 
     print("===================================")
 
@@ -1036,13 +1010,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path, mount_
 # Used for rebuild
 def create_next_generation(c, boot_part, root_part, generation, mount_point):
     # Create generation
-    # c.run(f"mkdir -p /kod/generations/{generation}")
     c.run(f"mkdir -p {mount_point}")
-    # TODO: rename instead of recreate the whole filesystem
-    # c.run(f"mv /kod/generations/next_generation /kod/generations/{generation}")
 
-    # c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
-    # c.run(f"btrfs subvolume snapshot /usr /kod/generations/{generation}/usr")
     c.run(f"btrfs subvolume snapshot / {mount_point}/rootfs")
     c.run(f"btrfs subvolume snapshot /usr {mount_point}/usr")
 
@@ -1054,8 +1023,6 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point):
 
     c.run(f"mkdir -p {next_current}")
 
-    # c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
-    # c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {mount_point}/usr")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
     c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
     c.run(f"mount {boot_part} {next_current}/boot")
@@ -1258,7 +1225,7 @@ def rebuild(c, config, new_generation=False, update=False):
     if new_generation:
         print("==== Deploying new generation ====")
         new_mount_point = mount_point
-        deploy_new_generation(c, boot_partition, root_partition, new_root_path, mount_point, generation_id)
+        deploy_new_generation(c, boot_partition, root_partition, new_root_path) #, mount_point, generation_id)
     else:
         print("==== Rebuilding current generation ====")
         new_mount_point = "/kod/current"
