@@ -923,6 +923,9 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
     # Rename rootfs to old_rootfs
+    if os.path.isdir("/kod/current/old_rootfs"):
+        c.run("rm -rf /kod/current/old_rootfs")
+        c.run("rm -rf /kod/current/old_usr")
     c.run("mv /kod/current/rootfs /kod/current/old_rootfs")
     c.run("mv /kod/current/usr /kod/current/old_usr")
 
