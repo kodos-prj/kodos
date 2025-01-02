@@ -950,7 +950,7 @@ def deploy_generation(
     change_ro_mount(c, "/mnt")
 
     # exec_chroot(c, "mkinitcpio -A kodos -P ")
-    initrd_setup(c, "/current", {root_part})
+    initrd_setup(c, "/current", root_part)
 
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
@@ -1005,7 +1005,7 @@ def deploy_new_generation(
     # TODO: Update to use read only for rootfs
 
     # c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
-    initrd_setup(c, {new_current_rootfs}, {root_part})
+    initrd_setup(c, new_current_rootfs, root_part)
 
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
