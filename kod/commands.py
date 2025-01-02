@@ -862,7 +862,7 @@ def deploy_generation(
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
-    c.run("btrfs subvolume snapshot -r /mnt/usr /new_rootfs/current/usr")
+    c.run("btrfs subvolume snapshot /mnt/usr /new_rootfs/current/usr")
 
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
