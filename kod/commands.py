@@ -153,7 +153,7 @@ BINARIES=()
 FILES=()
 HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
 """
-    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+    with open(f"{mount_point}/etc/mkinitcpio.conf", "w") as f:
         f.write(mkinitcpio_conf)
 
     exec_chroot(c, "mkinitcpio -A kodos -P")
