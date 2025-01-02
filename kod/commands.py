@@ -137,10 +137,10 @@ HELPEOF
 run_latehook() {{
 	mountopts="rw,relatime,ssd,space_cache"	
 
-	msg "→ mounting subvolume '{base_subvol}/var' at '/var'"
-	mount -o "$mountopts,subvol={base_subvol}/var" {root_device} /new_root/var
+    msg "→ mounting subvolume '{base_subvol}/var' at '/var'"
+    mount -o "$mountopts,subvol={base_subvol}/var" {root_device} /var
     msg "→ mounting subvolume '{base_subvol}/etc' at '/etc'"
-	mount -o "$mountopts,subvol={base_subvol}/etc" {root_device} /new_root/etc
+    mount -o "$mountopts,subvol={base_subvol}/etc" {root_device} /etc
 }}
     """
     # To be added to /etc/initcpio/hooks/
