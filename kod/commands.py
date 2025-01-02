@@ -889,7 +889,7 @@ def deploy_generation(
     # Update to use read only for rootfs
     # change_ro_mount(c, "/mnt")
 
-    exec_chroot(c, "mkinitcpio -P")
+    exec_chroot(c, "mkinitcpio -A kodos -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
@@ -909,10 +909,12 @@ def deploy_new_generation(
         c.run("rm -rf /kod/current/rootfs-old")
     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+    c.run(f"btrfs subvolume snapshot -r {new_rootfs}/usr /kod/current/usr")
 
     new_current_rootfs = "/.new_current_rootfs"
     c.run(f"mkdir -p {new_current_rootfs}")
     c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
+    c.run(f"mount -o subvol=current/usr {root_part} {new_current_rootfs}/usr")
 
     c.run(f"mkdir -p {new_current_rootfs}/kod")
     c.run(f"mount {root_part} {new_current_rootfs}/kod")
@@ -938,7 +940,7 @@ def deploy_new_generation(
     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
     # TODO: Update to use read only for rootfs
 
-    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
+    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
 
