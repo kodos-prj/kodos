@@ -402,7 +402,7 @@ def change_ro_mount(c, root_path):
                 f.write(line)
                 continue
             cols = line.split()
-            if len(cols) > 4 and cols[1] == "/":
+            if len(cols) > 4 and cols[1] == "/usr":
                 cols[3] = re.sub(r"rw,", "ro,", cols[3])
             f.write("\t".join(cols) + "\n")
 
@@ -966,6 +966,7 @@ def create_next_generation(
     # Create generation
     c.run(f"mkdir -p /kod/generations/{generation}")
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume snapshot -r /usr /kod/generations/{generation}/usr")
 
     # Mounting generation
     if os.path.ismount(mount_point):
@@ -975,6 +976,7 @@ def create_next_generation(
     c.run(f"mkdir -p {mount_point}")
 
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {mount_point}/usr")
     c.run(f"mount {boot_part} {mount_point}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
