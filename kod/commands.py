@@ -242,9 +242,8 @@ HELPEOF
 run_latehook() {
 	mountopts="rw,relatime,ssd,space_cache"	
     msg "→ mounting subvolume '/current/usr' at '/usr'"
-    mount -o "$mountopts,subvol=current/var" /dev/vda3 /new_root/usr
-    }
-    """
+    mount -o "$mountopts,subvol=current/usr" /dev/vda3 /new_root/usr
+}"""
     # To be added to /etc/initcpio/hooks/
     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
         f.write(run_hook)
