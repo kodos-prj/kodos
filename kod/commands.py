@@ -212,16 +212,53 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
-    # initramfs
-    exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(
-        c,
-        "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf",
-    )
+    # # initramfs
+    # exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
+    # exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
+    # exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
+    # exec_chroot(
+    #     c,
+    #     "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf",
+    # )
 
-    exec_chroot(c, "mkinitcpio -P")
+    # exec_chroot(c, "mkinitcpio -P")
+
+    # Initcpio hooks
+    install_hook = """#!/bin/bash
+build() {
+    add_runscript
+}
+help() {
+    cat <<HELPEOF
+This is a custom initcpio hook for mounting /usr subvolume to /usr.
+HELPEOF
+}
+    """
+    # To be added to /etc/initcpio/install
+    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+        f.write(install_hook)
+
+    run_hook = """#!/usr/bin/ash
+run_latehook() {
+	mountopts="rw,relatime,ssd,space_cache"	
+    msg "→ mounting subvolume '/current/usr' at '/usr'"
+    mount -o "$mountopts,subvol=current/var" /dev/vda3 /new_root/usr
+    }
+    """
+    # To be added to /etc/initcpio/hooks/
+    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+        f.write(run_hook)
+
+    # initramfs
+    mkinitcpio_conf = """MODULES=(btrfs)
+BINARIES=()
+FILES=()
+HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+"""
+    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+        f.write(mkinitcpio_conf)
+
+    exec_chroot(c, "mkinitcpio -A kodos -P")
 
 
 def setup_bootloader(c, conf):
@@ -795,20 +832,18 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
-    c.run(f"btrfs subvolume create /mnt/generations/{generation}/etc")
-    c.run(f"btrfs subvolume create /mnt/generations/{generation}/var")
+    c.run(f"btrfs subvolume create /mnt/generations/{generation}/usr")
 
     # Mounting first generation
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in subvolumes + ["boot", "etc", "var"]:
+    for subv in subvolumes + ["boot", "usr"]:
         c.run(f"mkdir -p /mnt/{subv}")
 
     c.run(f"mount {boot_part} /mnt/boot")
-    for subv in ["etc", "var"]:
-        c.run(f"mount -o subvol=generations/{generation}/{subv} {root_part} /mnt/{subv}")
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
 
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
@@ -828,13 +863,11 @@ def deploy_generation(
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
-    c.run("btrfs subvolume snapshot /mnt/etc /new_rootfs/current/etc")
-    c.run("btrfs subvolume snapshot /mnt/var /new_rootfs/current/var")
+    c.run("btrfs subvolume snapshot -r /mnt/usr /new_rootfs/current/usr")
 
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
-    c.run(f"mount -o subvol=current/etc {root_part} /mnt/etc")
-    c.run(f"mount -o subvol=current/var {root_part} /mnt/var")
+    c.run(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
     c.run("mkdir -p /mnt/kod")
     c.run(f"mount {root_part} /mnt/kod")
@@ -854,7 +887,7 @@ def deploy_generation(
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
-    change_ro_mount(c, "/mnt")
+    # change_ro_mount(c, "/mnt")
 
     exec_chroot(c, "mkinitcpio -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
