@@ -1056,8 +1056,8 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point):
 
     # c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
     # c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {mount_point}/usr")
-    c.run(f"mount -o subvol={mount_point}/rootfs {root_part} {next_current}")
-    c.run(f"mount -o subvol={mount_point}/usr {root_part} {next_current}/usr")
+    c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
     c.run(f"mount {boot_part} {next_current}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
