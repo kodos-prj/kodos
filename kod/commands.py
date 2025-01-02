@@ -115,7 +115,7 @@ def create_users(c, conf):
                 exec_chroot(c, f"passwd {user}")
 
 
-def initrd_setup(c, base_subvol, root_device):
+def initrd_setup(c, base_subvol, root_device, mount_point="/mnt"):
 
     # Initcpio hooks
     install_hook = """#!/bin/bash
@@ -130,7 +130,7 @@ HELPEOF
 }
     """
     # To be added to /etc/initcpio/install
-    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+    with open(f"{mount_point}/etc/initcpio/install/kodos", "w") as f:
         f.write(install_hook)
     
     run_hook = f"""#!/usr/bin/ash
@@ -144,7 +144,7 @@ run_latehook() {{
 }}
     """
     # To be added to /etc/initcpio/hooks/
-    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+    with open(f"{mount_point}/etc/initcpio/hooks/kodos", "w") as f:
         f.write(run_hook)
 
     # initramfs
@@ -258,7 +258,7 @@ aliases=user_env
         f.write(venv_fstab)
 
 
-    initrd_setup(c, "/current", "/dev/vda3")
+    initrd_setup(c, "/current", "/dev/vda3", "/mnt")
 
 #     # Initcpio hooks
 #     install_hook = """#!/bin/bash
@@ -950,7 +950,7 @@ def deploy_generation(
     change_ro_mount(c, "/mnt")
 
     # exec_chroot(c, "mkinitcpio -A kodos -P ")
-    initrd_setup(c, "/current", root_part)
+    initrd_setup(c, "/current", root_part, "/mnt")
 
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
@@ -1005,7 +1005,7 @@ def deploy_new_generation(
     # TODO: Update to use read only for rootfs
 
     # c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
-    initrd_setup(c, new_current_rootfs, root_part)
+    initrd_setup(c, new_current_rootfs, root_part, new_current_rootfs)
 
     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
     c.run(f"umount -R {new_current_rootfs}")
