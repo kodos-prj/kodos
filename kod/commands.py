@@ -908,7 +908,7 @@ def deploy_new_generation(
         c.run("rm -rf /kod/current/rootfs-old")
     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
     c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
-    c.run(f"btrfs subvolume snapshot -r {new_rootfs}/usr /kod/current/usr")
+    c.run(f"btrfs subvolume snapshot {new_rootfs}/usr /kod/current/usr")
 
     new_current_rootfs = "/.new_current_rootfs"
     c.run(f"mkdir -p {new_current_rootfs}")
@@ -966,7 +966,7 @@ def create_next_generation(
     # Create generation
     c.run(f"mkdir -p /kod/generations/{generation}")
     c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
-    c.run(f"btrfs subvolume snapshot -r /usr /kod/generations/{generation}/usr")
+    c.run(f"btrfs subvolume snapshot /usr /kod/generations/{generation}/usr")
 
     # Mounting generation
     if os.path.ismount(mount_point):
