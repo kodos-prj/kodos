@@ -902,18 +902,30 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     print("== Deploying generation ==")
     print(f"{new_root_path=}")
 
-    c.run(f"mkdir -p {new_root_path}/kod")
-    c.run(f"mount {current_root_part} {new_root_path}/kod")
-
-    c.run(f"mount {boot_part} {new_root_path}/boot")
-    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for subv in subvolumes:
-        c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_root_path}/{subv}")
-    
+    # Makes generation usable 
     c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
 
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
-    c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
+    # c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
+
+    c.run(f"umount -R {new_root_path}")
+
+    new_rootfs = "/.new_rootfs"
+    c.run(f"mkdir -p {new_rootfs}")
+    c.run(f"mkdir -p {new_rootfs}/kod")
+    c.run(f"mount {current_root_part} {new_rootfs}/kod")
+
+    c.run(f"mount {boot_part} {new_rootfs}/boot")
+    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for subv in subvolumes:
+        c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
+    
+    c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
+
+    set_ro_mount(c, new_rootfs)
+
+    c.run(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
+    c.run(f"arch-chroot {new_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
 
     # Rename rootfs to old_rootfs
     if os.path.isdir("/kod/current/old_rootfs"):
@@ -923,21 +935,24 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run("mv /kod/current/usr /kod/current/old_usr")
 
     # Recreate the current rootfs         
-    c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
-    c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
+    c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+    c.run(f"btrfs subvolume snapshot {new_rootfs}/usr /kod/current/usr")
 
-    update_fstab(c, "/kod/current/rootfs", {"/":"current/rootfs", "/usr":"current/usr"})
+    c.run(f"umount -R {new_rootfs}")
+    c.run(f"rm -rf {new_rootfs}")
+
+    # update_fstab(c, "/kod/current/rootfs", {"/":"current/rootfs", "/usr":"current/usr"})
     # change_ro_mount(c, "/kod/current/rootfs")
 
-    for subv in subvolumes + ["boot", "kod"]:
-        try:
-            c.run(f"umount -R {new_root_path}/{subv}")
-        except:
-            print(f"Subvolume {new_root_path}/{subv} is not mounted")
-    try:
-        c.run(f"umount -R {new_root_path}")
-    except:
-        print(f"Subvolume {new_root_path} is not mounted")
+    # for subv in subvolumes + ["boot", "kod"]:
+    #     try:
+    #         c.run(f"umount -R {new_root_path}/{subv}")
+    #     except:
+    #         print(f"Subvolume {new_root_path}/{subv} is not mounted")
+    # try:
+    #     c.run(f"umount -R {new_root_path}")
+    # except:
+    #     print(f"Subvolume {new_root_path} is not mounted")
 
     # c.run(f"rm -rf {mount_point}")
 
@@ -966,6 +981,7 @@ def create_next_generation(c, boot_part, root_part, generation, mount_point):
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
+    c.run(f"mkdir -p {next_current}/kod")
 
     # Write generation number
     with open(f"{next_current}/.generation", "w") as f:
