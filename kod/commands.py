@@ -902,11 +902,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     print("===================================")
     print("== Deploying generation ==")
     print(f"{new_root_path=}")
-    # print(f"{mount_point=}")
-
-    # if os.path.isdir("/kod/current/next_rootfs"):
-    #     c.run("rm -rf /kod/current/next_rootfs")
-    #     c.run("rm -rf /kod/current/next_usr")
 
     c.run(f"mkdir -p {new_root_path}/kod")
     c.run(f"mount {current_root_part} {new_root_path}/kod")
@@ -916,6 +911,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_root_path}/{subv}")
 
+    change_ro_mount(c, new_root_path)
+    
     c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
     # TODO: Update to use read only for rootfs
 
@@ -946,68 +943,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     # c.run(f"rm -rf {mount_point}")
 
     print("===================================")
-
-
-# # Used for rebuild
-# def deploy_new_generation(
-#     c, boot_part, root_part, mount_point, generation, pkgs_installed, services_enabled
-# ):
-#     print("===================================")
-#     print("== Deploying generation ==")
-
-#     if os.path.isdir("/kod/current/rootfs-old"):
-#         c.run("rm -rf /kod/current/rootfs-old")
-#     c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
-#     c.run(f"btrfs subvolume snapshot {mount_point} /kod/current/rootfs")
-#     c.run(f"btrfs subvolume snapshot {mount_point}/usr /kod/current/usr")
-
-#     new_current_rootfs = "/.new_current_rootfs"
-#     c.run(f"mkdir -p {new_current_rootfs}")
-#     c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
-#     c.run(f"mount -o subvol=current/usr {root_part} {new_current_rootfs}/usr")
-
-#     c.run(f"mkdir -p {new_current_rootfs}/kod")
-#     c.run(f"mount {root_part} {new_current_rootfs}/kod")
-
-#     # Create a list of installed packages
-#     with open(
-#         f"{new_current_rootfs}/kod/generations/{generation}/installed_packages", "w"
-#     ) as f:
-#         f.write("\n".join(pkgs_installed))
-#     # Create a list of services enabled 
-#     with open(f"{new_current_rootfs}/kod/generations/{generation}/enabled_services", "w") as f:
-#             f.write("\n".join(services_enabled))
-
-#     # Write generation number
-#     with open(f"{new_current_rootfs}/.generation", "w") as f:
-#         f.write(str(generation))
-
-#     c.run(f"mount {boot_part} {new_current_rootfs}/boot")
-#     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-#     for subv in subvolumes:
-#         c.run(f"mount -o subvol=store/{subv} {root_part} {new_current_rootfs}/{subv}")
-
-#     c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
-#     # TODO: Update to use read only for rootfs
-
-#     c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -A kodos -P")
-#     c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
-#     c.run(f"umount -R {new_current_rootfs}")
-
-#     for subv in subvolumes + ["boot"]:
-#         try:
-#             c.run(f"umount -R {mount_point}/{subv}")
-#         except:
-#             print(f"Subvolume {mount_point}/{subv} is not mounted")
-#     try:
-#         c.run(f"umount -R {mount_point}")
-#     except:
-#         print(f"Subvolume {mount_point} is not mounted")
-#     c.run(f"rm -rf {mount_point}")
-
-#     c.run(f"rm -rf {new_current_rootfs}")
-
-#     print("===================================")
 
 
 # Used for rebuild
