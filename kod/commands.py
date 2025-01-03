@@ -390,7 +390,7 @@ def update_fstab(c, root_path, new_mount_point_map):
 
 
 def set_ro_mount(c, mount_point):
-    c.run(f"mount -o remount,ro {mount_point}")
+    c.run(f"mount -o remount,ro,bind {mount_point}")
 
 def change_ro_mount(c, root_path):
     with open(f"{root_path}/etc/fstab") as f:
