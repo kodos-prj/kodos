@@ -157,7 +157,6 @@ Name=*
     # hosts
     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
-    # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
 
     # Replace default os-release
     with open("/mnt/etc/os-release", "w") as f:
@@ -212,16 +211,42 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
-    # initramfs
-    exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    exec_chroot(
-        c,
-        "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf",
-    )
 
-    exec_chroot(c, "mkinitcpio -P")
+    # Initcpio hooks
+    install_hook = """#!/bin/bash
+build() {
+    add_runscript
+}
+help() {
+    cat <<HELPEOF
+This is a custom initcpio hook for mounting /usr subvolume to /usr.
+HELPEOF
+}
+    """
+    # To be added to /etc/initcpio/install
+    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+        f.write(install_hook)
+
+    run_hook = """#!/usr/bin/ash
+run_latehook() {
+	mountopts="rw,relatime,ssd,space_cache"	
+    msg "→ mounting subvolume '/current/usr' at '/usr'"
+    mount -o "$mountopts,subvol=current/usr" /dev/vda3 /new_root/usr
+}"""
+    # To be added to /etc/initcpio/hooks/
+    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+        f.write(run_hook)
+
+    # initramfs
+    mkinitcpio_conf = """MODULES=(btrfs)
+BINARIES=()
+FILES=()
+HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+"""
+    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+        f.write(mkinitcpio_conf)
+
+    exec_chroot(c, "mkinitcpio -A kodos -P")
 
 
 def setup_bootloader(c, conf):
@@ -294,7 +319,6 @@ def get_packages_to_install(c, conf):
     packages_to_remove = []
 
     # Desktop
-    # TODO: Rework the excluded packages
     desktop_packages_to_install, desktop_packages_to_remove = proc_desktop(c, conf)
 
     # Hardware
@@ -340,19 +364,31 @@ def get_list_of_dependencies(c, pkg):
     return pkgs_list
 
 
-def update_fstab(c, root_path, mount_point, subvol_id):
+def update_fstab(c, root_path, new_mount_point_map):
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
     with open(f"{root_path}/etc/fstab", "w") as f:
         for line in fstab:
-            if line[0] == "#":
-                f.write(line)
-                continue
             cols = line.split()
-            if len(cols) > 4 and cols[1] == mount_point:
+            if len(cols) > 4 and cols[1] in new_mount_point_map:
+                subvol_id = new_mount_point_map[cols[1]]
                 cols[3] = re.sub(r"subvol=[^,]+", f"subvol={subvol_id}", cols[3])
-            f.write("\t".join(cols) + "\n")
+                line = "\t".join(cols) + "\n"
+            f.write(line)
 
+
+def set_ro_mount(c, mount_point):
+    c.run(f"mount -o remount,ro,bind {mount_point}")
+
+
+def change_ro_mount(c, root_path):
+    with open(f"{root_path}/etc/fstab") as f:
+        fstab = f.readlines()
+    with open(f"{root_path}/etc/fstab", "w") as f:
+        for line in fstab:
+            if "/usr" in line:
+                line = line.replace("rw,", "ro,")
+            f.write(line)
 
 def get_max_generation():
     generations = glob.glob("/kod/generations/*")
@@ -450,11 +486,9 @@ def proc_desktop(c, conf):
     desktop = conf.desktop
 
     display_manager = desktop.display_manager
-    # selected_display_manager = False
     if display_manager:
         print(f"Installing {display_manager}")
         packages_to_install += [display_manager]
-        # selected_display_manager = True
 
     desktop_manager = desktop.desktop_manager
     if desktop_manager:
@@ -534,7 +568,6 @@ def proc_hardware(conf):
 
 
 def proc_system_packages(conf):
-    # packages = []
     print("- processing packages -----------")
     sys_packages = list(conf.packages.values())
     return sys_packages
@@ -679,7 +712,6 @@ def proc_user_configs(conf):
                             command = serv_conf.command.format(**serv_conf.config)
                             commands_to_run.append(command)
 
-        # if deploy_configs:
         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
 
     return configs_to_deploy
@@ -779,16 +811,18 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
+    c.run(f"btrfs subvolume create /mnt/generations/{generation}/usr")
 
     # Mounting first generation
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in subvolumes + ["boot"]:
+    for subv in subvolumes + ["boot", "usr"]:
         c.run(f"mkdir -p /mnt/{subv}")
 
     c.run(f"mount {boot_part} /mnt/boot")
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
 
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
@@ -808,9 +842,11 @@ def deploy_generation(
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
+    c.run("btrfs subvolume snapshot /mnt/usr /new_rootfs/current/usr")
 
     c.run("umount -R /mnt")
     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
+    c.run(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
     c.run("mkdir -p /mnt/kod")
     c.run(f"mount {root_part} /mnt/kod")
@@ -829,9 +865,10 @@ def deploy_generation(
         c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
-    # TODO: Update to use read only for rootfs
+    # Update to use read only for rootfs
+    change_ro_mount(c, "/mnt")
 
-    exec_chroot(c, "mkinitcpio -P")
+    exec_chroot(c, "mkinitcpio -A kodos -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
     c.run("umount -R /mnt")
     c.run("umount -R /new_rootfs")
@@ -841,93 +878,90 @@ def deploy_generation(
 
 
 # Used for rebuild
-def deploy_new_generation(
-    c, boot_part, root_part, new_rootfs, generation, pkgs_installed, services_enabled
-):
+def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , mount_point, generation):
     print("===================================")
     print("== Deploying generation ==")
+    print(f"{new_root_path=}")
 
-    if os.path.isdir("/kod/current/rootfs-old"):
-        c.run("rm -rf /kod/current/rootfs-old")
-    c.run("mv /kod/current/rootfs /kod/current/rootfs-old")
-    c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+    # Makes generation usable 
+    c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
 
-    new_current_rootfs = "/.new_current_rootfs"
-    c.run(f"mkdir -p {new_current_rootfs}")
-    c.run(f"mount -o subvol=current/rootfs {root_part} {new_current_rootfs}")
+    c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
+    # c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
-    c.run(f"mkdir -p {new_current_rootfs}/kod")
-    c.run(f"mount {root_part} {new_current_rootfs}/kod")
+    #------------- Done with generation creation -------------
+    
+    # Rename rootfs to old_rootfs
+    if os.path.isdir("/kod/current/old_rootfs"):
+        c.run("rm -rf /kod/current/old_rootfs")
+        c.run("rm -rf /kod/current/old_usr")
+    c.run("mv /kod/current/rootfs /kod/current/old_rootfs")
+    c.run("mv /kod/current/usr /kod/current/old_usr")
 
-    # Create a list of installed packages
-    with open(
-        f"{new_current_rootfs}/kod/generations/{generation}/installed_packages", "w"
-    ) as f:
-        f.write("\n".join(pkgs_installed))
-    # Create a list of services enabled 
-    with open(f"{new_current_rootfs}/kod/generations/{generation}/enabled_services", "w") as f:
-            f.write("\n".join(services_enabled))
+    # Create new rootfs and usr
+    c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
+    c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
+    
+    c.run(f"umount -R {new_root_path}")
 
-    # Write generation number
-    with open(f"{new_current_rootfs}/.generation", "w") as f:
-        f.write(str(generation))
+    new_rootfs = "/.new_rootfs"
+    c.run(f"mkdir -p {new_rootfs}")
 
-    c.run(f"mount {boot_part} {new_current_rootfs}/boot")
+    c.run(f"mount -o subvol=current/rootfs {current_root_part} {new_rootfs}")
+    c.run(f"mount -o subvol=current/usr {current_root_part} {new_rootfs}/usr")
+
+    c.run(f"mount {current_root_part} {new_rootfs}/kod")
+    c.run(f"mount {boot_part} {new_rootfs}/boot")
+    
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
-        c.run(f"mount -o subvol=store/{subv} {root_part} {new_current_rootfs}/{subv}")
+        c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
+    
+    c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
 
-    c.run(f"genfstab -U {new_current_rootfs} > {new_current_rootfs}/etc/fstab")
-    # TODO: Update to use read only for rootfs
+    change_ro_mount(c, new_rootfs)
+    # set_ro_mount(c, f"{new_rootfs}/usr")
 
-    c.run(f"arch-chroot {new_current_rootfs} mkinitcpio -P")
-    c.run(f"arch-chroot {new_current_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
-    c.run(f"umount -R {new_current_rootfs}")
+    c.run(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
+    c.run(f"arch-chroot {new_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
 
-    for subv in subvolumes + ["boot"]:
-        try:
-            c.run(f"umount -R {new_rootfs}/{subv}")
-        except:
-            print(f"Subvolume {new_rootfs}/{subv} is not mounted")
-    try:
-        c.run(f"umount -R {new_rootfs}")
-    except:
-        print(f"Subvolume {new_rootfs} is not mounted")
+    c.run(f"umount -R {new_rootfs}")
     c.run(f"rm -rf {new_rootfs}")
-
-    c.run(f"rm -rf {new_current_rootfs}")
 
     print("===================================")
 
 
 # Used for rebuild
-def create_next_generation(
-    c, boot_part, root_part, generation, mount_point="/.new_rootfs"
-):
+def create_next_generation(c, boot_part, root_part, generation, mount_point):
     # Create generation
-    c.run(f"mkdir -p /kod/generations/{generation}")
-    c.run(f"btrfs subvolume snapshot / /kod/generations/{generation}/rootfs")
-
-    # Mounting generation
-    if os.path.ismount(mount_point):
-        c.run(f"umount -R {mount_point}")
-        c.run(f"rm -rf {mount_point}")
-
     c.run(f"mkdir -p {mount_point}")
 
-    c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
-    c.run(f"mount {boot_part} {mount_point}/boot")
+    c.run(f"btrfs subvolume snapshot / {mount_point}/rootfs")
+    c.run(f"btrfs subvolume snapshot /usr {mount_point}/usr")
+
+    next_current = "/kod/current/next_current"
+    # Mounting generation
+    if os.path.ismount(next_current):
+        c.run(f"umount -R {next_current}")
+        c.run(f"rm -rf {next_current}")
+
+    c.run(f"mkdir -p {next_current}")
+
+    c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
+    c.run(f"mount {boot_part} {next_current}/boot")
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
-        c.run(f"mount -o subvol=store/{subv} {root_part} {mount_point}/{subv}")
+        c.run(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
+    c.run(f"mkdir -p {next_current}/kod")
 
     # Write generation number
-    with open(f"{mount_point}/.generation", "w") as f:
+    with open(f"{next_current}/.generation", "w") as f:
         f.write(str(generation))
 
     print("===================================")
 
-    return mount_point
+    return next_current
 
 
 def refresh_package_db(c, mount_point="/mnt", use_chroot=True):
@@ -990,51 +1024,50 @@ def install(c, config):
     )
 
     print("Done")
+    c.run("mount -o subvol=store/root /dev/vda3 /mnt")
+    c.run("cp -r /root/kodos /mnt/")
+    print(" Done installing KodOS")
 
 
 @task(help={"config": "system configuration file"})
 def rebuild(c, config, new_generation=False, update=False):
     "Rebuild KodOS installation based on configuration file"
-    use_chroot = False
+    conf = load_config(config)
+    print("========================================")
+
+    max_generation = get_max_generation()
+    with open("/.generation") as f:
+        current_generation = f.readline().strip()
+    print(f"{current_generation = }")
+    
+    boot_partition, root_partition = get_partition_devices(conf)
+
     if new_generation:
         print("Creating a new generation")
         use_chroot = True
-        mount_point="/.new_rootfs"
+        generation_id = int(max_generation) + 1
+        # mount_point="/.new_rootfs"
+        mount_point = f"/kod/generations/{generation_id}"
+        new_root_path = create_next_generation(
+            c,
+            boot_partition,
+            root_partition,
+            generation_id,
+            mount_point,
+        )
     else:
+        use_chroot = False
+        generation_id = int(current_generation)
         mount_point="/"
+        new_root_path = "/"
 
-    conf = load_config(config)
     print("========================================")
     repos = load_repos()
     if repos is None:
         print("Missing repos information")
         return
 
-    boot_partition, root_partition = get_partition_devices(conf)
-
     # Load current installed packages and enabled services
-    generation = get_max_generation()
-    with open("/.generation") as f:
-        current_generation = f.readline().strip()
-    print(f"{current_generation = }")
-
-    # TODO: Clone current / into a tmp snapshot
-    # TODO: Try to rebuild: 
-    #    if new generation and fails, remove new created generation
-    #    if current is used and fails, roolback by copyng? tmp snapshot (not sure it will work)
-
-    if new_generation:
-        new_generation_id = int(generation) + 1
-        root_path = create_next_generation(
-            c,
-            boot_partition,
-            root_partition,
-            new_generation_id,
-            mount_point,
-        )
-    else:
-        root_path = "/"
-
     if os.path.isdir("/kod/current/installed_packages"):
         installed_packages_path = "/kod/current/installed_packages"
         services_enabled_path = "/kod/current/enabled_services"
@@ -1070,7 +1103,7 @@ def rebuild(c, config, new_generation=False, update=False):
     services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
     new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
 
-    disable_services(c, services_to_disable, mount_point, use_chroot=use_chroot)
+    disable_services(c, services_to_disable, new_root_path, use_chroot=use_chroot)
 
     # ======
 
@@ -1079,29 +1112,23 @@ def rebuild(c, config, new_generation=False, update=False):
         print("Packages to remove:", remove_pkg)
         for pkg in remove_pkg:
             try:
-                manage_packages(c, root_path, repos, "remove", [pkg], chroot=use_chroot)
+                manage_packages(c, new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except:
                 print(f"Unable to remove {pkg}")
 
     if update and update_pkg:
         print("Packages to update:", update_pkg)
-        refresh_package_db(c, mount_point, use_chroot=use_chroot)
-        manage_packages(c, root_path, repos, "update", update_pkg, chroot=use_chroot)
-
-        # for pkg in update_pkg:
-        #     try:
-        #         manage_packages(c, root_path, repos, "upgrade", [pkg], chroot=use_chroot)
-        #     except:
-        #         print(f"Unable to update {pkg}")
+        refresh_package_db(c, new_root_path, use_chroot=use_chroot)
+        manage_packages(c, new_root_path, repos, "update", update_pkg, chroot=use_chroot)
 
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        manage_packages(c, root_path, repos, "install", added_pkgs, chroot=use_chroot)
+        manage_packages(c, new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
     # enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
-    enable_services(c, new_service_to_enable, mount_point, use_chroot=use_chroot)
+    enable_services(c, new_service_to_enable, new_root_path, use_chroot=use_chroot)
 
     # # === Proc users
     # print("\n====== Processing users ======")
@@ -1116,134 +1143,24 @@ def rebuild(c, config, new_generation=False, update=False):
 
     if new_generation:
         print("==== Deploying new generation ====")
-        deploy_new_generation(
-            c, boot_partition, root_partition, root_path, new_generation_id, packages_to_install, system_services_to_enable
-        )
+        new_mount_point = mount_point
+        deploy_new_generation(c, boot_partition, root_partition, new_root_path) #, mount_point, generation_id)
     else:
         print("==== Rebuilding current generation ====")
-        # Create a list of installed packages
-        with open("/kod/current/installed_packages", "w") as f:
-            f.write("\n".join(pkgs_installed))
-        # Create a list of services enabled
-        with open("/kod/current/enabled_services", "w") as f:
-            f.write("\n".join(system_services_to_enable))
+        new_mount_point = "/kod/current"
+
+    # Storing list of installed packages and enabled services
+    # Create a list of installed packages
+    with open(f"{new_mount_point}/installed_packages", "w") as f:
+        f.write("\n".join(pkgs_installed))
+    # Create a list of services enabled
+    with open(f"{new_mount_point}/enabled_services", "w") as f:
+        f.write("\n".join(system_services_to_enable))
+
+    # c.run(f"umount -R {new_root_path}")
+    c.run(f"rm -rf {new_root_path}")
 
     print("Done")
-
-
-
-# @task(help={"config": "system configuration file"})
-# def rebuild(c, config, new_generation=False):
-#     "Rebuild KodOS installation based on configuration file"
-#     if new_generation:
-#         print("Creating a new generation")
-
-#     conf = load_config(config)
-#     print("========================================")
-#     repos = load_repos()
-#     if repos is None:
-#         print("Missing repos information")
-#         return
-
-#     boot_partition, root_partition = get_partition_devices(conf)
-#     # pkg_list = list(conf.packages.values())
-#     pkg_list, rm_pkg_list, services_to_enable = get_packages_to_install(c, conf)
-#     pkg_list += proc_hardware(c, conf)
-#     service_list, sys_services_to_enable = proc_services(c, conf)
-#     pkg_list += service_list
-
-#     user_packages, prog_configs_to_deploy, user_services = proc_user_programs(c, conf)
-#     pkg_list += user_packages
-
-#     print("packages\n", pkg_list)
-#     generation = get_max_generation()
-#     with open("/.generation") as f:
-#         current_generation = f.readline().strip()
-#     print(f"{current_generation = }")
-
-#     if os.path.isdir("/kod/current/installed_packages"):
-#         installed_packages_path = "/kod/current/installed_packages"
-#         services_enabled_path = "/kod/current/enabled_services"
-#     else:
-#         installed_packages_path = (
-#             f"/kod/generations/{current_generation}/installed_packages"
-#         )
-#         services_enabled_path = (
-#             f"/kod/generations/{current_generation}/enabled_services"
-#         )
-
-#     with open(installed_packages_path) as f:
-#         inst_pkgs = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-#     print(inst_pkgs)
-
-#     with open(services_enabled_path) as f:
-#         services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-#     print(services_enabled)
-
-#     # Package filtering
-#     remove_pkg = set(inst_pkgs) - set(pkg_list) | set(rm_pkg_list)
-#     added_pkgs = set(pkg_list) - set(inst_pkgs)
-
-#     # Services filtering
-#     services_to_enable += sys_services_to_enable
-#     services_to_disable = list(set(services_enabled) - set(services_to_enable))
-#     new_service_to_enable = list(set(services_to_enable) - set(services_enabled))
-
-#     disable_services(c, services_to_disable)
-
-#     if new_generation:
-#         new_generation_id = int(generation) + 1
-#         root_path = create_next_generation(
-#             c,
-#             boot_partition,
-#             root_partition,
-#             new_generation_id,
-#             mount_point="/.new_rootfs",
-#         )
-#     else:
-#         root_path = "/"
-
-#     # try:
-#     if remove_pkg:
-#         print("Packages to remove:", remove_pkg)
-#         for pkg in remove_pkg:
-#             try:
-#                 # if pkg in services_to_disable:
-#                 #     disable_services(c, [pkg,])
-#                 #     services_to_disable.remove(pkg)
-#                 manage_packages(
-#                     c,
-#                     root_path,
-#                     repos,
-#                     "remove",
-#                     [
-#                         pkg,
-#                     ],
-#                     chroot=True,
-#                 )
-#             except:
-#                 print(f"Unable to remove {pkg}")
-#                 pass
-#     if added_pkgs:
-#         print("Packages to install:", added_pkgs)
-#         manage_packages(c, root_path, repos, "install", added_pkgs, chroot=True)
-
-#     # print("\n====== Configuring users ======")
-#     # configure_users(c, dotfile_mngrs, configs_to_deploy)
-
-#     enable_services(c, new_service_to_enable)
-#     enable_user_services(c, user_services)
-
-#     if new_generation:
-#         deploy_new_generation(
-#             c, boot_partition, root_partition, root_path, new_generation_id, pkg_list
-#         )
-#     else:
-#         # Create a list of installed packages
-#         with open("/kod/current/installed_packages", "w") as f:
-#             f.write("\n".join(pkgs_installed))
-
-#     print("Done")
 
 
 @task(help={"generation": "Generation number to rollback to"})
@@ -1286,9 +1203,6 @@ def test_config(c, config):
         disk = devices.disk
         print(f"{disk = }")
         print(dict(v))
-        # print(list(disk))
-        # for k,v in disk_dict.items():
-        # print(f"  {k} = {v}")
 
     boot = conf.boot
     print(f"{boot=}")
