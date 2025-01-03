@@ -157,7 +157,6 @@ Name=*
     # hosts
     exec_chroot(c, "echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot(c, "echo '::1 localhost' >> /etc/hosts")
-    # exec_chroot(c, "echo '127.0.0.1 kodos.localdomain kodos' >> /etc/hosts")
 
     # Replace default os-release
     with open("/mnt/etc/os-release", "w") as f:
@@ -212,16 +211,6 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
-    # # initramfs
-    # exec_chroot(c, "bash -c echo 'MODULES=(btrfs)' > /etc/mkinitcpio.conf")
-    # exec_chroot(c, "bash -c echo 'BINARIES=()' >> /etc/mkinitcpio.conf")
-    # exec_chroot(c, "bash -c echo 'FILES=()' >> /etc/mkinitcpio.conf")
-    # exec_chroot(
-    #     c,
-    #     "bash -c echo 'HOOKS=(base udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs)' >> /etc/mkinitcpio.conf",
-    # )
-
-    # exec_chroot(c, "mkinitcpio -P")
 
     # Initcpio hooks
     install_hook = """#!/bin/bash
@@ -330,7 +319,6 @@ def get_packages_to_install(c, conf):
     packages_to_remove = []
 
     # Desktop
-    # TODO: Rework the excluded packages
     desktop_packages_to_install, desktop_packages_to_remove = proc_desktop(c, conf)
 
     # Hardware
@@ -392,18 +380,6 @@ def update_fstab(c, root_path, new_mount_point_map):
 def set_ro_mount(c, mount_point):
     c.run(f"mount -o remount,ro,bind {mount_point}")
 
-# def change_ro_mount(c, root_path):
-#     with open(f"{root_path}/etc/fstab") as f:
-#         fstab = f.readlines()
-#     with open(f"{root_path}/etc/fstab", "w") as f:
-#         for line in fstab:
-#             if line[0] == "#":
-#                 f.write(line)
-#                 continue
-#             cols = line.split()
-#             if len(cols) > 4 and cols[1] == "/usr":
-#                 cols[3] = re.sub(r"rw,", "ro,", cols[3])
-#             f.write("\t".join(cols) + "\n")
 
 def change_ro_mount(c, root_path):
     with open(f"{root_path}/etc/fstab") as f:
@@ -510,11 +486,9 @@ def proc_desktop(c, conf):
     desktop = conf.desktop
 
     display_manager = desktop.display_manager
-    # selected_display_manager = False
     if display_manager:
         print(f"Installing {display_manager}")
         packages_to_install += [display_manager]
-        # selected_display_manager = True
 
     desktop_manager = desktop.desktop_manager
     if desktop_manager:
@@ -594,7 +568,6 @@ def proc_hardware(conf):
 
 
 def proc_system_packages(conf):
-    # packages = []
     print("- processing packages -----------")
     sys_packages = list(conf.packages.values())
     return sys_packages
@@ -739,7 +712,6 @@ def proc_user_configs(conf):
                             command = serv_conf.command.format(**serv_conf.config)
                             commands_to_run.append(command)
 
-        # if deploy_configs:
         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
 
     return configs_to_deploy
@@ -917,8 +889,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
     # c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
-    # c.run(f"umount -R {new_root_path}")
-
     #------------- Done with generation creation -------------
     
     # Rename rootfs to old_rootfs
@@ -955,27 +925,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
 
-
-    # Recreate the current rootfs         
-    # c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
-    # c.run(f"btrfs subvolume snapshot {new_rootfs}/usr /kod/current/usr")
-
     c.run(f"umount -R {new_rootfs}")
     c.run(f"rm -rf {new_rootfs}")
-
-    # update_fstab(c, "/kod/current/rootfs", {"/":"current/rootfs", "/usr":"current/usr"})
-
-    # for subv in subvolumes + ["boot", "kod"]:
-    #     try:
-    #         c.run(f"umount -R {new_root_path}/{subv}")
-    #     except:
-    #         print(f"Subvolume {new_root_path}/{subv} is not mounted")
-    # try:
-    #     c.run(f"umount -R {new_root_path}")
-    # except:
-    #     print(f"Subvolume {new_root_path} is not mounted")
-
-    # c.run(f"rm -rf {mount_point}")
 
     print("===================================")
 
@@ -1170,12 +1121,6 @@ def rebuild(c, config, new_generation=False, update=False):
         refresh_package_db(c, new_root_path, use_chroot=use_chroot)
         manage_packages(c, new_root_path, repos, "update", update_pkg, chroot=use_chroot)
 
-        # for pkg in update_pkg:
-        #     try:
-        #         manage_packages(c, root_path, repos, "upgrade", [pkg], chroot=use_chroot)
-        #     except:
-        #         print(f"Unable to update {pkg}")
-
     if added_pkgs:
         print("Packages to install:", added_pkgs)
         manage_packages(c, new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
@@ -1258,9 +1203,6 @@ def test_config(c, config):
         disk = devices.disk
         print(f"{disk = }")
         print(dict(v))
-        # print(list(disk))
-        # for k,v in disk_dict.items():
-        # print(f"  {k} = {v}")
 
     boot = conf.boot
     print(f"{boot=}")
