@@ -908,15 +908,30 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
     # c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
+    # c.run(f"umount -R {new_root_path}")
+
+    #------------- Done with generation creation -------------
+    
+    # Rename rootfs to old_rootfs
+    if os.path.isdir("/kod/current/old_rootfs"):
+        c.run("rm -rf /kod/current/old_rootfs")
+        c.run("rm -rf /kod/current/old_usr")
+    c.run("mv /kod/current/rootfs /kod/current/old_rootfs")
+    c.run("mv /kod/current/usr /kod/current/old_usr")
+
+    # Create new rootfs and usr
+    c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
+    c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
+    
     c.run(f"umount -R {new_root_path}")
 
     new_rootfs = "/.new_rootfs"
     c.run(f"mkdir -p {new_rootfs}")
 
-    c.run(f"mkdir -p {new_rootfs}/kod")
-    c.run(f"mount {current_root_part} {new_rootfs}/kod")
+    c.run(f"mount -o subvol=current/rootfs {current_root_part} {new_rootfs}")
+    c.run(f"mount -o subvol=current/usr {current_root_part} {new_rootfs}/usr")
 
-    c.run(f"mkdir -p {new_rootfs}/boot")
+    c.run(f"mount {current_root_part} {new_rootfs}/kod")
     c.run(f"mount {boot_part} {new_rootfs}/boot")
     
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
@@ -925,21 +940,15 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     
     c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
 
-    set_ro_mount(c, new_rootfs)
+    set_ro_mount(c, f"{new_rootfs}/usr")
 
     c.run(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
 
-    # Rename rootfs to old_rootfs
-    if os.path.isdir("/kod/current/old_rootfs"):
-        c.run("rm -rf /kod/current/old_rootfs")
-        c.run("rm -rf /kod/current/old_usr")
-    c.run("mv /kod/current/rootfs /kod/current/old_rootfs")
-    c.run("mv /kod/current/usr /kod/current/old_usr")
 
     # Recreate the current rootfs         
-    c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
-    c.run(f"btrfs subvolume snapshot {new_rootfs}/usr /kod/current/usr")
+    # c.run(f"btrfs subvolume snapshot {new_rootfs} /kod/current/rootfs")
+    # c.run(f"btrfs subvolume snapshot {new_rootfs}/usr /kod/current/usr")
 
     c.run(f"umount -R {new_rootfs}")
     c.run(f"rm -rf {new_rootfs}")
