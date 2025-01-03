@@ -376,18 +376,17 @@ def get_list_of_dependencies(c, pkg):
     return pkgs_list
 
 
-def update_fstab(c, root_path, mount_point, subvol_id):
+def update_fstab(c, root_path, new_mount_point_map):
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
     with open(f"{root_path}/etc/fstab", "w") as f:
         for line in fstab:
-            if line[0] == "#":
-                f.write(line)
-                continue
             cols = line.split()
-            if len(cols) > 4 and cols[1] == mount_point:
+            if len(cols) > 4 and cols[1] in new_mount_point_map:
+                subvol_id = new_mount_point_map[cols[1]]
                 cols[3] = re.sub(r"subvol=[^,]+", f"subvol={subvol_id}", cols[3])
-            f.write("\t".join(cols) + "\n")
+                line = "\t".join(cols) + "\n"
+            f.write(line)
 
 
 def set_ro_mount(c, mount_point):
@@ -927,9 +926,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
     c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
 
-    update_fstab(c, "/kod/current/rootfs", "/", "current/rootfs")
-    update_fstab(c, "/kod/current/rootfs", "/usr", "current/usr")
-    change_ro_mount(c, "/kod/current/rootfs")
+    update_fstab(c, "/kod/current/rootfs", {"/":"current/rootfs", "/usr":"current/usr"})
+    # change_ro_mount(c, "/kod/current/rootfs")
 
     for subv in subvolumes + ["boot", "kod"]:
         try:
