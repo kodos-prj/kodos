@@ -392,18 +392,27 @@ def update_fstab(c, root_path, new_mount_point_map):
 def set_ro_mount(c, mount_point):
     c.run(f"mount -o remount,ro,bind {mount_point}")
 
+# def change_ro_mount(c, root_path):
+#     with open(f"{root_path}/etc/fstab") as f:
+#         fstab = f.readlines()
+#     with open(f"{root_path}/etc/fstab", "w") as f:
+#         for line in fstab:
+#             if line[0] == "#":
+#                 f.write(line)
+#                 continue
+#             cols = line.split()
+#             if len(cols) > 4 and cols[1] == "/usr":
+#                 cols[3] = re.sub(r"rw,", "ro,", cols[3])
+#             f.write("\t".join(cols) + "\n")
+
 def change_ro_mount(c, root_path):
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
     with open(f"{root_path}/etc/fstab", "w") as f:
         for line in fstab:
-            if line[0] == "#":
-                f.write(line)
-                continue
-            cols = line.split()
-            if len(cols) > 4 and cols[1] == "/usr":
-                cols[3] = re.sub(r"rw,", "ro,", cols[3])
-            f.write("\t".join(cols) + "\n")
+            if "/usr" in line:
+                line = line.replace("rw,", "ro,")
+            f.write(line)
 
 def get_max_generation():
     generations = glob.glob("/kod/generations/*")
@@ -885,7 +894,7 @@ def deploy_generation(
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
-    # change_ro_mount(c, "/mnt")
+    change_ro_mount(c, "/mnt")
 
     exec_chroot(c, "mkinitcpio -A kodos -P")
     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
@@ -940,7 +949,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     
     c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
 
-    set_ro_mount(c, f"{new_rootfs}/usr")
+    change_ro_mount(c, new_rootfs)
+    # set_ro_mount(c, f"{new_rootfs}/usr")
 
     c.run(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_rootfs} grub-mkconfig -o /boot/grub/grub.cfg")
@@ -954,7 +964,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"rm -rf {new_rootfs}")
 
     # update_fstab(c, "/kod/current/rootfs", {"/":"current/rootfs", "/usr":"current/usr"})
-    # change_ro_mount(c, "/kod/current/rootfs")
 
     # for subv in subvolumes + ["boot", "kod"]:
     #     try:
