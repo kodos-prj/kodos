@@ -912,10 +912,13 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
 
     new_rootfs = "/.new_rootfs"
     c.run(f"mkdir -p {new_rootfs}")
+
     c.run(f"mkdir -p {new_rootfs}/kod")
     c.run(f"mount {current_root_part} {new_rootfs}/kod")
 
+    c.run(f"mkdir -p {new_rootfs}/boot")
     c.run(f"mount {boot_part} {new_rootfs}/boot")
+    
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
