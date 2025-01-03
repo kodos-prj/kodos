@@ -910,14 +910,8 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_root_path}/{subv}")
-
-    update_fstab(c, new_root_path, "/", "/kod/current/rootfs")
-    update_fstab(c, new_root_path, "/usr", "/kod/current/usr")
-    set_ro_mount(c, new_root_path)
-    # change_ro_mount(c, new_root_path)
     
     c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
-    # TODO: Update to use read only for rootfs
 
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
     c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
@@ -932,6 +926,10 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     # Recreate the current rootfs         
     c.run(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
     c.run(f"btrfs subvolume snapshot {new_root_path}/usr /kod/current/usr")
+
+    update_fstab(c, "/kod/current/rootfs", "/", "current/rootfs")
+    update_fstab(c, "/kod/current/rootfs", "/usr", "current/usr")
+    change_ro_mount(c, "/kod/current/rootfs")
 
     for subv in subvolumes + ["boot", "kod"]:
         try:
