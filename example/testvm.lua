@@ -66,7 +66,7 @@ return {
 
     locale = {
         locale = {
-            default = "en_US.UTF-8 UTF-8",
+            default = "en_US.UTF-8 UTF-8\nen_CA.UTF-8 UTF-8",
         },
         keymap = "us",
         timezone = "America/Edmonton"
@@ -157,7 +157,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = true,
+                enable = false,
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
