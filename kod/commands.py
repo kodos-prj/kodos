@@ -45,6 +45,9 @@ def load_config(config_filename: str):
     luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
     lib_path = Path(__file__).resolve().parents[0]
     luart.execute(f"package.path = '{lib_path}/lib/?.lua;' .. package.path")
+    luart.execute("package.path = 'kod/lib/?.lua;' .. package.path")
+    luart.execute("print(package.path)")
+    print("Loading default libraries")
     default_libs = """
 list = require("utils").list
 map = require("utils").map
