@@ -251,6 +251,7 @@ return {
         "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
+        -- "flatpak:com.mattjakeman.ExtensionManager",
         -- "flatpak:com.visualstudio.code",
         "distrobox",
         "aur:quickemu",
