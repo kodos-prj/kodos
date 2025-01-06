@@ -127,7 +127,7 @@ def create_users(c, conf):
                 exec_chroot(c, f"passwd {user}")
 
 
-def configure_system(c, conf, boot="systemd-boot"):
+def configure_system(c, conf, root_part):
     # fstab
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
 
@@ -240,12 +240,12 @@ HELPEOF
     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
         f.write(install_hook)
 
-    run_hook = """#!/usr/bin/ash
-run_latehook() {
+    run_hook = f"""#!/usr/bin/ash
+run_latehook() {{
 	mountopts="rw,relatime,ssd,space_cache"
     msg "→ mounting subvolume '/current/usr' at '/usr'"
-    mount -o "$mountopts,subvol=current/usr" /dev/vda3 /new_root/usr
-}"""
+    mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
+}}"""
     # To be added to /etc/initcpio/hooks/
     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
         f.write(run_hook)
@@ -998,7 +998,7 @@ def install(c, config):
     create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
 
     install_essentials_pkgs(c)
-    configure_system(c, conf)
+    configure_system(c, conf, root_part=root_partition)
     setup_bootloader(c, conf)
     create_kod_user(c)
 
@@ -1037,7 +1037,7 @@ def install(c, config):
     )
 
     print("Done")
-    c.run("mount -o subvol=store/root /dev/vda3 /mnt")
+    c.run(f"mount -o subvol=store/root {root_partition} /mnt")
     c.run("cp -r /root/kodos /mnt/")
     print(" Done installing KodOS")
 
