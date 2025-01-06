@@ -164,7 +164,7 @@ return {
             home = map({
                 [".config/background"] = copy_file("background"),
                 [".face"] = copy_file("face.jpg"),
-                
+
             })
         },
     },
@@ -256,6 +256,9 @@ return {
         "aur:quickemu",
         "aur:uxplay",
         "aur:megasync",
+
+        "firefox",
+        "brave",
     })
     ..
     cli -- CLI tools
