@@ -258,7 +258,7 @@ return {
         "aur:megasync",
 
         "firefox",
-        "brave",
+        "aur:brave-bin",
     })
     ..
     cli -- CLI tools
