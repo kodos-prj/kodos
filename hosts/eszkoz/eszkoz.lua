@@ -48,16 +48,16 @@ return {
             extra_packages = { "sane-airscan" },
         },
   
-        -- https://wiki.archlinux.org/title/Bluetooth
-        bluetooth = {
-            enable = true,
-            package = "bluez",
-            -- settings = {
-                -- General = {
-                    -- Enable = "Source,Sink,Media,Socket",
-                -- },
-            -- },
-        },
+        -- -- https://wiki.archlinux.org/title/Bluetooth
+        -- bluetooth = {
+        --     enable = true,
+        --     package = "bluez",
+        --     -- settings = {
+        --         -- General = {
+        --             -- Enable = "Source,Sink,Media,Socket",
+        --         -- },
+        --     -- },
+        -- },
 
         pipewire = {
             enable = true,
@@ -298,8 +298,16 @@ return {
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
     
+        -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
             enable = true,
+            service_name = "bluetooth",
+            package = "bluez",
+            -- settings = {
+                -- General = {
+                    -- Enable = "Source,Sink,Media,Socket",
+                -- },
+            -- },
         },
     }
 }
