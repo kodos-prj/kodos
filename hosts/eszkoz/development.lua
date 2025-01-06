@@ -25,6 +25,6 @@ return {
     -- Editors
     "neovim",
     "lite-xl",
-    "emacs-wayland",
+    -- "emacs-wayland",
 
 }

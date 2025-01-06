@@ -13,7 +13,7 @@ development = require("development")
 
 return {
     repos = {
-        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"), 
+        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
     },
@@ -137,6 +137,12 @@ return {
                     enable = true,
                     deploy_config = true,
                 },
+
+                emacs = {
+                    enable = true,
+                    package = "emacs-wayland",
+                    deploy_config = true,
+                },            
             },
 
             deploy_configs = {
@@ -146,7 +152,7 @@ return {
 
             services = {
                 syncthing = {
-                    enable = false,
+                    enable = true,
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
@@ -158,6 +164,7 @@ return {
             home = map({
                 [".config/background"] = copy_file("background"),
                 [".face"] = copy_file("face.jpg"),
+                
             })
         },
     },
@@ -224,6 +231,7 @@ return {
     },
 
     packages = list({
+        "iw",
         "stow",
         "mc",
         "less",
@@ -287,5 +295,8 @@ return {
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
     
+        bluetooth = {
+            enable = true,
+        },
     }
 }
