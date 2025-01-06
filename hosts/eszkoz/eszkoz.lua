@@ -163,12 +163,13 @@ return {
     },
 
     desktop = {
-        display_manager = "gdm",
+        -- display_manager = "gdm",
         -- display_manager = "sddm",
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = false,
+                enable = true,
+                display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
@@ -177,14 +178,22 @@ return {
                     -- "gnome-extra",
                     -- "gnome-themes-extra",
                     "gnome-shell-extension-appindicator",
-                    "aur:gnome-shell-extension-dash-to-dock"
+                    "aur:gnome-shell-extension-dash-to-dock",
+                    "aur:gnome-shell-extension-blur-my-shell",
+                    "aur:gnome-shell-extension-arc-menu-git",
+                    "aur:gnome-shell-extension-gsconnect",
+                    "aur:nordic-theme",
+                    "aur:whitesur-gtk-theme-git",
+                    "aur:whitesur-icon-theme-git",
                 },
             },
     
             plasma = {
                 enable = false,
+                display_manager = "sddm",
                 extra_packages = {
                     "kde-applications",
+                    "aur:plasma5-themes-whitesur-git",
                 },
             },
             cosmic = {
@@ -220,6 +229,7 @@ return {
         "less",
         "neovim",
         "htop",
+        "libgtop",
         "uv",
         "python-invoke",
         "git",
