@@ -148,24 +148,7 @@ return {
                 },
 
                 -- Gnome dconf configuration
-                dconf = require("gnome").dconf({
-                    ["/org/gnome/shell/extensions/user-theme"] = {
-                        name = 'WhiteSur-Dark-alt-grey'
-                    },
-                    ["/org/gnome/shell"] = {
-                        disabled_extensions = { 'apps-menu@gnome-shell-extensions.gcampax.github.com' },
-                        enabled_extensions = {
-                            'appindicatorsupport@rgcjonas.gmail.com', 
-                            'arcmenu@arcmenu.com', 
-                            'blur-my-shell@aunetx', 
-                            'dash-to-dock@micxgx.gmail.com', 
-                            'status-icons@gnome-shell-extensions.gcampax.github.com', 
-                            'user-theme@gnome-shell-extensions.gcampax.github.com', 
-                            'workspace-indicator@gnome-shell-extensions.gcampax.github.com', 
-                            'monitor@astraext.github.io'
-                        },
-                    }
-                }),
+                dconf = configs.dconf(require("gnome")),
             },
 
             deploy_configs = {

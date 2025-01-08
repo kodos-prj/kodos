@@ -1,5 +1,34 @@
 -- Program Configuration generation
 
+function dconf(config)
+    local commands = ""
+    for root, key_vals in pairs(config) do
+        for key, val in pairs(key_vals) do
+            key = "/"..key:gsub("_", "-")
+            if type(val) == "string" then 
+                commands = commands .. "dconf write " .. root .. key .." \"'"..val.."'\"\n"
+            end
+            if type(val) == "table" then
+                val_list = "["
+                for i, elem in pairs(val) do
+                    val_list = val_list .. "'"..elem.."'"
+                    if i < #val then
+                        val_list = val_list ..","
+                    end
+                end
+                val_list = val_list .."]"
+                commands = commands .. "dconf write " .. root .. key .." \""..val_list.."\"\n\n"
+            end
+        end
+    end
+
+    return {
+        command = commands,
+        config = config,
+    }
+end
+
+
 function git(config)
     user_name = config.user_name
     user_email = config.user_email
@@ -77,6 +106,7 @@ end
 
 return {
     copy_file = copy_file,
+    dconf = dconf,
     git = git,
     syncthing = syncthing,
 }
