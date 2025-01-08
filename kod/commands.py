@@ -704,7 +704,7 @@ def proc_user_configs(conf):
                         deploy_configs.append(name)
 
                     # Configure based on the specified parameters
-                    if prog.config:
+                    if "config" in prog and prog.config:
                         prog_conf = prog.config
                         if "command" in prog_conf:
                             command = prog_conf.command.format(**prog_conf.config)
@@ -1174,6 +1174,24 @@ def rebuild(c, config, new_generation=False, update=False):
     c.run(f"rm -rf {new_root_path}")
 
     print("Done")
+
+
+@task(help={"config": "system configuration file", "user": "User to rebuild config"})
+def rebuild_user(c, config, user):
+    "Rebuild KodOS installation based on configuration file"
+    conf = load_config(config)
+    print("========================================")
+
+    # === Proc users
+    print("\n====== Processing users ======")
+    # TODO: Check if repo is already cloned
+    user_dotfile_mngrs = proc_user_dotfile_manager(conf)
+    user_configs = proc_user_configs(conf)
+    configure_users(c, user_dotfile_mngrs, user_configs)
+
+    user_services_to_enable = proc_user_services(conf)
+    print(f"User services to enable: {user_services_to_enable}")
+    enable_user_services(c, user_services_to_enable, use_chroot=True)
 
 
 @task(help={"generation": "Generation number to rollback to"})
