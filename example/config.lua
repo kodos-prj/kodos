@@ -5,6 +5,9 @@ print("config.lua")
 disk = require("disk")
 repos = require("repos")
 
+-- Extra packages
+cli = require("cli")
+
 return {
     repos = {
         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"), 
@@ -70,10 +73,12 @@ return {
         timezone = "America/Edmonton"
     },
 
-    network = {
+    network = map({
         hostname = "kodos",
         ipv6 = false
-    },
+    }) 
+    .. 
+    If(true, {ipv4 = true, domain = "local", dns = ""}),
 
     users = {
         root = {
@@ -101,7 +106,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = true,
+                enable = false,
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
@@ -128,10 +133,7 @@ return {
         }
     },
 
-    packages = {
-        -- "bubblewrap-suid",
-        -- "aur:proot",
-        -- "flatpak",
+    packages = list({
         "zsh",
         "stow",
         "mc",
@@ -148,7 +150,7 @@ return {
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.visualstudio.code",
-    },
+    }) .. cli,
 
     services = {
         -- Firmware update

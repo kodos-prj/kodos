@@ -43,6 +43,18 @@ def load_config(config_filename: str):
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
     config_path = Path(config_filename).resolve().parents[0]
     luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
+    lib_path = Path(__file__).resolve().parents[0]
+    luart.execute(f"package.path = '{lib_path}/lib/?.lua;' .. package.path")
+    luart.execute("package.path = 'kod/lib/?.lua;' .. package.path")
+    luart.execute("print(package.path)")
+    print("Loading default libraries")
+    default_libs = """
+list = require("utils").list
+map = require("utils").map
+If = require("utils").if_true
+IfElse = require("utils").if_else
+    """
+    luart.execute(default_libs)
     with open(config_filename) as f:
         config_data = f.read()
         conf = luart.execute(config_data)
@@ -115,7 +127,7 @@ def create_users(c, conf):
                 exec_chroot(c, f"passwd {user}")
 
 
-def configure_system(c, conf, boot="systemd-boot"):
+def configure_system(c, conf, root_part):
     # fstab
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
 
@@ -168,7 +180,7 @@ type=directory
 description=KodOS
 directory=/
 groups=users,root
-root-groups=root
+root-groups=root,wheel
 root-users=abuss
 profile=kodos
 personality=linux
@@ -182,7 +194,7 @@ description=KodOS
 directory=/
 union-type=overlay
 groups=users,root
-root-groups=root
+root-groups=root,wheel
 root-users=abuss
 profile=kodos
 personality=linux
@@ -202,6 +214,7 @@ aliases=user_env
 /dev            /dev            none    rw,bind         0       0
 /dev/pts        /dev/pts        none    rw,bind         0       0
 /home           /home           none    rw,bind         0       0
+/usr            /usr            none    rw,bind         0       0
 /tmp            /tmp            none    rw,bind         0       0
 /var/cache	    /var/cache      none	rw,bind		    0   	0
 /var/log	    /var/log        none	rw,bind		    0   	0
@@ -227,12 +240,12 @@ HELPEOF
     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
         f.write(install_hook)
 
-    run_hook = """#!/usr/bin/ash
-run_latehook() {
-	mountopts="rw,relatime,ssd,space_cache"	
+    run_hook = f"""#!/usr/bin/ash
+run_latehook() {{
+	mountopts="rw,relatime,ssd,space_cache"
     msg "→ mounting subvolume '/current/usr' at '/usr'"
-    mount -o "$mountopts,subvol=current/usr" /dev/vda3 /new_root/usr
-}"""
+    mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
+}}"""
     # To be added to /etc/initcpio/hooks/
     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
         f.write(run_hook)
@@ -657,7 +670,7 @@ def proc_user_programs(conf):
         # Packages required for user services
         if info.services:
             for service, desc in info.services.items():
-                if desc.enable:
+                if "enable" in desc and desc.enable:
                     print(f"Checking {service} service discription")
                     name = service
                     if "package" in desc:
@@ -742,7 +755,7 @@ def proc_fonts(conf):
     packages_to_install = []
     print("- processing fonts -----------")
     fonts = conf.fonts
-    if fonts.packages:
+    if fonts and "packages" in fonts and fonts.packages:
         packages_to_install += fonts.packages.values()
     return packages_to_install
 
@@ -985,7 +998,7 @@ def install(c, config):
     create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
 
     install_essentials_pkgs(c)
-    configure_system(c, conf)
+    configure_system(c, conf, root_part=root_partition)
     setup_bootloader(c, conf)
     create_kod_user(c)
 
@@ -1024,7 +1037,7 @@ def install(c, config):
     )
 
     print("Done")
-    c.run("mount -o subvol=store/root /dev/vda3 /mnt")
+    c.run(f"mount -o subvol=store/root {root_partition} /mnt")
     c.run("cp -r /root/kodos /mnt/")
     print(" Done installing KodOS")
 
@@ -1224,6 +1237,12 @@ def test_config(c, config):
     print(f"{users=}")
     for k, v in users.items():
         print(f"  {k} = {v}")
+
+    packages = conf.packages
+    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+    for k, v in packages.items():
+        print(f"  {k} = {v}")
+    print(f"{packages_to_install=}")
 
     print("========================================")
     #    "Install KodOS in /mnt"
