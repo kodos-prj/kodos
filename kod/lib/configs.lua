@@ -1,23 +1,36 @@
 -- Program Configuration generation
 
+local function string_wrap(str)
+    if str:match("^<[(].+[)]>$") then
+        return str
+    else
+        return "'"..str.."'"
+    end
+end
+
 function dconf(config)
     local commands = ""
     for root, key_vals in pairs(config) do
         for key, val in pairs(key_vals) do
-            key = "/"..key:gsub("_", "-")
-            if type(val) == "string" then 
-                commands = commands .. "dconf write " .. root .. key .." \"'"..val.."'\"\n"
+            key = key:gsub("_", "-")
+            if type(val) == "string" then
+                cmd = "dconf write " .. "/"..root.."/"..key.." \"'"..val.."'\""
+                -- commands = commands .. "echo \""..cmd.."\"\n"
+                commands = commands .. cmd .."\n"
             end
             if type(val) == "table" then
                 val_list = "["
                 for i, elem in pairs(val) do
-                    val_list = val_list .. "'"..elem.."'"
+                    -- val_list = val_list .. "'"..elem.."'"
+                    val_list = val_list .. string_wrap(elem)
                     if i < #val then
                         val_list = val_list ..","
                     end
                 end
                 val_list = val_list .."]"
-                commands = commands .. "dconf write " .. root .. key .." \""..val_list.."\"\n\n"
+                cmd = "dconf write " .. "/"..root.."/"..key.." \""..val_list.."\""
+                -- commands = commands .. "echo \""..cmd.."\"\n"
+                commands = commands .. cmd .. "\n"
             end
         end
     end
