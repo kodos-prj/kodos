@@ -8,20 +8,19 @@ local function string_wrap(str)
     end
 end
 
+
 function dconf(config)
-    local commands = ""
+    local commands = list({})
     for root, key_vals in pairs(config) do
         for key, val in pairs(key_vals) do
             key = key:gsub("_", "-")
             if type(val) == "string" then
                 cmd = "dconf write " .. "/"..root.."/"..key.." \"'"..val.."'\""
-                -- commands = commands .. "echo \""..cmd.."\"\n"
-                commands = commands .. cmd .."\n"
+                commands = commands .. { cmd }
             end
             if type(val) == "table" then
                 val_list = "["
                 for i, elem in pairs(val) do
-                    -- val_list = val_list .. "'"..elem.."'"
                     val_list = val_list .. string_wrap(elem)
                     if i < #val then
                         val_list = val_list ..","
@@ -29,15 +28,19 @@ function dconf(config)
                 end
                 val_list = val_list .."]"
                 cmd = "dconf write " .. "/"..root.."/"..key.." \""..val_list.."\""
-                -- commands = commands .. "echo \""..cmd.."\"\n"
-                commands = commands .. cmd .. "\n"
+                commands = commands .. { cmd }
             end
         end
     end
 
+    tmpfile = "._tmp_user_dconf.tmp"
+    file = io.open (tmpfile, "w")
+    file:write(table.concat(commands, "\n"))
+    file:close()
+
     return {
-        command = commands,
-        config = config,
+        command = "bash "..tmpfile.."; rm "..tmpfile;
+        config = config;
     }
 end
 

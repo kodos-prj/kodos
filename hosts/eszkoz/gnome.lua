@@ -67,7 +67,7 @@ return {
     };
 
     ["org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0"] = {
-        binding = "<Control><Alt>t";
+        binding = { '<Control><Alt>t' };
         command = "kgx";
         name = "Terminal";
     };

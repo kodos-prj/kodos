@@ -148,8 +148,11 @@ return {
                 },
 
                 -- Gnome dconf configuration
-                dconf = configs.dconf(require("gnome")),
-            },
+                dconf = {
+                    enable = true;
+                    config = configs.dconf(require("gnome"));
+                };
+            };
 
             deploy_configs = {
                 "home", -- General config for home directory (face, background, etc.)

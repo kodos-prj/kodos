@@ -763,22 +763,30 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
     print("- configuring users -----------")
+    current_user = os.environ['USER']
     if use_chroot:
         exec_prefix = f"arch-chroot {mount_point}"
     else:
-        exec_chroot = ""
+        exec_prefix = ""
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
+        if current_user == "root":
+            exec_prefix += f" su {user} -c "
+            wrap = lambda s: f"'{s}'"
+        else:
+            wrap = lambda s: s
+
         if user_configs["run"]:
             for command in user_configs["run"]:
-                c.run(f"{exec_prefix} su {user} -c '{command}'")
+                c.run(f"{exec_prefix} {wrap(command)}")
         if user_configs["configs"]:
-            c.run(f"{exec_prefix} su {user} -c '{dotfile_mngrs[user].init()}'")
+            print("\nUSER:",current_user,'\n')
+            c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
             for config in user_configs["configs"]:
                 c.run(
-                    f"{exec_prefix} su {user} -c '{dotfile_mngrs[user].deploy(config)}'"
+                    f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
                 )
-
+                
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
@@ -801,15 +809,29 @@ def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
 
 
 def enable_user_services(c, list_of_services_user, mount_point="/mnt", use_chroot=False):
+    current_user = os.environ['USER']
     for user, services in list_of_services_user.items():
         print(f"Enabling service: {services} for {user}")
         if use_chroot:
             exec_prefix = f"arch-chroot {mount_point}"
-            for service in services:
-                c.run(f"{exec_prefix} su {user} -c 'systemctl --user enable {service}'")
         else:
-            for service in services:
-                c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
+            exec_prefix = ""
+
+        if current_user == user:
+            wrap = lambda s: s
+        else:
+            exec_prefix += f" su {user} -c "
+            wrap = lambda s: f"'{s}'"
+        
+        run_now = ""
+        if not use_chroot:
+            run_now = "--now"
+        for service in services:
+            c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
+
+        # else:
+        #     for service in services:
+        #         c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
 
 
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
@@ -1177,7 +1199,7 @@ def rebuild(c, config, new_generation=False, update=False):
 
 
 @task(help={"config": "system configuration file", "user": "User to rebuild config"})
-def rebuild_user(c, config, user):
+def rebuild_user(c, config, user=os.environ['USER']):
     "Rebuild KodOS installation based on configuration file"
     conf = load_config(config)
     print("========================================")
@@ -1186,12 +1208,18 @@ def rebuild_user(c, config, user):
     print("\n====== Processing users ======")
     # TODO: Check if repo is already cloned
     user_dotfile_mngrs = proc_user_dotfile_manager(conf)
+    if user in user_dotfile_mngrs:
+        user_dotfile_mngrs = {k:v for k,v in user_dotfile_mngrs.items() if k == user}
+
     user_configs = proc_user_configs(conf)
-    configure_users(c, user_dotfile_mngrs, user_configs)
+    if user in user_configs:
+        user_configs = {k:v for k,v in user_configs.items() if k == user}
+
+    configure_users(c, user_dotfile_mngrs, user_configs, mount_point="/", use_chroot=False)
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(c, user_services_to_enable, use_chroot=True)
+    enable_user_services(c, user_services_to_enable, use_chroot=False)
 
 
 @task(help={"generation": "Generation number to rollback to"})
