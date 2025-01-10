@@ -15,7 +15,7 @@ function dconf(config)
         for key, val in pairs(key_vals) do
             key = key:gsub("_", "-")
             if type(val) == "string" then
-                cmd = "dconf write " .. "/"..root.."/"..key.." \"'"..val.."'\""
+                cmd = "dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
                 commands = commands .. { cmd }
             end
             if type(val) == "table" then
@@ -27,7 +27,7 @@ function dconf(config)
                     end
                 end
                 val_list = val_list .."]"
-                cmd = "dconf write " .. "/"..root.."/"..key.." \""..val_list.."\""
+                cmd = "dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
                 commands = commands .. { cmd }
             end
         end
