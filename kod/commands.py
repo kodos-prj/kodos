@@ -770,11 +770,11 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
         exec_prefix = ""
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
-        if current_user == "root":
+        if current_user == user:
+            wrap = lambda s: s
+        else:
             exec_prefix += f" su {user} -c "
             wrap = lambda s: f"'{s}'"
-        else:
-            wrap = lambda s: s
 
         if user_configs["run"]:
             for command in user_configs["run"]:
