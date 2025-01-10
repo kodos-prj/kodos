@@ -34,12 +34,14 @@ function dconf(config)
     end
 
     tmpfile = "._tmp_user_dconf.tmp"
-    file = io.open (tmpfile, "w")
-    file:write(table.concat(commands, "\n"))
-    file:close()
+    -- file = io.open (tmpfile, "w")
+    -- file:write(table.concat(commands, "\n"))
+    -- file:close()
+
+    commands = "cat > /tmp/"..tmpfile.." << EOL\n"..table.concat(commands, "\n").."\nEOL\n"
 
     return {
-        command = "bash "..tmpfile.."; rm "..tmpfile;
+        command = commands.."; bash /tmp/"..tmpfile.."; rm -f /tmp/"..tmpfile;
         config = config;
     }
 end

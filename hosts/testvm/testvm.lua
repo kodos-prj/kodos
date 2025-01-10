@@ -270,7 +270,7 @@ return {
 
         -- "firefox",
         -- "aur:brave-bin",
-    })
+    });
     -- ..
     -- cli -- CLI tools
     -- ..
