@@ -70,7 +70,7 @@ return {
 
     -- gsettings set org.gnome.settings-daemon.plugins.media-keys.custom_keybindings:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name "Terminal"
     ["org/gnome/settings-daemon/plugins/media-keys"] = {
-        custom_keybindings = {
+        custom_keybinding = {
             ['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/'] = {
                 binding = '<Control><Alt>t';
                 command = "kgx";

@@ -187,7 +187,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = false,
+                enable = true;
                 display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"
@@ -198,12 +198,12 @@ return {
                     -- "gnome-themes-extra",
                     "gnome-shell-extension-appindicator",
                     "aur:gnome-shell-extension-dash-to-dock",
-                    -- "aur:gnome-shell-extension-blur-my-shell",
+                    "aur:gnome-shell-extension-blur-my-shell",
                     "aur:gnome-shell-extension-arc-menu-git",
-                    -- "aur:gnome-shell-extension-gsconnect",
+                    "aur:gnome-shell-extension-gsconnect",
                     "aur:nordic-theme",
                     -- "aur:whitesur-gtk-theme-git",
-                    -- "aur:whitesur-icon-theme-git",
+                    "aur:whitesur-icon-theme-git",
                 },
             },
     
@@ -260,7 +260,7 @@ return {
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
         "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.mattjakeman.ExtensionManager",
@@ -270,7 +270,7 @@ return {
         -- "aur:uxplay",
         -- "aur:megasync",
 
-        -- "firefox",
+        "firefox",
         -- "aur:brave-bin",
     });
     -- ..
