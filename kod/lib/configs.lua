@@ -42,7 +42,7 @@ local function dconf(config)
                         -- list of tables
                         for kname, elem in pairs(val) do
                             for k, v in pairs(elem) do
-                                cmd = exec_prefix .. " gsettings set " ..root_path..":"..key.." "..kname.." '"..elem.."'"
+                                cmd = exec_prefix .. " gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
                                 os.execute(cmd)
                             end
                         end
