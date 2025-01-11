@@ -19,7 +19,11 @@ local function dconf(config)
                 if type(val) == "string" then
                     -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
                     local cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." '"..val.."'"
-                    os.execute(cmd)
+                    exit_code = os.execute(cmd)
+                    if exit_code ~= 0 then
+                        print("Error: "..cmd)
+                        os.exit(1)
+                    end
                 end
                 if type(val) == "table" then
                     -- val could be:
@@ -37,13 +41,21 @@ local function dconf(config)
                         end
                         -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
                         cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
-                        os.execute(cmd)
+                        exitcode = os.execute(cmd)
+                        if exitcode ~= 0 then
+                            print("Error: "..cmd)
+                            os.exit(1)
+                        end
                     else
                         -- list of tables
                         for kname, elem in pairs(val) do
                             for k, v in pairs(elem) do
                                 cmd = exec_prefix .. " gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
-                                os.execute(cmd)
+                                exit_code = os.execute(cmd)
+                                if exit_code ~= 0 then
+                                    print("Error: "..cmd)
+                                    os.exit(1)
+                                end
                             end
                         end
                     end
