@@ -1,37 +1,52 @@
 -- Program Configuration generation
 
-local function string_wrap(str)
-    if str:match("^<[(].+[)]>$") then
-        return str
-    else
-        return "'"..str.."'"
-    end
-end
+-- local function string_wrap(str)
+--     if str:match("^<[(].+[)]>$") then
+--         return str
+--     else
+--         return "'"..str.."'"
+--     end
+-- end
 
 
 local function dconf(config)
 
     local command = function (exec_prefix, config, user)
         for root, key_vals in pairs(config) do
+            local root_path = root:gsub('/', '.')
             for key, val in pairs(key_vals) do
                 key = key:gsub("_", "-")
                 if type(val) == "string" then
                     -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
-                    cmd = exec_prefix .. " gsettings set " ..root:gsub('/', '.').." "..key.." '"..val.."'"
+                    local cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." '"..val.."'"
                     os.execute(cmd)
                 end
                 if type(val) == "table" then
-                    val_list = "["
-                    for i, elem in pairs(val) do
-                        val_list = val_list .. string_wrap(elem)
-                        if i < #val then
-                            val_list = val_list ..","
+                    -- val could be:
+                    --  - list of strings
+                    --  - list of tables
+
+                    if type(val[1]) == "string" then
+                        -- list of strings
+                        val_list = ""
+                        for i, elem in pairs(val) do
+                            val_list = val_list .. "'"..elem.."'"
+                            if i < #val then
+                                val_list = val_list ..","
+                            end
+                        end
+                        -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
+                        cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
+                        os.execute(cmd)
+                    else
+                        -- list of tables
+                        for kname, elem in pairs(val) do
+                            for k, v in pairs(elem) do
+                                cmd = exec_prefix .. " gsettings set " ..root_path..":"..key.." "..kname.." '"..elem.."'"
+                                os.execute(cmd)
+                            end
                         end
                     end
-                    val_list = val_list .."]"
-                    -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
-                    cmd = exec_prefix .. " gsettings set " ..root:gsub('/', '.').." "..key.." '"..val_list.."'"
-                    os.execute(cmd)
                 end
             end
         end
