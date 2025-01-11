@@ -685,6 +685,50 @@ def proc_user_programs(conf):
     return packages
 
 
+# def proc_user_configs(conf):
+#     configs_to_deploy = {}
+
+#     print("- processing user programs -----------")
+#     users = conf.users
+
+#     for user, info in users.items():
+#         deploy_configs = []
+#         commands_to_run = []
+#         if info.programs:
+#             print(f"Processing programs for {user}")
+#             for name, prog in info.programs.items():
+#                 print(name, prog.enable)
+#                 if prog.enable:
+#                     if prog.deploy_config:
+#                         # Program requires deploy config
+#                         deploy_configs.append(name)
+
+#                     # Configure based on the specified parameters
+#                     if "config" in prog and prog.config:
+#                         prog_conf = prog.config
+#                         if "command" in prog_conf:
+#                             command = prog_conf.command.format(**prog_conf.config)
+#                             commands_to_run.append(command)
+
+#         if info.deploy_configs:
+#             print(f"Processing deploy configs for {user}")
+#             configs = info.deploy_configs.values()
+#             deploy_configs += configs
+
+#         if info.services:
+#             for service, desc in info.services.items():
+#                 if desc.enable:
+#                     print(f"Checking {service} service discription")
+#                     if desc.config:
+#                         serv_conf = desc.config
+#                         if "command" in serv_conf:
+#                             command = serv_conf.command.format(**serv_conf.config)
+#                             commands_to_run.append(command)
+
+#         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
+
+#     return configs_to_deploy
+
 def proc_user_configs(conf):
     configs_to_deploy = {}
 
@@ -707,8 +751,8 @@ def proc_user_configs(conf):
                     if "config" in prog and prog.config:
                         prog_conf = prog.config
                         if "command" in prog_conf:
-                            command = prog_conf.command.format(**prog_conf.config)
-                            commands_to_run.append(command)
+                            # command = prog_conf.command.format(**prog_conf.config)
+                            commands_to_run.append(prog_conf)
 
         if info.deploy_configs:
             print(f"Processing deploy configs for {user}")
@@ -759,15 +803,45 @@ def proc_fonts(conf):
         packages_to_install += fonts.packages.values()
     return packages_to_install
 
+# def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
+#     print(f"{dotfile_mngrs=}")
+#     print(f"{configs_to_deploy=}")
+#     print("- configuring users -----------")
+#     current_user = os.environ['USER']
+#     if use_chroot:
+#         exec_prefix = f"arch-chroot {mount_point}"
+#     else:
+#         exec_prefix = ""
+#     for user, user_configs in configs_to_deploy.items():
+#         print(f"Configuring user {user}")
+#         if current_user == user:
+#             wrap = lambda s: s
+#         else:
+#             exec_prefix += f" su {user} -c "
+#             wrap = lambda s: f"'{s}'"
+
+#         if user_configs["run"]:
+#             for command in user_configs["run"]:
+#                 c.run(f"{exec_prefix} {wrap(command)}")
+#         if user_configs["configs"]:
+#             print("\nUSER:",current_user,'\n')
+#             c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
+#             for config in user_configs["configs"]:
+#                 c.run(
+#                     f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
+#                 )
+
 def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
+
     print("- configuring users -----------")
     current_user = os.environ['USER']
     if use_chroot:
         exec_prefix = f"arch-chroot {mount_point}"
     else:
         exec_prefix = ""
+    
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
         if current_user == user:
@@ -777,8 +851,13 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
             wrap = lambda s: f"'{s}'"
 
         if user_configs["run"]:
-            for command in user_configs["run"]:
-                c.run(f"{exec_prefix} {wrap(command)}")
+            for prog_config in user_configs["run"]:
+                command = prog_config.command
+                config = prog_config.config
+                command(exec_prefix, config, user)
+                # c.run(f"{exec_prefix} {wrap(command)}")
+        # TODO: Convert calling stow to run the command directly. the problem is
+        # is the initialization part
         if user_configs["configs"]:
             print("\nUSER:",current_user,'\n')
             c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
@@ -786,7 +865,7 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
                 c.run(
                     f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
                 )
-                
+
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:

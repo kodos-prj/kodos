@@ -9,56 +9,58 @@ local function string_wrap(str)
 end
 
 
-function dconf(config)
-    local commands = list({})
-    for root, key_vals in pairs(config) do
-        for key, val in pairs(key_vals) do
-            key = key:gsub("_", "-")
-            if type(val) == "string" then
-                cmd = "dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
-                commands = commands .. { cmd }
-            end
-            if type(val) == "table" then
-                val_list = "["
-                for i, elem in pairs(val) do
-                    val_list = val_list .. string_wrap(elem)
-                    if i < #val then
-                        val_list = val_list ..","
-                    end
+local function dconf(config)
+
+    local command = function (exec_prefix, config, user)
+        for root, key_vals in pairs(config) do
+            for key, val in pairs(key_vals) do
+                key = key:gsub("_", "-")
+                if type(val) == "string" then
+                    cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
+                    os.execute(cmd)
                 end
-                val_list = val_list .."]"
-                cmd = "dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
-                commands = commands .. { cmd }
+                if type(val) == "table" then
+                    val_list = "["
+                    for i, elem in pairs(val) do
+                        val_list = val_list .. string_wrap(elem)
+                        if i < #val then
+                            val_list = val_list ..","
+                        end
+                    end
+                    val_list = val_list .."]"
+                    cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
+                    os.execute(cmd)
+                end
             end
         end
     end
-
-    tmpfile = "._tmp_user_dconf.tmp"
-    -- file = io.open (tmpfile, "w")
-    -- file:write(table.concat(commands, "\n"))
-    -- file:close()
-
-    commands = "cat > /tmp/"..tmpfile.." << EOL\n"..table.concat(commands, "\n").."\nEOL\n"
-
     return {
-        command = commands.."; bash /tmp/"..tmpfile.."; rm -f /tmp/"..tmpfile;
+        command = command;
         config = config;
     }
 end
 
 
-function git(config)
-    user_name = config.user_name
-    user_email = config.user_email
+local function git(config)
+    local command = function (exec_prefix, config, user)
+        local user_name = config.user_name
+        local user_email = config.user_email
+        os.execute(exec_prefix .. " git config --global user.name \""..user_name.."\"")
+        os.execute(exec_prefix .. " git config --global user.email \""..user_email.."\"")
+    end
     return { 
-        command = "git config --global user.name \"{user_name}\" && git config --global user.email \"{user_email}\"",
+        command = command,
         config = config,
     }
 end
 
-function syncthing(config)
-    command = [[mkdir -p ~/.config/systemd/user/ &&
-cat > ~/.config/systemd/user/{service_name}.service << EOL
+
+local function syncthing(config)
+
+    local command = function (exec_prefix, config, user)
+        local service_name = config.service_name
+        local options = config.options
+        local service_desc = [[
 [Unit]
 After=network.target
 Description=Syncthing - Open Source Continuous File Synchronization
@@ -70,7 +72,16 @@ PrivateUsers=true
 
 [Install]
 WantedBy=default.target
-EOL]]
+]]
+        local service_desc = service_desc:gsub("{options}", options)
+        
+        if os.execute(exec_prefix .. " mkdir -p ~/.config/systemd/user/") then
+            -- file = io.open("~/.config/systemd/user/"..service_name..".service", "w")
+            -- file:write(service_desc)
+            -- file:close()
+            os.execute(exec_prefix .. " echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
+        end
+    end
 
     return {
         command = command,
@@ -79,47 +90,14 @@ EOL]]
 end
 
 function copy_file(source)
+    local command = function (exec_prefix, source, target, user)
+        os.execute(exec_prefix .. " cp " .. source .. " "..target); 
+    end
     return map({
-        command = "cp " .. source .. " {targer}",
+        command = command;
+        source = source;
     })
 end
-
--- function copy_file(config)
---     source = config.source
---     target = config.target
---     return {
---         command = "cp " .. source .. " " .. target,
---         config = config
---     }
--- end
-
--- function user_systemd(service_name, exec_start, config)
---     options = config.options
---     config_file = [[cat > ~/.config/systemd/user//etc/${service_name}.service << EOL
--- [Install]
--- WantedBy=default.target
-
--- [Service]
--- ExecStart='/usr/bin/syncthing' ${options} '-no-browser' '-no-restart' '-logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'
--- PrivateUsers=true
-
--- [Unit]
--- After=network.target
--- Description=Syncthing - Open Source Continuous File Synchronization
--- Documentation=man:syncthing(1)
--- EOL]]
-
---     config_file = config_file:gsub("${service_name}", service_name)
---     config_file = config_file:gsub("${options}", options)
-    
---     return {
---         command = config_file,
---         user = user,
---         options = options,
---     }
--- end
-
-
 
 
 return {
