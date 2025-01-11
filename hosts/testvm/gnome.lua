@@ -4,7 +4,7 @@ return {
     };
 
     ["org/gnome/Weather"] = {
-        locations = { "<(uint32 2, <('Edmonton', 'CYED', true, [(0.93666003772138751, -1.9803669304139968)], [(0.93462381444296339, -1.9809487010135638)])>)>"};
+        locations = "[<(uint32 2, <('Edmonton', 'CYED', true, [(0.93666003772138751, -1.9803669304139968)], [(0.93462381444296339, -1.9809487010135638)])>)>]";
     };
 
     ["org/gnome/shell/extensions/user-theme"] = {
@@ -62,15 +62,16 @@ return {
         workspace_names = { 'Workspace 1', 'Workspace 2', 'Workspace 3', 'Workspace 4' };
     };
 
+    ["org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0"] = {
+        binding = '<Control><Alt>t';
+        command = "kgx";
+        name = "Terminal";
+    };
+
     ["org/gnome/settings-daemon/plugins/media-keys"] = {
         custom_keybindings = { '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/' };
     };
 
-    ["org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0"] = {
-        binding = { '<Control><Alt>t' };
-        command = "kgx";
-        name = "Terminal";
-    };
 
     ["org/gnome/desktop/background"] = {
         color_shading_type = 'solid';

@@ -16,7 +16,8 @@ local function dconf(config)
             for key, val in pairs(key_vals) do
                 key = key:gsub("_", "-")
                 if type(val) == "string" then
-                    cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
+                    -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
+                    cmd = exec_prefix .. " gsettings set " ..root:gsub('/', '.').." "..key.." '"..val.."'"
                     os.execute(cmd)
                 end
                 if type(val) == "table" then
@@ -28,7 +29,8 @@ local function dconf(config)
                         end
                     end
                     val_list = val_list .."]"
-                    cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
+                    -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
+                    cmd = exec_prefix .. " gsettings set " ..root:gsub('/', '.').." "..key.." '"..val_list.."'"
                     os.execute(cmd)
                 end
             end
