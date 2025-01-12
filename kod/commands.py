@@ -767,8 +767,8 @@ def proc_user_configs(conf):
                     if desc.config:
                         serv_conf = desc.config
                         if "command" in serv_conf:
-                            command = serv_conf.command.format(**serv_conf.config)
-                            commands_to_run.append(command)
+                            # command = serv_conf.command.format(**serv_conf.config)
+                            commands_to_run.append(serv_conf)
 
         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
 
