@@ -838,8 +838,10 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
     print("- configuring users -----------")
     current_user = os.environ['USER']
     if use_chroot:
-        exec_prefix = f"arch-chroot {mount_point}"
+        mountpoint = mount_point
+        exec_prefix = f"arch-chroot {mountpoint}"
     else:
+        mountpoint = ""
         exec_prefix = ""
     
     for user, user_configs in configs_to_deploy.items():
@@ -854,7 +856,7 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
             for prog_config in user_configs["run"]:
                 command = prog_config.command
                 config = prog_config.config
-                command(exec_prefix, config, user)
+                command(config, user, mountpoint)
                 # c.run(f"{exec_prefix} {wrap(command)}")
         # TODO: Convert calling stow to run the command directly. the problem is
         # is the initialization part
