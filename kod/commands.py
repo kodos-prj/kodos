@@ -126,6 +126,36 @@ def create_users(c, conf):
             else:
                 exec_chroot(c, f"passwd {user}")
 
+def create_user(ctx, user, info):
+    # Normal users (no root)
+    if user != "root":
+        print(f"Creating user {user}")
+        user_name = info["name"]
+        ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
+        ctx.execute(
+            "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+        )
+        # TODO: Add extra groups
+
+    # Shell
+    if not info.shell:
+        shell = "/bin/bash"
+    else:
+        shell = info["shell"]
+    ctx.execute(f"usermod -s {shell} {user}")
+
+    # Password
+    if not info.no_password:
+        if info.hashed_password:
+            print("Assign the provided password")
+            ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
+        elif info.password:
+            print("Assign the provided password after encryption")
+            ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
+        else:
+            ctx.execute(f"passwd {user}")
+
+
 
 def configure_system(c, conf, root_part):
     # fstab
@@ -635,12 +665,22 @@ def proc_user_dotfile_manager(conf):
     print("- processing user dotfile manager -----------")
     users = conf.users
     dotfile_mngs = {}
-    for user, info in users.items():
+    for user_name, info in users.items():
         if info.dotfile_manager:
-            print(f"Processing dotfile manager for {user}")
-            dotfile_mngs[user] = info.dotfile_manager
+            print(f"Processing dotfile manager for {user_name}")
+            dotfile_mngs[user_name] = info.dotfile_manager
 
     return dotfile_mngs
+
+def user_dotfile_manager(info):
+    print("- processing user dotfile manager -----------")
+    dotfile_mngs = None
+    if info.dotfile_manager:
+        print("Processing dotfile manager")
+        dotfile_mngs = info.dotfile_manager
+
+    return dotfile_mngs
+
 
 
 def proc_user_programs(conf):
@@ -685,49 +725,6 @@ def proc_user_programs(conf):
     return packages
 
 
-# def proc_user_configs(conf):
-#     configs_to_deploy = {}
-
-#     print("- processing user programs -----------")
-#     users = conf.users
-
-#     for user, info in users.items():
-#         deploy_configs = []
-#         commands_to_run = []
-#         if info.programs:
-#             print(f"Processing programs for {user}")
-#             for name, prog in info.programs.items():
-#                 print(name, prog.enable)
-#                 if prog.enable:
-#                     if prog.deploy_config:
-#                         # Program requires deploy config
-#                         deploy_configs.append(name)
-
-#                     # Configure based on the specified parameters
-#                     if "config" in prog and prog.config:
-#                         prog_conf = prog.config
-#                         if "command" in prog_conf:
-#                             command = prog_conf.command.format(**prog_conf.config)
-#                             commands_to_run.append(command)
-
-#         if info.deploy_configs:
-#             print(f"Processing deploy configs for {user}")
-#             configs = info.deploy_configs.values()
-#             deploy_configs += configs
-
-#         if info.services:
-#             for service, desc in info.services.items():
-#                 if desc.enable:
-#                     print(f"Checking {service} service discription")
-#                     if desc.config:
-#                         serv_conf = desc.config
-#                         if "command" in serv_conf:
-#                             command = serv_conf.command.format(**serv_conf.config)
-#                             commands_to_run.append(command)
-
-#         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
-
-#     return configs_to_deploy
 
 def proc_user_configs(conf):
     configs_to_deploy = {}
@@ -775,6 +772,49 @@ def proc_user_configs(conf):
     return configs_to_deploy
 
 
+def user_configs(user, info):
+    configs_to_deploy = {}
+
+    print("- processing user programs -----------")
+    deploy_configs = []
+    commands_to_run = []
+    if info.programs:
+        print(f"Processing programs for {user}")
+        for name, prog in info.programs.items():
+            print(name, prog.enable)
+            if prog.enable:
+                if prog.deploy_config:
+                    # Program requires deploy config
+                    deploy_configs.append(name)
+
+                # Configure based on the specified parameters
+                if "config" in prog and prog.config:
+                    prog_conf = prog.config
+                    if "command" in prog_conf:
+                        # command = prog_conf.command.format(**prog_conf.config)
+                        commands_to_run.append(prog_conf)
+
+    # Add extra deploy configs
+    if info.deploy_configs:
+        print(f"Processing deploy configs for {user}")
+        configs = info.deploy_configs.values()
+        deploy_configs += configs
+
+    if info.services:
+        for service, desc in info.services.items():
+            if desc.enable:
+                print(f"Checking {service} service discription")
+                if desc.config:
+                    serv_conf = desc.config
+                    if "command" in serv_conf:
+                        # command = serv_conf.command.format(**serv_conf.config)
+                        commands_to_run.append(serv_conf)
+
+    configs_to_deploy = {"configs": deploy_configs, "run": commands_to_run}
+
+    return configs_to_deploy
+
+
 def proc_user_services(conf):
     services_to_enable_user = {}
     # services_to_enable = []
@@ -794,6 +834,17 @@ def proc_user_services(conf):
 
     return services_to_enable_user
 
+def user_services(user, info):
+    print(f"- processing user services {user} -----------")
+
+    services = []
+    if info.services:
+        for service, desc in info.services.items():
+            if desc.enable:
+                print(f"Checking {service} service discription")
+                services.append(service)
+
+    return services
 
 
 def proc_fonts(conf):
@@ -804,33 +855,6 @@ def proc_fonts(conf):
         packages_to_install += fonts.packages.values()
     return packages_to_install
 
-# def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
-#     print(f"{dotfile_mngrs=}")
-#     print(f"{configs_to_deploy=}")
-#     print("- configuring users -----------")
-#     current_user = os.environ['USER']
-#     if use_chroot:
-#         exec_prefix = f"arch-chroot {mount_point}"
-#     else:
-#         exec_prefix = ""
-#     for user, user_configs in configs_to_deploy.items():
-#         print(f"Configuring user {user}")
-#         if current_user == user:
-#             wrap = lambda s: s
-#         else:
-#             exec_prefix += f" su {user} -c "
-#             wrap = lambda s: f"'{s}'"
-
-#         if user_configs["run"]:
-#             for command in user_configs["run"]:
-#                 c.run(f"{exec_prefix} {wrap(command)}")
-#         if user_configs["configs"]:
-#             print("\nUSER:",current_user,'\n')
-#             c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
-#             for config in user_configs["configs"]:
-#                 c.run(
-#                     f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
-#                 )
 
 class Context:
     def __init__(self, c, user, mount_point="/mnt", use_chroot=True, stage="install"):
@@ -912,56 +936,39 @@ def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
                 if (ctx.stage == "install" and run_at_install) or ctx.stage == "rebuild-user":
                     command(ctx, config)
 
-    # for command in ctx.commands:
-        # print(command)
 
-    # return ctx.commands
+def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
+    print(f"{dotfile_mngrs=}")
+    # print(f"{configs_to_deploy=}")
+    print(f"Configuring user {user}")
+
+    ctx.user = user # TODO: <-- evaluate if this is still needed
+    
+    # Calling dotfile_mngrs
+    if user_configs["configs"]:
+        # print("\nUSER:",os.environ['USER'],'\n')
+        call_init = True
+        for config in user_configs["configs"]:
+            command = dotfile_mngrs.command
+            prg_config = dotfile_mngrs.config
+            command(ctx, prg_config, config, call_init)
+            call_init = False
 
 
-# def configure_users2(c, conf, dotfile_mngrs, mount_point="/mnt", use_chroot=True):
-#     # configs_to_deploy = {}
-#     ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)
+def configure_user_scripts(ctx, user, user_configs):
+    # print(f"{dotfile_mngrs=}")
+    # print(f"{configs_to_deploy=}")
+    print(f"Configuring user {user}")
 
-#     print("- processing user programs -----------")
-#     users = conf.users
-
-#     for user, info in users.items():
-#         # deploy_configs = []
-#         # commands_to_run = []
-#         if info.programs:
-#             print(f"Processing program's configs for {user}")
-#             for name, prog in info.programs.items():
-#                 print(name, prog.enable)
-#                 if prog.enable:
-#                     if prog.deploy_config:
-#                         # Program requires deploy config
-#                         command = dotfile_mngrs[user].command
-#                         prg_config = dotfile_mngrs[user].config
-#                         command(ctx, prg_config, name)
-
-#                     # Configure based on the specified parameters
-#                     if "config" in prog and prog.config:
-#                         prog_conf = prog.config
-#                         if "command" in prog_conf:
-#                             command = prog_conf.command
-#                             config = prog_conf.config
-#                             command(ctx, config)
-#                             # command = prog_conf.command.format(**prog_conf.config)
-#                             # commands_to_run.append(prog_conf)
-
-#         # Add extra deploy configs
-#         if info.deploy_configs:
-#             print(f"Processing deploy configs for {user}")
-#             configs = info.deploy_configs.values()
-#             command = dotfile_mngrs[user].command
-#             prg_config = dotfile_mngrs[user].config
-#             for name in configs:
-#                 command(ctx, prg_config, name)
-
-#     for command in ctx.commands:
-#         print(command)
-
-#     return ctx.commands
+    ctx.user = user # TODO: <-- evaluate if this is still needed
+    # Calling program's config commands
+    if user_configs["run"]:
+        for prog_config in user_configs["run"]:
+            command = prog_config.command
+            config = prog_config.config
+            stages = prog_config.stages
+            if ctx.stage in stages:
+                command(ctx, config)
 
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
@@ -984,32 +991,24 @@ def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
             c.run(f"systemctl disable --now {service}")
 
 
-def enable_user_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
-    current_user = os.environ['USER']
+def enable_users_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
+    # current_user = os.environ['USER']
     for user, services in list_of_services_user.items():
         print(f"Enabling service: {services} for {user}")
-        # if use_chroot:
-        #     exec_prefix = f"arch-chroot {mount_point}"
-        # else:
-        #     exec_prefix = ""
 
-        # if current_user == user:
-        #     wrap = lambda s: s
-        # else:
-        #     exec_prefix += f" su {user} -c "
-        #     wrap = lambda s: f"'{s}'"
-        
-        # run_now = ""
-        # if not use_chroot:
-            # run_now = "--now"
         for service in services:
             # c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
             if ctx.stage == "rebuild-user":
-                ctx.run(f"systemctl --user enable --now {service}")
+                ctx.execute(f"systemctl --user enable --now {service}")
 
-        # else:
-        #     for service in services:
-        #         c.run(f"su {user} -c 'systemctl --user enable --now {service}'")
+
+def enable_user_services(ctx, user, services):
+    print(f"Enabling service: {services} for {user}")
+
+    for service in services:
+        if ctx.stage == "rebuild-user":
+            ctx.execute(f"systemctl --user enable --now {service}")
+
 
 
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
@@ -1184,48 +1183,66 @@ def refresh_package_db(c, mount_point="/mnt", use_chroot=True):
         exec_prefix = ""
     c.run(f"{exec_prefix} pacman -Syy")
 
+def proc_users(ctx, conf):
+    users = conf.users
+    # For each user: create user, configure dotfile manager, configure user programs
+    for user, info in users.items():    
+        create_user(ctx, user, info)
+
+        dotfile_mngrs = user_dotfile_manager(info)
+        user_configs_def = user_configs(user, info)
+
+        configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
+        configure_user_scripts(ctx, user, user_configs_def)
+
+        services_to_enable = user_services(user, info)
+        print(f"User services to enable: {services_to_enable}")
+        enable_user_services(ctx, services_to_enable)
+
 
 ##############################################################################
+# stages
+# stage=="install" -> mount_point="/mnt", use_chroot=True
+# stage=="rebuild" -> if new_generation -> mount_point="/.new_rootfs", use_chroot=True
+# stage=="rebuild" -> if not new_generation -> mount_point="/", use_chroot=False
+# stage=="rebuild-user" -> mount_point="/", use_chroot=False
+##############################################################################
 
-
-@task(help={"config": "system configuration file"})
-def install(c, config):
+@task(help={"config": "system configuration file", "step": "Starting step"})
+def install(c, config, step=None):
     "Install KodOS in /mnt"
+    stage = "install"
+    ctx = Context(c, os.environ['USER'], mount_point="/mnt", use_chroot=True, stage=stage)
+        
     conf = load_config(config)
     print("-------------------------------")
-    boot_partition, root_partition = create_partitions(c, conf)
+    if not step:
+        boot_partition, root_partition = create_partitions(c, conf)
 
-    create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
+        create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
 
-    install_essentials_pkgs(c)
-    configure_system(c, conf, root_part=root_partition)
-    setup_bootloader(c, conf)
-    create_kod_user(c)
+        install_essentials_pkgs(c)
+        configure_system(c, conf, root_part=root_partition)
+        setup_bootloader(c, conf)
+        create_kod_user(c)
 
-    # === Proc packages
-    repos, repo_packages = proc_repos(c, conf)
-    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
-    print("packages\n", packages_to_install)
-    packages_installed = manage_packages(
-        c, "/mnt", repos, "install", packages_to_install, chroot=True
-    )
+        # === Proc packages
+        repos, repo_packages = proc_repos(c, conf)
+        packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+        print("packages\n", packages_to_install)
+        packages_installed = manage_packages(
+            c, "/mnt", repos, "install", packages_to_install, chroot=True
+        )
 
-    # === Proc services
-    system_services_to_enable = get_services_to_enable(conf)
-    print(f"Services to enable: {system_services_to_enable}")
-    enable_services(c, system_services_to_enable, use_chroot=True)
+        # === Proc services
+        system_services_to_enable = get_services_to_enable(conf)
+        print(f"Services to enable: {system_services_to_enable}")
+        enable_services(c, system_services_to_enable, use_chroot=True)
 
-    # === Proc users
-    print("\n====== Creating users ======")
-    create_users(c, conf)
-    user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    user_configs = proc_user_configs(conf)
-    ctx = Context(c, os.environ['USER'], mount_point="/mnt", use_chroot=True, stage="install")
-    configure_users(ctx, user_dotfile_mngrs, user_configs)
-
-    user_services_to_enable = proc_user_services(conf)
-    print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(ctx, user_services_to_enable, use_chroot=True)
+    if not step or step == "users":
+        # === Proc users
+        print("\n====== Creating users ======")
+        proc_users(ctx, conf)
 
     print("==== Deploying generation ====")
     deploy_generation(
@@ -1246,6 +1263,7 @@ def install(c, config):
 @task(help={"config": "system configuration file"})
 def rebuild(c, config, new_generation=False, update=False):
     "Rebuild KodOS installation based on configuration file"
+    stage = "rebuild"
     conf = load_config(config)
     print("========================================")
 
@@ -1274,6 +1292,8 @@ def rebuild(c, config, new_generation=False, update=False):
         generation_id = int(current_generation)
         mount_point="/"
         new_root_path = "/"
+
+    ctx = Context(c, os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
 
     print("========================================")
     repos = load_repos()
@@ -1380,27 +1400,30 @@ def rebuild(c, config, new_generation=False, update=False):
 @task(help={"config": "system configuration file", "user": "User to rebuild config"})
 def rebuild_user(c, config, user=os.environ['USER']):
     "Rebuild KodOS installation based on configuration file"
+    stage = "rebuild-user"
+    ctx = Context(c, os.environ['USER'], mount_point="/", use_chroot=False, stage=stage)   
     conf = load_config(config)
+    users = conf.users
+    info = users[user] if user in users else None   
     print("========================================")
 
     # === Proc users
-    print("\n====== Processing users ======")
-    # TODO: Check if repo is already cloned
-    user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    if user in user_dotfile_mngrs:
-        user_dotfile_mngrs = {k:v for k,v in user_dotfile_mngrs.items() if k == user}
+    if info:
+        print("\n====== Processing users ======")
 
-    user_configs = proc_user_configs(conf)
-    if user in user_configs:
-        user_configs = {k:v for k,v in user_configs.items() if k == user}
+        dotfile_mngrs = user_dotfile_manager(info)
+        user_configs_def = user_configs(user, info)
 
-    ctx = Context(c, os.environ['USER'], mount_point="/", use_chroot=False, stage="rebuild-user")   
-    configure_users(ctx, user_dotfile_mngrs, user_configs)
-    # configure_users2(c, conf, user_dotfile_mngrs, mount_point="/", use_chroot=False)
+        configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
+        configure_user_scripts(ctx, user, user_configs_def)
 
-    user_services_to_enable = proc_user_services(conf)
-    print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(ctx, user_services_to_enable, use_chroot=False)
+        services_to_enable = user_services(user, info)
+        print(f"User services to enable: {services_to_enable}")
+        enable_user_services(ctx, services_to_enable)
+    else:
+        print(f"User {user} not found in configuration file")
+
+    print("Done")
 
 
 @task(help={"generation": "Generation number to rollback to"})
@@ -1584,7 +1607,7 @@ def test_install(c, config, switch=False):
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(ctx, user_services_to_enable, use_chroot=True)
+    enable_users_services(ctx, user_services_to_enable, use_chroot=True)
 
     # print("==== Deploying generation ====")
     # deploy_generation(c, boot_partition, root_partition, 0, packages_installed, system_services_to_enable)

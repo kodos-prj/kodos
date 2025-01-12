@@ -17,6 +17,7 @@ local function stow(config)
     return {
         command = command;
         config = config;
+        stages = { "install", "rebuild-user" };
     }
 end
 
@@ -31,10 +32,10 @@ local function dconf(config)
                 if type(val) == "string" then
                     local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
                     exit_code = context:execute(cmd)
-                    if exit_code ~= 0 then
-                        print("Error: "..cmd)
-                        os.exit(1)
-                    end
+                    -- if exit_code ~= 0 then
+                    --     print("Error: "..cmd)
+                    --     os.exit(1)
+                    -- end
                 end
                 if type(val) == "table" then
                     -- val could be:
@@ -52,20 +53,20 @@ local function dconf(config)
                         end
                         cmd = "gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
                         exit_code = context:execute(cmd)
-                        if exitcode ~= 0 then
-                            print("Error: "..cmd)
-                            os.exit(1)
-                        end
+                        -- if exitcode ~= 0 then
+                        --     print("Error: "..cmd)
+                        --     os.exit(1)
+                        -- end
                     else
                         -- list of tables
                         for kname, elem in pairs(val) do
                             for k, v in pairs(elem) do
                                 cmd = "gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
                                 exit_code = context:execute(cmd)
-                                if exit_code ~= 0 then
-                                    print("Error: "..cmd)
-                                    os.exit(1)
-                                end
+                                -- if exit_code ~= 0 then
+                                --     print("Error: "..cmd)
+                                --     os.exit(1)
+                                -- end
                             end
                         end
                     end
@@ -76,7 +77,8 @@ local function dconf(config)
     return {
         command = command;
         config = config;
-        run_at_install = false;
+        stages = { "rebuild-user" };
+        run_at_install = false; -- Deprecated
     }
 end
 
@@ -91,6 +93,7 @@ local function git(config)
     return { 
         command = command,
         config = config,
+        stages = { "install", "rebuild-user" };
     }
 end
 
@@ -100,7 +103,7 @@ local function syncthing(config)
     local command = function (context, config)
         local service_name = config.service_name
         local options = config.options
-        local service_desc = [[
+        local service_desc = [[cat > ~/.config/systemd/user/{service_name}.service << EOL
 [Unit]
 After=network.target
 Description=Syncthing - Open Source Continuous File Synchronization
@@ -112,29 +115,34 @@ PrivateUsers=true
 
 [Install]
 WantedBy=default.target
-]]
+EOL]]
+        local service_desc = service_desc:gsub("{service_name}", service_name)
         local service_desc = service_desc:gsub("{options}", options)
         
         if context:execute("mkdir -p ~/.config/systemd/user/") then
-            context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
+            context:execute(service_desc)
+            -- context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
         end
     end
 
     return {
         command = command;
         config = config;
-        run_at_install = false;
+        stages = { "rebuild-user" };
+        run_at_install = false; -- Deprecated
     }
 end
+
 
 function copy_file(context, source)
     local command = function (exec_prefix, source, target, user)
         context:execute("cp " .. source .. " "..target); 
     end
-    return map({
+    return {
         command = command;
         source = source;
-    })
+        stages = { "install", "rebuild-user" };
+    }
 end
 
 
