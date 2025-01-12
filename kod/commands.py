@@ -943,7 +943,8 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     # print(f"{configs_to_deploy=}")
     print(f"Configuring user {user}")
 
-    # ctx.user = user # TODO: <-- evaluate if this is still needed
+    old_user = ctx.user
+    ctx.user = user # TODO: <-- evaluate if this is still needed
     
     # Calling dotfile_mngrs
     if user_configs["configs"]:
@@ -954,6 +955,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
             prg_config = dotfile_mngrs.config
             command(ctx, prg_config, config, call_init)
             call_init = False
+    ctx.user = old_user
 
 
 def configure_user_scripts(ctx, user, user_configs):
@@ -961,7 +963,8 @@ def configure_user_scripts(ctx, user, user_configs):
     # print(f"{configs_to_deploy=}")
     print(f"Configuring user {user}")
 
-    # ctx.user = user # TODO: <-- evaluate if this is still needed
+    old_user = ctx.user
+    ctx.user = user # TODO: <-- evaluate if this is still needed
     # Calling program's config commands
     if user_configs["run"]:
         for prog_config in user_configs["run"]:
@@ -971,6 +974,7 @@ def configure_user_scripts(ctx, user, user_configs):
             if ctx.stage in stages:
                 command(ctx, config)
 
+    ctx.user = old_user
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
