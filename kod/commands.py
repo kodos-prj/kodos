@@ -853,13 +853,26 @@ class Context:
             wrap = lambda s: f"'{s}'"
         self.c.run(f"{exec_prefix} {wrap(command)}")
 
+class DeferredContext:
+    def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
+        self.c = c
+        self.user = user
+        self.mount_point = mount_point
+        self.use_chroot = use_chroot
+        self.commands = []
+
+    def execute(self, command):
+        # self.c.run(f"{exec_prefix} {wrap(command)}")
+        self.commands.append(command)
+
 
 def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
 
     print("- configuring users -----------")
-    ctx = Context(c, os.environ['USER'], mount_point, use_chroot)   
+    # ctx = Context(c, os.environ['USER'], mount_point, use_chroot)
+    ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)   
     
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
@@ -880,7 +893,10 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
                 command = dotfile_mngrs[user].command
                 prg_config = dotfile_mngrs[user].config
                 command(ctx, prg_config, config)
+    for command in ctx.commands:
+        print(command)
 
+    return ctx.commands
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
