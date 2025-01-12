@@ -4,7 +4,7 @@ print("Eszkoz configuration")
 
 disk = require("disk")
 repos = require("repos")
-dotmgr = require("dotfile_manager")
+-- dotmgr = require("dotfile_manager")
 configs = require("configs")
 
 -- Extra packages
@@ -96,7 +96,7 @@ return {
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/bin/zsh",
 
-            dotfile_manager = dotmgr.stow({
+            dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
                     target_dir = "~/",
                     repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
@@ -151,7 +151,6 @@ return {
                 dconf = {
                     enable = true;
                     config = configs.dconf(require("gnome"));
-                    run = "ls -la";
                 };
             };
 

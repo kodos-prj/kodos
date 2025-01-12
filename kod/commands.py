@@ -754,6 +754,7 @@ def proc_user_configs(conf):
                             # command = prog_conf.command.format(**prog_conf.config)
                             commands_to_run.append(prog_conf)
 
+        # Add extra deploy configs
         if info.deploy_configs:
             print(f"Processing deploy configs for {user}")
             configs = info.deploy_configs.values()
@@ -831,42 +832,54 @@ def proc_fonts(conf):
 #                     f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
 #                 )
 
+class Context:
+    def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
+        self.c = c
+        self.user = user
+        self.mount_point = mount_point
+        self.use_chroot = use_chroot
+
+    def execute(self, command):
+        if self.use_chroot:
+            mountpoint = self.mount_point
+            exec_prefix = f"arch-chroot {mountpoint}"
+        else:
+            mountpoint = ""
+            exec_prefix = ""
+        if self.user == os.environ['USER']:
+            wrap = lambda s: s
+        else:
+            exec_prefix += f" su {self.user} -c "
+            wrap = lambda s: f"'{s}'"
+        self.c.run(f"{exec_prefix} {wrap(command)}")
+
+
 def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
 
     print("- configuring users -----------")
-    current_user = os.environ['USER']
-    if use_chroot:
-        mountpoint = mount_point
-        exec_prefix = f"arch-chroot {mountpoint}"
-    else:
-        mountpoint = ""
-        exec_prefix = ""
+    ctx = Context(c, os.environ['USER'], mount_point, use_chroot)   
     
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
-        if current_user == user:
-            wrap = lambda s: s
-        else:
-            exec_prefix += f" su {user} -c "
-            wrap = lambda s: f"'{s}'"
-
+        ctx.user = user
+        
         if user_configs["run"]:
             for prog_config in user_configs["run"]:
                 command = prog_config.command
                 config = prog_config.config
-                command(config, user, mountpoint)
+                command(ctx, config)
                 # c.run(f"{exec_prefix} {wrap(command)}")
-        # TODO: Convert calling stow to run the command directly. the problem is
-        # is the initialization part
+
+        # Calling dotfile_mngrs
         if user_configs["configs"]:
-            print("\nUSER:",current_user,'\n')
-            c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
+            print("\nUSER:",os.environ['USER'],'\n')
+        #     c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
             for config in user_configs["configs"]:
-                c.run(
-                    f"{exec_prefix} {wrap(dotfile_mngrs[user].deploy(config))}"
-                )
+                command = dotfile_mngrs[user].command
+                prg_config = dotfile_mngrs[user].config
+                command(ctx, prg_config, config)
 
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):

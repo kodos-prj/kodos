@@ -1,33 +1,29 @@
 -- Program Configuration generation
 
--- local function string_wrap(str)
---     if str:match("^<[(].+[)]>$") then
---         return str
---     else
---         return "'"..str.."'"
---     end
--- end
 
-local function execute(mountpoint, user)
-    prefic = ""
-    postfix = ""
-    if #mountpoint > 0 then
-        prefix = "arch-chroot " .. mountpoint .. " "
+local function stow(config)
+    local command = function (context, config, program)
+        local source = config.source_dir or "~/dotfiles"
+        local target = config.target_dir or "~"
+        
+        local git_clone = "git clone " .. config.repo_url .. " " .. source
+        
+        if context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi") then
+            print("Error: "..git_clone)
+            os.exit(1)
+        end
+        context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
     end
-    if #user > 0 then
-        prefix = prefix .. "su " .. user .. " -c '"
-        postfix = "'"
-    end
-    return function (cmd)
-        return os.execute(prefix .. cmd .. postfix)
-    end
+    return {
+        command = command;
+        config = config;
+    }
 end
 
 
 local function dconf(config)
 
-    local command = function (config, user, mountpoint)
-        local run = execute(mountpoint, user)
+    local command = function (context, config)
         for root, key_vals in pairs(config) do
             local root_path = root:gsub('/', '.')
             for key, val in pairs(key_vals) do
@@ -37,7 +33,7 @@ local function dconf(config)
                     -- local cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." '"..val.."'"
                     local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
                     -- exit_code = os.execute(cmd)
-                    exit_code = run(cmd)
+                    exit_code = context:execute(cmd)
                     if exit_code ~= 0 then
                         print("Error: "..cmd)
                         os.exit(1)
@@ -61,7 +57,7 @@ local function dconf(config)
                         -- cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
                         cmd = "gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
                         -- exitcode = os.execute(cmd)
-                        exitcode = run(cmd)
+                        exit_code = context:execute(cmd)
                         if exitcode ~= 0 then
                             print("Error: "..cmd)
                             os.exit(1)
@@ -73,7 +69,7 @@ local function dconf(config)
                                 -- cmd = exec_prefix .. " gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
                                 -- exit_code = os.execute(cmd)
                                 cmd = "gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
-                                exit_code = run(cmd)
+                                exit_code = context:execute(cmd)
                                 if exit_code ~= 0 then
                                     print("Error: "..cmd)
                                     os.exit(1)
@@ -93,14 +89,13 @@ end
 
 
 local function git(config)
-    local command = function (config, user, mountpoint)
-        local run = execute(mountpoint, user)
+    local command = function (context, config)
         local user_name = config.user_name
         local user_email = config.user_email
         -- os.execute(exec_prefix .. " git config --global user.name \""..user_name.."\"")
         -- os.execute(exec_prefix .. " git config --global user.email \""..user_email.."\"")
-        run("git config --global user.name \""..user_name.."\"")
-        run("git config --global user.email \""..user_email.."\"")
+        context:execute("git config --global user.name \""..user_name.."\"")
+        context:execute("git config --global user.email \""..user_email.."\"")
     end
     return { 
         command = command,
@@ -111,8 +106,7 @@ end
 
 local function syncthing(config)
 
-    local command = function (config, user, mountpoint)
-        local run = execute(mountpoint, user)
+    local command = function (context, config)
         local service_name = config.service_name
         local options = config.options
         local service_desc = [[
@@ -133,8 +127,8 @@ WantedBy=default.target
         -- if os.execute(exec_prefix .. " mkdir -p ~/.config/systemd/user/") then
         --     os.execute(exec_prefix .. " echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
         -- end
-        if run("mkdir -p ~/.config/systemd/user/") then
-            run("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
+        if context:execute("mkdir -p ~/.config/systemd/user/") then
+            context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
         end
     end
 
@@ -144,9 +138,9 @@ WantedBy=default.target
     }
 end
 
-function copy_file(source)
+function copy_file(context, source)
     local command = function (exec_prefix, source, target, user)
-        os.execute(exec_prefix .. " cp " .. source .. " "..target); 
+        context:execute("cp " .. source .. " "..target); 
     end
     return map({
         command = command;
@@ -156,7 +150,8 @@ end
 
 
 return {
-    exec_prefix = exec_prefix,
+    -- exec_prefix = exec_prefix,
+    stow = stow,
     copy_file = copy_file,
     dconf = dconf,
     git = git,
