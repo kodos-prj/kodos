@@ -863,6 +863,7 @@ class DeferredContext:
 
     def execute(self, command):
         # self.c.run(f"{exec_prefix} {wrap(command)}")
+        print(f"Command: {command}")
         self.commands.append(command)
 
 
@@ -897,6 +898,66 @@ def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use
         print(command)
 
     return ctx.commands
+
+def configure_users2(c, conf, dotfile_mngrs, mount_point="/mnt", use_chroot=True):
+    # configs_to_deploy = {}
+    ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)
+
+    print("- processing user programs -----------")
+    users = conf.users
+
+    for user, info in users.items():
+        # deploy_configs = []
+        # commands_to_run = []
+        if info.programs:
+            print(f"Processing program's configs for {user}")
+            for name, prog in info.programs.items():
+                print(name, prog.enable)
+                if prog.enable:
+                    if prog.deploy_config:
+                        # Program requires deploy config
+                        command = dotfile_mngrs[user].command
+                        prg_config = dotfile_mngrs[user].config
+                        command(ctx, prg_config, name)
+
+                    # Configure based on the specified parameters
+                    if "config" in prog and prog.config:
+                        prog_conf = prog.config
+                        if "command" in prog_conf:
+                            command = prog_conf.command
+                            config = prog_conf.config
+                            command(ctx, config)
+                            # command = prog_conf.command.format(**prog_conf.config)
+                            # commands_to_run.append(prog_conf)
+
+        # Add extra deploy configs
+        if info.deploy_configs:
+            print(f"Processing deploy configs for {user}")
+            configs = info.deploy_configs.values()
+            command = dotfile_mngrs[user].command
+            prg_config = dotfile_mngrs[user].config
+            for name in configs:
+                command(ctx, prg_config, name)
+            # deploy_configs += configs
+
+        # if info.services:
+        #     for service, desc in info.services.items():
+        #         if desc.enable:
+        #             print(f"Checking {service} service discription")
+        #             if desc.config:
+        #                 serv_conf = desc.config
+        #                 if "command" in serv_conf:
+        #                     command = serv_conf.command.format(**serv_conf.config)
+        #                     commands_to_run.append(command)
+
+        # configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
+
+    # return configs_to_deploy
+    for command in ctx.commands:
+        print(command)
+
+    return ctx.commands
+
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
@@ -1325,7 +1386,9 @@ def rebuild_user(c, config, user=os.environ['USER']):
     if user in user_configs:
         user_configs = {k:v for k,v in user_configs.items() if k == user}
 
-    configure_users(c, user_dotfile_mngrs, user_configs, mount_point="/", use_chroot=False)
+    # configure_users(c, user_dotfile_mngrs, user_configs, mount_point="/", use_chroot=False)
+    configure_users2(c, config, user_dotfile_mngrs, mount_point="/", use_chroot=False)
+
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
