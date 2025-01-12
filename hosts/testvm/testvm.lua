@@ -161,7 +161,7 @@ return {
 
             services = {
                 syncthing = {
-                    enable = false;
+                    enable = true;
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
@@ -258,7 +258,7 @@ return {
         "ghostty",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
-        "aur:visual-studio-code-bin",
+        -- "aur:visual-studio-code-bin",
         -- "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
