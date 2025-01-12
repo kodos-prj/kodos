@@ -128,6 +128,7 @@ def create_users(c, conf):
 
 def create_user(ctx, user, info):
     # Normal users (no root)
+    print(f">>> Creating user {user}")
     if user != "root":
         print(f"Creating user {user}")
         user_name = info["name"]
@@ -1425,7 +1426,7 @@ def rebuild_user(c, config, user=os.environ['USER']):
 
         services_to_enable = user_services(user, info)
         print(f"User services to enable: {services_to_enable}")
-        enable_user_services(ctx, services_to_enable)
+        enable_user_services(ctx, user, services_to_enable)
     else:
         print(f"User {user} not found in configuration file")
 
