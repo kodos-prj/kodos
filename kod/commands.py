@@ -833,25 +833,39 @@ def proc_fonts(conf):
 #                 )
 
 class Context:
-    def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
+    def __init__(self, c, user, mount_point="/mnt", use_chroot=True, stage="install"):
         self.c = c
         self.user = user
         self.mount_point = mount_point
         self.use_chroot = use_chroot
+        self.stage = stage
 
     def execute(self, command):
+        # if self.stage == "install":
+        #     mountpoint = self.mount_point
+        #     exec_prefix = f"arch-chroot {mountpoint}"
+        #     exec_prefix += f" su {self.user} -c "
+        #     wrap = lambda s: f"'{s}'"
+        # else:
+        #     mountpoint = ""
+        #     exec_prefix = ""
+        #     wrap = lambda s: s
+        
         if self.use_chroot:
             mountpoint = self.mount_point
             exec_prefix = f"arch-chroot {mountpoint}"
         else:
             mountpoint = ""
             exec_prefix = ""
+
         if self.user == os.environ['USER']:
             wrap = lambda s: s
         else:
             exec_prefix += f" su {self.user} -c "
             wrap = lambda s: f"'{s}'"
+        
         self.c.run(f"{exec_prefix} {wrap(command)}")
+
 
 class DeferredContext:
     def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
@@ -867,96 +881,87 @@ class DeferredContext:
         self.commands.append(command)
 
 
-def configure_users(c, dotfile_mngrs, configs_to_deploy, mount_point="/mnt", use_chroot=True):
+def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
     print(f"{dotfile_mngrs=}")
     print(f"{configs_to_deploy=}")
 
     print("- configuring users -----------")
-    # ctx = Context(c, os.environ['USER'], mount_point, use_chroot)
-    ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)   
     
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
         ctx.user = user
         
+        # Calling dotfile_mngrs
+        if user_configs["configs"]:
+            print("\nUSER:",os.environ['USER'],'\n')
+            call_init = True
+            for config in user_configs["configs"]:
+                command = dotfile_mngrs[user].command
+                prg_config = dotfile_mngrs[user].config
+                command(ctx, prg_config, config, call_init)
+                call_init = False
+
+        # Calling program's config commands
         if user_configs["run"]:
             for prog_config in user_configs["run"]:
                 command = prog_config.command
                 config = prog_config.config
-                command(ctx, config)
-                # c.run(f"{exec_prefix} {wrap(command)}")
+                run_at_install = True
+                if "run_at_install" in prog_config:
+                    run_at_install = prog_config.run_at_install
+                if (ctx.stage == "install" and run_at_install) or ctx.stage == "rebuild-user":
+                    command(ctx, config)
 
-        # Calling dotfile_mngrs
-        if user_configs["configs"]:
-            print("\nUSER:",os.environ['USER'],'\n')
-        #     c.run(f"{exec_prefix} {wrap(dotfile_mngrs[user].init())}")
-            for config in user_configs["configs"]:
-                command = dotfile_mngrs[user].command
-                prg_config = dotfile_mngrs[user].config
-                command(ctx, prg_config, config)
-    for command in ctx.commands:
-        print(command)
+    # for command in ctx.commands:
+        # print(command)
 
-    return ctx.commands
+    # return ctx.commands
 
-def configure_users2(c, conf, dotfile_mngrs, mount_point="/mnt", use_chroot=True):
-    # configs_to_deploy = {}
-    ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)
 
-    print("- processing user programs -----------")
-    users = conf.users
+# def configure_users2(c, conf, dotfile_mngrs, mount_point="/mnt", use_chroot=True):
+#     # configs_to_deploy = {}
+#     ctx = DeferredContext(c, os.environ['USER'], mount_point, use_chroot)
 
-    for user, info in users.items():
-        # deploy_configs = []
-        # commands_to_run = []
-        if info.programs:
-            print(f"Processing program's configs for {user}")
-            for name, prog in info.programs.items():
-                print(name, prog.enable)
-                if prog.enable:
-                    if prog.deploy_config:
-                        # Program requires deploy config
-                        command = dotfile_mngrs[user].command
-                        prg_config = dotfile_mngrs[user].config
-                        command(ctx, prg_config, name)
+#     print("- processing user programs -----------")
+#     users = conf.users
 
-                    # Configure based on the specified parameters
-                    if "config" in prog and prog.config:
-                        prog_conf = prog.config
-                        if "command" in prog_conf:
-                            command = prog_conf.command
-                            config = prog_conf.config
-                            command(ctx, config)
-                            # command = prog_conf.command.format(**prog_conf.config)
-                            # commands_to_run.append(prog_conf)
+#     for user, info in users.items():
+#         # deploy_configs = []
+#         # commands_to_run = []
+#         if info.programs:
+#             print(f"Processing program's configs for {user}")
+#             for name, prog in info.programs.items():
+#                 print(name, prog.enable)
+#                 if prog.enable:
+#                     if prog.deploy_config:
+#                         # Program requires deploy config
+#                         command = dotfile_mngrs[user].command
+#                         prg_config = dotfile_mngrs[user].config
+#                         command(ctx, prg_config, name)
 
-        # Add extra deploy configs
-        if info.deploy_configs:
-            print(f"Processing deploy configs for {user}")
-            configs = info.deploy_configs.values()
-            command = dotfile_mngrs[user].command
-            prg_config = dotfile_mngrs[user].config
-            for name in configs:
-                command(ctx, prg_config, name)
-            # deploy_configs += configs
+#                     # Configure based on the specified parameters
+#                     if "config" in prog and prog.config:
+#                         prog_conf = prog.config
+#                         if "command" in prog_conf:
+#                             command = prog_conf.command
+#                             config = prog_conf.config
+#                             command(ctx, config)
+#                             # command = prog_conf.command.format(**prog_conf.config)
+#                             # commands_to_run.append(prog_conf)
 
-        # if info.services:
-        #     for service, desc in info.services.items():
-        #         if desc.enable:
-        #             print(f"Checking {service} service discription")
-        #             if desc.config:
-        #                 serv_conf = desc.config
-        #                 if "command" in serv_conf:
-        #                     command = serv_conf.command.format(**serv_conf.config)
-        #                     commands_to_run.append(command)
+#         # Add extra deploy configs
+#         if info.deploy_configs:
+#             print(f"Processing deploy configs for {user}")
+#             configs = info.deploy_configs.values()
+#             command = dotfile_mngrs[user].command
+#             prg_config = dotfile_mngrs[user].config
+#             for name in configs:
+#                 command(ctx, prg_config, name)
 
-        # configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
+#     for command in ctx.commands:
+#         print(command)
 
-    # return configs_to_deploy
-    for command in ctx.commands:
-        print(command)
-
-    return ctx.commands
+#     return ctx.commands
 
 
 def enable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
@@ -1213,7 +1218,8 @@ def install(c, config):
     create_users(c, conf)
     user_dotfile_mngrs = proc_user_dotfile_manager(conf)
     user_configs = proc_user_configs(conf)
-    configure_users(c, user_dotfile_mngrs, user_configs)
+    ctx = Context(c, os.environ['USER'], mount_point="/mnt", use_chroot=True, stage="install")
+    configure_users(ctx, user_dotfile_mngrs, user_configs)
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
@@ -1386,9 +1392,9 @@ def rebuild_user(c, config, user=os.environ['USER']):
     if user in user_configs:
         user_configs = {k:v for k,v in user_configs.items() if k == user}
 
-    # configure_users(c, user_dotfile_mngrs, user_configs, mount_point="/", use_chroot=False)
-    configure_users2(c, config, user_dotfile_mngrs, mount_point="/", use_chroot=False)
-
+    ctx = Context(c, os.environ['USER'], mount_point="/", use_chroot=False, stage="rebuild-user")   
+    configure_users(ctx, user_dotfile_mngrs, user_configs)
+    # configure_users2(c, conf, user_dotfile_mngrs, mount_point="/", use_chroot=False)
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
@@ -1571,7 +1577,8 @@ def test_install(c, config, switch=False):
     create_users(c, conf)
     user_dotfile_mngrs = proc_user_dotfile_manager(conf)
     user_configs = proc_user_configs(conf)
-    configure_users(c, user_dotfile_mngrs, user_configs)
+    ctx = DeferredContext(c, os.environ['USER'], mount_point="/", use_chroot=False)
+    configure_users(ctx, user_dotfile_mngrs, user_configs)
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")

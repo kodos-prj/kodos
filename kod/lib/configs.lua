@@ -2,13 +2,13 @@
 
 
 local function stow(config)
-    local command = function (context, config, program)
+    local command = function (context, config, program, init)
         local source = config.source_dir or "~/dotfiles"
         local target = config.target_dir or "~"
         
         local git_clone = "git clone " .. config.repo_url .. " " .. source
         
-        if context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi") then
+        if init and context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi") then
             print("Error: "..git_clone)
             os.exit(1)
         end
@@ -29,10 +29,7 @@ local function dconf(config)
             for key, val in pairs(key_vals) do
                 key = key:gsub("_", "-")
                 if type(val) == "string" then
-                    -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." \''"..val.."'\'"
-                    -- local cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." '"..val.."'"
                     local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
-                    -- exit_code = os.execute(cmd)
                     exit_code = context:execute(cmd)
                     if exit_code ~= 0 then
                         print("Error: "..cmd)
@@ -53,10 +50,7 @@ local function dconf(config)
                                 val_list = val_list ..","
                             end
                         end
-                        -- cmd = exec_prefix .. " dconf write " .. "/"..root.."/"..key.." '"..val_list.."'"
-                        -- cmd = exec_prefix .. " gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
                         cmd = "gsettings set " ..root_path.." "..key.." \"["..val_list.."]\""
-                        -- exitcode = os.execute(cmd)
                         exit_code = context:execute(cmd)
                         if exitcode ~= 0 then
                             print("Error: "..cmd)
@@ -66,8 +60,6 @@ local function dconf(config)
                         -- list of tables
                         for kname, elem in pairs(val) do
                             for k, v in pairs(elem) do
-                                -- cmd = exec_prefix .. " gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
-                                -- exit_code = os.execute(cmd)
                                 cmd = "gsettings set " ..root_path.."."..key..":"..kname.." "..k.." '"..v.."'"
                                 exit_code = context:execute(cmd)
                                 if exit_code ~= 0 then
@@ -84,6 +76,7 @@ local function dconf(config)
     return {
         command = command;
         config = config;
+        run_at_install = false;
     }
 end
 
@@ -92,8 +85,6 @@ local function git(config)
     local command = function (context, config)
         local user_name = config.user_name
         local user_email = config.user_email
-        -- os.execute(exec_prefix .. " git config --global user.name \""..user_name.."\"")
-        -- os.execute(exec_prefix .. " git config --global user.email \""..user_email.."\"")
         context:execute("git config --global user.name \""..user_name.."\"")
         context:execute("git config --global user.email \""..user_email.."\"")
     end
@@ -124,17 +115,15 @@ WantedBy=default.target
 ]]
         local service_desc = service_desc:gsub("{options}", options)
         
-        -- if os.execute(exec_prefix .. " mkdir -p ~/.config/systemd/user/") then
-        --     os.execute(exec_prefix .. " echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
-        -- end
         if context:execute("mkdir -p ~/.config/systemd/user/") then
             context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
         end
     end
 
     return {
-        command = command,
-        config = config
+        command = command;
+        config = config;
+        run_at_install = false;
     }
 end
 
@@ -150,7 +139,6 @@ end
 
 
 return {
-    -- exec_prefix = exec_prefix,
     stow = stow,
     copy_file = copy_file,
     dconf = dconf,
