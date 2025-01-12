@@ -984,26 +984,28 @@ def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
             c.run(f"systemctl disable --now {service}")
 
 
-def enable_user_services(c, list_of_services_user, mount_point="/mnt", use_chroot=False):
+def enable_user_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
     current_user = os.environ['USER']
     for user, services in list_of_services_user.items():
         print(f"Enabling service: {services} for {user}")
-        if use_chroot:
-            exec_prefix = f"arch-chroot {mount_point}"
-        else:
-            exec_prefix = ""
+        # if use_chroot:
+        #     exec_prefix = f"arch-chroot {mount_point}"
+        # else:
+        #     exec_prefix = ""
 
-        if current_user == user:
-            wrap = lambda s: s
-        else:
-            exec_prefix += f" su {user} -c "
-            wrap = lambda s: f"'{s}'"
+        # if current_user == user:
+        #     wrap = lambda s: s
+        # else:
+        #     exec_prefix += f" su {user} -c "
+        #     wrap = lambda s: f"'{s}'"
         
-        run_now = ""
-        if not use_chroot:
-            run_now = "--now"
+        # run_now = ""
+        # if not use_chroot:
+            # run_now = "--now"
         for service in services:
-            c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
+            # c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
+            if ctx.stage == "rebuild-user":
+                ctx.run(f"systemctl --user enable --now {service}")
 
         # else:
         #     for service in services:
@@ -1223,7 +1225,7 @@ def install(c, config):
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(c, user_services_to_enable, use_chroot=True)
+    enable_user_services(ctx, user_services_to_enable, use_chroot=True)
 
     print("==== Deploying generation ====")
     deploy_generation(
@@ -1398,7 +1400,7 @@ def rebuild_user(c, config, user=os.environ['USER']):
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(c, user_services_to_enable, use_chroot=False)
+    enable_user_services(ctx, user_services_to_enable, use_chroot=False)
 
 
 @task(help={"generation": "Generation number to rollback to"})
@@ -1582,7 +1584,7 @@ def test_install(c, config, switch=False):
 
     user_services_to_enable = proc_user_services(conf)
     print(f"User services to enable: {user_services_to_enable}")
-    enable_user_services(c, user_services_to_enable, use_chroot=True)
+    enable_user_services(ctx, user_services_to_enable, use_chroot=True)
 
     # print("==== Deploying generation ====")
     # deploy_generation(c, boot_partition, root_partition, 0, packages_installed, system_services_to_enable)
