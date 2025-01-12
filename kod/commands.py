@@ -914,7 +914,7 @@ def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
     
     for user, user_configs in configs_to_deploy.items():
         print(f"Configuring user {user}")
-        ctx.user = user
+        # ctx.user = user
         
         # Calling dotfile_mngrs
         if user_configs["configs"]:
@@ -943,7 +943,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     # print(f"{configs_to_deploy=}")
     print(f"Configuring user {user}")
 
-    ctx.user = user # TODO: <-- evaluate if this is still needed
+    # ctx.user = user # TODO: <-- evaluate if this is still needed
     
     # Calling dotfile_mngrs
     if user_configs["configs"]:
@@ -961,7 +961,7 @@ def configure_user_scripts(ctx, user, user_configs):
     # print(f"{configs_to_deploy=}")
     print(f"Configuring user {user}")
 
-    ctx.user = user # TODO: <-- evaluate if this is still needed
+    # ctx.user = user # TODO: <-- evaluate if this is still needed
     # Calling program's config commands
     if user_configs["run"]:
         for prog_config in user_configs["run"]:
