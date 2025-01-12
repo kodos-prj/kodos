@@ -224,7 +224,7 @@ return {
         font_dir = true,
         packages = {
             -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
-            "ttf-fechoiracode-nerd",
+            "ttf-firacode-nerd",
             "ttf-nerd-fonts-symbols",
             "ttf-nerd-fonts-symbols-common",
             "ttf-sourcecodepro-nerd",

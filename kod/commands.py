@@ -1006,8 +1006,14 @@ def enable_user_services(ctx, user, services):
     print(f"Enabling service: {services} for {user}")
 
     for service in services:
+        print(f"{ctx.stage=}")
+        print(f"{ctx.user=}"
+              f"{ctx.mount_point=}"
+              f"{ctx.use_chroot=}")
         if ctx.stage == "rebuild-user":
+            print("Running: ", f"systemctl --user enable --now {service}")
             ctx.execute(f"systemctl --user enable --now {service}")
+        print("Done - services enabled")
 
 
 
@@ -1197,7 +1203,7 @@ def proc_users(ctx, conf):
 
         services_to_enable = user_services(user, info)
         print(f"User services to enable: {services_to_enable}")
-        enable_user_services(ctx, services_to_enable)
+        enable_user_services(ctx, user, services_to_enable)
 
 
 ##############################################################################
