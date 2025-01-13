@@ -7,8 +7,9 @@ repos = require("repos")
 configs = require("configs")
 
 -- Extra packages
-cli = require("cli")
-development = require("development")
+-- cli = require("cli")
+-- development = require("development")
+
 local use_gnome = true
 
 return {
@@ -20,7 +21,7 @@ return {
 
     devices = {
         -- disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
-        disk0 = disk.disk_definition("/dev/sda", "34GB"),
+        disk0 = disk.disk_definition("/dev/vda", "3GB"),
     },
 
     -- bootloader = {
@@ -71,7 +72,7 @@ return {
     },
 
     network = {
-        hostname = "eszkoz",
+        hostname = "testvm",
         ipv6 = true
     },
 
@@ -154,12 +155,14 @@ return {
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
-                    });
+                    }),
                     -- extra_packages = { "aur:syncthing-gtk" },
                 }
             },
 
             home = map({
+                -- file("face.jpg", "/home/abuss/.face");
+                -- file("/home/abuss/.face"):copy("face.jpg");
                 [".config/background"] = copy_file("background"),
                 [".face"] = copy_file("face.jpg"),
 
@@ -174,10 +177,10 @@ return {
         desktop_manager = {
             gnome = {
                 enable = use_gnome;
-                display_manager = "gdm";
+                display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"
-                };
+                },
                 extra_packages = {
                     "gnome-tweaks",
                     -- "gnome-extra",
@@ -188,7 +191,7 @@ return {
                     "aur:gnome-shell-extension-arc-menu-git",
                     "aur:gnome-shell-extension-gsconnect",
                     "aur:nordic-theme",
-                    "aur:whitesur-gtk-theme-git",
+                    -- "aur:whitesur-gtk-theme-git",
                     "aur:whitesur-icon-theme-git",
                 },
             },
@@ -242,27 +245,27 @@ return {
         -- "poetry",
         "neofetch",
         "helix",
-        "ghostty",
+        -- "ghostty",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
-        "aur:visual-studio-code-bin",
-        "aur:floorp-bin",
+        -- "aur:visual-studio-code-bin",
+        -- "aur:floorp-bin",
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.mattjakeman.ExtensionManager",
         -- "flatpak:com.visualstudio.code",
-        "distrobox",
-        "aur:quickemu",
-        "aur:uxplay",
-        "aur:megasync",
+        -- "distrobox",
+        -- "aur:quickemu",
+        -- "aur:uxplay",
+        -- "aur:megasync",
 
-        "firefox",
-        "aur:brave-bin",
-    })
-    ..
-    cli -- CLI tools
-    ..
-    development, -- Development tools
+        -- "firefox",
+        -- "aur:brave-bin",
+    });
+    -- ..
+    -- cli -- CLI tools
+    -- ..
+    -- development, -- Development tools
 
     services = {
         -- Firmware update

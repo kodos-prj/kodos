@@ -16,7 +16,8 @@ function stow(config)
     
     init_fn = function()
         if config.repo_url then
-            return "git clone " .. config.repo_url .. " " .. source
+            git_clone = "git clone " .. config.repo_url .. " " .. source
+            return "if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi"
         end
     end
 
