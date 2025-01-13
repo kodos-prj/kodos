@@ -15,6 +15,7 @@ local function stow(config)
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
     end
     return {
+        name = "stow",
         command = command;
         config = config;
         stages = { "install", "rebuild-user" };
@@ -75,10 +76,10 @@ local function dconf(config)
         end
     end
     return {
+        name = "dconf",
         command = command;
         config = config;
         stages = { "rebuild-user" };
-        run_at_install = false; -- Deprecated
     }
 end
 
@@ -90,7 +91,8 @@ local function git(config)
         context:execute("git config --global user.name \""..user_name.."\"")
         context:execute("git config --global user.email \""..user_email.."\"")
     end
-    return { 
+    return {
+        name = "git",
         command = command,
         config = config,
         stages = { "install", "rebuild-user" };
@@ -126,10 +128,10 @@ EOL]]
     end
 
     return {
+        name = "syncthing",
         command = command;
         config = config;
         stages = { "rebuild-user" };
-        run_at_install = false; -- Deprecated
     }
 end
 

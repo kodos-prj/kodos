@@ -889,6 +889,7 @@ class Context:
             exec_prefix += f" su {self.user} -c "
             wrap = lambda s: f"'{s}'"
         
+        print(f"[Contex] Command: {command}")
         self.c.run(f"{exec_prefix} {wrap(command)}")
 
 
@@ -971,7 +972,7 @@ def configure_user_scripts(ctx, user, user_configs):
             command = prog_config.command
             config = prog_config.config
             stages = prog_config.stages
-            print("configure_user_scripts", ctx.stage, stages)
+            print(f"configure_user_scripts: {prog_config.name}", ctx.stage, stages.values())
             if ctx.stage in stages:
                 command(ctx, config)
 
