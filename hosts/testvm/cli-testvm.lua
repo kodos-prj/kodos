@@ -10,6 +10,8 @@ configs = require("configs")
 -- cli = require("cli")
 -- development = require("development")
 
+local use_gnome = true
+
 return {
     repos = {
         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
@@ -46,17 +48,6 @@ return {
             enable = true,
             extra_packages = { "sane-airscan" },
         },
-  
-        -- -- https://wiki.archlinux.org/title/Bluetooth
-        -- bluetooth = {
-        --     enable = true,
-        --     package = "bluez",
-        --     -- settings = {
-        --         -- General = {
-        --             -- Enable = "Source,Sink,Media,Socket",
-        --         -- },
-        --     -- },
-        -- },
 
         pipewire = {
             enable = true,
@@ -70,7 +61,7 @@ return {
 
     locale = {
         locale = {
-            default = "en_CA.UTF-8 UTF-8",
+            default = "en_CA.UTF-8 UTF-8\nen_US.UTF-8 UTF-8\nen_GB.UTF-8 UTF-8",
             extra = {
                 "en_US.UTF-8 UTF-8",
                 "en_GB.UTF-8 UTF-8"
@@ -148,7 +139,7 @@ return {
 
                 -- Gnome dconf configuration
                 dconf = {
-                    enable = true;
+                    enable = use_gnome;
                     config = configs.dconf(require("gnome"));
                 };
             };
@@ -185,7 +176,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = false;
+                enable = use_gnome;
                 display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"

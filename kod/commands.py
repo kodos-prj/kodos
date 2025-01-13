@@ -92,69 +92,70 @@ def install_essentials_pkgs(c):
     c.run(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
 
 
-def create_users(c, conf):
-    users = conf.users
-    for user, info in users.items():
-        # Normal users (no root)
-        if user != "root":
-            print(f"Creating user {user}")
-            user_name = info["name"]
-            exec_chroot(c, f"useradd -m -G wheel {user} -c '{user_name}'")
-            exec_chroot(
-                c,
-                "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-            )
-            # TODO: Add extra groups
+# def create_users(c, conf):
+#     users = conf.users
+#     for user, info in users.items():
+#         # Normal users (no root)
+#         if user != "root":
+#             print(f"Creating user {user}")
+#             user_name = info["name"]
+#             exec_chroot(c, f"useradd -m -G wheel {user} -c '{user_name}'")
+#             exec_chroot(
+#                 c,
+#                 "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+#             )
+#             # TODO: Add extra groups
 
-        # Shell
-        if not info.shell:
-            shell = "/bin/bash"
-        else:
-            shell = info["shell"]
-        exec_chroot(c, f"usermod -s {shell} {user}")
+#         # Shell
+#         if not info.shell:
+#             shell = "/bin/bash"
+#         else:
+#             shell = info["shell"]
+#         exec_chroot(c, f"usermod -s {shell} {user}")
 
-        # Password
-        if not info.no_password:
-            if info.hashed_password:
-                print("Assign the provided password")
-                exec_chroot(c, f"usermod -p '{info.hashed_password}' {user}")
-            elif info.password:
-                print("Assign the provided password after encryption")
-                exec_chroot(
-                    c, f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}"
-                )
-            else:
-                exec_chroot(c, f"passwd {user}")
+#         # Password
+#         if not info.no_password:
+#             if info.hashed_password:
+#                 print("Assign the provided password")
+#                 exec_chroot(c, f"usermod -p '{info.hashed_password}' {user}")
+#             elif info.password:
+#                 print("Assign the provided password after encryption")
+#                 exec_chroot(
+#                     c, f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}"
+#                 )
+#             else:
+#                 exec_chroot(c, f"passwd {user}")
 
-def create_user(ctx, user, info):
-    # Normal users (no root)
-    print(f">>> Creating user {user}")
-    if user != "root":
-        print(f"Creating user {user}")
-        user_name = info["name"]
-        ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
-        ctx.execute(
-            "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-        )
-        # TODO: Add extra groups
 
-    # Shell
-    if not info.shell:
-        shell = "/bin/bash"
-    else:
-        shell = info["shell"]
-    ctx.execute(f"usermod -s {shell} {user}")
+# def create_user(ctx, user, info):
+#     # Normal users (no root)
+#     print(f">>> Creating user {user}")
+#     if user != "root":
+#         print(f"Creating user {user}")
+#         user_name = info["name"]
+#         ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
+#         ctx.execute(
+#             "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+#         )
+#         # TODO: Add extra groups
 
-    # Password
-    if not info.no_password:
-        if info.hashed_password:
-            print("Assign the provided password")
-            ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
-        elif info.password:
-            print("Assign the provided password after encryption")
-            ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
-        else:
-            ctx.execute(f"passwd {user}")
+#     # Shell
+#     if not info.shell:
+#         shell = "/bin/bash"
+#     else:
+#         shell = info["shell"]
+#     ctx.execute(f"usermod -s {shell} {user}")
+
+#     # Password
+#     if not info.no_password:
+#         if info.hashed_password:
+#             print("Assign the provided password")
+#             ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
+#         elif info.password:
+#             print("Assign the provided password after encryption")
+#             ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
+#         else:
+#             ctx.execute(f"passwd {user}")
 
 
 
@@ -662,6 +663,37 @@ def proc_services_to_enable(conf):
     return services_to_enable
 
 
+def create_user(ctx, user, info):
+    # Normal users (no root)
+    print(f">>> Creating user {user}")
+    if user != "root":
+        print(f"Creating user {user}")
+        user_name = info["name"]
+        ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
+        ctx.execute(
+            "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+        )
+        # TODO: Add extra groups
+
+    # Shell
+    if not info.shell:
+        shell = "/bin/bash"
+    else:
+        shell = info["shell"]
+    ctx.execute(f"usermod -s {shell} {user}")
+
+    # Password
+    if not info.no_password:
+        if info.hashed_password:
+            print("Assign the provided password")
+            ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
+        elif info.password:
+            print("Assign the provided password after encryption")
+            ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
+        else:
+            ctx.execute(f"passwd {user}")
+
+
 def proc_user_dotfile_manager(conf):
     print("- processing user dotfile manager -----------")
     users = conf.users
@@ -673,6 +705,7 @@ def proc_user_dotfile_manager(conf):
 
     return dotfile_mngs
 
+
 def user_dotfile_manager(info):
     print("- processing user dotfile manager -----------")
     dotfile_mngs = None
@@ -681,7 +714,6 @@ def user_dotfile_manager(info):
         dotfile_mngs = info.dotfile_manager
 
     return dotfile_mngs
-
 
 
 def proc_user_programs(conf):
@@ -724,7 +756,6 @@ def proc_user_programs(conf):
                     packages.append(name)
 
     return packages
-
 
 
 def proc_user_configs(conf):
@@ -835,6 +866,7 @@ def proc_user_services(conf):
 
     return services_to_enable_user
 
+
 def user_services(user, info):
     print(f"- processing user services {user} -----------")
 
@@ -894,50 +926,50 @@ class Context:
         return True
 
 
-class DeferredContext:
-    def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
-        self.c = c
-        self.user = user
-        self.mount_point = mount_point
-        self.use_chroot = use_chroot
-        self.commands = []
+# class DeferredContext:
+#     def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
+#         self.c = c
+#         self.user = user
+#         self.mount_point = mount_point
+#         self.use_chroot = use_chroot
+#         self.commands = []
 
-    def execute(self, command):
-        # self.c.run(f"{exec_prefix} {wrap(command)}")
-        print(f"Command: {command}")
-        self.commands.append(command)
+#     def execute(self, command):
+#         # self.c.run(f"{exec_prefix} {wrap(command)}")
+#         print(f"Command: {command}")
+#         self.commands.append(command)
 
 
-def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
-    print(f"{dotfile_mngrs=}")
-    print(f"{configs_to_deploy=}")
+# def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
+#     print(f"{dotfile_mngrs=}")
+#     print(f"{configs_to_deploy=}")
 
-    print("- configuring users -----------")
+#     print("- configuring users -----------")
     
-    for user, user_configs in configs_to_deploy.items():
-        print(f"Configuring user {user}")
-        # ctx.user = user
+#     for user, user_configs in configs_to_deploy.items():
+#         print(f"Configuring user {user}")
+#         # ctx.user = user
         
-        # Calling dotfile_mngrs
-        if user_configs["configs"]:
-            print("\nUSER:",os.environ['USER'],'\n')
-            call_init = True
-            for config in user_configs["configs"]:
-                command = dotfile_mngrs[user].command
-                prg_config = dotfile_mngrs[user].config
-                command(ctx, prg_config, config, call_init)
-                call_init = False
+#         # Calling dotfile_mngrs
+#         if user_configs["configs"]:
+#             print("\nUSER:",os.environ['USER'],'\n')
+#             call_init = True
+#             for config in user_configs["configs"]:
+#                 command = dotfile_mngrs[user].command
+#                 prg_config = dotfile_mngrs[user].config
+#                 command(ctx, prg_config, config, call_init)
+#                 call_init = False
 
-        # Calling program's config commands
-        if user_configs["run"]:
-            for prog_config in user_configs["run"]:
-                command = prog_config.command
-                config = prog_config.config
-                run_at_install = True
-                if "run_at_install" in prog_config:
-                    run_at_install = prog_config.run_at_install
-                if (ctx.stage == "install" and run_at_install) or ctx.stage == "rebuild-user":
-                    command(ctx, config)
+#         # Calling program's config commands
+#         if user_configs["run"]:
+#             for prog_config in user_configs["run"]:
+#                 command = prog_config.command
+#                 config = prog_config.config
+#                 run_at_install = True
+#                 if "run_at_install" in prog_config:
+#                     run_at_install = prog_config.run_at_install
+#                 if (ctx.stage == "install" and run_at_install) or ctx.stage == "rebuild-user":
+#                     command(ctx, config)
 
 
 def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
@@ -998,25 +1030,25 @@ def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
             c.run(f"systemctl disable --now {service}")
 
 
-def enable_users_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
-    # current_user = os.environ['USER']
-    for user, services in list_of_services_user.items():
-        print(f"Enabling service: {services} for {user}")
+# def enable_users_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
+#     # current_user = os.environ['USER']
+#     for user, services in list_of_services_user.items():
+#         print(f"Enabling service: {services} for {user}")
 
-        for service in services:
-            # c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
-            if ctx.stage == "rebuild-user":
-                ctx.execute(f"systemctl --user enable --now {service}")
+#         for service in services:
+#             # c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
+#             if ctx.stage == "rebuild-user":
+#                 ctx.execute(f"systemctl --user enable --now {service}")
 
 
 def enable_user_services(ctx, user, services):
     print(f"Enabling service: {services} for {user}")
 
     for service in services:
-        print(f"{ctx.stage=}")
-        print(f"{ctx.user=}"
-              f"{ctx.mount_point=}"
-              f"{ctx.use_chroot=}")
+        # print(f"{ctx.stage=}")
+        # print(f"{ctx.user=}"
+        #       f"{ctx.mount_point=}"
+        #       f"{ctx.use_chroot=}")
         if ctx.stage == "rebuild-user":
             print("Running: ", f"systemctl --user enable --now {service}")
             ctx.execute(f"systemctl --user enable --now {service}")
@@ -1195,6 +1227,7 @@ def refresh_package_db(c, mount_point="/mnt", use_chroot=True):
     else:
         exec_prefix = ""
     c.run(f"{exec_prefix} pacman -Syy")
+
 
 def proc_users(ctx, conf):
     users = conf.users
@@ -1439,33 +1472,34 @@ def rebuild_user(c, config, user=os.environ['USER']):
     print("Done")
 
 
-@task(help={"generation": "Generation number to rollback to"})
-def rollback(c, generation=None):
-    "Rollback current generation to use the specified generation"
+# TODO: Update rollback
+# @task(help={"generation": "Generation number to rollback to"})
+# def rollback(c, generation=None):
+#     "Rollback current generation to use the specified generation"
 
-    if generation is None:
-        print("Please specify a generation number")
-        return
+#     if generation is None:
+#         print("Please specify a generation number")
+#         return
 
-    print("Updating current generation")
-    # Check if rootfs exists
-    if os.path.isdir("/kod/generation/current/rootfs-old"):
-        c.run("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
-    if os.path.isdir("/kod/generation/current/rootfs"):
-        c.run(
-            "sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old"
-        )
-    c.run(
-        f"sudo btrfs subvol snap /kod/generation/{generation}/rootfs /kod/generation/current/rootfs"
-    )
-    if os.path.isfile("/kod/generation/current/generation"):
-        c.run(f"sudo sed -i 's/.$/{generation}/g' /kod/generation/current/generation")
-    else:
-        c.run(f"sudo echo '{generation} > /kod/generation/current/generation")
+#     print("Updating current generation")
+#     # Check if rootfs exists
+#     if os.path.isdir("/kod/generation/current/rootfs-old"):
+#         c.run("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
+#     if os.path.isdir("/kod/generation/current/rootfs"):
+#         c.run(
+#             "sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old"
+#         )
+#     c.run(
+#         f"sudo btrfs subvol snap /kod/generation/{generation}/rootfs /kod/generation/current/rootfs"
+#     )
+#     if os.path.isfile("/kod/generation/current/generation"):
+#         c.run(f"sudo sed -i 's/.$/{generation}/g' /kod/generation/current/generation")
+#     else:
+#         c.run(f"sudo echo '{generation} > /kod/generation/current/generation")
 
-    print("Recreating grub.cfg")
-    c.run("grub-mkconfig -o /boot/grub/grub.cfg")
-    print("Done")
+#     print("Recreating grub.cfg")
+#     c.run("grub-mkconfig -o /boot/grub/grub.cfg")
+#     print("Done")
 
 
 @task(help={"config": "system configuration file"})
@@ -1533,20 +1567,6 @@ def test_packages(c, config, switch=False):
     "Install KodOS in /mnt"
     conf = load_config(config)
     print("-------------------------------")
-    # boot_partition, root_partition = create_partitions(c, conf)
-
-    # create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
-
-    # install_essentials_pkgs(c)
-    # configure_system(c, conf)
-    # setup_bootloader(c, conf)
-    # create_kod_user(c)
-
-    # repos, repo_packages = proc_repos(c, conf)
-    # repos = {"official":{"install":"pacman -S"},"aur":{"install":"yay -S"}} #load_repos()
-    # if repos is None:
-    #     print("Missing repos information")
-    #     return
 
     # === Proc packages
     # repos, repo_packages = proc_repos(c, conf)
@@ -1554,76 +1574,6 @@ def test_packages(c, config, switch=False):
     packages_to_install, packages_to_remove = proc_desktop(c, conf)
     print("packages to install\n",packages_to_install)
     print("packages to remove\n",packages_to_remove)
-    # packages_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
-
-    # === Proc services
-    # system_services_to_enable = get_services_to_enable(conf)
-    # print(f"Services to enable: {system_services_to_enable}")
-    # enable_services(c, system_services_to_enable, use_chroot=True)
-
-    # # === Proc users
-    # print("\n====== Creating users ======")
-    # create_users(c, conf)
-    # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    # user_configs = proc_user_configs(conf)
-    # configure_users(c, user_dotfile_mngrs, user_configs)
-
-    # user_services_to_enable = proc_user_services(conf)
-    # print(f"User services to enable: {user_services_to_enable}")
-    # enable_user_services(c, user_services_to_enable, use_chroot=True)
-
-    # print("==== Deploying generation ====")
-    # deploy_generation(c, boot_partition, root_partition, 0, packages_installed, system_services_to_enable)
-
-    print("Done")
-
-
-
-@task(help={"config": "system configuration file"})
-def test_install(c, config, switch=False):
-    "Install KodOS in /mnt"
-    conf = load_config(config)
-    print("-------------------------------")
-    # boot_partition, root_partition = create_partitions(c, conf)
-
-    # create_filesystem_hierarchy(c, boot_partition, root_partition, generation=0)
-
-    # install_essentials_pkgs(c)
-    # configure_system(c, conf)
-    # setup_bootloader(c, conf)
-    # create_kod_user(c)
-
-    # repos, repo_packages = proc_repos(c, conf)
-    # repos = {"official":{"install":"pacman -S"},"aur":{"install":"yay -S"}} #load_repos()
-    # if repos is None:
-    #     print("Missing repos information")
-    #     return
-
-    # === Proc packages
-    # repos, repo_packages = proc_repos(c, conf)
-    # packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
-    # print("packages\n",packages_to_install)
-    # packages_installed = manage_packages(c, "/mnt", repos, "install", packages_to_install, chroot=True)
-
-    # === Proc services
-    system_services_to_enable = get_services_to_enable(conf)
-    print(f"Services to enable: {system_services_to_enable}")
-    enable_services(c, system_services_to_enable, use_chroot=True)
-
-    # === Proc users
-    print("\n====== Creating users ======")
-    create_users(c, conf)
-    user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    user_configs = proc_user_configs(conf)
-    ctx = DeferredContext(c, os.environ['USER'], mount_point="/", use_chroot=False)
-    configure_users(ctx, user_dotfile_mngrs, user_configs)
-
-    user_services_to_enable = proc_user_services(conf)
-    print(f"User services to enable: {user_services_to_enable}")
-    enable_users_services(ctx, user_services_to_enable, use_chroot=True)
-
-    # print("==== Deploying generation ====")
-    # deploy_generation(c, boot_partition, root_partition, 0, packages_installed, system_services_to_enable)
 
     print("Done")
 
