@@ -122,7 +122,6 @@ EOL]]
         print("Configuring Syncthing")
         if context:execute("mkdir -p ~/.config/systemd/user/") then
             context:execute(service_desc)
-            -- context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")
         end
     end
 
@@ -140,6 +139,7 @@ function copy_file(context, source)
         context:execute("cp " .. source .. " "..target); 
     end
     return {
+        name = "copy_file";
         command = command;
         source = source;
         stages = { "install", "rebuild-user" };

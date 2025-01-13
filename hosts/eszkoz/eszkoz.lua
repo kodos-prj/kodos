@@ -4,12 +4,12 @@ print("Eszkoz configuration")
 
 disk = require("disk")
 repos = require("repos")
-dotmgr = require("dotfile_manager")
 configs = require("configs")
 
 -- Extra packages
 cli = require("cli")
 development = require("development")
+local use_gnome = true
 
 return {
     repos = {
@@ -47,17 +47,6 @@ return {
             enable = true,
             extra_packages = { "sane-airscan" },
         },
-  
-        -- -- https://wiki.archlinux.org/title/Bluetooth
-        -- bluetooth = {
-        --     enable = true,
-        --     package = "bluez",
-        --     -- settings = {
-        --         -- General = {
-        --             -- Enable = "Source,Sink,Media,Socket",
-        --         -- },
-        --     -- },
-        -- },
 
         pipewire = {
             enable = true,
@@ -71,7 +60,7 @@ return {
 
     locale = {
         locale = {
-            default = "en_CA.UTF-8 UTF-8",
+            default = "en_CA.UTF-8 UTF-8\nen_US.UTF-8 UTF-8\nen_GB.UTF-8 UTF-8",
             extra = {
                 "en_US.UTF-8 UTF-8",
                 "en_GB.UTF-8 UTF-8"
@@ -96,7 +85,7 @@ return {
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/bin/zsh",
 
-            dotfile_manager = dotmgr.stow({
+            dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
                     target_dir = "~/",
                     repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
@@ -149,7 +138,7 @@ return {
 
                 -- Gnome dconf configuration
                 dconf = {
-                    enable = true;
+                    enable = use_gnome;
                     config = configs.dconf(require("gnome"));
                 };
             };
@@ -161,11 +150,11 @@ return {
 
             services = {
                 syncthing = {
-                    enable = true,
+                    enable = true;
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
-                    }),
+                    });
                     -- extra_packages = { "aur:syncthing-gtk" },
                 }
             },
@@ -184,11 +173,11 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = true,
-                display_manager = "gdm",
+                enable = use_gnome;
+                display_manager = "gdm";
                 exclude_packages = {
                     "gnome-tour", "yelp"
-                },
+                };
                 extra_packages = {
                     "gnome-tweaks",
                     -- "gnome-extra",

@@ -92,73 +92,6 @@ def install_essentials_pkgs(c):
     c.run(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
 
 
-# def create_users(c, conf):
-#     users = conf.users
-#     for user, info in users.items():
-#         # Normal users (no root)
-#         if user != "root":
-#             print(f"Creating user {user}")
-#             user_name = info["name"]
-#             exec_chroot(c, f"useradd -m -G wheel {user} -c '{user_name}'")
-#             exec_chroot(
-#                 c,
-#                 "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-#             )
-#             # TODO: Add extra groups
-
-#         # Shell
-#         if not info.shell:
-#             shell = "/bin/bash"
-#         else:
-#             shell = info["shell"]
-#         exec_chroot(c, f"usermod -s {shell} {user}")
-
-#         # Password
-#         if not info.no_password:
-#             if info.hashed_password:
-#                 print("Assign the provided password")
-#                 exec_chroot(c, f"usermod -p '{info.hashed_password}' {user}")
-#             elif info.password:
-#                 print("Assign the provided password after encryption")
-#                 exec_chroot(
-#                     c, f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}"
-#                 )
-#             else:
-#                 exec_chroot(c, f"passwd {user}")
-
-
-# def create_user(ctx, user, info):
-#     # Normal users (no root)
-#     print(f">>> Creating user {user}")
-#     if user != "root":
-#         print(f"Creating user {user}")
-#         user_name = info["name"]
-#         ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
-#         ctx.execute(
-#             "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-#         )
-#         # TODO: Add extra groups
-
-#     # Shell
-#     if not info.shell:
-#         shell = "/bin/bash"
-#     else:
-#         shell = info["shell"]
-#     ctx.execute(f"usermod -s {shell} {user}")
-
-#     # Password
-#     if not info.no_password:
-#         if info.hashed_password:
-#             print("Assign the provided password")
-#             ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
-#         elif info.password:
-#             print("Assign the provided password after encryption")
-#             ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
-#         else:
-#             ctx.execute(f"passwd {user}")
-
-
-
 def configure_system(c, conf, root_part):
     # fstab
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
@@ -926,52 +859,6 @@ class Context:
         return True
 
 
-# class DeferredContext:
-#     def __init__(self, c, user, mount_point="/mnt", use_chroot=True):
-#         self.c = c
-#         self.user = user
-#         self.mount_point = mount_point
-#         self.use_chroot = use_chroot
-#         self.commands = []
-
-#     def execute(self, command):
-#         # self.c.run(f"{exec_prefix} {wrap(command)}")
-#         print(f"Command: {command}")
-#         self.commands.append(command)
-
-
-# def configure_users(ctx, dotfile_mngrs, configs_to_deploy):
-#     print(f"{dotfile_mngrs=}")
-#     print(f"{configs_to_deploy=}")
-
-#     print("- configuring users -----------")
-    
-#     for user, user_configs in configs_to_deploy.items():
-#         print(f"Configuring user {user}")
-#         # ctx.user = user
-        
-#         # Calling dotfile_mngrs
-#         if user_configs["configs"]:
-#             print("\nUSER:",os.environ['USER'],'\n')
-#             call_init = True
-#             for config in user_configs["configs"]:
-#                 command = dotfile_mngrs[user].command
-#                 prg_config = dotfile_mngrs[user].config
-#                 command(ctx, prg_config, config, call_init)
-#                 call_init = False
-
-#         # Calling program's config commands
-#         if user_configs["run"]:
-#             for prog_config in user_configs["run"]:
-#                 command = prog_config.command
-#                 config = prog_config.config
-#                 run_at_install = True
-#                 if "run_at_install" in prog_config:
-#                     run_at_install = prog_config.run_at_install
-#                 if (ctx.stage == "install" and run_at_install) or ctx.stage == "rebuild-user":
-#                     command(ctx, config)
-
-
 def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     print(f"{dotfile_mngrs=}")
     # print(f"{configs_to_deploy=}")
@@ -1030,30 +917,14 @@ def disable_services(c, list_of_services, mount_point="/mnt", use_chroot=False):
             c.run(f"systemctl disable --now {service}")
 
 
-# def enable_users_services(ctx, list_of_services_user, mount_point="/mnt", use_chroot=False):
-#     # current_user = os.environ['USER']
-#     for user, services in list_of_services_user.items():
-#         print(f"Enabling service: {services} for {user}")
-
-#         for service in services:
-#             # c.run(f"{exec_prefix} " + wrap(f"systemctl --user enable {run_now} {service}"))
-#             if ctx.stage == "rebuild-user":
-#                 ctx.execute(f"systemctl --user enable --now {service}")
-
-
 def enable_user_services(ctx, user, services):
     print(f"Enabling service: {services} for {user}")
 
     for service in services:
-        # print(f"{ctx.stage=}")
-        # print(f"{ctx.user=}"
-        #       f"{ctx.mount_point=}"
-        #       f"{ctx.use_chroot=}")
         if ctx.stage == "rebuild-user":
             print("Running: ", f"systemctl --user enable --now {service}")
             ctx.execute(f"systemctl --user enable --now {service}")
         print("Done - services enabled")
-
 
 
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
@@ -1144,7 +1015,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
 
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
-    # c.run(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
     #------------- Done with generation creation -------------
     
@@ -1549,17 +1419,6 @@ def test_config(c, config):
     boot_partition, root_partition = get_partition_devices(conf)
     print(f"{boot_partition=}")
     print(f"{root_partition=}")
-    # create_partitions(c, conf)
-
-    # create_filesystem_hierarchy(c, conf)
-
-    # install_essentials_pkgs(c)
-    # # configure_system(c, conf)
-    # setup_bootloader(c, conf)
-    # # print("\n====== Creating snapshots ======")
-    # pkgs_installed = ["base", "base-devel", "linux", "linux-firmware", "btrfs-progs", "grub", "efibootmgr", "grub-btrfs"]
-    # print("==== Deploying generation ====")
-    # deploy_generation(c, 0, pkgs_installed)
 
 
 @task(help={"config": "system configuration file"})
