@@ -118,7 +118,7 @@ WantedBy=default.target
 EOL]]
         local service_desc = service_desc:gsub("{service_name}", service_name)
         local service_desc = service_desc:gsub("{options}", options)
-        
+        print("Configuring Syncthing")
         if context:execute("mkdir -p ~/.config/systemd/user/") then
             context:execute(service_desc)
             -- context:execute("echo \""..service_desc.."\" > ~/.config/systemd/user/"..service_name..".service")

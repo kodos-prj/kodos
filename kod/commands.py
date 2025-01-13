@@ -971,6 +971,7 @@ def configure_user_scripts(ctx, user, user_configs):
             command = prog_config.command
             config = prog_config.config
             stages = prog_config.stages
+            print("configure_user_scripts", ctx.stage, stages)
             if ctx.stage in stages:
                 command(ctx, config)
 
