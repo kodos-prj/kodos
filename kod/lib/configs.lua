@@ -8,9 +8,8 @@ local function stow(config)
         
         local git_clone = "git clone " .. config.repo_url .. " " .. source
         
-        if init and context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi") then
-            print("Error: "..git_clone)
-            os.exit(1)
+        if init then
+            context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
         end
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
     end

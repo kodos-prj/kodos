@@ -891,6 +891,7 @@ class Context:
         
         print(f"[Contex] Command: {command}")
         self.c.run(f"{exec_prefix} {wrap(command)}")
+        return True
 
 
 class DeferredContext:
@@ -971,8 +972,7 @@ def configure_user_scripts(ctx, user, user_configs):
         for prog_config in user_configs["run"]:
             command = prog_config.command
             config = prog_config.config
-            stages = prog_config.stages
-            print(f"configure_user_scripts: {prog_config.name}", ctx.stage, stages.values())
+            stages = list(prog_config.stages.values())
             if ctx.stage in stages:
                 command(ctx, config)
 
