@@ -91,7 +91,7 @@ return {
     users = {
         root = {
             no_password = true,
-            shell = "/bin/bash",
+            shell = "/usr/bin/fish",
         },
         abuss = {
             name = "Antal Buss",
@@ -111,12 +111,17 @@ return {
                         user_name = "Antal Buss",
                         user_email = "antal.buss@gmail.com",
                     })
-                },
+                };
 
                 starship = { 
                     enable = true,
                     deploy_config = true,
-                },
+                };
+
+                fish = {
+                    enable = true;
+                    deploy_config = false;
+                };
 
                 zsh = {
                     enable = true,

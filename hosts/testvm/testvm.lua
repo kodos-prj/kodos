@@ -10,8 +10,8 @@ configs = require("configs")
 cli = require("cli")
 development = require("development")
 
-local use_gnome = false
-local use_plasma = true
+local use_gnome = true
+local use_plasma = false
 local use_cosmic = false
 
 return {
@@ -96,7 +96,7 @@ return {
         abuss = {
             name = "Antal Buss",
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/bin/zsh",
+            shell = "/usr/bin/fish",
 
             dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
@@ -137,6 +137,10 @@ return {
                     --     theme = "lukerandall"
                     -- }
                 },
+
+                fish = {
+                    enable = true,
+                };
 
                 neovim = {
                     enable = true,
