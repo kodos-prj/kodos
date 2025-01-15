@@ -1,9 +1,11 @@
 -- Program Configuration generation
 
-require 'posix'
-
-local function isdir(fn)
-    return (posix.stat(fn, "type") == 'directory')
+local function isdir(spath)
+    local response = os.execute( "cd " .. spath )
+    if response == 0 then
+      return true
+    end
+    return false
 end
 
 
