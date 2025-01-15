@@ -106,11 +106,22 @@ def configure_system(c, conf, root_part):
     exec_chroot(c, "hwclock --systohc")
 
     # Localization
-    locale = dict(locale_conf["locale"])["default"]
-    exec_chroot(c, f"echo '{locale}' > /etc/locale.gen")
+    # locale = dict(locale_conf["locale"])["default"]
+    locale_spec = locale_conf.locale
+    locale_default = locale_spec.default
+    locale_to_generate = locale_default + "\n"
+    if "extra_generate" in locale_spec and locale_spec.extra_generate:
+        locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
+    with open("/mnt/etc/locale.gen", "w") as locale_file:
+        locale_file.write(locale_to_generate+"\n")
     exec_chroot(c, "locale-gen")
-    locale_name = locale.split()[0]
-    exec_chroot(c, f"echo 'LANG={locale_name}' > /etc/locale.conf")
+
+    locale_name = locale_default.split()[0]
+    locale_extra = locale_name + "\n"
+    if "extra_settings" in locale_spec and locale_spec.extra_settings:
+        locale_extra += "\n".join(list(locale_spec.extra_settings.values()))
+    with open("/mnt/etc/locale.conf", "w") as locale_file:
+        locale_file.write(f"LANG={locale_extra}\n")
 
     # Network
     network_conf = conf.network
@@ -1208,6 +1219,7 @@ def rebuild(c, config, new_generation=False, update=False):
         generation_id = int(current_generation)
         mount_point="/"
         new_root_path = "/"
+        c.run("mount -o remount,rw /usr")
 
     ctx = Context(c, os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
 
@@ -1309,6 +1321,8 @@ def rebuild(c, config, new_generation=False, update=False):
 
     # c.run(f"umount -R {new_root_path}")
     c.run(f"rm -rf {new_root_path}")
+
+    c.run("mount -o remount,ro /usr")
 
     print("Done")
 
