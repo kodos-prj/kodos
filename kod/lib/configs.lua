@@ -20,7 +20,7 @@ local function stow(config)
         if init then
             -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
             if not isdir(source) then
-                context:execute("git_clone")
+                context:execute(git_clone)
             end
         end
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
