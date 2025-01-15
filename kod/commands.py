@@ -119,7 +119,8 @@ def configure_system(c, conf, root_part):
     locale_name = locale_default.split()[0]
     locale_extra = locale_name + "\n"
     if "extra_settings" in locale_spec and locale_spec.extra_settings:
-        locale_extra += "\n".join(list(locale_spec.extra_settings.values()))
+        for k,v in locale_spec.extra_settings.items():
+            locale_extra += f"{k}={v}\n"
     with open("/mnt/etc/locale.conf", "w") as locale_file:
         locale_file.write(f"LANG={locale_extra}\n")
 
