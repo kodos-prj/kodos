@@ -3,7 +3,11 @@ return {
         automatic_timezone = true;
     };
 
-    ["org/gnome/Weather"] = {
+    -- ["org/gnome/Weather"] = {
+    --     locations = '[<(uint32 2, <("Edmonton", "CYED", true, [(0.93666003772138751, -1.9803669304139968)], [(0.93462381444296339, -1.9809487010135638)])>)>]';
+    -- };
+
+    ["org.gnome.shell.weather"] = {
         locations = '[<(uint32 2, <("Edmonton", "CYED", true, [(0.93666003772138751, -1.9803669304139968)], [(0.93462381444296339, -1.9809487010135638)])>)>]';
     };
 
@@ -15,7 +19,7 @@ return {
         disabled_extensions = { 'apps-menu@gnome-shell-extensions.gcampax.github.com' };
         enabled_extensions = {
             'appindicatorsupport@rgcjonas.gmail.com', 
-            'arcmenu@arcmenu.com',
+            -- 'arcmenu@arcmenu.com',
             'blur-my-shell@aunetx',
             'dash-to-dock@micxgx.gmail.com',
             'status-icons@gnome-shell-extensions.gcampax.github.com',
@@ -30,15 +34,17 @@ return {
         cursor_theme = "Adwaita";
         font_antialiasing = "rgba";
         font_hinting = "slight";
---     font-name = "Work Sans 11";
+--     font_name = "Work Sans 11";
         gtk_theme = "Adwaita-dark";
---     icon-theme = "ePapirus-Dark";
+--     icon_theme = "ePapirus-Dark";
         icon_theme='WhiteSur-dark';
+        show_battery_percentage = true;
     };
 
     ["org/gnome/mutter"] = {
         experimental_features = { 'scale-monitor-framebuffer' };
         workspaces_only_on_primary = true;
+        dynamic_workspaces = false;
     };
 
     ["org/gnome/desktop/peripherals/mouse"] = {
@@ -60,6 +66,7 @@ return {
         button_layout = "appmenu:minimize,maximize,close";
         focus_mode = "sloppy";
         workspace_names = { 'Workspace 1', 'Workspace 2', 'Workspace 3', 'Workspace 4' };
+        num_workspaces = 4;
     };
     
     -- gsettings set org.gnome.settings-daemon.plugins.media-keys.custom_keybindings:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/ name "Terminal"

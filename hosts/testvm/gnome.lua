@@ -34,17 +34,17 @@ return {
         cursor_theme = "Adwaita";
         font_antialiasing = "rgba";
         font_hinting = "slight";
---     font-name = "Work Sans 11";
+--     font_name = "Work Sans 11";
         gtk_theme = "Adwaita-dark";
---     icon-theme = "ePapirus-Dark";
+--     icon_theme = "ePapirus-Dark";
         icon_theme='WhiteSur-dark';
-        show-battery-percentage = true;
+        show_battery_percentage = true;
     };
 
     ["org/gnome/mutter"] = {
         experimental_features = { 'scale-monitor-framebuffer' };
         workspaces_only_on_primary = true;
-        dynamic-workspaces = false;
+        dynamic_workspaces = false;
     };
 
     ["org/gnome/desktop/peripherals/mouse"] = {
@@ -66,7 +66,7 @@ return {
         button_layout = "appmenu:minimize,maximize,close";
         focus_mode = "sloppy";
         workspace_names = { 'Workspace 1', 'Workspace 2', 'Workspace 3', 'Workspace 4' };
-        num-workspaces = 4;
+        num_workspaces = 4;
     };
 
     -- ["org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0"] = {
