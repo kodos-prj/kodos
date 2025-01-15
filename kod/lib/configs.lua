@@ -1,5 +1,12 @@
 -- Program Configuration generation
 
+require 'posix'
+
+local function isdir(fn)
+    return (posix.stat(fn, "type") == 'directory')
+end
+
+
 
 local function stow(config)
     local command = function (context, config, program, init)
@@ -9,7 +16,10 @@ local function stow(config)
         local git_clone = "git clone " .. config.repo_url .. " " .. source
         
         if init then
-            context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
+            -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
+            if not isdir(source) then
+                context:execute("git_clone")
+            end
         end
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
     end
