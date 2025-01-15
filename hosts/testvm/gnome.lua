@@ -106,6 +106,7 @@ return {
         -- height_fraction=0.90000000000000002;
         -- preferred_monitor=-2;
         -- preferred_monitor_by_connector='eDP-1';
+        show_trash = false;
     }
 
 }

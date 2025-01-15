@@ -41,14 +41,6 @@ local function dconf(config)
             local root_path = root:gsub('/', '.')
             for key, val in pairs(key_vals) do
                 key = key:gsub("_", "-")
-                if type(val) == "string" then
-                    local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
-                    exit_code = context:execute(cmd)
-                    -- if exit_code ~= 0 then
-                    --     print("Error: "..cmd)
-                    --     os.exit(1)
-                    -- end
-                end
                 if type(val) == "table" then
                     -- val could be:
                     --  - list of strings
@@ -82,6 +74,15 @@ local function dconf(config)
                             end
                         end
                     end
+                else
+                    if type(val) == "string" then val = "'"..val.."'" end
+                    sval = string.format("%s",val)
+                    local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
+                    exit_code = context:execute(cmd)
+                    -- if exit_code ~= 0 then
+                    --     print("Error: "..cmd)
+                    --     os.exit(1)
+                    -- end
                 end
             end
         end
