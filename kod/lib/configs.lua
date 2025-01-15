@@ -77,7 +77,7 @@ local function dconf(config)
                 else
                     if type(val) == "string" then val = "'"..val.."'" end
                     sval = string.format("%s",val)
-                    local cmd = "gsettings set " ..root_path.." "..key.." '"..sval.."'"
+                    local cmd = "gsettings set " ..root_path.." "..key.." "..sval
                     exit_code = context:execute(cmd)
                     -- if exit_code ~= 0 then
                     --     print("Error: "..cmd)
