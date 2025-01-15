@@ -2,7 +2,7 @@
 
 local function isdir(spath)
     local response = os.execute( "cd " .. spath )
-    if response == 0 then
+    if response then
       return true
     end
     return false
