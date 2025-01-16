@@ -1,5 +1,14 @@
 -- Program Configuration generation
 
+local function isdir(spath)
+    local response = os.execute( "cd " .. spath )
+    if response then
+      return true
+    end
+    return false
+end
+
+
 
 local function stow(config)
     local command = function (context, config, program, init)
@@ -9,7 +18,10 @@ local function stow(config)
         local git_clone = "git clone " .. config.repo_url .. " " .. source
         
         if init then
-            context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
+            -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
+            if not isdir(source) then
+                context:execute(git_clone)
+            end
         end
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
     end
@@ -29,14 +41,6 @@ local function dconf(config)
             local root_path = root:gsub('/', '.')
             for key, val in pairs(key_vals) do
                 key = key:gsub("_", "-")
-                if type(val) == "string" then
-                    local cmd = "gsettings set " ..root_path.." "..key.." '"..val.."'"
-                    exit_code = context:execute(cmd)
-                    -- if exit_code ~= 0 then
-                    --     print("Error: "..cmd)
-                    --     os.exit(1)
-                    -- end
-                end
                 if type(val) == "table" then
                     -- val could be:
                     --  - list of strings
@@ -70,6 +74,15 @@ local function dconf(config)
                             end
                         end
                     end
+                else
+                    if type(val) == "string" then val = "'"..val.."'" end
+                    sval = string.format("%s",val)
+                    local cmd = "gsettings set " ..root_path.." "..key.." "..sval
+                    exit_code = context:execute(cmd)
+                    -- if exit_code ~= 0 then
+                    --     print("Error: "..cmd)
+                    --     os.exit(1)
+                    -- end
                 end
             end
         end

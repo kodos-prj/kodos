@@ -9,7 +9,10 @@ configs = require("configs")
 -- Extra packages
 cli = require("cli")
 development = require("development")
+
 local use_gnome = true
+local use_plasma = false
+local use_cosmic = false
 
 return {
     repos = {
@@ -60,15 +63,25 @@ return {
 
     locale = {
         locale = {
-            default = "en_CA.UTF-8 UTF-8\nen_US.UTF-8 UTF-8\nen_GB.UTF-8 UTF-8",
-            extra = {
-                "en_US.UTF-8 UTF-8",
-                "en_GB.UTF-8 UTF-8"
-            },
+            default = "en_CA.UTF-8 UTF-8";
+            extra_generate = {
+                "en_US.UTF-8 UTF-8", "en_GB.UTF-8 UTF-8"
+            };
+            extra_settings = {
+                    LC_ADDRESS = "en_CA.UTF-8";
+                    LC_IDENTIFICATION = "en_CA.UTF-8";
+                    LC_MEASUREMENT = "en_CA.UTF-8";
+                    LC_MONETARY = "en_CA.UTF-8";
+                    LC_NAME = "en_CA.UTF-8";
+                    LC_NUMERIC = "en_CA.UTF-8";
+                    LC_PAPER = "en_CA.UTF-8";
+                    LC_TELEPHONE = "en_CA.UTF-8";
+                    LC_TIME = "en_CA.UTF-8";
+            };
         },
         keymap = "us",
         timezone = "America/Edmonton"
-    },
+    };
 
     network = {
         hostname = "testvm",
@@ -83,7 +96,7 @@ return {
         abuss = {
             name = "Antal Buss",
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/bin/zsh",
+            shell = "/usr/bin/fish",
 
             dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
@@ -124,6 +137,10 @@ return {
                     --     theme = "lukerandall"
                     -- }
                 },
+
+                fish = {
+                    enable = true,
+                };
 
                 neovim = {
                     enable = true,
@@ -196,15 +213,15 @@ return {
             },
     
             plasma = {
-                enable = false,
+                enable = use_plasma,
                 display_manager = "sddm",
                 extra_packages = {
                     "kde-applications",
-                    "aur:plasma5-themes-whitesur-git",
+                    -- "aur:plasma5-themes-whitesur-git",
                 },
             },
             cosmic = {
-                enable = false,
+                enable = use_cosmic,
                 display_manager = "cosmic-greeter",
             },
         }
