@@ -1068,20 +1068,12 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
 
 
+
 def deploy_generation(
     c, boot_part, root_part, generation, pkgs_installed, service_to_enable
 ):
     print("===================================")
     print("== Deploying generation ==")
-    
-    # Move root and var's directories to store
-    c.run("mv /mnt/root /mnt/store/root")
-    c.run("ln -s /mnt/store/root /mnt/root")
-    dirs = ["var/log", "var/tmp", "var/cache", "var/kod"]
-    for dir in dirs:
-        c.run(f"mv /mnt/{dir} /mnt/store/var")
-        c.run(f"ln -s /mnt/store/{dir} /mnt/{dir}")
-
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
@@ -1109,10 +1101,6 @@ def deploy_generation(
     for dir in subdirs:
         c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
 
-    # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    # for subv in subvolumes:
-    #     c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
-
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
     change_ro_mount(c, "/mnt")
@@ -1124,6 +1112,64 @@ def deploy_generation(
     c.run("rm -rf /new_rootfs")
 
     print("===================================")
+
+
+# def deploy_generation(
+#     c, boot_part, root_part, generation, pkgs_installed, service_to_enable
+# ):
+#     print("===================================")
+#     print("== Deploying generation ==")
+    
+#     # Move root and var's directories to store
+#     c.run("mv /mnt/root /mnt/store/root")
+#     c.run("ln -s /mnt/store/root /mnt/root")
+#     dirs = ["var/log", "var/tmp", "var/cache", "var/kod"]
+#     for dir in dirs:
+#         c.run(f"mv /mnt/{dir} /mnt/store/var")
+#         c.run(f"ln -s /mnt/store/{dir} /mnt/{dir}")
+
+#     c.run("mkdir /new_rootfs")
+#     c.run(f"mount {root_part} /new_rootfs")
+#     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
+#     c.run("btrfs subvolume snapshot /mnt/usr /new_rootfs/current/usr")
+
+#     c.run("umount -R /mnt")
+#     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
+#     c.run(f"mount -o subvol=current/usr {root_part} /mnt/usr")
+
+#     c.run("mkdir -p /mnt/kod")
+#     c.run(f"mount {root_part} /mnt/kod")
+
+#     # Create a list of installed packages
+#     with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
+#         f.write("\n".join(pkgs_installed))
+
+#     # Create a list of services enabled
+#     with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
+#         f.write("\n".join(service_to_enable))
+
+#     c.run(f"mount {boot_part} /mnt/boot")
+#     c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
+
+#     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+#     for dir in subdirs:
+#         c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+
+#     # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+#     # for subv in subvolumes:
+#     #     c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
+
+#     c.run("genfstab -U /mnt > /mnt/etc/fstab")
+#     # Update to use read only for rootfs
+#     change_ro_mount(c, "/mnt")
+
+#     exec_chroot(c, "mkinitcpio -A kodos -P")
+#     exec_chroot(c, "grub-mkconfig -o /boot/grub/grub.cfg")
+#     c.run("umount -R /mnt")
+#     c.run("umount -R /new_rootfs")
+#     c.run("rm -rf /new_rootfs")
+
+#     print("===================================")
 
 
 # def deploy_generation(
