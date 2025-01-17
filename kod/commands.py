@@ -1049,7 +1049,7 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for dir in subdirs + ["boot", "usr", "kod"]:
+    for dir in subdirs + ["boot", "home", "usr", "kod"]:
         c.run(f"mkdir -p /mnt/{dir}")
 
     c.run(f"mount {boot_part} /mnt/boot")
