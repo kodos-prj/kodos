@@ -1010,7 +1010,8 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     # Mounting home (depends on the config)
     c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
 
-    for dir in subdirs:
+    # for dir in subdirs:
+    for dir in ["var/kod"]:
         c.run(f"ln -s /kod/store/{dir} /mnt/{dir}")
 
     # Write generation number
