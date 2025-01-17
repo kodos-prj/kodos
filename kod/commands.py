@@ -974,10 +974,62 @@ def enable_user_services(ctx, user, services):
 #     print("===================================")
 
 
+# def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
+#     print("===================================")
+#     print("== Creating filesystem hierarchy ==")
+#     c.run("mkdir -p /mnt/{store,generations,current}")
+#     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+#     for dir in subdirs:
+#         c.run(f"mkdir -p /mnt/store/{dir}")
+
+#     # Create home as subvolume if no /home is specified in the config 
+#     # (TODO: Add support for custom home) 
+#     c.run("sudo btrfs subvolume create /mnt/store/home")
+
+#     # First generation
+#     c.run(f"mkdir -p /mnt/generations/{generation}")
+#     c.run(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
+#     c.run(f"btrfs subvolume create /mnt/generations/{generation}/usr")
+
+#     # Mounting first generation
+#     c.run("umount -R /mnt")
+#     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
+
+#     # c.run("mkdir -p /mnt/{home,var,root,boot}")
+#     for dir in ["boot", "home", "usr", "var", "kod"]:
+#         c.run(f"mkdir -p /mnt/{dir}")
+
+#     # for subv in subvolumes + ["boot", "usr"]:
+#         # c.run(f"mkdir -p /mnt/{subv}")
+
+#     c.run(f"mount {boot_part} /mnt/boot")
+#     c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
+#     c.run(f"mount {root_part} /mnt/kod")
+    
+
+#     # Mounting home (depends on the config)
+#     c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
+
+#     for dir in subdirs:
+#         c.run(f"ln -s /kod/store/{dir} /mnt/{dir}")
+
+#     # Write generation number
+#     with open("/mnt/.generation", "w") as f:
+#         f.write(str(generation))
+
+#     print("===================================")
+
+
 def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     c.run("mkdir -p /mnt/{store,generations,current}")
+
+    # c.run("mkdir -p /mnt/store/var")
+    # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    # for subv in subvolumes:
+    #     c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
+
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
         c.run(f"mkdir -p /mnt/store/{dir}")
@@ -996,22 +1048,17 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for dir in ["boot", "home", "usr", "var", "kod"]:
+    for dir in subdirs + ["boot", "usr", "kod"]:
         c.run(f"mkdir -p /mnt/{dir}")
 
-    # for subv in subvolumes + ["boot", "usr"]:
-        # c.run(f"mkdir -p /mnt/{subv}")
-
     c.run(f"mount {boot_part} /mnt/boot")
-    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
     c.run(f"mount {root_part} /mnt/kod")
-    
-
-    # Mounting home (depends on the config)
+    c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
     c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
 
     for dir in subdirs:
-        c.run(f"ln -s /kod/store/{dir} /mnt/{dir}")
+        c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+        # c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     # Write generation number
     with open("/mnt/.generation", "w") as f:
@@ -1034,7 +1081,7 @@ def deploy_generation(
     c.run(f"mount -o subvol=current/rootfs {root_part} /mnt")
     c.run(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
-    # c.run("mkdir -p /mnt/kod")
+    c.run("mkdir -p /mnt/kod")
     c.run(f"mount {root_part} /mnt/kod")
 
     # Create a list of installed packages
@@ -1048,9 +1095,13 @@ def deploy_generation(
     c.run(f"mount {boot_part} /mnt/boot")
     c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
 
+    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for dir in subdirs:
+        c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+
     # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     # for subv in subvolumes:
-        # c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
+    #     c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
