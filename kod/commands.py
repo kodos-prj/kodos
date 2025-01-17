@@ -420,6 +420,7 @@ def proc_repos(c, conf):
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             packages += [repo_desc["package"]]
 
+    c.run("mkdir -p /mnt/var/kod")
     with open("/mnt/var/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
 
@@ -978,9 +979,10 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     c.run("mkdir -p /mnt/{store,generations,current}")
-    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for dir in subdirs:
-        c.run(f"mkdir -p /mnt/store/{dir}")
+    # subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    # subdirs = ["var/kod"]
+    # for dir in subdirs:
+    #     c.run(f"mkdir -p /mnt/store/{dir}")
 
     # Create home as subvolume if no /home is specified in the config 
     # (TODO: Add support for custom home) 
@@ -1026,6 +1028,15 @@ def deploy_generation(
 ):
     print("===================================")
     print("== Deploying generation ==")
+    
+    # Move root and var's directories to store
+    c.run("mv /mnt/root /mnt/store/root")
+    c.run("ln -s /mnt/store/root /mnt/root")
+    dirs = ["var/log", "var/tmp", "var/cache", "var/kod"]
+    for dir in dirs:
+        c.run(f"mv /mnt/{dir} /mnt/store/var")
+        c.run(f"ln -s /mnt/store/{dir} /mnt/{dir}")
+
     c.run("mkdir /new_rootfs")
     c.run(f"mount {root_part} /new_rootfs")
     c.run("btrfs subvolume snapshot /mnt /new_rootfs/current/rootfs")
