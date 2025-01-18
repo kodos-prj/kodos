@@ -420,6 +420,7 @@ def proc_repos(c, conf):
             exec_chroot(c, f"pacman -S --needed --noconfirm {repo_desc['package']}")
             packages += [repo_desc["package"]]
 
+    c.run("mkdir -p /mnt/var/kod")
     with open("/mnt/var/kod/repos.json", "w") as f:
         f.write(json.dumps(repos, indent=2))
 
@@ -943,10 +944,14 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     c.run("mkdir -p /mnt/{store,generations,current}")
-    c.run("mkdir -p /mnt/store/var")
-    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for subv in subvolumes:
-        c.run(f"sudo btrfs subvolume create /mnt/store/{subv}")
+
+    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for dir in subdirs:
+        c.run(f"mkdir -p /mnt/store/{dir}")
+
+    # Create home as subvolume if no /home is specified in the config 
+    # (TODO: Add support for custom home) 
+    c.run("sudo btrfs subvolume create /mnt/store/home")
 
     # First generation
     c.run(f"mkdir -p /mnt/generations/{generation}")
@@ -958,20 +963,23 @@ def create_filesystem_hierarchy(c, boot_part, root_part, generation=0):
     c.run(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
 
     # c.run("mkdir -p /mnt/{home,var,root,boot}")
-    for subv in subvolumes + ["boot", "usr"]:
-        c.run(f"mkdir -p /mnt/{subv}")
+    for dir in subdirs + ["boot", "home", "usr", "kod"]:
+        c.run(f"mkdir -p /mnt/{dir}")
 
     c.run(f"mount {boot_part} /mnt/boot")
+    c.run(f"mount {root_part} /mnt/kod")
     c.run(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
+    c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
 
-    for subv in subvolumes:
-        c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
+    for dir in subdirs:
+        c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
 
     # Write generation number
     with open("/mnt/.generation", "w") as f:
         f.write(str(generation))
 
     print("===================================")
+
 
 
 def deploy_generation(
@@ -1000,9 +1008,11 @@ def deploy_generation(
         f.write("\n".join(service_to_enable))
 
     c.run(f"mount {boot_part} /mnt/boot")
-    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for subv in subvolumes:
-        c.run(f"mount -o subvol=store/{subv} {root_part} /mnt/{subv}")
+    c.run(f"mount -o subvol=store/home {root_part} /mnt/home")
+
+    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for dir in subdirs:
+        c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
 
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
@@ -1015,6 +1025,7 @@ def deploy_generation(
     c.run("rm -rf /new_rootfs")
 
     print("===================================")
+
 
 
 # Used for rebuild
