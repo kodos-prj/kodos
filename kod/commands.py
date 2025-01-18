@@ -1014,7 +1014,6 @@ def deploy_generation(
     for dir in subdirs:
         c.run(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
 
-    c.run("genfstab -U /mnt > /mnt/etc/fstab-gen_deploy")
     c.run("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
     change_ro_mount(c, "/mnt")
@@ -1036,7 +1035,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     print(f"{new_root_path=}")
 
     # Makes generation usable 
-    c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab-gen_new_deploy")
     c.run(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
 
     c.run(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
@@ -1069,7 +1067,6 @@ def deploy_new_generation(c, boot_part, current_root_part, new_root_path): # , m
     for subv in subvolumes:
         c.run(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
     
-    c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab-new_rootfs_gen_new_deploy")
     c.run(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
 
     change_ro_mount(c, new_rootfs)
