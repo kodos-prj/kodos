@@ -1194,8 +1194,8 @@ def install(c, config, step=None):
     )
 
     print("Done")
-    c.run(f"mount -o subvol=store/root {root_partition} /mnt")
-    c.run("cp -r /root/kodos /mnt/")
+    c.run(f"mount {root_partition} /mnt")
+    c.run("cp -r /root/kodos /mnt/root")
     print(" Done installing KodOS")
 
 
