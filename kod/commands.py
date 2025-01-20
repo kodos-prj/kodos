@@ -618,7 +618,12 @@ def create_user(ctx, user, info):
         ctx.execute(f"useradd -m {user} -c '{user_name}'")
         extra_groups = info.extra_groups if "extra_groups" in info else []
         if extra_groups:
-            ctx.execute(f"usermod -aG {','.join(list(extra_groups.values()))} {user}")
+            # TODO: Implement group creation
+            for group in list(extra_groups.values()):
+                try:
+                    ctx.execute(f"usermod -aG {group} {user}")
+                except:
+                    print(f"Group {group} does not exist")
             if "wheel" in extra_groups:
                 ctx.execute(
                     "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
