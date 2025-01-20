@@ -615,12 +615,15 @@ def create_user(ctx, user, info):
     if user != "root":
         print(f"Creating user {user}")
         user_name = info["name"]
-        ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
-        ctx.execute(
-            "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-        )
-        # TODO: Add extra groups
-
+        ctx.execute(f"useradd -m {user} -c '{user_name}'")
+        extra_groups = info.extra_groups if "extra_groups" in info else []
+        if extra_groups:
+            ctx.execute(f"usermod -aG {','.join(extra_groups)} {user}")
+            if "wheel" in extra_groups:
+                ctx.execute(
+                    "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+                )
+        
     # Shell
     if not info.shell:
         shell = "/bin/bash"
