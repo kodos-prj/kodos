@@ -616,10 +616,10 @@ def create_user(ctx, user, info):
         print(f"Creating user {user}")
         user_name = info["name"]
         ctx.execute(f"useradd -m {user} -c '{user_name}'")
-        extra_groups = info.extra_groups if "extra_groups" in info else []
+        extra_groups = list(info.extra_groups.values()) if "extra_groups" in info else []
         if extra_groups:
             # TODO: Implement group creation
-            for group in list(extra_groups.values()):
+            for group in extra_groups:
                 try:
                     ctx.execute(f"usermod -aG {group} {user}")
                 except:
