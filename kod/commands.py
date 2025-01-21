@@ -1203,7 +1203,7 @@ def install(c, config, step=None):
 
     print("Done")
     c.run(f"mount {root_partition} /mnt")
-    c.run("cp -r /root/kodos /mnt/root")
+    c.run("cp -r /root/kodos /mnt/store/root/")
     print(" Done installing KodOS")
 
 
