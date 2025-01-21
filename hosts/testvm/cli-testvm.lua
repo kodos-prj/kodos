@@ -94,7 +94,8 @@ return {
         abuss = {
             name = "Antal Buss",
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/usr/bin/fish",
+            shell = "/usr/bin/fish";
+            extra_groups = map({ "audio", "input", "users", "video", "wheel" });
 
             dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
@@ -227,23 +228,23 @@ return {
     },
 
     fonts = {
-        font_dir = true,
-        packages = {
-            -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
-            "ttf-firacode-nerd",
-            "ttf-nerd-fonts-symbols",
-            "ttf-nerd-fonts-symbols-common",
-            "ttf-sourcecodepro-nerd",
-            "ttf-fira-sans",
-            "ttf-fira-code",
-            -- "fira-code-symbols",
-            "ttf-liberation",
-            "noto-fonts-emoji",
-            "adobe-source-serif-fonts",
-            -- "source-serif",
-            "ttf-ubuntu-font-family",
-            "aur:ttf-work-sans",
-        },
+        -- font_dir = true,
+        -- packages = {
+        --     -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
+        --     "ttf-firacode-nerd",
+        --     "ttf-nerd-fonts-symbols",
+        --     "ttf-nerd-fonts-symbols-common",
+        --     "ttf-sourcecodepro-nerd",
+        --     "ttf-fira-sans",
+        --     "ttf-fira-code",
+        --     -- "fira-code-symbols",
+        --     "ttf-liberation",
+        --     "noto-fonts-emoji",
+        --     "adobe-source-serif-fonts",
+        --     -- "source-serif",
+        --     "ttf-ubuntu-font-family",
+        --     "aur:ttf-work-sans",
+        -- },
     },
 
     packages = list({
@@ -253,9 +254,9 @@ return {
         "less",
         "neovim",
         "htop",
-        "libgtop",
+        -- "libgtop",
         "uv",
-        "python-invoke",
+        -- "python-invoke",
         "git",
         -- "poetry",
         "neofetch",
@@ -284,7 +285,7 @@ return {
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        -- fwupd = { enable = true },
         
         -- TODO: Maybe move inside network
         networkmanager = {
@@ -310,21 +311,21 @@ return {
         --     },
         -- },
     
-        cups = {
-            enable = true,
-            extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
-        },
+        -- cups = {
+        --     enable = true,
+        --     extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
+        -- },
     
         -- https://wiki.archlinux.org/title/Bluetooth
-        bluetooth = {
-            enable = true,
-            service_name = "bluetooth",
-            package = "bluez",
-            -- settings = {
-                -- General = {
-                    -- Enable = "Source,Sink,Media,Socket",
-                -- },
-            -- },
-        },
+        -- bluetooth = {
+        --     enable = true,
+        --     service_name = "bluetooth",
+        --     package = "bluez",
+        --     -- settings = {
+        --         -- General = {
+        --             -- Enable = "Source,Sink,Media,Socket",
+        --         -- },
+        --     -- },
+        -- },
     }
 }

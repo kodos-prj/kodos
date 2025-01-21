@@ -615,12 +615,20 @@ def create_user(ctx, user, info):
     if user != "root":
         print(f"Creating user {user}")
         user_name = info["name"]
-        ctx.execute(f"useradd -m -G wheel {user} -c '{user_name}'")
-        ctx.execute(
-            "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
-        )
-        # TODO: Add extra groups
-
+        ctx.execute(f"useradd -m {user} -c '{user_name}'")
+        extra_groups = list(info.extra_groups.values()) if "extra_groups" in info else []
+        if extra_groups:
+            # TODO: Implement group creation
+            for group in extra_groups:
+                try:
+                    ctx.execute(f"usermod -aG {group} {user}")
+                except:
+                    print(f"Group {group} does not exist")
+            if "wheel" in extra_groups:
+                ctx.execute(
+                    "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+                )
+        
     # Shell
     if not info.shell:
         shell = "/bin/bash"
@@ -1195,7 +1203,7 @@ def install(c, config, step=None):
 
     print("Done")
     c.run(f"mount {root_partition} /mnt")
-    c.run("cp -r /root/kodos /mnt/root")
+    c.run("cp -r /root/kodos /mnt/store/root/")
     print(" Done installing KodOS")
 
 
