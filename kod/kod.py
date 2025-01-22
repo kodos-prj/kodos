@@ -380,7 +380,7 @@ def update_fstab(root_path, new_mount_point_map):
 
 def change_subvol(partition_list, subvol, mount_points):
     for part in partition_list:
-        if part.mountpoint in mount_points:
+        if part.destination in mount_points:
             options = part.options.split(",")
             for opt in options:
                 if opt.startswith("subvol="):
