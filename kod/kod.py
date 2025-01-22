@@ -1047,7 +1047,7 @@ def deploy_generation(
     with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
         f.write("\n".join(service_to_enable))
 
-    # exec(f"mount {boot_part} /mnt/boot")
+    exec(f"mount {boot_part} /mnt/boot")
     # exec(f"mount -o subvol=store/home {root_part} /mnt/home")
 
     # # subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
