@@ -11,7 +11,7 @@ import lupa as lua
 
 
 from kod.common import set_debug, exec, exec_chroot
-from kod.filesytem import create_partitions, get_partition_devices
+from kod.filesytem import FsEntry, create_partitions, get_partition_devices
 
 
 #####################################################################################################
@@ -94,14 +94,19 @@ def install_essentials_pkgs():
 
 def generate_fstab(partiton_list, mount_point="/mnt"):
     print("Generating fstab")
-    print(partiton_list)
+    with open(f"{mount_point}/etc/fstab", "w") as f:
+        for part in partiton_list:
+            if part.source[:5] == "/dev/":
+                uuid = exec(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
+                if uuid:
+                    part.source = f"UUID={uuid.strip()}"
+            f.write(str(part) + "\n")
 
 
 def configure_system(conf, root_part, partition_list):
     # fstab
-    exec("genfstab -U /mnt > /mnt/etc/fstab")
+    # exec("genfstab -U /mnt > /mnt/etc/fstab")
     generate_fstab(partition_list, "/mnt")
-    # os.exit(1)
 
     # Locale
     locale_conf = conf.locale
@@ -975,24 +980,36 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     # Mounting first generation
     exec("umount -R /mnt")
     exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
+    partition_list = [FsEntry(root_part, "/", "btrfs", f"rw,relatime,ssd,space_cache=v2,subvol=generations/{generation}/rootfs")]
 
     # exec("mkdir -p /mnt/{home,var,root,boot}")
     for dir in subdirs + ["boot", "home", "usr", "kod"]:
         exec(f"mkdir -p /mnt/{dir}")
 
     exec(f"mount {boot_part} /mnt/boot")
+    partition_list.append(FsEntry(boot_part, "/boot", "vfat", "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"))
+
     exec(f"mount {root_part} /mnt/kod")
+    partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
+
     exec(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
+    partition_list.append(FsEntry(root_part, "/usr", "btrfs", f"rw,relatime,ssd,space_cache=v2,subvol=generations/{generation}/usr"))
+
     exec(f"mount -o subvol=store/home {root_part} /mnt/home")
+    partition_list.append(FsEntry(root_part, "/home", "btrfs", "rw,relatime,ssd,space_cache=v2,subvol=store/home"))
 
     for dir in subdirs:
         exec(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+        partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
+
 
     # Write generation number
     with open("/mnt/.generation", "w") as f:
         f.write(str(generation))
 
     print("===================================")
+        
+    return partition_list
 
 
 
@@ -1175,7 +1192,7 @@ def install(config, step=None):
     if not step:
         boot_partition, root_partition, partition_list = create_partitions(conf)
 
-        create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
+        partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
 
         install_essentials_pkgs()
         configure_system(conf, root_part=root_partition, partition_list=partition_list)

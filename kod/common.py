@@ -18,11 +18,14 @@ def set_debug(val=True):
     global use_debug
     use_debug = val
 
-def exec(cmd):
+def exec(cmd, get_output=False):
     if use_debug:
         print(">>", color.PURPLE+cmd+color.END) 
     else:
-        os.system(cmd)
+        if get_output:
+            return os.popen(cmd).read()
+        else:
+            os.system(cmd)
 
 def exec_chroot(cmd):
     print(cmd)
