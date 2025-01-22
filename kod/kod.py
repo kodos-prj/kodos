@@ -16,7 +16,7 @@ from kod.filesytem import FsEntry, create_partitions, get_partition_devices
 
 #####################################################################################################
 @click.group()
-@click.option('--debug/--no-debug', default=False)
+@click.option('-d', '--debug', is_flag=True)
 def cli(debug):
     set_debug(debug)
 
