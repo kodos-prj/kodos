@@ -384,7 +384,8 @@ def change_subvol(partition_list, subvol, mount_points):
             options = part.options.split(",")
             for opt in options:
                 if opt.startswith("subvol="):
-                    part.options = part.options.replace(opt, f"subvol={subvol}")
+                    subvol_path = opt.split("/")[-1]
+                    part.options = part.options.replace(opt, f"subvol={subvol}/{subvol_path}")
     return partition_list
 
 def set_ro_mount(mount_point):
