@@ -1235,6 +1235,7 @@ def install(config, step=None):
         0,
         packages_installed,
         system_services_to_enable,
+        partition_list,
     )
 
     print("Done")
