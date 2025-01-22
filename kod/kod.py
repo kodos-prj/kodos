@@ -378,6 +378,15 @@ def update_fstab(root_path, new_mount_point_map):
             f.write(line)
 
 
+def change_subvol(partition_list, subvol, mount_points):
+    for part in partition_list:
+        if part.mountpoint in mount_points:
+            options = part.options.split(",")
+            for opt in options:
+                if opt.startswith("subvol="):
+                    part.options = part.options.replace(opt, f"subvol={subvol}")
+    return partition_list
+
 def set_ro_mount(mount_point):
     exec(f"mount -o remount,ro,bind {mount_point}")
 
@@ -1014,7 +1023,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
 
 
 def deploy_generation(
-    boot_part, root_part, generation, pkgs_installed, service_to_enable
+    boot_part, root_part, generation, pkgs_installed, service_to_enable, partition_list
 ):
     print("===================================")
     print("== Deploying generation ==")
@@ -1038,14 +1047,16 @@ def deploy_generation(
     with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
         f.write("\n".join(service_to_enable))
 
-    exec(f"mount {boot_part} /mnt/boot")
-    exec(f"mount -o subvol=store/home {root_part} /mnt/home")
+    # exec(f"mount {boot_part} /mnt/boot")
+    # exec(f"mount -o subvol=store/home {root_part} /mnt/home")
 
-    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for dir in subdirs:
-        exec(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+    # # subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    # for dir in subdirs:
+    #     exec(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
 
-    exec("genfstab -U /mnt > /mnt/etc/fstab")
+    change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
+    generate_fstab(partition_list, "/mnt")
+    # exec("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
     change_ro_mount("/mnt")
 
