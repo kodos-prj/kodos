@@ -967,6 +967,19 @@ def enable_user_services(ctx, user, services):
         print("Done - services enabled")
 
 
+def load_fstab(root_path=""):
+    partition_list = []
+    with open(f"{root_path}/etc/fstab") as f:
+        entries = f.readlines()
+    
+    for entry in entries:
+        if not entry or entry == "\n" or entry.startswith("#"):
+            continue
+        (device, mount_point, fs_type, options, dump, pass_) = entry.split()
+        partition_list.append(FsEntry(device, mount_point, fs_type, options, dump, pass_))
+    return partition_list
+
+
 def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
@@ -1072,15 +1085,16 @@ def deploy_generation(
 
 
 # Used for rebuild
-def deploy_new_generation(boot_part, current_root_part, new_root_path): # , mount_point, generation):
+def deploy_new_generation(boot_part, current_root_part, new_root_path):
     print("===================================")
     print("== Deploying generation ==")
     print(f"{new_root_path=}")
 
     # Makes generation usable 
-    exec(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
 
-    exec(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
+    # exec(f"genfstab -U {new_root_path} > {new_root_path}/etc/fstab")
+
+    # exec(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
 
     #------------- Done with generation creation -------------
     
@@ -1106,13 +1120,16 @@ def deploy_new_generation(boot_part, current_root_part, new_root_path): # , moun
     exec(f"mount {current_root_part} {new_rootfs}/kod")
     exec(f"mount {boot_part} {new_rootfs}/boot")
     
-    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for subv in subvolumes:
-        exec(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
+    # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    # for subv in subvolumes:
+    #     exec(f"mount -o subvol=store/{subv} {current_root_part} {new_rootfs}/{subv}")
     
-    exec(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
+    partition_list = load_fstab(new_rootfs)
+    change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
+    generate_fstab(partition_list, new_rootfs)
+    # exec(f"genfstab -U {new_rootfs} > {new_rootfs}/etc/fstab")
 
-    change_ro_mount(new_rootfs)
+    # change_ro_mount(new_rootfs)
     # set_ro_mount(c, f"{new_rootfs}/usr")
 
     exec(f"arch-chroot {new_rootfs} mkinitcpio -A kodos -P")
@@ -1147,6 +1164,10 @@ def create_next_generation(boot_part, root_part, generation, mount_point):
     for subv in subvolumes:
         exec(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
     exec(f"mkdir -p {next_current}/kod")
+
+    partition_list = load_fstab()
+    change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
+    generate_fstab(partition_list, next_current)
 
     # Write generation number
     with open(f"{next_current}/.generation", "w") as f:
@@ -1368,7 +1389,7 @@ def rebuild(c, config, new_generation=False, update=False):
     if new_generation:
         print("==== Deploying new generation ====")
         new_mount_point = mount_point
-        deploy_new_generation(c, boot_partition, root_partition, new_root_path) #, mount_point, generation_id)
+        deploy_new_generation(c, boot_partition, root_partition, new_root_path) 
     else:
         print("==== Rebuilding current generation ====")
         new_mount_point = "/kod/current"
