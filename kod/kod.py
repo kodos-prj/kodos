@@ -1339,7 +1339,7 @@ def rebuild(config, new_generation=False, update=False):
     print(services_enabled)
 
    # === Proc packages
-    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+    packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
 
     # Package filtering
@@ -1363,7 +1363,7 @@ def rebuild(config, new_generation=False, update=False):
         print("Packages to remove:", remove_pkg)
         for pkg in remove_pkg:
             try:
-                manage_packages(c, new_root_path, repos, "remove", [pkg], chroot=use_chroot)
+                manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except:
                 print(f"Unable to remove {pkg}")
 
@@ -1513,7 +1513,7 @@ def test_config(c, config):
         print(f"  {k} = {v}")
 
     packages = conf.packages
-    packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
+    packages_to_install, packages_to_remove = get_packages_to_install(conf)
     for k, v in packages.items():
         print(f"  {k} = {v}")
     print(f"{packages_to_install=}")
@@ -1537,7 +1537,7 @@ def test_packages(c, config, switch=False):
     # === Proc packages
     # repos, repo_packages = proc_repos(c, conf)
     # packages_to_install, packages_to_remove = get_packages_to_install(c, conf)
-    packages_to_install, packages_to_remove = proc_desktop(c, conf)
+    packages_to_install, packages_to_remove = proc_desktop(conf)
     print("packages to install\n",packages_to_install)
     print("packages to remove\n",packages_to_remove)
 
