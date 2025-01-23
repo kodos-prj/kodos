@@ -261,8 +261,8 @@ def setup_bootloader(conf):
     if boot_type == "systemd-boot":
         exec_chroot("bootctl install")
 
-        res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'")
-        mount_point = res.stdout.split()
+        res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
+        mount_point = res.split()
         root_part = mount_point[0].strip()
         part_type = mount_point[2].strip()
         mount_options = mount_point[3].strip().split(",")
@@ -355,12 +355,12 @@ def get_packages_to_install(conf):
 def get_list_of_dependencies(pkg):
     pkgs_list = [pkg]
     # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}").stdout.split()
+    pkgs_list = exec(f"pacman -Sgq {pkg}",get_output=True).split()
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list]
     else:
         # check if it is a (meta-)package
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").stdout.split()
+        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split()
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split(" ")]
     return pkgs_list
 
