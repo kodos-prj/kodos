@@ -1269,8 +1269,8 @@ def install(config, step=None):
 # @task(help={"config": "system configuration file"})
 @cli.command()
 @click.option('-c', '--config', default=None, help='System configuration file')
-@click.option('-n', '--new', default=False, help='Create a new generation')
-@click.option('-u', '--update', default=None, help='Update package versions')
+@click.option('-n', '--new_generation', is_flag=True, help='Create a new generation')
+@click.option('-u', '--update', is_flag=True, help='Update package versions')
 def rebuild(c, config, new_generation=False, update=False):
     "Rebuild KodOS installation based on configuration file"
     stage = "rebuild"
