@@ -1165,7 +1165,7 @@ def create_next_generation(boot_part, root_part, generation, mount_point):
     
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
-        exec(f"mount --bind {next_current}/kod/store/{dir} {next_current}/{dir}")
+        exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
     
     # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
     # for subv in subvolumes:
