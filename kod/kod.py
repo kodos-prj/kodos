@@ -1160,10 +1160,17 @@ def create_next_generation(boot_part, root_part, generation, mount_point):
     exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
     exec(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
     exec(f"mount {boot_part} {next_current}/boot")
-    subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    for subv in subvolumes:
-        exec(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
-    exec(f"mkdir -p {next_current}/kod")
+    exec(f"mount {root_part} {next_current}/kod")
+    exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
+    
+    subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    for dir in subdirs:
+        exec(f"mount --bind {next_current}/kod/store/{dir} {next_current}/{dir}")
+    
+    # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
+    # for subv in subvolumes:
+        # exec(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
+    # exec(f"mkdir -p {next_current}/kod")
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
