@@ -1271,7 +1271,7 @@ def install(config, step=None):
 @click.option('-c', '--config', default=None, help='System configuration file')
 @click.option('-n', '--new_generation', is_flag=True, help='Create a new generation')
 @click.option('-u', '--update', is_flag=True, help='Update package versions')
-def rebuild(c, config, new_generation=False, update=False):
+def rebuild(config, new_generation=False, update=False):
     "Rebuild KodOS installation based on configuration file"
     stage = "rebuild"
     conf = load_config(config)
@@ -1291,7 +1291,6 @@ def rebuild(c, config, new_generation=False, update=False):
         # mount_point="/.new_rootfs"
         mount_point = f"/kod/generations/{generation_id}"
         new_root_path = create_next_generation(
-            c,
             boot_partition,
             root_partition,
             generation_id,
@@ -1304,7 +1303,7 @@ def rebuild(c, config, new_generation=False, update=False):
         new_root_path = "/"
         exec("mount -o remount,rw /usr")
 
-    ctx = Context(c, os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
+    ctx = Context(os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
 
     print("========================================")
     repos = load_repos()
@@ -1348,7 +1347,7 @@ def rebuild(c, config, new_generation=False, update=False):
     services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
     new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
 
-    disable_services(c, services_to_disable, new_root_path, use_chroot=use_chroot)
+    disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
 
     # ======
 
@@ -1363,17 +1362,17 @@ def rebuild(c, config, new_generation=False, update=False):
 
     if update and update_pkg:
         print("Packages to update:", update_pkg)
-        refresh_package_db(c, new_root_path, use_chroot=use_chroot)
-        manage_packages(c, new_root_path, repos, "update", update_pkg, chroot=use_chroot)
+        refresh_package_db(new_root_path, use_chroot=use_chroot)
+        manage_packages(new_root_path, repos, "update", update_pkg, chroot=use_chroot)
 
     if added_pkgs:
         print("Packages to install:", added_pkgs)
-        manage_packages(c, new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
+        manage_packages(new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
     # enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
-    enable_services(c, new_service_to_enable, new_root_path, use_chroot=use_chroot)
+    enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
 
     # # === Proc users
     # print("\n====== Processing users ======")
@@ -1389,7 +1388,7 @@ def rebuild(c, config, new_generation=False, update=False):
     if new_generation:
         print("==== Deploying new generation ====")
         new_mount_point = mount_point
-        deploy_new_generation(c, boot_partition, root_partition, new_root_path) 
+        deploy_new_generation(boot_partition, root_partition, new_root_path) 
     else:
         print("==== Rebuilding current generation ====")
         new_mount_point = "/kod/current"
@@ -1414,10 +1413,10 @@ def rebuild(c, config, new_generation=False, update=False):
 @cli.command()
 @click.option('-c', '--config', default=None, help='System configuration file')
 @click.option('--user', default=os.environ['USER'], help='User to rebuild config')
-def rebuild_user(c, config, user=os.environ['USER']):
+def rebuild_user(config, user=os.environ['USER']):
     "Rebuild KodOS installation based on configuration file"
     stage = "rebuild-user"
-    ctx = Context(c, os.environ['USER'], mount_point="/", use_chroot=False, stage=stage)   
+    ctx = Context(os.environ['USER'], mount_point="/", use_chroot=False, stage=stage)   
     conf = load_config(config)
     users = conf.users
     info = users[user] if user in users else None   
