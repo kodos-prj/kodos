@@ -355,13 +355,13 @@ def get_packages_to_install(conf):
 def get_list_of_dependencies(pkg):
     pkgs_list = [pkg]
     # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}",get_output=True).split()
+    pkgs_list = exec(f"pacman -Sgq {pkg}",get_output=True).strip().split("\n")
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list]
     else:
         # check if it is a (meta-)package
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split()
-        pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split(" ")]
+        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
+        pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
 
 
