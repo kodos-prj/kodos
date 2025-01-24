@@ -1262,7 +1262,8 @@ def install(config, step=None):
         boot_partition,
         root_partition,
         0,
-        packages_installed,
+        # packages_installed,
+        packages_to_install,
         system_services_to_enable,
         partition_list,
     )
@@ -1403,7 +1404,7 @@ def rebuild(config, new_generation=False, update=False):
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
     with open(f"{new_mount_point}/installed_packages", "w") as f:
-        f.write("\n".join(pkgs_installed))
+        f.write("\n".join(packages_to_install))
     # Create a list of services enabled
     with open(f"{new_mount_point}/enabled_services", "w") as f:
         f.write("\n".join(system_services_to_enable))
