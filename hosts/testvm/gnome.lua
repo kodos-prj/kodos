@@ -16,8 +16,9 @@ return {
     };
 
     ["org/gnome/shell"] = {
-        disabled_extensions = { 'apps-menu@gnome-shell-extensions.gcampax.github.com' };
+        disabled_extensions = { };
         enabled_extensions = {
+            'apps-menu@gnome-shell-extensions.gcampax.github.com',
             'appindicatorsupport@rgcjonas.gmail.com', 
             -- 'arcmenu@arcmenu.com',
             'blur-my-shell@aunetx',

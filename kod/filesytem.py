@@ -1,3 +1,4 @@
+from kod.common import exec
 ########################################################################################
 
 _filesystem_cmd = {
@@ -27,9 +28,48 @@ _filesystem_type = {
     "noformat": None,
 }
 
-def create_btrfs(c, delay_action, part, blockdevice):
+# # fstab
+# source          destination     type    options         dump    pass
+# /proc           /proc           none    rw,bind         0       0
+# /sys            /sys            none    rw,bind         0       0
+# /dev            /dev            none    rw,bind         0       0
+# /dev/pts        /dev/pts        none    rw,bind         0       0
+# /home           /home           none    rw,bind         0       0
+# /usr            /usr            none    rw,bind         0       0
+# /tmp            /tmp            none    rw,bind         0       0
+# /var/cache	    /var/cache      none	rw,bind		    0   	0
+# /var/log	    /var/log        none	rw,bind		    0   	0
+# /var/tmp	    /var/tmp        none	rw,bind		    0   	0
+# /var/kod	    /var/kod        none	rw,bind		    0   	0
+class FsEntry:
+    def __init__(self, source, destination, fs_type, options, dump=0, pass_=0):
+        self.source = source
+        self.destination = destination
+        self.fs_type = fs_type
+        self.options = options
+        self.dump = dump
+        self.pass_ = pass_
+
+    def __str__(self):
+        return f"{self.source:<25} {self.destination:<15} {self.fs_type:<10} {self.options:<10} {self.dump:<10} {self.pass_}"
+    
+    def mount(self, install_mountpoint):
+        if self.fs_type == "btrfs":
+            return f"mount -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+        if self.fs_type == "none":
+            return f"mount --bind {self.source} {install_mountpoint}{self.destination}"
+        if self.fs_type == "esp":
+            return f"mount -t vfat -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+        return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"    
+
+
+def create_btrfs(delay_action, part, blockdevice):
     print("Cheking subvolumes")
-    c.run(f"mount {blockdevice} /mnt")
+    fstab_desc = []
+    exec(f"mount {blockdevice} /mnt")
+    fstab_desc.append(FsEntry(blockdevice, "/", "btrfs", "defaults", 0, 0))
+    print(fstab_desc[0])
+    print(fstab_desc[0].mount("/mnt"))
     if not part.subvolumes:
         return delay_action
     for subvol_info in part["subvolumes"].values():
@@ -39,7 +79,7 @@ def create_btrfs(c, delay_action, part, blockdevice):
 
         create_svol = "/mnt" + subvol
         # print(subvol, mountpoint, mount_options)
-        c.run(f"btrfs subvolume create {create_svol}")
+        exec(f"btrfs subvolume create {create_svol}")
 
         if mount_options:
             mount_options = f"{mount_options},"
@@ -49,55 +89,21 @@ def create_btrfs(c, delay_action, part, blockdevice):
         install_mountpoint = "/mnt" + mountpoint
         if mountpoint == "/":
             delay_action = [f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"] + delay_action
+            fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
         else:
             delay_action.append(f"mkdir -p {install_mountpoint}")
             delay_action.append(f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}")
+            fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
+        # partition_list.append((blockdevice, subvol, mountpoint))
 
-    
-    # Adding extra subvolumes
-    # sv_opts="rw,noatime,compress-force=zstd:1,space_cache=v2"
-    # subvolumes = ['/kod', '/etc', '/usr', '/var','/log', '/tmp']
-    # mountpoints = ['kod', 'etc', 'usr', 'var', 'kod/log', 'var/tmp']
-    # subvolumes = ['/kod', '/log', '/tmp']
-    # mountpoints = ['kod', 'kod/log', 'var/tmp']
-    # for svol, mpoint in zip(subvolumes, mountpoints):
-    #     c.run(f"btrfs subvolume create /mnt{svol}")
-    #     delay_action.append(f"mkdir -p /mnt/{mpoint}")
-    #     delay_action.append(f"mount -o {sv_opts},subvol={svol} {blockdevice} /mnt/{mpoint}")
-
-    # delay_action.append(f"mkdir -p /mnt/kod/cache")
-    # delay_action.append(f"cd /mnt && ln -s /kod/cache var/cache")
-
-
-    # btrfs subvolume create /mnt/@home
-    # btrfs subvolume create /mnt/@snapshots
-    # btrfs subvolume create /mnt/@cache
-    # btrfs subvolume create /mnt/@libvirt
-    # btrfs subvolume create /mnt/@log
-    # btrfs subvolume create /mnt/@tmp
-    # mkdir -p /mnt/{home,.snapshots,var/cache,var/lib/libvirt,var/log,var/tmp}
-
-    # Mount the additional subvolumes ...
-
-    # mount -o ${sv_opts},subvol=@home /dev/mapper/cryptdev /mnt/home
-    # mount -o ${sv_opts},subvol=@snapshots /dev/mapper/cryptdev /mnt/.snapshots
-    # mount -o ${sv_opts},subvol=@cache /dev/mapper/cryptdev /mnt/var/cache
-    # mount -o ${sv_opts},subvol=@libvirt /dev/mapper/cryptdev /mnt/var/lib/libvirt
-    # mount -o ${sv_opts},subvol=@log /dev/mapper/cryptdev /mnt/var/log
-    # mount -o ${sv_opts},subvol=@tmp /dev/mapper/cryptdev /mnt/var/tmp
-
-
-    c.run("umount -R /mnt")
-    # mount -o subvol=rootfs /dev/vda3 /mnt
-    # mkdir -p /mnt/home
-    # mkdir -p /mnt/kod
-    # mount -o compress=zstd,subvol=home /dev/vda3 /mnt/home
-    # mount -o compress=zstd,noatime,subvol=kod /dev/vda3 /mnt/kod
-    
+    exec("umount -R /mnt")
+    print(".......................")
+    for f in fstab_desc:
+        print(f)
     print(".......................")
     return delay_action
 
-def create_partitions(c, conf):
+def create_partitions(conf):
     devices = conf.devices
     print(f"{devices=}")
 
@@ -105,17 +111,19 @@ def create_partitions(c, conf):
     print("->>",devices.disk0)
     boot_partition = None 
     root_partition = None
+    partition_list = []
     for d_id, disk in devices.items():
         print(d_id)
-        boot_part, root_part = create_disk_partitions(c, disk)
+        boot_part, root_part, part_list = create_disk_partitions(disk)
+        partition_list += part_list
         if boot_part:
             boot_partition = boot_part
         if root_part:
             root_partition = root_part
-    return boot_partition, root_partition
+    return boot_partition, root_partition, partition_list
 
 
-def create_disk_partitions(c, disk_info):
+def create_disk_partitions(disk_info):
 
     device = disk_info['device']
     efi = disk_info['efi']
@@ -127,12 +135,12 @@ def create_disk_partitions(c, disk_info):
         device_sufix = ""
 
     # Delete partition table
-    c.run(f"wipefs -a {device}")
-    c.run('sync')
+    exec(f"wipefs -a {device}")
+    exec('sync')
 
     # if efi:
         # Create GPT label
-        # c.run(f"parted -s {device} mklabel gpt")
+        # exec(f"parted -s {device} mklabel gpt")
 
     print(f"{partitions=}")
     if not partitions:
@@ -141,6 +149,7 @@ def create_disk_partitions(c, disk_info):
     delay_action = []
     boot_partition = None
     root_partition = None
+    partitions_list = []
     for pid, part in partitions.items():
         name = part['name']
         size = part['size']
@@ -156,16 +165,16 @@ def create_disk_partitions(c, disk_info):
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _filesystem_type[filesystem_type]
 
-        c.run(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}") 
+        exec(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}") 
         
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
-                c.run(f"{cmd} {blockdevice}")
+                exec(f"{cmd} {blockdevice}")
         
         if filesystem_type == "btrfs":
-            delay_action = create_btrfs(c,delay_action, part, blockdevice)
+            delay_action = create_btrfs(delay_action, part, blockdevice)
 
         if mountpoint and mountpoint != 'none':
             install_mountpoint = "/mnt" + mountpoint
@@ -174,18 +183,23 @@ def create_disk_partitions(c, disk_info):
                 print(f"[DELAY] mount {blockdevice} {install_mountpoint}")
                 delay_action.append(f"mkdir -p {install_mountpoint}")
                 delay_action.append(f"mount {blockdevice} {install_mountpoint}")
+                partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
             else:
                 delay_action = [
                     f"mkdir -p {install_mountpoint}",
                     f"mount {blockdevice} {install_mountpoint}"
                 ] + delay_action
+                partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
+            print("====>", blockdevice, mountpoint)
+
 
     print("=======================")
     if delay_action:
         for cmd_action in delay_action:
-                c.run(cmd_action)
+                exec(cmd_action)
+    print("=======================")
 
-    return boot_partition, root_partition
+    return boot_partition, root_partition, partitions_list
 
 def get_partition_devices(conf):
     devices = conf.devices

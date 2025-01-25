@@ -2,7 +2,7 @@
 # Allow to create virtual envs and install packahes on it
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-24.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-24.11";
   };
 
   outputs = { self, nixpkgs }:
