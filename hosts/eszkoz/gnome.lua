@@ -16,8 +16,9 @@ return {
     };
 
     ["org/gnome/shell"] = {
-        disabled_extensions = { 'apps-menu@gnome-shell-extensions.gcampax.github.com' };
+        disabled_extensions = { };
         enabled_extensions = {
+            'apps-menu@gnome-shell-extensions.gcampax.github.com',
             'appindicatorsupport@rgcjonas.gmail.com', 
             -- 'arcmenu@arcmenu.com',
             'blur-my-shell@aunetx',
@@ -99,6 +100,7 @@ return {
         -- height_fraction=0.90000000000000002;
         -- preferred_monitor=-2;
         -- preferred_monitor_by_connector='eDP-1';
+        show_trash = false;
     }
     
 }

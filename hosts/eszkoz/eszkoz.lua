@@ -222,7 +222,7 @@ return {
                 display_manager = "sddm",
                 extra_packages = {
                     "kde-applications",
-                    "aur:plasma5-themes-whitesur-git",
+                    -- "aur:plasma5-themes-whitesur-git",
                 },
             },
             cosmic = {
@@ -260,14 +260,13 @@ return {
         "neovim",
         "htop",
         "libgtop",
-        "uv",
-        "python-invoke",
+        -- "uv",
+        -- "python-invoke",
         "git",
         -- "poetry",
         "neofetch",
         "helix",
         "ghostty",
-        "fish",
         -- "blueman", -- TODO: Maybe a better location is required
         -- AUR packages
         "aur:visual-studio-code-bin",
@@ -287,6 +286,7 @@ return {
         "aur:brave-bin",
 
         "freecad",
+        "openscad",
         "prusa-slicer",
     })
     ..

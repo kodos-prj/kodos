@@ -15,16 +15,15 @@ return {
     
     "python",
     "uv",
-    -- "nodejs",
-    -- "nodePackages.npm",
     
     -- Tools
     "gitg",
     "meld",
     
     -- Editors
-    "neovim",
+    -- "neovim",
     "lite-xl",
-    -- "emacs-wayland",
+    "emacs-wayland",
+    "zed",
 
 }

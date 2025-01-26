@@ -29,5 +29,5 @@ return list({
     -- wezterm
     -- pandoc
     "github-cli", -- Github client
-    "helix",
+    -- "helix",
 })
