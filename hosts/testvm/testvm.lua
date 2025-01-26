@@ -274,13 +274,15 @@ return {
         -- Flatpak packages
         -- "flatpak:com.mattjakeman.ExtensionManager",
         -- "flatpak:com.visualstudio.code",
-        "distrobox",
+        -- "distrobox",
         -- "aur:quickemu",
         -- "aur:uxplay",
         -- "aur:megasync",
 
         "firefox",
         -- "aur:brave-bin",
+        "vulkan-virtio",
+        "zed",
     });
     -- ..
     -- cli -- CLI tools

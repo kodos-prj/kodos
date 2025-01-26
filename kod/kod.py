@@ -1056,10 +1056,12 @@ def deploy_generation(
     # Create a list of installed packages
     with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
         f.write("\n".join(pkgs_installed))
+    exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
 
     # Create a list of services enabled
     with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
         f.write("\n".join(service_to_enable))
+    exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
 
     exec(f"mount {boot_part} /mnt/boot")
     # exec(f"mount -o subvol=store/home {root_part} /mnt/home")
@@ -1324,12 +1326,16 @@ def rebuild(config, new_generation=False, update=False):
         installed_packages_path = "/kod/current/installed_packages"
         services_enabled_path = "/kod/current/enabled_services"
     else:
-        installed_packages_path = (
-            f"/kod/generations/{current_generation}/installed_packages"
-        )
-        services_enabled_path = (
-            f"/kod/generations/{current_generation}/enabled_services"
-        )
+        print("Missing installed packages information")
+        if new_generation:
+            exec(f"rm -rf /kod/generations/{generation_id}")
+        return
+        # installed_packages_path = (
+        #     f"/kod/generations/{current_generation}/installed_packages"
+        # )
+        # services_enabled_path = (
+        #     f"/kod/generations/{current_generation}/enabled_services"
+        # )
 
     with open(installed_packages_path) as f:
         installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
