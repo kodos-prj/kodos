@@ -1252,7 +1252,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"{gen_target_path}", mount_points=["/", "/usr"])
-    generate_fstab(partition_list, gen_target_path)
+    generate_fstab(partition_list, tmp_mount_point)
 
     exec(f"arch-chroot {tmp_mount_point} mkinitcpio -A kodos -P")
     exec(f"umount -R {tmp_mount_point}")
