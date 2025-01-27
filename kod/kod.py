@@ -1226,15 +1226,16 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
     exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
     exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
 
-
     # next_current = "/kod/current/next_current"
     # # Mounting generation
     # if os.path.ismount(next_current):
     #     exec(f"umount -R {next_current}")
     #     exec(f"rm -rf {next_current}")
 
-    tmp_mount_point = f"{gen_target_path}/mnt"
+    tmp_mount_point = f"{gen_target_path}/.mnt"
     exec(f"mkdir -p {tmp_mount_point}")
+    exec(f"ls -la {gen_target_path}")
+
     exec(f"mount -o subvol={gen_target_path}/rootfs {root_part} {tmp_mount_point}")
     exec(f"mount -o subvol={gen_target_path}/usr {root_part} {tmp_mount_point}/usr")
     exec(f"mount {boot_part} {tmp_mount_point}/boot")
@@ -1252,6 +1253,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"{gen_target_path}", mount_points=["/", "/usr"])
+    print(f"{partition_list=}")
     generate_fstab(partition_list, tmp_mount_point)
 
     exec(f"arch-chroot {tmp_mount_point} mkinitcpio -A kodos -P")
