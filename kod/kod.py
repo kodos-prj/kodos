@@ -1287,39 +1287,22 @@ def rebuild(config, new_generation=False, update=False):
     conf = load_config(config)
     print("========================================")
 
-    max_generation = get_max_generation()
-    with open("/.generation") as f:
-        current_generation = f.readline().strip()
-    print(f"{current_generation = }")
-    
-    boot_partition, root_partition = get_partition_devices(conf)
-
-    if new_generation:
-        print("Creating a new generation")
-        use_chroot = True
-        generation_id = int(max_generation) + 1
-        # mount_point="/.new_rootfs"
-        mount_point = f"/kod/generations/{generation_id}"
-        new_root_path = create_next_generation(
-            boot_partition,
-            root_partition,
-            generation_id,
-            mount_point,
-        )
-    else:
-        use_chroot = False
-        generation_id = int(current_generation)
-        mount_point="/"
-        new_root_path = "/"
-        exec("mount -o remount,rw /usr")
-
-    ctx = Context(os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
-
-    print("========================================")
     repos = load_repos()
     if repos is None:
         print("Missing repos information")
         return
+    
+    # Get next generation number
+    max_generation = get_max_generation()
+    with open("/.generation") as f:
+        current_generation = f.readline().strip()
+    print(f"{current_generation = }")
+
+    if new_generation:
+        print("Creating a new generation")
+        generation_id = int(max_generation) + 1
+    else:
+        generation_id = int(current_generation)
 
     # Load current installed packages and enabled services
     if os.path.isfile("/kod/current/installed_packages"):
@@ -1348,6 +1331,32 @@ def rebuild(config, new_generation=False, update=False):
     with open(services_enabled_path) as f:
         services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(services_enabled)
+
+    
+    boot_partition, root_partition = get_partition_devices(conf)
+
+    if new_generation:
+        print("Creating a new generation")
+        use_chroot = True
+        # generation_id = int(max_generation) + 1
+        # mount_point="/.new_rootfs"
+        mount_point = f"/kod/generations/{generation_id}"
+        new_root_path = create_next_generation(
+            boot_partition,
+            root_partition,
+            generation_id,
+            mount_point,
+        )
+    else:
+        use_chroot = False
+        # generation_id = int(current_generation)
+        mount_point="/"
+        new_root_path = "/"
+        exec("mount -o remount,rw /usr")
+
+    ctx = Context(os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
+
+    print("========================================")
 
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
