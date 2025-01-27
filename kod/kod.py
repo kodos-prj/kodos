@@ -1100,12 +1100,14 @@ def deploy_new_generation(boot_part, current_root_part, new_root_path):
 
     #------------- Done with generation creation -------------
     
-    # Rename rootfs to old_rootfs
-    if os.path.isdir("/kod/current/old_rootfs"):
-        exec("rm -rf /kod/current/old_rootfs")
-        exec("rm -rf /kod/current/old_usr")
-    exec("mv /kod/current/rootfs /kod/current/old_rootfs")
-    exec("mv /kod/current/usr /kod/current/old_usr")
+    # # Copy the current rootfs to previous rootfs
+    # if os.path.isdir("/kod/previous/rootfs"):
+    #     exec("rm -rf /kod/previous/rootfs")
+    #     exec("rm -rf /kod/previous/usr")
+    # exec("btrfs subvolume snapshot /kod/current/rootfs /kod/previous/rootfs")
+    # exec("btrfs subvolume snapshot /kod/current/usr /kod/previous/usr")
+    # exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
+    # exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
 
     # Create new rootfs and usr
     exec(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
@@ -1311,12 +1313,6 @@ def rebuild(config, new_generation=False, update=False):
     else:
         print("Missing installed packages information")
         return
-        # installed_packages_path = (
-        #     f"/kod/generations/{current_generation}/installed_packages"
-        # )
-        # services_enabled_path = (
-        #     f"/kod/generations/{current_generation}/enabled_services"
-        # )
 
     with open(installed_packages_path) as f:
         installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
@@ -1406,6 +1402,15 @@ def rebuild(config, new_generation=False, update=False):
     # print(f"User services to enable: {user_services_to_enable}")
     # enable_user_services(c, user_services_to_enable, use_chroot=True)
 
+   # Copy the current rootfs to previous rootfs
+    if os.path.isdir("/kod/previous/rootfs"):
+        exec("rm -rf /kod/previous/rootfs")
+        exec("rm -rf /kod/previous/usr")
+    exec("btrfs subvolume snapshot /kod/current/rootfs /kod/previous/rootfs")
+    exec("btrfs subvolume snapshot /kod/current/usr /kod/previous/usr")
+    exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
+    exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
+
     if new_generation:
         print("==== Deploying new generation ====")
         new_mount_point = mount_point
@@ -1423,9 +1428,10 @@ def rebuild(config, new_generation=False, update=False):
         f.write("\n".join(system_services_to_enable))
 
     # exec(f"umount -R {new_root_path}")
-    exec(f"rm -rf {new_root_path}")
-
-    exec("mount -o remount,ro /usr")
+    if new_generation:
+        exec(f"rm -rf {new_root_path}")
+    else:
+        exec("mount -o remount,ro /usr")
 
     print("Done")
 
