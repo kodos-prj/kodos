@@ -1310,12 +1310,6 @@ def rebuild(config, new_generation=False, update=False):
         services_enabled_path = "/kod/current/enabled_services"
     else:
         print("Missing installed packages information")
-        if new_generation:
-            try:
-                exec(f"umount -R /kod/generations/{generation_id}")
-            except:
-                pass
-            exec(f"rm -rf /kod/generations/{generation_id}")
         return
         # installed_packages_path = (
         #     f"/kod/generations/{current_generation}/installed_packages"
