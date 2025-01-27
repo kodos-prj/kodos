@@ -1403,9 +1403,11 @@ def rebuild(config, new_generation=False, update=False):
     # enable_user_services(c, user_services_to_enable, use_chroot=True)
 
    # Copy the current rootfs to previous rootfs
-    if os.path.isdir("/kod/previous/rootfs"):
+    if os.path.isdir("/kod/previous"):
         exec("rm -rf /kod/previous/rootfs")
         exec("rm -rf /kod/previous/usr")
+    else:
+        exec("mkdir -p /kod/previous")
     exec("btrfs subvolume snapshot /kod/current/rootfs /kod/previous/rootfs")
     exec("btrfs subvolume snapshot /kod/current/usr /kod/previous/usr")
     exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
