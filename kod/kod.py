@@ -1322,12 +1322,16 @@ def rebuild(config, new_generation=False, update=False):
         return
 
     # Load current installed packages and enabled services
-    if os.path.isdir("/kod/current/installed_packages"):
+    if os.path.isfile("/kod/current/installed_packages"):
         installed_packages_path = "/kod/current/installed_packages"
         services_enabled_path = "/kod/current/enabled_services"
     else:
         print("Missing installed packages information")
         if new_generation:
+            try:
+                exec(f"umount -R /kod/generations/{generation_id}")
+            except:
+                pass
             exec(f"rm -rf /kod/generations/{generation_id}")
         return
         # installed_packages_path = (
