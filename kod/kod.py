@@ -1220,7 +1220,8 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
         exec(f"rm -rf {gen_target_path}/*")
     else:
         exec(f"mkdir -p {gen_target_path}")
-    exec(f"btrfs subvolume snapshot {gen_source_path}/roofs {gen_target_path}/rootfs")
+
+    exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}/rootfs")
     exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}/usr")
 
     exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
@@ -1236,6 +1237,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
     exec(f"mkdir -p {tmp_mount_point}")
     exec(f"ls -la {gen_target_path}")
 
+    # TODO: Check if the mount points are correct for next_current
     exec(f"mount -o subvol={gen_target_path}/rootfs {root_part} {tmp_mount_point}")
     exec(f"mount -o subvol={gen_target_path}/usr {root_part} {tmp_mount_point}/usr")
     exec(f"mount {boot_part} {tmp_mount_point}/boot")
