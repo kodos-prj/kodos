@@ -1108,6 +1108,8 @@ def deploy_new_generation(boot_part, current_root_part, new_root_path):
     # exec("btrfs subvolume snapshot /kod/current/usr /kod/previous/usr")
     # exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
     # exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
+    exec(f"mv /kod/current/rootfs /kod/previous/old-rootfs")
+    exec(f"mv /kod/current/usr /kod/previous/old-usr")
 
     # Create new rootfs and usr
     exec(f"btrfs subvolume snapshot {new_root_path} /kod/current/rootfs")
