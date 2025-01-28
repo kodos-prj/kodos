@@ -1238,8 +1238,9 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
     exec(f"ls -la {gen_target_path}")
 
     # TODO: Check if the mount points are correct for next_current
-    exec(f"mount -o subvol={gen_target_path}/rootfs {root_part} {tmp_mount_point}")
-    exec(f"mount -o subvol={gen_target_path}/usr {root_part} {tmp_mount_point}/usr")
+    target_subvol = "/".join(gen_target_path.split("/")[1:])
+    exec(f"mount -o subvol={target_subvol}/rootfs {root_part} {tmp_mount_point}")
+    exec(f"mount -o subvol={target_subvol}/usr {root_part} {tmp_mount_point}/usr")
     exec(f"mount {boot_part} {tmp_mount_point}/boot")
     exec(f"mount {root_part} {tmp_mount_point}/kod")
     # exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
