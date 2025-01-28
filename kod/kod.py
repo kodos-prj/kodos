@@ -1255,12 +1255,13 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
     # exec(f"mkdir -p {next_current}/kod")
 
     partition_list = load_fstab()
-    change_subvol(partition_list, subvol=f"{gen_target_path}", mount_points=["/", "/usr"])
+    change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
     print(f"{partition_list=}")
     generate_fstab(partition_list, tmp_mount_point)
 
     exec(f"arch-chroot {tmp_mount_point} mkinitcpio -A kodos -P")
     exec(f"umount -R {tmp_mount_point}")
+    exec(f"rm -rf {tmp_mount_point}")
 
     # # Write generation number
     # with open(f"{next_current}/.generation", "w") as f:
