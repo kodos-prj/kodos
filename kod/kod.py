@@ -1255,9 +1255,9 @@ def proc_users(ctx, conf):
         enable_user_services(ctx, user, services_to_enable)
 
 
-def copy_generation(boot_part, root_part, gen_source_path, gen_target_path):
+def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, check_target=False):
     
-    if os.path.isdir(gen_target_path):
+    if check_target and os.path.isdir(gen_target_path):  
         exec(f"rm -rf {gen_target_path}/*")
     else:
         exec(f"mkdir -p {gen_target_path}")
