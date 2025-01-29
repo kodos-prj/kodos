@@ -1610,6 +1610,8 @@ def rebuild2(config, new_generation=False, update=False):
     boot_partition, root_partition = get_partition_devices(conf)
 
     gen_mount_point = f"/kod/generations/{generation_id}"
+    exec(f"mkdir -p {gen_mount_point}")
+
     if new_generation:
         print("Creating a new generation")
         # mount_point = f"/kod/generations/{generation_id}"
