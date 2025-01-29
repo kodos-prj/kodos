@@ -1628,8 +1628,8 @@ def rebuild2(config, new_generation=False, update=False):
         exec(f"mv /kod/current/rootfs /kod/generations/{generation_id}/rootfs")
         exec(f"mv /kod/current/usr /kod/generations/{generation_id}/usr")
         # Keep a copy of the current rootfs to roll back
-        exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
-        exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
+        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
+        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
         use_chroot = False
         new_root_path = "/"
         exec("mount -o remount,rw /usr")
@@ -1707,7 +1707,6 @@ def rebuild2(config, new_generation=False, update=False):
     # exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
     # copy_generation(boot_partition, root_partition, "/kod/current", "/kod/previous")
 
-
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
     with open(f"{gen_mount_point}/installed_packages", "w") as f:
@@ -1715,6 +1714,10 @@ def rebuild2(config, new_generation=False, update=False):
     # Create a list of services enabled
     with open(f"{gen_mount_point}/enabled_services", "w") as f:
         f.write("\n".join(system_services_to_enable))
+
+    # Write generation number
+    with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
+        f.write(str(generation_id))
 
     # if new_generation:
     print("==== Deploying new generation ====")
@@ -1740,6 +1743,10 @@ def rebuild2(config, new_generation=False, update=False):
     # # Create a list of services enabled
     # with open(f"{new_mount_point}/enabled_services", "w") as f:
     #     f.write("\n".join(system_services_to_enable))
+    
+    exec(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
+
+    exec(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
