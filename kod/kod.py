@@ -1730,25 +1730,7 @@ def rebuild2(config, new_generation=False, update=False):
         # snapshot new-gen/rootfs -> current/rootfs
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
-    copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current",check_target=True)
-
-        # exec(f"btrfs subvolume snapshot /kod/current/rootfs {mount_point}/rootfs")
-        # exec(f"btrfs subvolume snapshot /kod/current/usr {mount_point}/usr")
-        # new_mount_point = mount_point
-        # deploy_new_generation(boot_partition, root_partition, new_root_path) 
-    # else:
-        # print("==== Rebuilding current generation ====")
-        # new_mount_point = "/kod/current"
-    #         - remove current/rootfs
-    #         - snapshot new-gen/rootfs -> current/rootfs
-
-    # # Storing list of installed packages and enabled services
-    # # Create a list of installed packages
-    # with open(f"{new_mount_point}/installed_packages", "w") as f:
-    #     f.write("\n".join(packages_to_install))
-    # # Create a list of services enabled
-    # with open(f"{new_mount_point}/enabled_services", "w") as f:
-    #     f.write("\n".join(system_services_to_enable))
+    copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", check_target=True)
     
     exec(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
 
@@ -1756,10 +1738,7 @@ def rebuild2(config, new_generation=False, update=False):
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
-        # exec(f"umount -R {new_root_path}")
-        # exec(f"rm -rf {new_root_path}")
         for m in ["/boot", "/usr", "/kod", "/home", "/root", "/var/log", "/var/tmp", "/var/cache", "/var/kod"]:
-            print(f"umount {new_root_path}{m}")
             exec(f"umount {new_root_path}{m}")
         exec(f"umount {new_root_path}")
         # exec(f"mount | grep {new_root_path}")

@@ -10,9 +10,9 @@ configs = require("configs")
 cli = require("cli")
 development = require("development")
 
-local use_gnome = true
+local use_gnome = false
 local use_plasma = false
-local use_cosmic = false
+local use_cosmic = true
 
 return {
     repos = {
