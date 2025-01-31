@@ -1759,9 +1759,11 @@ def rebuild2(config, new_generation=False, update=False):
         # exec(f"umount -R {new_root_path}")
         # exec(f"rm -rf {new_root_path}")
         for m in ["/boot", "/usr", "/kod", "/home", "/root", "/var/log", "/var/tmp", "/var/cache", "/var/kod"]:
+            print(f"umount {new_root_path}{m}")
             exec(f"umount {new_root_path}{m}")
+        exec(f"umount {new_root_path}")
         # exec(f"mount | grep {new_root_path}")
-        print(f"rm -rf {new_root_path}")
+        exec(f"rm -rf {new_root_path}")
 
     else:
         exec("mount -o remount,ro /usr")
