@@ -1258,7 +1258,13 @@ def proc_users(ctx, conf):
 def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, check_target=False):
     
     if check_target and os.path.isdir(gen_target_path):  
-        exec(f"rm -rf {gen_target_path}/*")
+        # exec(f"rm -rf {gen_target_path}/*")
+        if os.path.isdir(f"{gen_target_path}/old-rootfs"):
+            exec(f"rm -rf {gen_target_path}/old-rootfs")
+        if os.path.isdir(f"{gen_target_path}/old-usr"):
+            exec(f"rm -rf {gen_target_path}/old-usr")
+        exec(f"mv {gen_target_path}/rootfs {gen_target_path}/old-rootfs")
+        exec(f"mv {gen_target_path}/usr {gen_target_path}/old-usr")
     else:
         exec(f"mkdir -p {gen_target_path}")
 
@@ -1724,7 +1730,7 @@ def rebuild2(config, new_generation=False, update=False):
         # snapshot new-gen/rootfs -> current/rootfs
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
-    copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current")
+    copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current",check_target=True)
 
         # exec(f"btrfs subvolume snapshot /kod/current/rootfs {mount_point}/rootfs")
         # exec(f"btrfs subvolume snapshot /kod/current/usr {mount_point}/usr")
