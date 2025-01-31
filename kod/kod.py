@@ -1750,8 +1750,11 @@ def rebuild2(config, new_generation=False, update=False):
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
-        exec(f"umount -R {new_root_path}")
-        exec(f"rm -rf {new_root_path}")
+        # exec(f"umount -R {new_root_path}")
+        # exec(f"rm -rf {new_root_path}")
+        exec(f"mount | grep {new_root_path}")
+        print(f"rm -rf {new_root_path}")
+
     else:
         exec("mount -o remount,ro /usr")
 
