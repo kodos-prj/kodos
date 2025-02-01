@@ -1041,9 +1041,12 @@ def deploy_generation(
     print("===================================")
     print("== Deploying generation ==")
     
+    exec("ls -lR /mnt/kod")
     # Create a list of installed packages
+    print(f"writting installing_packages in '/mnt/kod/generations/{generation}/installed_packages'")
     with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
         f.write("\n".join(pkgs_installed))
+    print(f"writting installing_packages in '/mnt/kod/current/installed_packages'")
     exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
 
     # Create a list of services enabled
@@ -1051,8 +1054,9 @@ def deploy_generation(
         f.write("\n".join(service_to_enable))
     exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
     
-    exec("btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /kod/mnt/current")
-    exec("btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /kod/mnt/current")
+    print("Snapshotting generation")
+    exec("btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
+    exec("btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
 
     # exec("mkdir /new_rootfs")
     # exec(f"mount {root_part} /new_rootfs")
