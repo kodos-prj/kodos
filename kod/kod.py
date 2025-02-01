@@ -1041,12 +1041,9 @@ def deploy_generation(
     print("===================================")
     print("== Deploying generation ==")
     
-    # exec("ls -lR /mnt/kod")
     # Create a list of installed packages
-    # print(f"writting installing_packages in '/mnt/kod/generations/{generation}/installed_packages'")
     with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
         f.write("\n".join(pkgs_installed))
-    # print(f"writting installing_packages in '/mnt/kod/current/installed_packages'")
     exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
 
     # Create a list of services enabled
@@ -1058,45 +1055,22 @@ def deploy_generation(
     exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
     exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
 
-    # exec("mkdir /new_rootfs")
-    # exec(f"mount {root_part} /new_rootfs")
-    
     exec("umount -R /mnt")
 
     exec(f"mount -o subvol=current/rootfs {root_part} /mnt")
     exec(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
-    # exec("mkdir -p /mnt/kod")
-    # exec(f"mount {root_part} /mnt/kod")
-
-    # Create a list of installed packages
-    # with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
-        # f.write("\n".join(pkgs_installed))
-    # exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
-
-    # # Create a list of services enabled
-    # with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
-    #     f.write("\n".join(service_to_enable))
-    # exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
-
     exec(f"mount {boot_part} /mnt/boot")
-    # exec(f"mount -o subvol=store/home {root_part} /mnt/home")
 
-    # # subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    # for dir in subdirs:
-    #     exec(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
-
+    # Update fstab
     change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
     generate_fstab(partition_list, "/mnt")
-    # exec("genfstab -U /mnt > /mnt/etc/fstab")
     # Update to use read only for rootfs
     change_ro_mount("/mnt")
 
     exec_chroot("mkinitcpio -A kodos -P")
     exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
     exec("umount -R /mnt")
-    # exec("umount -R /new_rootfs")
-    # exec("rm -rf /new_rootfs")
 
     print("===================================")
 
@@ -1346,65 +1320,65 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, chec
 ##############################################################################
 
 # @task(help={"config": "system configuration file", "step": "Starting step"})
+# @cli.command()
+# @click.option('-c', '--config', default=None, help='System configuration file')
+# @click.option('--step', default=None, help='Step to start installing')
+# def install(config, step=None):
+#     "Install KodOS in /mnt"
+#     stage = "install"
+#     ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage=stage)
+        
+#     conf = load_config(config)
+#     print("-------------------------------")
+#     if not step:
+#         boot_partition, root_partition, partition_list = create_partitions(conf)
+
+#         partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
+
+#         install_essentials_pkgs()
+#         configure_system(conf, root_part=root_partition, partition_list=partition_list)
+#         setup_bootloader(conf)
+#         create_kod_user()
+
+#         # === Proc packages
+#         repos, repo_packages = proc_repos(conf)
+#         packages_to_install, packages_to_remove = get_packages_to_install(conf)
+#         print("packages\n", packages_to_install)
+#         packages_installed = manage_packages(
+#             "/mnt", repos, "install", packages_to_install, chroot=True
+#         )
+
+#         # === Proc services
+#         system_services_to_enable = get_services_to_enable(conf)
+#         print(f"Services to enable: {system_services_to_enable}")
+#         enable_services(system_services_to_enable, use_chroot=True)
+
+#     if not step or step == "users":
+#         # === Proc users
+#         print("\n====== Creating users ======")
+#         proc_users(ctx, conf)
+
+#     print("==== Deploying generation ====")
+#     deploy_generation(
+#         boot_partition,
+#         root_partition,
+#         0,
+#         # packages_installed,
+#         packages_to_install,
+#         system_services_to_enable,
+#         partition_list,
+#     )
+
+#     print("Done")
+#     exec(f"mount {root_partition} /mnt")
+#     exec("cp -r /root/kodos /mnt/store/root/")
+#     print(" Done installing KodOS")
+
+
 @cli.command()
 @click.option('-c', '--config', default=None, help='System configuration file')
 @click.option('--step', default=None, help='Step to start installing')
 def install(config, step=None):
-    "Install KodOS in /mnt"
-    stage = "install"
-    ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage=stage)
-        
-    conf = load_config(config)
-    print("-------------------------------")
-    if not step:
-        boot_partition, root_partition, partition_list = create_partitions(conf)
-
-        partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
-
-        install_essentials_pkgs()
-        configure_system(conf, root_part=root_partition, partition_list=partition_list)
-        setup_bootloader(conf)
-        create_kod_user()
-
-        # === Proc packages
-        repos, repo_packages = proc_repos(conf)
-        packages_to_install, packages_to_remove = get_packages_to_install(conf)
-        print("packages\n", packages_to_install)
-        packages_installed = manage_packages(
-            "/mnt", repos, "install", packages_to_install, chroot=True
-        )
-
-        # === Proc services
-        system_services_to_enable = get_services_to_enable(conf)
-        print(f"Services to enable: {system_services_to_enable}")
-        enable_services(system_services_to_enable, use_chroot=True)
-
-    if not step or step == "users":
-        # === Proc users
-        print("\n====== Creating users ======")
-        proc_users(ctx, conf)
-
-    print("==== Deploying generation ====")
-    deploy_generation(
-        boot_partition,
-        root_partition,
-        0,
-        # packages_installed,
-        packages_to_install,
-        system_services_to_enable,
-        partition_list,
-    )
-
-    print("Done")
-    exec(f"mount {root_partition} /mnt")
-    exec("cp -r /root/kodos /mnt/store/root/")
-    print(" Done installing KodOS")
-
-
-@cli.command()
-@click.option('-c', '--config', default=None, help='System configuration file')
-@click.option('--step', default=None, help='Step to start installing')
-def install2(config, step=None):
     "Install KodOS in /mnt"
     stage = "install"
     ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage=stage)
