@@ -1191,6 +1191,8 @@ def create_next_generation(boot_part, root_part, generation):
     next_current = "/kod/current/.next_current"
     # Mounting generation
     if os.path.ismount(next_current):
+        print("Reboot is required to update generation")
+        os._exit(0)
         exec(f"umount -R {next_current}")
         exec(f"rm -rf {next_current}")
 
@@ -1244,39 +1246,66 @@ def proc_users(ctx, conf):
         print(f"User services to enable: {services_to_enable}")
         enable_user_services(ctx, user, services_to_enable)
 
+# Rebuild new gen:
+# - Create new generation (current_gen + 1)
+# - Copy new generation to current:
+#    if no old-rootfs (old-user), move current rootfs (usr) to old-rootfs (old-user)
+#      => old-rootfs.gen = current_gen 
+#    if old-rootfs exists, move current rootfs (usr) to old-rootfs (old-user)
+#      => if old-rootfs.gen > current_gen, 
+# 
+def get_generation(mount_point):
+    with open(f"{mount_point}/.generation", "r") as f:
+        return int(f.read())
 
-def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, check_target=False):
+
+def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_generation=False):
     
-    if check_target and os.path.isdir(gen_target_path):  
-        # exec(f"rm -rf {gen_target_path}/*")
+
+    if new_generation:
         if os.path.isdir(f"{gen_target_path}/old-rootfs"):
-            exec(f"rm -rf {gen_target_path}/old-rootfs")
-        if os.path.isdir(f"{gen_target_path}/old-usr"):
-            exec(f"rm -rf {gen_target_path}/old-usr")
+            old_gen = get_generation(f"{gen_target_path}/old-rootfs")
+            current_gen = get_generation("/")
+            if old_gen != current_gen:
+                # Remove old old-rootfs from previos generation
+                exec(f"rm -rf {gen_target_path}/old-rootfs")
+                exec(f"rm -rf {gen_target_path}/old-usr") 
+                # Move current rootfs to old-rootfs
+                move_current = True
+
+                exec(f"mv {gen_target_path}/rootfs {gen_target_path}/old-rootfs")
+                exec(f"mv {gen_target_path}/usr {gen_target_path}/old-usr")
+            else:
+                # If old-rootfs.gen was created in current generation, reuse it, but
+                # remove current rootfs because is going to be replaced by the new generation
+                exec(f"rm -rf {gen_target_path}/rootfs")
+                exec(f"rm -rf {gen_target_path}/usr")
+                move_current = False
+        else:
+            # If no old-rootfs, move current rootfs to old-rootfs
+            move_current = True
+    else:
+        move_current = False
+
+    if move_current:
         exec(f"mv {gen_target_path}/rootfs {gen_target_path}/old-rootfs")
         exec(f"mv {gen_target_path}/usr {gen_target_path}/old-usr")
         #TODO: Update fstab
-        # partition_list = load_fstab()
-        # change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
+        partition_list = load_fstab(f"{gen_target_path}/old-rootfs")
+        target_subvol = "/".join(gen_target_path.split("/")[2:])
+        change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
         # print(f"{partition_list=}")
-        # generate_fstab(partition_list, tmp_mount_point)
-    else:
-        exec(f"mkdir -p {gen_target_path}")
+        generate_fstab(partition_list, gen_target_path)
 
-    exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}/rootfs")
-    exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}/usr")
+    exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}")
+    exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}")
 
     exec(f"cp {gen_source_path}/installed_packages {gen_target_path}/installed_packages")
     exec(f"cp {gen_source_path}/enabled_services {gen_target_path}/enabled_services")
 
-    # next_current = "/kod/current/next_current"
-    # # Mounting generation
-    # if os.path.ismount(next_current):
-    #     exec(f"umount -R {next_current}")
-    #     exec(f"rm -rf {next_current}")
-
     tmp_mount_point = f"{gen_target_path}/.mnt"
     exec(f"mkdir -p {tmp_mount_point}")
+
     exec(f"ls -la {gen_target_path}")
 
     # TODO: Check if the mount points are correct for next_current
@@ -1284,30 +1313,15 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, chec
     exec(f"mount -o subvol={target_subvol}/rootfs {root_part} {tmp_mount_point}")
     exec(f"mount -o subvol={target_subvol}/usr {root_part} {tmp_mount_point}/usr")
     exec(f"mount {boot_part} {tmp_mount_point}/boot")
-    exec(f"mount {root_part} {tmp_mount_point}/kod")
-    # exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
-    
-    # subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    # for dir in subdirs:
-    #     exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
-    
-    # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-    # for subv in subvolumes:
-        # exec(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
-    # exec(f"mkdir -p {next_current}/kod")
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
-    print(f"{partition_list=}")
     generate_fstab(partition_list, tmp_mount_point)
 
-    exec(f"arch-chroot {tmp_mount_point} mkinitcpio -A kodos -P")
+    exec_chroot("mkinitcpio -A kodos -P")
+    exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
     exec(f"umount -R {tmp_mount_point}")
     exec(f"rm -rf {tmp_mount_point}")
-
-    # # Write generation number
-    # with open(f"{next_current}/.generation", "w") as f:
-    #     f.write(str(generation))
 
     print("===================================")
 
@@ -1318,62 +1332,6 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, chec
 # stage=="rebuild" -> if not new_generation -> mount_point="/", use_chroot=False
 # stage=="rebuild-user" -> mount_point="/", use_chroot=False
 ##############################################################################
-
-# @task(help={"config": "system configuration file", "step": "Starting step"})
-# @cli.command()
-# @click.option('-c', '--config', default=None, help='System configuration file')
-# @click.option('--step', default=None, help='Step to start installing')
-# def install(config, step=None):
-#     "Install KodOS in /mnt"
-#     stage = "install"
-#     ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage=stage)
-        
-#     conf = load_config(config)
-#     print("-------------------------------")
-#     if not step:
-#         boot_partition, root_partition, partition_list = create_partitions(conf)
-
-#         partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
-
-#         install_essentials_pkgs()
-#         configure_system(conf, root_part=root_partition, partition_list=partition_list)
-#         setup_bootloader(conf)
-#         create_kod_user()
-
-#         # === Proc packages
-#         repos, repo_packages = proc_repos(conf)
-#         packages_to_install, packages_to_remove = get_packages_to_install(conf)
-#         print("packages\n", packages_to_install)
-#         packages_installed = manage_packages(
-#             "/mnt", repos, "install", packages_to_install, chroot=True
-#         )
-
-#         # === Proc services
-#         system_services_to_enable = get_services_to_enable(conf)
-#         print(f"Services to enable: {system_services_to_enable}")
-#         enable_services(system_services_to_enable, use_chroot=True)
-
-#     if not step or step == "users":
-#         # === Proc users
-#         print("\n====== Creating users ======")
-#         proc_users(ctx, conf)
-
-#     print("==== Deploying generation ====")
-#     deploy_generation(
-#         boot_partition,
-#         root_partition,
-#         0,
-#         # packages_installed,
-#         packages_to_install,
-#         system_services_to_enable,
-#         partition_list,
-#     )
-
-#     print("Done")
-#     exec(f"mount {root_partition} /mnt")
-#     exec("cp -r /root/kodos /mnt/store/root/")
-#     print(" Done installing KodOS")
-
 
 @cli.command()
 @click.option('-c', '--config', default=None, help='System configuration file')
@@ -1667,11 +1625,11 @@ def rebuild2(config, new_generation=False, update=False):
 
     boot_partition, root_partition = get_partition_devices(conf)
 
-    gen_mount_point = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {gen_mount_point}")
 
     if new_generation:
         print("Creating a new generation")
+        gen_mount_point = f"/kod/generations/{generation_id}"
+        exec(f"mkdir -p {gen_mount_point}")
         # mount_point = f"/kod/generations/{generation_id}"
         exec(f"btrfs subvolume snapshot /kod/current/rootfs {gen_mount_point}")
         exec(f"btrfs subvolume snapshot /kod/current/usr {gen_mount_point}")
@@ -1683,8 +1641,16 @@ def rebuild2(config, new_generation=False, update=False):
         )
     else:
         # mount_point="/"
-        exec(f"mv /kod/current/rootfs /kod/generations/{generation_id}")
-        exec(f"mv /kod/current/usr /kod/generations/{generation_id}")
+        # move current/rootfs tocurrent/old-rootfs if it is possible
+        if os.path.isdir("/kod/current/old-rootfs"):
+            exec(f"rm -rf /kod/current/old-rootfs")
+            exec(f"rm -rf /kod/current/old-usr")
+        exec(f"btrfs subvolume snapshot /kod/current/rootfs /kod/current/old-rootfs")
+        exec(f"btrfs subvolume snapshot /kod/current/usr /kod/current/old-usr")
+        
+        gen_mount_point = "/kod/current"
+        # exec(f"mv /kod/current/rootfs {gen_mount_point}")
+        # exec(f"mv /kod/current/usr {gen_mount_point}")
         # Keep a copy of the current rootfs to roll back
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
         # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
@@ -1753,18 +1719,6 @@ def rebuild2(config, new_generation=False, update=False):
     # print(f"User services to enable: {user_services_to_enable}")
     # enable_user_services(c, user_services_to_enable, use_chroot=True)
 
-   # Copy the current rootfs to previous rootfs
-    # if os.path.isdir("/kod/previous"):
-    #     exec("rm -rf /kod/previous/rootfs")
-    #     exec("rm -rf /kod/previous/usr")
-    # else:
-    #     exec("mkdir -p /kod/previous")
-    # exec("btrfs subvolume snapshot /kod/current/rootfs /kod/previous/rootfs")
-    # exec("btrfs subvolume snapshot /kod/current/usr /kod/previous/usr")
-    # exec("cp /kod/current/installed_packages /kod/previous/installed_packages")
-    # exec("cp /kod/current/enabled_services /kod/previous/enabled_services")
-    # copy_generation(boot_partition, root_partition, "/kod/current", "/kod/previous")
-
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
     with open(f"{gen_mount_point}/installed_packages", "w") as f:
@@ -1779,14 +1733,13 @@ def rebuild2(config, new_generation=False, update=False):
 
     # if new_generation:
     print("==== Deploying new generation ====")
-        # snapshot new-gen/rootfs -> current/rootfs
-        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
-        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
-    copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", check_target=True)
-    
-    exec(f"arch-chroot {new_root_path} mkinitcpio -A kodos -P")
+    if new_generation:
+        copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", new_generation=True)
+    else:
+        copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
 
-    exec(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
+    # exec_chroot("mkinitcpio -A kodos -P")
+    # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
