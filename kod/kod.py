@@ -1295,7 +1295,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
         target_subvol = "/".join(gen_target_path.split("/")[2:])
         change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
         # print(f"{partition_list=}")
-        generate_fstab(partition_list, f"{gen_target_path}/rootfs")
+        generate_fstab(partition_list, f"{gen_target_path}/old-rootfs")
 
     exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}")
     exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}")
