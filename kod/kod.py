@@ -1307,6 +1307,8 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
         generate_fstab(partition_list, f"{gen_target_path}/old-rootfs")
 
     print(f"Snapshotting generation  {gen_source_path}/rootfs -> {gen_target_path}")
+    if not os.path.isdir(f"{gen_target_path}"):
+        exec(f"mkdir -p {gen_target_path}")
     exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}/")
     exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}/")
 
@@ -1320,7 +1322,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
     print(f"Creating tmp mount point {tmp_mount_point}")
     exec(f"mkdir -p {tmp_mount_point}")
 
-    exec(f"ls -la {gen_target_path}")
+    # exec(f"ls -la {gen_target_path}")
 
     # TODO: Check if the mount points are correct for next_current
     target_subvol = "/".join(gen_target_path.split("/")[2:])
