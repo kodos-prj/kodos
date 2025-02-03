@@ -1756,7 +1756,7 @@ def rebuild(config, new_generation=False, update=False):
         copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
 
     # exec_chroot("mkinitcpio -A kodos -P")
-    exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+    exec(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
