@@ -1307,8 +1307,8 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
         generate_fstab(partition_list, f"{gen_target_path}/old-rootfs")
 
     print(f"Snapshotting generation  {gen_source_path}/rootfs -> {gen_target_path}")
-    exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}")
-    exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}")
+    exec(f"btrfs subvolume snapshot {gen_source_path}/rootfs {gen_target_path}/")
+    exec(f"btrfs subvolume snapshot {gen_source_path}/usr {gen_target_path}/")
 
     print(f"Copying files from {gen_source_path} to {gen_target_path}")
     exec(f"cp {gen_source_path}/installed_packages {gen_target_path}/installed_packages")
