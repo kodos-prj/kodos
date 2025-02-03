@@ -1329,7 +1329,7 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
     exec(f"mount -o subvol={target_subvol}/usr {root_part} {tmp_mount_point}/usr")
     exec(f"mount {boot_part} {tmp_mount_point}/boot")
 
-    partition_list = load_fstab()
+    partition_list = load_fstab(tmp_mount_point)
     print("Updating fstab", f"subvol={target_subvol}")
     change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
     generate_fstab(partition_list, tmp_mount_point)
