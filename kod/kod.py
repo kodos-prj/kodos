@@ -1314,7 +1314,8 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
     exec(f"cp {gen_source_path}/installed_packages {gen_target_path}/installed_packages")
     exec(f"cp {gen_source_path}/enabled_services {gen_target_path}/enabled_services")
 
-    tmp_mount_point = f"{gen_target_path}/.mnt"
+    # tmp_mount_point = f"{gen_target_path}/.mnt"
+    tmp_mount_point = "/kod/.mnt"
 
     print(f"Creating tmp mount point {tmp_mount_point}")
     exec(f"mkdir -p {tmp_mount_point}")
