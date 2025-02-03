@@ -1318,8 +1318,8 @@ def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_
     change_subvol(partition_list, subvol=f"{target_subvol}", mount_points=["/", "/usr"])
     generate_fstab(partition_list, tmp_mount_point)
 
-    exec_chroot("mkinitcpio -A kodos -P")
-    exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+    # exec_chroot("mkinitcpio -A kodos -P")
+    # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
     exec(f"umount -R {tmp_mount_point}")
     exec(f"rm -rf {tmp_mount_point}")
 
@@ -1739,7 +1739,7 @@ def rebuild2(config, new_generation=False, update=False):
         copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
 
     # exec_chroot("mkinitcpio -A kodos -P")
-    # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+    exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
@@ -1789,33 +1789,41 @@ def rebuild_user(config, user=os.environ['USER']):
 
 # TODO: Update rollback
 # @task(help={"generation": "Generation number to rollback to"})
-# @app.command()
-# def rollback(c, generation=None):
-#     "Rollback current generation to use the specified generation"
+@cli.command()
+@click.option('-c', '--config', default=None, help='System configuration file')
+@click.option('-g','--generation', default=None, help='Generation number to rollback to')
+def rollback(config, generation=None):
+    "Rollback current generation to use the specified generation"
 
-#     if generation is None:
-#         print("Please specify a generation number")
-#         return
+    if generation is None:
+        print("Please specify a generation number")
+        return
+    
+    conf = load_config(config)
 
-#     print("Updating current generation")
-#     # Check if rootfs exists
-#     if os.path.isdir("/kod/generation/current/rootfs-old"):
-#         exec("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
-#     if os.path.isdir("/kod/generation/current/rootfs"):
-#         exec(
-#             "sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old"
-#         )
-#     exec(
-#         f"sudo btrfs subvol snap /kod/generation/{generation}/rootfs /kod/generation/current/rootfs"
-#     )
-#     if os.path.isfile("/kod/generation/current/generation"):
-#         exec(f"sudo sed -i 's/.$/{generation}/g' /kod/generation/current/generation")
-#     else:
-#         exec(f"sudo echo '{generation} > /kod/generation/current/generation")
+    print("Updating current generation")
+    rollback_path = f"/kod/generations/{generation}"
+    boot_partition, root_partition = get_partition_devices(conf)
+    copy_generation(boot_partition, root_partition, rollback_path, "/kod/current", new_generation=True)
 
-#     print("Recreating grub.cfg")
-#     exec("grub-mkconfig -o /boot/grub/grub.cfg")
-#     print("Done")
+    # # Check if rootfs exists
+    # if os.path.isdir("/kod/generation/current/rootfs-old"):
+    #     exec("sudo btrfs subvol delete /kod/generation/current/rootfs-old")
+    # if os.path.isdir("/kod/generation/current/rootfs"):
+    #     exec(
+    #         "sudo mv /kod/generation/current/rootfs /kod/generation/current/rootfs-old"
+    #     )
+    # exec(
+    #     f"sudo btrfs subvol snap /kod/generation/{generation}/rootfs /kod/generation/current/rootfs"
+    # )
+    # if os.path.isfile("/kod/generation/current/generation"):
+    #     exec(f"sudo sed -i 's/.$/{generation}/g' /kod/generation/current/generation")
+    # else:
+    #     exec(f"sudo echo '{generation} > /kod/generation/current/generation")
+
+    print("Recreating grub.cfg")
+    exec("grub-mkconfig -o /boot/grub/grub.cfg")
+    print("Done")
 
 
 # @task(help={"config": "system configuration file"})
