@@ -85,6 +85,7 @@ def install_essentials_pkgs():
         "sudo",
         "schroot",
         "whois",
+        "dracut",
     ]
     # TODO: remove this package dependency
     base_pkgs += ["arch-install-scripts"]
@@ -214,41 +215,41 @@ aliases=user_env
         f.write(venv_fstab)
 
 
-    # Initcpio hooks
-    install_hook = """#!/bin/bash
-build() {
-    add_runscript
-}
-help() {
-    cat <<HELPEOF
-This is a custom initcpio hook for mounting /usr subvolume to /usr.
-HELPEOF
-}
-    """
-    # To be added to /etc/initcpio/install
-    with open("/mnt/etc/initcpio/install/kodos", "w") as f:
-        f.write(install_hook)
+#     # Initcpio hooks
+#     install_hook = """#!/bin/bash
+# build() {
+#     add_runscript
+# }
+# help() {
+#     cat <<HELPEOF
+# This is a custom initcpio hook for mounting /usr subvolume to /usr.
+# HELPEOF
+# }
+#     """
+#     # To be added to /etc/initcpio/install
+#     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
+#         f.write(install_hook)
 
-    run_hook = f"""#!/usr/bin/ash
-run_latehook() {{
-	mountopts="rw,relatime,ssd,space_cache"
-    msg "→ mounting subvolume '/current/usr' at '/usr'"
-    mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
-}}"""
-    # To be added to /etc/initcpio/hooks/
-    with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
-        f.write(run_hook)
+#     run_hook = f"""#!/usr/bin/ash
+# run_latehook() {{
+# 	mountopts="rw,relatime,ssd,space_cache"
+#     msg "→ mounting subvolume '/current/usr' at '/usr'"
+#     mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
+# }}"""
+#     # To be added to /etc/initcpio/hooks/
+#     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
+#         f.write(run_hook)
 
-    # initramfs
-    mkinitcpio_conf = """MODULES=(btrfs)
-BINARIES=()
-FILES=()
-HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
-"""
-    with open("/mnt/etc/mkinitcpio.conf", "w") as f:
-        f.write(mkinitcpio_conf)
+#     # initramfs
+#     mkinitcpio_conf = """MODULES=(btrfs)
+# BINARIES=()
+# FILES=()
+# HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
+# """
+#     with open("/mnt/etc/mkinitcpio.conf", "w") as f:
+#         f.write(mkinitcpio_conf)
 
-    exec_chroot("mkinitcpio -A kodos -P")
+    # exec_chroot("mkinitcpio -A kodos -P")
 
 
 def setup_bootloader(conf):
@@ -259,6 +260,9 @@ def setup_bootloader(conf):
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
+        exec_chroot("dracut initramfs-linux.img")
+        exec_chroot("dracut initramfs-linux-fallback.img")
+        
         exec_chroot("bootctl install")
 
         res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
@@ -274,7 +278,7 @@ def setup_bootloader(conf):
                     option = "rootflags=" + opt
 
         loader_conf_systemd = """
-default arch
+default kodos
 timeout 3
 console-mode max
 #editor no"""
