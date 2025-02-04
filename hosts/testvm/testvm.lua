@@ -10,9 +10,9 @@ configs = require("configs")
 cli = require("cli")
 development = require("development")
 
-local use_gnome = true
+local use_gnome = false
 local use_plasma = false
-local use_cosmic = false
+local use_cosmic = true
 
 return {
     repos = {
@@ -274,13 +274,15 @@ return {
         -- Flatpak packages
         -- "flatpak:com.mattjakeman.ExtensionManager",
         -- "flatpak:com.visualstudio.code",
-        "distrobox",
+        -- "distrobox",
         -- "aur:quickemu",
         -- "aur:uxplay",
         -- "aur:megasync",
 
         "firefox",
         -- "aur:brave-bin",
+        "vulkan-virtio",
+        "zed",
     });
     -- ..
     -- cli -- CLI tools
