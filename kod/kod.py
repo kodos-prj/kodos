@@ -264,10 +264,11 @@ def setup_bootloader(conf):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
-        kernel_version = exec("pacman -Qi linux | grep Version", get_output=True)
-        kver = kernel_version.split(":")[1].strip()
+        kernel_version = exec_chroot("pacman -Ql linux | grep vmlinuz", get_output=True)
+        kernel_file = kernel_version.split(" ")[1].strip()
+        kver = kernel_file.split("/")[-2]
         print(f"{kver=}")
-        exec_chroot(f"cp /lib/modules/{kver}/vmlinuz /boot/vmlinuz-linux")
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux")
         exec_chroot("bootctl install")
         # exec_chroot("bootctl --make-entry-directory=yes install")
 
