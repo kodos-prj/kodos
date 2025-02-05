@@ -265,7 +265,7 @@ def setup_bootloader(conf):
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
         kernel_version = exec("pacman -Qi linux | grep Version", get_output=True)
-        kver = kernel_version.split()[1]
+        kver = kernel_version.split(":")[1].strip()
         print(f"{kver=}")
         exec_chroot(f"cp /lib/modules/{kver}/vmlinuz /boot/vmlinuz-linux")
         exec_chroot("bootctl install")
