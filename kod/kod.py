@@ -260,10 +260,17 @@ def setup_bootloader(conf):
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
-        exec_chroot("dracut initramfs-linux.img")
-        exec_chroot("dracut initramfs-linux-fallback.img")
+
+        kernel_version = exec("pacman -Qi linux | grep Version", get_output=True)
+        kver = kernel_version.split()[1]
+
+        exec_chroot("bootctl --make-entry-directory=yes install")
+
+        exec_chroot(f"dracut -v --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
+        exec_chroot(f"dracut -v --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
+        # exec_chroot("dracut initramfs-linux-fallback.img")
         
-        exec_chroot("bootctl install")
+        # exec_chroot("bootctl install")
 
         res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
         mount_point = res.split()
@@ -1072,8 +1079,8 @@ def deploy_generation(
     # Update to use read only for rootfs
     change_ro_mount("/mnt")
 
-    exec_chroot("mkinitcpio -A kodos -P")
-    exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+    # exec_chroot("mkinitcpio -A kodos -P")
+    # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
     exec("umount -R /mnt")
 
     print("===================================")
@@ -1139,50 +1146,6 @@ def deploy_new_generation(boot_part, current_root_part, new_root_path):
     exec(f"rm -rf {new_rootfs}")
 
     print("===================================")
-
-
-# Used for rebuild
-# def create_next_generation(boot_part, root_part, generation, mount_point):
-#     # Create generation
-#     exec(f"mkdir -p {mount_point}")
-
-#     exec(f"btrfs subvolume snapshot / {mount_point}/rootfs")
-#     exec(f"btrfs subvolume snapshot /usr {mount_point}/usr")
-
-#     next_current = "/kod/current/next_current"
-#     # Mounting generation
-#     if os.path.ismount(next_current):
-#         exec(f"umount -R {next_current}")
-#         exec(f"rm -rf {next_current}")
-
-#     exec(f"mkdir -p {next_current}")
-
-#     exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
-#     exec(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
-#     exec(f"mount {boot_part} {next_current}/boot")
-#     exec(f"mount {root_part} {next_current}/kod")
-#     exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
-    
-#     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
-#     for dir in subdirs:
-#         exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
-    
-#     # subvolumes = ["home", "root", "var/log", "var/tmp", "var/cache", "var/kod"]
-#     # for subv in subvolumes:
-#         # exec(f"mount -o subvol=store/{subv} {root_part} {next_current}/{subv}")
-#     # exec(f"mkdir -p {next_current}/kod")
-
-#     partition_list = load_fstab()
-#     change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
-#     generate_fstab(partition_list, next_current)
-
-#     # Write generation number
-#     with open(f"{next_current}/.generation", "w") as f:
-#         f.write(str(generation))
-
-#     print("===================================")
-
-#     return next_current
 
 
 def create_next_generation(boot_part, root_part, generation):
@@ -1260,7 +1223,7 @@ def proc_users(ctx, conf):
 # 
 def get_generation(mount_point):
     with open(f"{mount_point}/.generation", "r") as f:
-        return int(f.read())
+        return int(f.read().strip())
 
 
 def copy_generation(boot_part, root_part, gen_source_path, gen_target_path, new_generation=False):
