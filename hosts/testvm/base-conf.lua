@@ -79,8 +79,8 @@ return {
 
     users = {
         root = {
-            -- no_password = true,
-            password = "root";
+            no_password = true,
+            -- password = "root";
             shell = "/bin/bash";
         },
         abuss = {

@@ -256,22 +256,25 @@ def setup_bootloader(conf):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
-    boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
+    boot_type = "grub"
+    if "type" in loader_conf:
+        boot_type = loader_conf["type"]
+    # boot_type = loader_conf["type"] if "type" in loader_conf else "grub"
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
-
+        print("==== Setting up systemd-boot ====")
         kernel_version = exec("pacman -Qi linux | grep Version", get_output=True)
         kver = kernel_version.split()[1]
+        print(f"{kver=}")
+        exec_chroot(f"cp /lib/modules/{kver}/vmlinuz /boot/vmlinuz-linux")
+        exec_chroot("bootctl install")
+        # exec_chroot("bootctl --make-entry-directory=yes install")
 
-        exec_chroot("bootctl --make-entry-directory=yes install")
-
-        exec_chroot(f"dracut -v --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
-        exec_chroot(f"dracut -v --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
+        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
+        exec_chroot(f"dracut --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
         # exec_chroot("dracut initramfs-linux-fallback.img")
         
-        # exec_chroot("bootctl install")
-
         res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
         mount_point = res.split()
         root_part = mount_point[0].strip()
