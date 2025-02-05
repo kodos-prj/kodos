@@ -919,7 +919,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     ctx.user = user # TODO: <-- evaluate if this is still needed
     
     # Calling dotfile_mngrs
-    if user_configs["configs"]:
+    if user_configs["configs"] and dotfile_mngrs:
         # print("\nUSER:",os.environ['USER'],'\n')
         call_init = True
         for config in user_configs["configs"]:
