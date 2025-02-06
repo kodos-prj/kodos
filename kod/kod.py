@@ -1087,26 +1087,26 @@ def deploy_generation(
         f.write("\n".join(service_to_enable))
     exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
     
-    print("Snapshotting current generation")
-    exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
-    exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
+    # print("Snapshotting current generation")
+    # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
+    # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
 
     exec("umount -R /mnt")
 
-    exec(f"mount -o subvol=current/rootfs {root_part} /mnt")
-    exec(f"mount -o subvol=current/usr {root_part} /mnt/usr")
+    # exec(f"mount -o subvol=current/rootfs {root_part} /mnt")
+    # exec(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
-    exec(f"mount {boot_part} /mnt/boot")
+    # exec(f"mount {boot_part} /mnt/boot")
 
-    # Update fstab
-    change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
-    generate_fstab(partition_list, "/mnt")
-    # Update to use read only for rootfs
-    change_ro_mount("/mnt")
+    # # Update fstab
+    # change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
+    # generate_fstab(partition_list, "/mnt")
+    # # Update to use read only for rootfs
+    # change_ro_mount("/mnt")
 
-    # exec_chroot("mkinitcpio -A kodos -P")
-    # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
-    exec("umount -R /mnt")
+    # # exec_chroot("mkinitcpio -A kodos -P")
+    # # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+    # exec("umount -R /mnt")
 
     print("===================================")
 
@@ -1494,8 +1494,8 @@ def rebuild(config, new_generation=False, update=False):
         gen_mount_point = f"/kod/generations/{generation_id}"
         exec(f"mkdir -p {gen_mount_point}")
         # mount_point = f"/kod/generations/{generation_id}"
-        exec(f"btrfs subvolume snapshot /kod/current/rootfs {gen_mount_point}")
-        exec(f"btrfs subvolume snapshot /kod/current/usr {gen_mount_point}")
+        exec(f"btrfs subvolume snapshot / {gen_mount_point}/rootfs")
+        exec(f"btrfs subvolume snapshot /usr {gen_mount_point}/usr")
         use_chroot = True
         new_root_path = create_next_generation(
             boot_partition,
@@ -1503,23 +1503,24 @@ def rebuild(config, new_generation=False, update=False):
             generation_id,
         )
     else:
-        # mount_point="/"
-        # move current/rootfs tocurrent/old-rootfs if it is possible
-        if os.path.isdir("/kod/current/old-rootfs"):
-            exec(f"rm -rf /kod/current/old-rootfs")
-            exec(f"rm -rf /kod/current/old-usr")
-        exec(f"btrfs subvolume snapshot /kod/current/rootfs /kod/current/old-rootfs")
-        exec(f"btrfs subvolume snapshot /kod/current/usr /kod/current/old-usr")
+        os._exit(0)
+        # # mount_point="/"
+        # # move current/rootfs tocurrent/old-rootfs if it is possible
+        # if os.path.isdir("/kod/current/old-rootfs"):
+        #     exec(f"rm -rf /kod/current/old-rootfs")
+        #     exec(f"rm -rf /kod/current/old-usr")
+        # exec(f"btrfs subvolume snapshot /kod/current/rootfs /kod/current/old-rootfs")
+        # exec(f"btrfs subvolume snapshot /kod/current/usr /kod/current/old-usr")
         
-        gen_mount_point = "/kod/current"
-        # exec(f"mv /kod/current/rootfs {gen_mount_point}")
-        # exec(f"mv /kod/current/usr {gen_mount_point}")
-        # Keep a copy of the current rootfs to roll back
-        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
-        # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
-        use_chroot = False
-        new_root_path = "/"
-        exec("mount -o remount,rw /usr")
+        # gen_mount_point = "/kod/current"
+        # # exec(f"mv /kod/current/rootfs {gen_mount_point}")
+        # # exec(f"mv /kod/current/usr {gen_mount_point}")
+        # # Keep a copy of the current rootfs to roll back
+        # # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/rootfs /kod/current/rootfs")
+        # # exec(f"btrfs subvolume snapshot /kod/generations/{generation_id}/usr /kod/current/usr")
+        # use_chroot = False
+        # new_root_path = "/"
+        # exec("mount -o remount,rw /usr")
 
     # ctx = Context(os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot, stage=stage)
 
@@ -1597,12 +1598,15 @@ def rebuild(config, new_generation=False, update=False):
     # if new_generation:
     print("==== Deploying new generation ====")
     if new_generation:
-        copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", new_generation=True)
-    else:
-        copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
+        partition_list = load_fstab("/")
+        create_boot_entry(generation_id, partition_list, is_current=True,mount_point=new_root_path)
+        # copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", new_generation=True)
+    # else:
+    #     copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
 
     # exec_chroot("mkinitcpio -A kodos -P")
-    exec(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
+    # exec(f"arch-chroot {new_root_path} grub-mkconfig -o /boot/grub/grub.cfg")
+
 
     # exec(f"umount -R {new_root_path}")
     if new_generation:
