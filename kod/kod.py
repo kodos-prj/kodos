@@ -265,7 +265,6 @@ def create_boot_entry(generation, partition_list, boot_options=None, is_current=
 title KodOS
 sort-key kodos
 version Generation {generation} KodOS (build {today})
-title KodOS Linux (Generation {generation} {today})
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options root={root_device} rw {options}
@@ -276,7 +275,7 @@ options root={root_device} rw {options}
     # Update loader.conf
     loader_conf_systemd = f"""
 default {entry_name}.conf
-timeout 1o
+timeout 10
 console-mode keep
 """
     with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
