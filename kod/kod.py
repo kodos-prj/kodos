@@ -252,7 +252,7 @@ aliases=user_env
     # exec_chroot("mkinitcpio -A kodos -P")
 
 
-def create_boot_entry(generation, partition_list, boot_options=None, is_current=True,mount_point="/mnt"):
+def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt"):
     subvol=f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
     root_device = root_fs.source_uuid()
@@ -292,48 +292,16 @@ def setup_bootloader(conf, partition_list):
         # exec_chroot("bootctl --make-entry-directory=yes install")
 
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
-        # exec_chroot(f"dracut --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
-        # exec_chroot("dracut initramfs-linux-fallback.img")
-        
-        # res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
-        # mount_point = res.split()
-        # root_part = mount_point[0].strip()
-        # part_type = mount_point[2].strip()
-        # mount_options = mount_point[3].strip().split(",")
-        # print(root_part, part_type, mount_options)
-        # option = ""
-        # if part_type == "btrfs":
-        #     for opt in mount_options:
-        #         if opt.startswith("subvol"):
-        #             option = "rootflags=" + opt
 
         loader_conf_systemd = """
 default kodos
-timeout 3
+timeout 5
 console-mode max
 #editor no"""
         with open("/mnt/boot/loader/loader.conf", "w") as f:
             f.write(loader_conf_systemd)
 
-        create_boot_entry(0, partition_list, is_current=True, mount_point="/mnt")
-
-#         kodos_conf = f"""
-# title KodOS Linux
-# linux /vmlinuz-linux
-# initrd /initramfs-linux.img
-# options root={root_part} rw {option}
-#     """
-#         with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
-#             f.write(kodos_conf)
-
-#         kodos_fb_conf = f"""
-# title KodOS Linux - fallback
-# linux /vmlinuz-linux
-# initrd /initramfs-linux-fallback.img
-# options root={root_part} rw {option}
-#     """
-#         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
-#             f.write(kodos_fb_conf)
+        create_boot_entry(0, partition_list, mount_point="/mnt")
 
     # Using Grub as bootloader
     if boot_type == "grub":
@@ -1071,44 +1039,44 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
 
 
 
-def deploy_generation(
-    boot_part, root_part, generation, pkgs_installed, service_to_enable, partition_list
-):
-    print("===================================")
-    print("== Deploying generation ==")
+# def deploy_generation(
+#     boot_part, root_part, generation, pkgs_installed, service_to_enable, partition_list
+# ):
+#     print("===================================")
+#     print("== Deploying generation ==")
     
-    # Create a list of installed packages
-    with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
-        f.write("\n".join(pkgs_installed))
-    exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
+#     # Create a list of installed packages
+#     with open(f"/mnt/kod/generations/{generation}/installed_packages", "w") as f:
+#         f.write("\n".join(pkgs_installed))
+#     # exec(f"cp /mnt/kod/generations/{generation}/installed_packages /mnt/kod/current/installed_packages")
 
-    # Create a list of services enabled
-    with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
-        f.write("\n".join(service_to_enable))
-    exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
+#     # Create a list of services enabled
+#     with open(f"/mnt/kod/generations/{generation}/enabled_services", "w") as f:
+#         f.write("\n".join(service_to_enable))
+#     # exec(f"cp /mnt/kod/generations/{generation}/enabled_services /mnt/kod/current/enabled_services")
     
-    # print("Snapshotting current generation")
-    # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
-    # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
+#     # print("Snapshotting current generation")
+#     # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/rootfs /mnt/kod/current")
+#     # exec(f"btrfs subvolume snapshot /mnt/kod/generations/{generation}/usr /mnt/kod/current")
 
-    exec("umount -R /mnt")
+#     exec("umount -R /mnt")
 
-    # exec(f"mount -o subvol=current/rootfs {root_part} /mnt")
-    # exec(f"mount -o subvol=current/usr {root_part} /mnt/usr")
+#     # exec(f"mount -o subvol=current/rootfs {root_part} /mnt")
+#     # exec(f"mount -o subvol=current/usr {root_part} /mnt/usr")
 
-    # exec(f"mount {boot_part} /mnt/boot")
+#     # exec(f"mount {boot_part} /mnt/boot")
 
-    # # Update fstab
-    # change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
-    # generate_fstab(partition_list, "/mnt")
-    # # Update to use read only for rootfs
-    # change_ro_mount("/mnt")
+#     # # Update fstab
+#     # change_subvol(partition_list, subvol="current", mount_points=["/", "/usr"])
+#     # generate_fstab(partition_list, "/mnt")
+#     # # Update to use read only for rootfs
+#     # change_ro_mount("/mnt")
 
-    # # exec_chroot("mkinitcpio -A kodos -P")
-    # # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
-    # exec("umount -R /mnt")
+#     # # exec_chroot("mkinitcpio -A kodos -P")
+#     # # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+#     # exec("umount -R /mnt")
 
-    print("===================================")
+#     print("===================================")
 
 
 
@@ -1398,20 +1366,28 @@ def install(config, step=None):
         print("\n====== Creating users ======")
         proc_users(ctx, conf)
 
-    print("==== Deploying generation ====")
-    deploy_generation(
-        boot_partition,
-        root_partition,
-        0,
-        # packages_installed,
-        packages_to_install,
-        system_services_to_enable,
-        partition_list,
-    )
+    # print("==== Deploying generation ====")
+    with open(f"/mnt/kod/generations/0/installed_packages", "w") as f:
+        f.write("\n".join(pkgs_installed))
+    with open(f"/mnt/kod/generations/0/enabled_services", "w") as f:
+        f.write("\n".join(system_services_to_enable))
+  
+    exec("umount -R /mnt")
+  
+    # deploy_generation(
+    #     boot_partition,
+    #     root_partition,
+    #     0,
+    #     # packages_installed,
+    #     packages_to_install,
+    #     system_services_to_enable,
+    #     partition_list,
+    # )
 
     print("Done")
     exec(f"mount {root_partition} /mnt")
     exec("cp -r /root/kodos /mnt/store/root/")
+    exec("umount /mnt")
     print(" Done installing KodOS")
 
 
@@ -1599,7 +1575,7 @@ def rebuild(config, new_generation=False, update=False):
     print("==== Deploying new generation ====")
     if new_generation:
         partition_list = load_fstab("/")
-        create_boot_entry(generation_id, partition_list, is_current=True,mount_point=new_root_path)
+        create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
         # copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", new_generation=True)
     # else:
     #     copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
