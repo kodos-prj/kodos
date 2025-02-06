@@ -1527,10 +1527,6 @@ def rebuild(config, new_generation=False, update=False):
     with open(f"{gen_mount_point}/enabled_services", "w") as f:
         f.write("\n".join(system_services_to_enable))
 
-    # Write generation number
-    with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
-        f.write(str(generation_id))
-
     # if new_generation:
     print("==== Deploying new generation ====")
     if new_generation:
@@ -1548,7 +1544,11 @@ def rebuild(config, new_generation=False, update=False):
         exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
-        
+
+    # Write generation number
+    with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
+        f.write(str(generation_id))
+
     #     copy_generation(boot_partition, root_partition, gen_mount_point, f"/kod/generations/{generation_id}")
 
     # exec_chroot("mkinitcpio -A kodos -P")
