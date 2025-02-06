@@ -61,6 +61,13 @@ class FsEntry:
         if self.fs_type == "esp":
             return f"mount -t vfat -o {self.options} {self.source} {install_mountpoint}{self.destination}"
         return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"    
+    
+    def source_uuid(self):
+        if self.source[:5] == "/dev/":
+            uuid = exec(f"lsblk -o UUID {self.source} | tail -n 1", get_output=True)
+            if uuid:
+                return f"UUID={uuid.strip()}"
+        return self.source
 
 
 def create_btrfs(delay_action, part, blockdevice):
