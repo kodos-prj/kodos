@@ -1416,9 +1416,9 @@ def rebuild(config, new_generation=False, update=False):
     print(f"{current_generation = }")
 
     # Load current installed packages and enabled services
-    if os.path.isfile("/kod/current/installed_packages"):
-        installed_packages_path = "/kod/current/installed_packages"
-        services_enabled_path = "/kod/current/enabled_services"
+    if os.path.isfile(f"/kod/generations/{current_generation}/installed_packages"):
+        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+        services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
     else:
         print("Missing installed packages information")
         return
