@@ -1528,9 +1528,9 @@ def rebuild(config, new_generation=False, update=False):
         f.write("\n".join(system_services_to_enable))
 
     # if new_generation:
+    partition_list = load_fstab("/")
     print("==== Deploying new generation ====")
     if new_generation:
-        partition_list = load_fstab("/")
         create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
         # copy_generation(boot_partition, root_partition, gen_mount_point, "/kod/current", new_generation=True)
     else:
