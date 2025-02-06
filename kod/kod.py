@@ -1452,7 +1452,7 @@ def rebuild(config, new_generation=False, update=False):
         exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
         exec("btrfs subvolume snapshot /usr /kod/current/old-usr")
         exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
-        exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services"))
+        exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
         # gen_mount_point = f"/kod/generations/{current_generation}"
         use_chroot = False
         new_root_path = "/"
