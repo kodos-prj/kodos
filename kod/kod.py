@@ -252,7 +252,26 @@ aliases=user_env
     # exec_chroot("mkinitcpio -A kodos -P")
 
 
-def setup_bootloader(conf):
+def create_boot_entry(generation, partition_list, boot_options=None, is_current=True,mount_point="/mnt"):
+    subvol=f"generations/{generation}"
+    root_fs = [part for part in partition_list if part.destination in ["/"]][0]
+    root_device = root_fs.source_uuid()
+    options = " ".join(boot_options) if boot_options else ""
+    options += f" rootflags=subvol={subvol}"
+    entry_name = "kodos" if is_current else f"kodos-{generation}"
+
+    today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
+    entry_conf = f"""
+title KodOS Linux (Generation {generation} {today})
+linux /vmlinuz-linux
+initrd /initramfs-linux.img
+options root={root_device} rw {options}
+    """
+    with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
+        f.write(entry_conf)
+
+
+def setup_bootloader(conf, partition_list):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
@@ -273,20 +292,20 @@ def setup_bootloader(conf):
         # exec_chroot("bootctl --make-entry-directory=yes install")
 
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
-        exec_chroot(f"dracut --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
+        # exec_chroot(f"dracut --kver {kver} --fstab /boot/initramfs-linux-fallback.img")
         # exec_chroot("dracut initramfs-linux-fallback.img")
         
-        res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
-        mount_point = res.split()
-        root_part = mount_point[0].strip()
-        part_type = mount_point[2].strip()
-        mount_options = mount_point[3].strip().split(",")
-        print(root_part, part_type, mount_options)
-        option = ""
-        if part_type == "btrfs":
-            for opt in mount_options:
-                if opt.startswith("subvol"):
-                    option = "rootflags=" + opt
+        # res = exec("cat /mnt/etc/fstab | grep '[ \t]/[ \t]'", get_output=True)
+        # mount_point = res.split()
+        # root_part = mount_point[0].strip()
+        # part_type = mount_point[2].strip()
+        # mount_options = mount_point[3].strip().split(",")
+        # print(root_part, part_type, mount_options)
+        # option = ""
+        # if part_type == "btrfs":
+        #     for opt in mount_options:
+        #         if opt.startswith("subvol"):
+        #             option = "rootflags=" + opt
 
         loader_conf_systemd = """
 default kodos
@@ -296,23 +315,25 @@ console-mode max
         with open("/mnt/boot/loader/loader.conf", "w") as f:
             f.write(loader_conf_systemd)
 
-        kodos_conf = f"""
-title KodOS Linux
-linux /vmlinuz-linux
-initrd /initramfs-linux.img
-options root={root_part} rw {option}
-    """
-        with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
-            f.write(kodos_conf)
+        create_boot_entry(0, partition_list, is_current=True, mount_point="/mnt")
 
-        kodos_fb_conf = f"""
-title KodOS Linux - fallback
-linux /vmlinuz-linux
-initrd /initramfs-linux-fallback.img
-options root={root_part} rw {option}
-    """
-        with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
-            f.write(kodos_fb_conf)
+#         kodos_conf = f"""
+# title KodOS Linux
+# linux /vmlinuz-linux
+# initrd /initramfs-linux.img
+# options root={root_part} rw {option}
+#     """
+#         with open("/mnt/boot/loader/entries/kodos.conf", "w") as f:
+#             f.write(kodos_conf)
+
+#         kodos_fb_conf = f"""
+# title KodOS Linux - fallback
+# linux /vmlinuz-linux
+# initrd /initramfs-linux-fallback.img
+# options root={root_part} rw {option}
+#     """
+#         with open("/mnt/boot/loader/entries/kodos-fallback.conf", "w") as f:
+#             f.write(kodos_fb_conf)
 
     # Using Grub as bootloader
     if boot_type == "grub":
@@ -1356,7 +1377,7 @@ def install(config, step=None):
         # Install base packages and configure system
         install_essentials_pkgs()
         configure_system(conf, root_part=root_partition, partition_list=partition_list)
-        setup_bootloader(conf)
+        setup_bootloader(conf, partition_list)
         create_kod_user()
 
         # === Proc packages
