@@ -253,7 +253,7 @@ aliases=user_env
 
 
 def create_boot_entry(generation, partition_list, boot_options=None, is_current=True,mount_point="/mnt"):
-    subvol=f"generations/{generation}"
+    subvol=f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
     root_device = root_fs.source_uuid()
     options = " ".join(boot_options) if boot_options else ""
