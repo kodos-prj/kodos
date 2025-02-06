@@ -262,6 +262,9 @@ def create_boot_entry(generation, partition_list, boot_options=None, is_current=
 
     today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
+title KodOS
+sort-key kodos
+version Generation {generation} KodOS (build {today})
 title KodOS Linux (Generation {generation} {today})
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
@@ -269,6 +272,15 @@ options root={root_device} rw {options}
     """
     with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
         f.write(entry_conf)
+
+    # Update loader.conf
+    loader_conf_systemd = f"""
+default {entry_name}.conf
+timeout 1o
+console-mode keep
+"""
+    with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
+        f.write(loader_conf_systemd)
 
 
 def setup_bootloader(conf, partition_list):
@@ -293,13 +305,13 @@ def setup_bootloader(conf, partition_list):
 
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
 
-        loader_conf_systemd = """
-default kodos
-timeout 5
-console-mode max
-#editor no"""
-        with open("/mnt/boot/loader/loader.conf", "w") as f:
-            f.write(loader_conf_systemd)
+#         loader_conf_systemd = """
+# default kodos
+# timeout 5
+# console-mode max
+# #editor no"""
+#         with open("/mnt/boot/loader/loader.conf", "w") as f:
+#             f.write(loader_conf_systemd)
 
         create_boot_entry(0, partition_list, mount_point="/mnt")
 
