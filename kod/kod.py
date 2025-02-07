@@ -911,11 +911,11 @@ def proc_fonts(conf):
 
 
 class Context:
-    def __init__(self, user, mount_point="/mnt", use_chroot=True):
+    def __init__(self, user, mount_point="/mnt", use_chroot=True, stage="install"):
         self.user = user
         self.mount_point = mount_point
         self.use_chroot = use_chroot
-        # self.stage = stage
+        self.stage = stage
 
     def execute(self, command):
         if self.user == os.environ['USER']:
@@ -1314,7 +1314,7 @@ def get_generation(mount_point):
 def install(config):
     "Install KodOS in /mnt"
     
-    ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True)
+    ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage="install")
         
     conf = load_config(config)
     print("-------------------------------")
@@ -1532,7 +1532,7 @@ def rebuild(config, new_generation=False, update=False):
 def rebuild_user(config, user=os.environ['USER']):
     "Rebuild KodOS installation based on configuration file"
     # stage = "rebuild-user"
-    ctx = Context(os.environ['USER'], mount_point="/", use_chroot=False)   
+    ctx = Context(os.environ['USER'], mount_point="/", use_chroot=False, stage="rebuild-user")   
     conf = load_config(config)
     users = conf.users
     info = users[user] if user in users else None   
