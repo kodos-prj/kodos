@@ -27,9 +27,9 @@ def exec(cmd, get_output=False):
         else:
             os.system(cmd)
 
-def exec_chroot(cmd, get_output=False):
+def exec_chroot(cmd, mount_point="/mnt", get_output=False):
     print(cmd)
-    chroot_cmd = "arch-chroot /mnt "
+    chroot_cmd = f"arch-chroot {mount_point} "
     chroot_cmd += cmd
     if get_output:
         return exec(chroot_cmd, get_output=True)
