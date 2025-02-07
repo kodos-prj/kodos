@@ -1302,9 +1302,9 @@ def rebuild(config, new_generation=False, update=False):
         exec(f"mv /kod/current/old-usr /kod/generations/{current_generation}/usr")
         exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
-        change_subvol(partition_list, subvol=f"generations/{current_generation}", mount_points=["/", "/usr"])
-        generate_fstab(partition_list, new_root_path)
-        create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
+        updated_partition_list = change_subvol(partition_list, subvol=f"generations/{generation_id}", mount_points=["/", "/usr"])
+        generate_fstab(updated_partition_list, new_root_path)
+        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path)
 
     # Write generation number
     with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
