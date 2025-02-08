@@ -7,7 +7,7 @@
 
 # Introduction
 
-KodOS is a tool to create Linux installations from a declarative configuration and allows reproducibility. KodOS is inpired by [Nix](https://nixos.org/) with a diffrent approach. Instead of provide a its own packages, KodOS uses packages from other linux distributions (currently ArchLinux), similar to [AshOS](https://github.com/ashos/ashos). KodOS use Lua as a language to specify the configuration, and uses the concept of generations, that allows boot previos generations of the system. KodOS uses Btrfs snapshots to handle the generations.
+KodOS is a tool for creating Linux installations based on declarative configuration, enabling reproducibility. Inspired by [Nix](https://nixos.org/) and [AshOS](https://github.com/ashos/ashos). KodOS rather than providing its own package ecosystem, it leverages packages from other Linux distributions (currently Arch Linux), much like AshOS. KodOS uses [Lua](https://www.lua.org/) as its configuration language and uses the concept of "generations," from Nix allowing users to boot previous versions of the system. Btrfs snapshots are used to manage these generations, providing an efficient way to handle system rollbacks and upgrades.
 
 # Installation
 
