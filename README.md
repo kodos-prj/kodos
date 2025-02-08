@@ -79,22 +79,22 @@ return {
 
     locale = {
         locale = {
-            default = "en_US.UTF-8 UTF-8\nen_CA.UTF-8 UTF-8",
+            default = "en_US.UTF-8 UTF-8\nen_CA.UTF-8 UTF-8";
         },
-        keymap = "us",
+        keymap = "us";
         timezone = "America/Edmonton"
-    },
+    };
 
     network = {
         hostname = "testvm",
         ipv6 = false
-    },
+    };
 
     users = {
         root = {
             no_password = true,
             shell = "/bin/bash",
-        },
+        };
         abuss = {
             name = "Demo User",
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
@@ -104,16 +104,16 @@ return {
                     source_dir = "~/.dotfiles",
                     target_dir = "~/",
                     repo_url = "http://git.homecloud.lan/demouser/dotconfig.git",
-                }),
+                });
 
             programs = {
                 git = {
                     enable = true,
                     config = configs.git({
-                        user_name = "Antal Buss",
-                        user_email = "antal.buss@gmail.com",
+                        user_name = "Demo User",
+                        user_email = "demo.user@gmail.com",
                     })
-                },
+                };
 
                 zsh = {
                     enable = true,
