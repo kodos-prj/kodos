@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="docs/KoDOS.svg" alt="KoDOS">
+  <img src="docs/images/KodOS.svg" alt="KoDOS" width="100px">
   <br />
   <b>KodOS</b>
 </h1>
