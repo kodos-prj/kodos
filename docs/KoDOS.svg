@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="20.970413mm"
+   height="21.042435mm"
+   viewBox="0 0 20.970413 21.042435"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1"
+     transform="translate(-48.75345,-254.45914)">
+    <circle
+       style="fill:#ffcc00;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-9-9-7-8-3-5-0-3-8-3-8"
+       cx="59.248878"
+       cy="264.97607"
+       r="7" />
+    <path
+       style="fill:#aa0000;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-5-5-5-1-4-9-1-6"
+       d="m 48.753448,265.50104 a 10,10 0 0 1 10,10 h -10 z" />
+    <path
+       style="fill:#89a02c;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-9-97-6-0-1-4-6-8-0"
+       d="m 58.754021,254.46082 a 10,10 0 0 1 -10,10 v -10 z" />
+    <path
+       style="fill:#89a02c;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-5-5-3-9-9-4-2-9-4"
+       d="m 59.723862,254.45914 a 10,10 0 0 1 10,10 h -10 z" />
+    <path
+       style="fill:#454837;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-9-97-6-9-6-8-7-1-6-8"
+       d="m 69.723297,265.50156 a 10,10 0 0 1 -10,10 v -10 z" />
+    <circle
+       style="fill:#ffcc00;fill-opacity:1;stroke:none;stroke-width:0.4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="path7-9-9-7-8-3-5-6-7-4-8"
+       cx="59.227913"
+       cy="264.96677"
+       r="4" />
+  </g>
+</svg>

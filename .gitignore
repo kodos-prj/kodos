@@ -1,3 +1,4 @@
 mnt/
 .venv/
 __pycache__
+flake.lock
