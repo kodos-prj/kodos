@@ -30,15 +30,16 @@ return {
     -- },
 
     boot = {
-        -- initrd = {
-        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        -- },
+        kernel = {
+            package = "linux-lts";
+            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"};
+        };
         loader = {
             type = "systemd-boot",
             -- type = "grub",
             timeout = 10,
             include = { "memtest86+" },
-        },
+        };
     },
 
     hardware = {
