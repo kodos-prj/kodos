@@ -1140,7 +1140,7 @@ def install(config):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
 
     # Install base packages and configure system
-    install_essentials_pkgs()
+    install_essentials_pkgs(conf)
     configure_system(conf, root_part=root_partition, partition_list=partition_list)
     setup_bootloader(conf, partition_list)
     create_kod_user()
