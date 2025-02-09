@@ -61,7 +61,7 @@ IfElse = require("utils").if_else
     return conf
 
 
-def install_essentials_pkgs():
+def install_essentials_pkgs(conf):
     # CPU microcode
     with open("/proc/cpuinfo") as f:
         while True:
@@ -73,12 +73,17 @@ def install_essentials_pkgs():
                 microcode = "intel-ucode"
                 break
 
+    if conf.boot and conf.boot.kernel and conf.boot.kernel.package:
+        kernel_package = conf.boot.kernel.package
+    else:
+        kernel_package = conf.boot.kernel.package
+
     base_pkgs = [
         "base",
         "base-devel",
         microcode,
         "btrfs-progs",
-        "linux",
+        kernel_package,
         "linux-firmware",
         "bash-completion",
         "mlocate",
@@ -171,7 +176,7 @@ description=KodOS
 directory=/
 groups=users,root
 root-groups=root,wheel
-root-users=abuss
+# root-users=abuss
 profile=kodos
 personality=linux
 """
@@ -185,7 +190,7 @@ directory=/
 union-type=overlay
 groups=users,root
 root-groups=root,wheel
-root-users=abuss
+# root-users=abuss
 profile=kodos
 personality=linux
 aliases=user_env
@@ -252,6 +257,16 @@ aliases=user_env
     # exec_chroot("mkinitcpio -A kodos -P")
 
 
+def get_kernel_version(mount_point):
+    kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True)
+    return kernel_version
+
+
+def get_kernel_file(mount_point, package="linux"):
+    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
+    kernel_file = kernel_file.split(" ")[-1].strip()
+    return kernel_file
+
 def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt"):
     subvol=f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
@@ -260,11 +275,13 @@ def create_boot_entry(generation, partition_list, boot_options=None, is_current=
     options += f" rootflags=subvol={subvol}"
     entry_name = "kodos" if is_current else f"kodos-{generation}"
 
+    kver = get_kernel_version(mount_point)
+
     today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
 title KodOS
 sort-key kodos
-version Generation {generation} KodOS (build {today})
+version Generation {generation} KodOS (build {today} - {kver})
 linux /vmlinuz-linux
 initrd /initramfs-linux.img
 options root={root_device} rw {options}
@@ -286,7 +303,12 @@ def setup_bootloader(conf, partition_list):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
-    
+
+    if "kernel" in boot_conf and "package" in boot_conf["kernel"]:
+        kernel_package = boot_conf["kernel"]["package"]
+    else:
+        kernel_package = "linux"
+
     # Default bootloader
     boot_type = "systemd-boot"
     
@@ -296,13 +318,12 @@ def setup_bootloader(conf, partition_list):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
-        kernel_version = exec_chroot("pacman -Ql linux | grep vmlinuz", get_output=True)
-        kernel_file = kernel_version.split(" ")[1].strip()
-        kver = kernel_file.split("/")[-2]
+        kver = get_kernel_version(mount_point="/mnt")
+        kernel_file = get_kernel_file(mount_point="/mnt", package=kernel_package)
         print(f"{kver=}")
-        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux")
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
-        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
+        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt")
 
     # Using Grub as bootloader

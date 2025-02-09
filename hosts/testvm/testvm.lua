@@ -32,9 +32,10 @@ return {
     -- },
 
     boot = {
-        -- initrd = {
-        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        -- },
+        kernel = {
+            package = "linux-lts";
+            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"};
+        };
         loader = {
             type = "systemd-boot";
             -- type = "grub",
@@ -78,15 +79,15 @@ return {
                     LC_TELEPHONE = "en_CA.UTF-8";
                     LC_TIME = "en_CA.UTF-8";
             };
-        },
-        keymap = "us",
-        timezone = "America/Edmonton"
+        };
+        keymap = "us";
+        timezone = "America/Edmonton";
     };
 
     network = {
-        hostname = "testvm",
-        ipv6 = true
-    },
+        hostname = "testvm";
+        ipv6 = true;
+    };
 
     users = {
         root = {
