@@ -60,8 +60,7 @@ IfElse = require("utils").if_else
         conf = luart.execute(config_data)
     return conf
 
-
-def install_essentials_pkgs(conf):
+def get_base_packages(conf):
     # CPU microcode
     with open("/proc/cpuinfo") as f:
         while True:
@@ -94,9 +93,11 @@ def install_essentials_pkgs(conf):
     ]
     # TODO: remove this package dependency
     base_pkgs += ["arch-install-scripts"]
-
-    exec(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
     return base_pkgs
+
+
+def install_essentials_pkgs(base_pkgs):
+    exec(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
 
 
 def generate_fstab(partiton_list, mount_point="/mnt"):
@@ -350,6 +351,9 @@ def get_packages_to_install(conf):
     packages_to_install = []
     packages_to_remove = []
 
+    # Base packages
+    base_packages = get_base_packages(conf)
+
     # Desktop
     desktop_packages_to_install, desktop_packages_to_remove = proc_desktop(conf)
 
@@ -370,7 +374,8 @@ def get_packages_to_install(conf):
 
     packages_to_install = list(
         set(
-            desktop_packages_to_install
+            base_packages
+            + desktop_packages_to_install
             + hw_packages_to_install
             + service_packages_to_install
             + user_packages_to_install
@@ -1144,7 +1149,8 @@ def install(config):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
 
     # Install base packages and configure system
-    base_packages = install_essentials_pkgs(conf)
+    base_packages = get_base_packages(conf)
+    install_essentials_pkgs(base_packages)
     configure_system(conf, root_part=root_partition, partition_list=partition_list)
     setup_bootloader(conf, partition_list)
     create_kod_user()
@@ -1154,10 +1160,10 @@ def install(config):
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
     packages_installed = manage_packages(
-        "/mnt", repos, "install", packages_to_install, chroot=True
+        "/mnt", repos, "install", packages_to_install - base_packages, chroot=True
     )
     # Include installed base packages
-    packages_to_install += base_packages
+    # packages_to_install += base_packages
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
