@@ -96,6 +96,7 @@ def install_essentials_pkgs(conf):
     base_pkgs += ["arch-install-scripts"]
 
     exec(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
+    return base_pkgs
 
 
 def generate_fstab(partiton_list, mount_point="/mnt"):
@@ -258,7 +259,7 @@ aliases=user_env
 
 
 def get_kernel_version(mount_point):
-    kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True)
+    kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True).strip()
     return kernel_version
 
 
@@ -266,6 +267,7 @@ def get_kernel_file(mount_point, package="linux"):
     kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
     kernel_file = kernel_file.split(" ")[-1].strip()
     return kernel_file
+
 
 def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt", kver=None):
     subvol=f"generations/{generation}/rootfs"
@@ -1142,7 +1144,7 @@ def install(config):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
 
     # Install base packages and configure system
-    install_essentials_pkgs(conf)
+    base_packages = install_essentials_pkgs(conf)
     configure_system(conf, root_part=root_partition, partition_list=partition_list)
     setup_bootloader(conf, partition_list)
     create_kod_user()
@@ -1154,6 +1156,8 @@ def install(config):
     packages_installed = manage_packages(
         "/mnt", repos, "install", packages_to_install, chroot=True
     )
+    # Include installed base packages
+    packages_to_install += base_packages
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
@@ -1167,7 +1171,7 @@ def install(config):
 
     # print("==== Deploying generation ====")
     with open("/mnt/kod/generations/0/installed_packages", "w") as f:
-        f.write("\n".join(pkgs_installed))
+        f.write("\n".join(packages_to_install))
     with open("/mnt/kod/generations/0/enabled_services", "w") as f:
         f.write("\n".join(system_services_to_enable))
   
