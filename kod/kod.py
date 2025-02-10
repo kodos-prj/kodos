@@ -225,6 +225,7 @@ aliases=user_env
 
     # Dracut config
     kod_path = abspath(getsourcefile(lambda:0))
+    print(f"=========================\n{kod_path = }\n=========================")
     exec("mkdir -p /mnt/var/kod/scripts")
     exec(f"cp {kod_path}/scripts/dracut_install.sh /mnt/var/kod/scripts/")
     exec("chmod +x /mnt/var/kod/scripts/dracut_install.sh")
@@ -345,9 +346,9 @@ def setup_bootloader(conf, partition_list):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         # Update /etc/dracut.conf.d/00-kodos.conf
-        with open("/mnt/etc/dracut.conf.d/00-kodos.conf", "w") as f:
-            f.write("hostonly=\"yes\"\n")
-            f.write("add_dracutmodules+=\"btrfs\"\n")
+        # with open("/mnt/etc/dracut.conf.d/00-kodos.conf", "w") as f:
+        #     f.write("hostonly=\"yes\"\n")
+        #     f.write("add_dracutmodules+=\"btrfs\"\n")
 
         print("==== Setting up systemd-boot ====")
         # kver = get_kernel_version(mount_point="/mnt")
