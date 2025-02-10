@@ -1158,9 +1158,10 @@ def install(config):
     # === Proc packages
     repos, repo_packages = proc_repos(conf)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
+    pending_to_install = list(set(packages_to_install) - set(base_packages))
     print("packages\n", packages_to_install)
     packages_installed = manage_packages(
-        "/mnt", repos, "install", packages_to_install - base_packages, chroot=True
+        "/mnt", repos, "install", pending_to_install, chroot=True
     )
     # Include installed base packages
     # packages_to_install += base_packages
