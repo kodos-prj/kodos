@@ -133,7 +133,7 @@ def create_partitions(conf):
 def create_disk_partitions(disk_info):
 
     device = disk_info['device']
-    efi = disk_info['efi']
+    # efi = disk_info['efi']
     partitions = disk_info['partitions']
 
     if 'nvme' in device or 'mmcblk' in device:

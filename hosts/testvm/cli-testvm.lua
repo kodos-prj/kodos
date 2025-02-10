@@ -287,6 +287,7 @@ return {
     services = {
         -- Firmware update
         -- fwupd = { enable = true },
+        systemd_boot_updata = { enable = true };
         
         -- TODO: Maybe move inside network
         networkmanager = {

@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 import re
+from inspect import getsourcefile
+from os.path import abspath
 
 # import signal
 # from invoke import task
@@ -221,6 +223,27 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
+    # Dracut config
+    kod_path = abspath(getsourcefile(lambda:0))
+    exec("mkdir -p /mnt/var/kod/scripts")
+    exec(f"cp {kod_path}/scripts/dracut_install.sh /mnt/var/kod/scripts/")
+    exec("chmod +x /mnt/var/kod/scripts/dracut_install.sh")
+    dracut_install = """[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/pkgbase
+
+[Action]
+Description = Updating linux initcpios (with dracut!)...
+When = PostTransaction
+Exec = /var/kod/scripts/dracut-install.sh
+Depends = dracut
+NeedsTargets
+"""
+    exec("mkdir -p /mnt/etc/pacman.d/hooks")
+    with open("/mnt/etc/pacman.d/hooks/dracut-install.hook", "w") as f:
+        f.write(dracut_install)
 
 #     # Initcpio hooks
 #     install_hook = """#!/bin/bash
@@ -321,6 +344,11 @@ def setup_bootloader(conf, partition_list):
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
+        # Update /etc/dracut.conf.d/00-kodos.conf
+        with open("/mnt/etc/dracut.conf.d/00-kodos.conf", "w") as f:
+            f.write("hostonly=\"yes\"\n")
+            f.write("add_dracutmodules+=\"btrfs\"\n")
+
         print("==== Setting up systemd-boot ====")
         # kver = get_kernel_version(mount_point="/mnt")
         kernel_file = get_kernel_file(mount_point="/mnt", package=kernel_package)
