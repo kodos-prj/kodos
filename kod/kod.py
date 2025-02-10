@@ -267,7 +267,7 @@ def get_kernel_file(mount_point, package="linux"):
     kernel_file = kernel_file.split(" ")[-1].strip()
     return kernel_file
 
-def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt"):
+def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt", kver=None):
     subvol=f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
     root_device = root_fs.source_uuid()
@@ -275,15 +275,16 @@ def create_boot_entry(generation, partition_list, boot_options=None, is_current=
     options += f" rootflags=subvol={subvol}"
     entry_name = "kodos" if is_current else f"kodos-{generation}"
 
-    kver = get_kernel_version(mount_point)
+    if not kver:
+        kver = get_kernel_version(mount_point)
 
     today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
 title KodOS
 sort-key kodos
 version Generation {generation} KodOS (build {today} - {kver})
-linux /vmlinuz-linux
-initrd /initramfs-linux.img
+linux /vmlinuz-linux-{kver}
+initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
     with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
@@ -325,7 +326,7 @@ def setup_bootloader(conf, partition_list):
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
-        create_boot_entry(0, partition_list, mount_point="/mnt")
+        create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     # Using Grub as bootloader
     if boot_type == "grub":
