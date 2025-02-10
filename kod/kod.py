@@ -76,7 +76,7 @@ def install_essentials_pkgs(conf):
     if conf.boot and conf.boot.kernel and conf.boot.kernel.package:
         kernel_package = conf.boot.kernel.package
     else:
-        kernel_package = conf.boot.kernel.package
+        kernel_package = "linux"
 
     base_pkgs = [
         "base",
@@ -318,8 +318,9 @@ def setup_bootloader(conf, partition_list):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
-        kver = get_kernel_version(mount_point="/mnt")
+        # kver = get_kernel_version(mount_point="/mnt")
         kernel_file = get_kernel_file(mount_point="/mnt", package=kernel_package)
+        kver = kernel_file.split("/")[-2]
         print(f"{kver=}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
