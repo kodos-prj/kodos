@@ -103,7 +103,7 @@ def get_base_packages(conf):
 
 
 def install_essentials_pkgs(base_pkgs):
-    exec(f"pacstrap -K /mnt {' '.join(base_pkgs["kernel"] + base_pkgs['base'])}")
+    exec(f"pacstrap -K /mnt {' '.join([base_pkgs["kernel"]] + base_pkgs['base'])}")
 
 
 def generate_fstab(partiton_list, mount_point="/mnt"):
