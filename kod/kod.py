@@ -79,23 +79,27 @@ def get_base_packages(conf):
     else:
         kernel_package = "linux"
 
-    base_pkgs = [
-        "base",
-        "base-devel",
-        microcode,
-        "btrfs-progs",
-        kernel_package,
-        "linux-firmware",
-        "bash-completion",
-        "mlocate",
-        "sudo",
-        "schroot",
-        "whois",
-        "dracut",
-    ]
+    # TODO: add verions to each package
+    packages = {
+        "kernel": kernel_package,
+        "packages": [
+            "base",
+            "base-devel",
+            microcode,
+            "btrfs-progs",
+            "linux-firmware",
+            "bash-completion",
+            "mlocate",
+            "sudo",
+            "schroot",
+            "whois",
+            "dracut",
+        ]
+    }
+
     # TODO: remove this package dependency
-    base_pkgs += ["arch-install-scripts"]
-    return base_pkgs
+    packages["base"] += ["arch-install-scripts"]
+    return packages
 
 
 def install_essentials_pkgs(base_pkgs):
@@ -401,17 +405,17 @@ def get_packages_to_install(conf):
     # Font packages
     font_packages_to_install = proc_fonts(conf)
 
-    packages_to_install = list(
-        set(
-            base_packages
-            + desktop_packages_to_install
-            + hw_packages_to_install
-            + service_packages_to_install
-            + user_packages_to_install
-            + system_packages_to_install
-            + font_packages_to_install
+    packages_to_install = base_packages.copy()
+    packages_to_install["packages"] = list(
+            set(desktop_packages_to_install
+                + hw_packages_to_install
+                + service_packages_to_install
+                + user_packages_to_install
+                + system_packages_to_install
+                + font_packages_to_install
+            )
         )
-    )
+    
     packages_to_remove = list(set(desktop_packages_to_remove))
 
     return packages_to_install, packages_to_remove
@@ -1154,6 +1158,53 @@ def get_generation(mount_point):
         return int(f.read().strip())
 
 
+def get_pending_packages(packages_to_install):
+    pending_to_install = packages_to_install["packages"]
+    return pending_to_install
+
+
+def store_packages_services(state_path, packages_to_install, system_services):
+    packahes_json = json.dumps(packages_to_install, indent=2)
+    with open(f"{state_path}/installed_packages", "w") as f:
+        f.write(packahes_json)
+    with open(f"{state_path}/enabled_services", "w") as f:
+        f.write("\n".join(system_services))
+
+
+def loac_packages_services(state_path):
+    with open(f"{state_path}/installed_packages", "r") as f:
+        packages = json.load(f)
+    with open(f"{state_path}/enabled_services", "r") as f:
+        services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    return packages, services
+
+
+def get_packages_updates(current_packages, next_packages, remove_packages):
+    packages_to_install = []
+    packages_to_remove = []
+    packages_to_update = []
+    hooks_to_run = []
+    current_kernel = current_packages["kernel"]
+    next_kernel = next_packages["kernel"]
+    if current_kernel != next_kernel:
+        packages_to_install += [next_kernel]
+        hooks_to_run += [ "update_kelnel_hook", "update_initramfs_hook" ]
+    # # TODO: Check kernel versions
+    # if next_kernel.version == current_kernel.version: 
+    #     packages_to_update += [next_kernel]
+    #     hooks_to_run += [ "update_kelnel_hook", "update_initramfs_hook" ]
+
+    remove_pkg = (set(current_packages["packages"]) - set(next_packages["packages"])) | set(remove_packages)
+    packages_to_remove += list(remove_pkg)
+
+    added_pkgs = set(next_packages["packages"]) - set(current_packages["packages"])
+    packages_to_install += list(added_pkgs)
+
+    update_pkg = set(current_packages) & set(next_packages)
+    packages_to_update += list(update_pkg)
+
+    return packages_to_install, packages_to_remove, packages_to_update, hooks_to_run
+
 ##############################################################################
 # stages
 # stage=="install" -> mount_point="/mnt", use_chroot=True
@@ -1187,11 +1238,10 @@ def install(config):
     # === Proc packages
     repos, repo_packages = proc_repos(conf)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
-    pending_to_install = list(set(packages_to_install) - set(base_packages))
+    # pending_to_install = list(set(packages_to_install["packages"]) - setbase_packages["packages"]))
+    pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
-    packages_installed = manage_packages(
-        "/mnt", repos, "install", pending_to_install, chroot=True
-    )
+    manage_packages("/mnt", repos, "install", pending_to_install, chroot=True)
     # Include installed base packages
     # packages_to_install += base_packages
 
@@ -1206,10 +1256,11 @@ def install(config):
     proc_users(ctx, conf)
 
     # print("==== Deploying generation ====")
-    with open("/mnt/kod/generations/0/installed_packages", "w") as f:
-        f.write("\n".join(packages_to_install))
-    with open("/mnt/kod/generations/0/enabled_services", "w") as f:
-        f.write("\n".join(system_services_to_enable))
+    store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
+    # with open("/mnt/kod/generations/0/installed_packages", "w") as f:
+    #     f.write("\n".join(packages_to_install))
+    # with open("/mnt/kod/generations/0/enabled_services", "w") as f:
+    #     f.write("\n".join(system_services_to_enable))
   
     exec("umount -R /mnt")
 
@@ -1246,29 +1297,31 @@ def rebuild(config, new_generation=False, update=False):
 
     # Load current installed packages and enabled services
     if os.path.isfile(f"/kod/generations/{current_generation}/installed_packages"):
-        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
-        services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
+        # installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
+        # services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
+        current_state_path = f"/kod/generations/{current_generation}"
     else:
         print("Missing installed packages information")
         return
 
-    with open(installed_packages_path) as f:
-        installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-    print(installed_packages)
+    current_packages, current_services = loac_packages_services(current_state_path)
+    # with open(installed_packages_path) as f:
+    #     installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    print(f"{current_packages = }")
 
-    with open(services_enabled_path) as f:
-        services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-    print(services_enabled)
+    # with open(services_enabled_path) as f:
+    #     services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    print(f"{current_services = }")
 
     boot_partition, root_partition = get_partition_devices(conf)
 
-    gen_mount_point = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {gen_mount_point}")
+    next_state_path = f"/kod/generations/{generation_id}"
+    exec(f"mkdir -p {next_state_path}")
 
     if new_generation:
         print("Creating a new generation")
-        exec(f"btrfs subvolume snapshot / {gen_mount_point}/rootfs")
-        exec(f"btrfs subvolume snapshot /usr {gen_mount_point}/usr")
+        exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+        exec(f"btrfs subvolume snapshot /usr {next_state_path}/usr")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
@@ -1292,16 +1345,18 @@ def rebuild(config, new_generation=False, update=False):
     print("packages\n", packages_to_install)
 
     # Package filtering
-    remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
-    added_pkgs = set(packages_to_install) - set(installed_packages)
-    update_pkg = set(installed_packages) & set(packages_to_install)
+    packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(current_packages, packages_to_install, packages_to_remove)
+
+    # remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
+    # added_pkgs = set(packages_to_install) - set(installed_packages)
+    # update_pkg = set(installed_packages) & set(packages_to_install)
 
     # === Proc services
-    system_services_to_enable = get_services_to_enable(conf)
+    next_services = get_services_to_enable(conf)
 
     # Services filtering
-    services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
-    new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
+    services_to_disable = list(set(current_services) - set(next_services))
+    new_service_to_enable = list(set(next_services) - set(current_services))
 
     if not new_generation and services_to_disable:
         disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
@@ -1309,23 +1364,27 @@ def rebuild(config, new_generation=False, update=False):
     # ======
 
     # try:
-    if remove_pkg:
-        print("Packages to remove:", remove_pkg)
-        for pkg in remove_pkg:
+    if packages_to_remove:
+        print("Packages to remove:", packages_to_remove)
+        for pkg in packages_to_remove:
             try:
                 manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except:
                 pass
                 # print(f"Unable to remove {pkg}")
 
-    if update and update_pkg:
-        print("Packages to update:", update_pkg)
+    if update and packages_to_update:
+        print("Packages to update:", packages_to_update)
         refresh_package_db(new_root_path, new_generation)
-        manage_packages(new_root_path, repos, "update", update_pkg, chroot=use_chroot)
+        manage_packages(new_root_path, repos, "update", packages_to_update, chroot=use_chroot)
 
-    if added_pkgs:
-        print("Packages to install:", added_pkgs)
-        manage_packages(new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
+    if packages_to_install:
+        print("Packages to install:", packages_to_install)
+        manage_packages(new_root_path, repos, "install", packages_to_install, chroot=use_chroot)
+
+    print("Running hooks")
+    for hook in hooks_to_run:
+        print(f"Running {hook}")
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
@@ -1345,11 +1404,12 @@ def rebuild(config, new_generation=False, update=False):
 
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
-    with open(f"{gen_mount_point}/installed_packages", "w") as f:
-        f.write("\n".join(packages_to_install))
-    # Create a list of services enabled
-    with open(f"{gen_mount_point}/enabled_services", "w") as f:
-        f.write("\n".join(system_services_to_enable))
+    store_packages_services(next_state_path, packages_to_install, new_service_to_enable)
+    # with open(f"{next_state_path}/installed_packages", "w") as f:
+    #     f.write("\n".join(packages_to_install))
+    # # Create a list of services enabled
+    # with open(f"{next_state_path}/enabled_services", "w") as f:
+    #     f.write("\n".join(system_services_to_enable))
 
     partition_list = load_fstab("/")
 
@@ -1370,7 +1430,7 @@ def rebuild(config, new_generation=False, update=False):
         create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path)
 
     # Write generation number
-    with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
+    with open(f"{next_state_path}/rootfs/.generation", "w") as f:
         f.write(str(generation_id))
 
     if new_generation:
