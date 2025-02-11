@@ -82,7 +82,7 @@ def get_base_packages(conf):
     # TODO: add verions to each package
     packages = {
         "kernel": kernel_package,
-        "packages": [
+        "base": [
             "base",
             "base-devel",
             microcode,
