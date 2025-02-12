@@ -228,27 +228,27 @@ aliases=user_env
         f.write(venv_fstab)
 
     # Dracut config
-    kod_path = abspath(getsourcefile(lambda:0))
-    print(f"=========================\n{kod_path = }\n=========================")
-    exec("mkdir -p /mnt/var/kod/scripts")
-    exec(f"cp {kod_path}/scripts/dracut_install.sh /mnt/var/kod/scripts/")
-    exec("chmod +x /mnt/var/kod/scripts/dracut_install.sh")
-    dracut_install = """[Trigger]
-Type = Path
-Operation = Install
-Operation = Upgrade
-Target = usr/lib/modules/*/pkgbase
+#     kod_path = abspath(getsourcefile(lambda:0))
+#     print(f"=========================\n{kod_path = }\n=========================")
+#     exec("mkdir -p /mnt/var/kod/scripts")
+#     exec(f"cp {kod_path}/scripts/dracut_install.sh /mnt/var/kod/scripts/")
+#     exec("chmod +x /mnt/var/kod/scripts/dracut_install.sh")
+#     dracut_install = """[Trigger]
+# Type = Path
+# Operation = Install
+# Operation = Upgrade
+# Target = usr/lib/modules/*/pkgbase
 
-[Action]
-Description = Updating linux initcpios (with dracut!)...
-When = PostTransaction
-Exec = /var/kod/scripts/dracut-install.sh
-Depends = dracut
-NeedsTargets
-"""
-    exec("mkdir -p /mnt/etc/pacman.d/hooks")
-    with open("/mnt/etc/pacman.d/hooks/dracut-install.hook", "w") as f:
-        f.write(dracut_install)
+# [Action]
+# Description = Updating linux initcpios (with dracut!)...
+# When = PostTransaction
+# Exec = /var/kod/scripts/dracut-install.sh
+# Depends = dracut
+# NeedsTargets
+# """
+#     exec("mkdir -p /mnt/etc/pacman.d/hooks")
+#     with open("/mnt/etc/pacman.d/hooks/dracut-install.hook", "w") as f:
+#         f.write(dracut_install)
 
 #     # Initcpio hooks
 #     install_hook = """#!/bin/bash
@@ -993,8 +993,8 @@ def configure_user_scripts(ctx, user, user_configs):
             stages = list(prog_config.stages.values())
             if ctx.stage in stages:
                 command(ctx, config)
-
     ctx.user = old_user
+
 
 def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
@@ -1171,7 +1171,7 @@ def store_packages_services(state_path, packages_to_install, system_services):
         f.write("\n".join(system_services))
 
 
-def loac_packages_services(state_path):
+def load_packages_services(state_path):
     with open(f"{state_path}/installed_packages", "r") as f:
         packages = json.load(f)
     with open(f"{state_path}/enabled_services", "r") as f:
@@ -1304,7 +1304,7 @@ def rebuild(config, new_generation=False, update=False):
         print("Missing installed packages information")
         return
 
-    current_packages, current_services = loac_packages_services(current_state_path)
+    current_packages, current_services = load_packages_services(current_state_path)
     # with open(installed_packages_path) as f:
     #     installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(f"{current_packages = }")
