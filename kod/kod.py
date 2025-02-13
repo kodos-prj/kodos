@@ -94,6 +94,7 @@ def get_base_packages(conf):
             "schroot",
             "whois",
             "dracut",
+            "git",
         ]
     }
 
@@ -483,12 +484,50 @@ def get_max_generation():
     return generation
 
 
-def proc_repos(conf):
+# def proc_repos(conf):
+#     # TODO: Add support for custom repositories and to be used during rebuild
+#     repos_conf = conf.repos
+#     repos = {}
+#     packages = []
+#     for repo, repo_desc in repos_conf.items():
+#         repos[repo] = {}
+#         for action, cmd in repo_desc["commands"].items():
+#             repos[repo][action] = cmd
+
+#         if "build" in repo_desc:
+#             build_info = repo_desc["build"]
+#             url = build_info["url"]
+#             build_cmd = build_info["build_cmd"]
+#             name = build_info["name"]
+
+#             # TODO: Generalize this code to support other distros
+#             exec_chroot("pacman -S --needed --noconfirm git base-devel")
+#             exec_chroot(
+#                 f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
+#             )
+
+#         if "package" in repo_desc:
+#             exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}")
+#             packages += [repo_desc["package"]]
+
+#     exec("mkdir -p /mnt/var/kod")
+#     with open("/mnt/var/kod/repos.json", "w") as f:
+#         f.write(json.dumps(repos, indent=2))
+
+#     return repos, packages
+
+
+
+def proc_repos(conf, current_repos=None, update=False):
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
     repos = {}
     packages = []
+    update_repos = False
     for repo, repo_desc in repos_conf.items():
+        if current_repos and repo in current_repos and not update:
+            repos[repo] = current_repos[repo]
+            continue
         repos[repo] = {}
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
@@ -500,7 +539,7 @@ def proc_repos(conf):
             name = build_info["name"]
 
             # TODO: Generalize this code to support other distros
-            exec_chroot("pacman -S --needed --noconfirm git base-devel")
+            # exec_chroot("pacman -S --needed --noconfirm git base-devel")
             exec_chroot(
                 f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
             )
@@ -508,10 +547,12 @@ def proc_repos(conf):
         if "package" in repo_desc:
             exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}")
             packages += [repo_desc["package"]]
+        update_repos = True
 
-    exec("mkdir -p /mnt/var/kod")
-    with open("/mnt/var/kod/repos.json", "w") as f:
-        f.write(json.dumps(repos, indent=2))
+    if update_repos:
+        exec("mkdir -p /mnt/var/kod")
+        with open("/mnt/var/kod/repos.json", "w") as f:
+            f.write(json.dumps(repos, indent=2))
 
     return repos, packages
 
@@ -1282,7 +1323,9 @@ def rebuild(config, new_generation=False, update=False):
     conf = load_config(config)
     print("========================================")
 
-    repos = load_repos()
+    current_repos = load_repos()
+    repos, repo_packages = proc_repos(conf, current_repos, update)
+    print("repo_packages\n", repo_packages)
     if repos is None:
         print("Missing repos information")
         return
