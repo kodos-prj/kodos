@@ -1345,7 +1345,7 @@ def rebuild(config, new_generation=False, update=False):
     print("packages\n", packages_to_install)
 
     # Package filtering
-    packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(current_packages, packages_to_install, packages_to_remove)
+    new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(current_packages, packages_to_install, packages_to_remove)
 
     # remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
     # added_pkgs = set(packages_to_install) - set(installed_packages)
@@ -1378,9 +1378,9 @@ def rebuild(config, new_generation=False, update=False):
         refresh_package_db(new_root_path, new_generation)
         manage_packages(new_root_path, repos, "update", packages_to_update, chroot=use_chroot)
 
-    if packages_to_install:
-        print("Packages to install:", packages_to_install)
-        manage_packages(new_root_path, repos, "install", packages_to_install, chroot=use_chroot)
+    if new_packages_to_install:
+        print("Packages to install:", new_packages_to_install)
+        manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
 
     print("Running hooks")
     for hook in hooks_to_run:
