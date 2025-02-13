@@ -550,8 +550,8 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         update_repos = True
 
     if update_repos:
-        exec("mkdir -p /mnt/var/kod")
-        with open("/mnt/var/kod/repos.json", "w") as f:
+        exec(f"mkdir -p {mount_point}/var/kod")
+        with open(f"{mount_point}/var/kod/repos.json", "w") as f:
             f.write(json.dumps(repos, indent=2))
 
     return repos, packages
@@ -1377,7 +1377,7 @@ def rebuild(config, new_generation=False, update=False):
     print("==== Processing packages and services ====")
 
     current_repos = load_repos()
-    repos, repo_packages = proc_repos(conf, current_repos, update, mount_point="/mnt")
+    repos, repo_packages = proc_repos(conf, current_repos, update, mount_point=new_root_path)
     print("repo_packages\n", repo_packages)
     if repos is None:
         print("Missing repos information")
