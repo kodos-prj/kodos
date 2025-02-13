@@ -518,7 +518,7 @@ def get_max_generation():
 
 
 
-def proc_repos(conf, current_repos=None, update=False):
+def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
     repos = {}
@@ -541,11 +541,11 @@ def proc_repos(conf, current_repos=None, update=False):
             # TODO: Generalize this code to support other distros
             # exec_chroot("pacman -S --needed --noconfirm git base-devel")
             exec_chroot(
-                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
+                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'", mount_point=mount_point,
             )
 
         if "package" in repo_desc:
-            exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}")
+            exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}", mount_point=mount_point)
             packages += [repo_desc["package"]]
         update_repos = True
 
@@ -1323,13 +1323,6 @@ def rebuild(config, new_generation=False, update=False):
     conf = load_config(config)
     print("========================================")
 
-    current_repos = load_repos()
-    repos, repo_packages = proc_repos(conf, current_repos, update)
-    print("repo_packages\n", repo_packages)
-    if repos is None:
-        print("Missing repos information")
-        return
-    
     # Get next generation number
     max_generation = get_max_generation()
     generation_id = int(max_generation) + 1
@@ -1383,6 +1376,13 @@ def rebuild(config, new_generation=False, update=False):
     print("==========================================")
     print("==== Processing packages and services ====")
 
+    current_repos = load_repos()
+    repos, repo_packages = proc_repos(conf, current_repos, update, mount_point="/mnt")
+    print("repo_packages\n", repo_packages)
+    if repos is None:
+        print("Missing repos information")
+        return
+    
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
