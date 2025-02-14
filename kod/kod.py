@@ -228,65 +228,6 @@ aliases=user_env
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
-    # Dracut config
-#     kod_path = abspath(getsourcefile(lambda:0))
-#     print(f"=========================\n{kod_path = }\n=========================")
-#     exec("mkdir -p /mnt/var/kod/scripts")
-#     exec(f"cp {kod_path}/scripts/dracut_install.sh /mnt/var/kod/scripts/")
-#     exec("chmod +x /mnt/var/kod/scripts/dracut_install.sh")
-#     dracut_install = """[Trigger]
-# Type = Path
-# Operation = Install
-# Operation = Upgrade
-# Target = usr/lib/modules/*/pkgbase
-
-# [Action]
-# Description = Updating linux initcpios (with dracut!)...
-# When = PostTransaction
-# Exec = /var/kod/scripts/dracut-install.sh
-# Depends = dracut
-# NeedsTargets
-# """
-#     exec("mkdir -p /mnt/etc/pacman.d/hooks")
-#     with open("/mnt/etc/pacman.d/hooks/dracut-install.hook", "w") as f:
-#         f.write(dracut_install)
-
-#     # Initcpio hooks
-#     install_hook = """#!/bin/bash
-# build() {
-#     add_runscript
-# }
-# help() {
-#     cat <<HELPEOF
-# This is a custom initcpio hook for mounting /usr subvolume to /usr.
-# HELPEOF
-# }
-#     """
-#     # To be added to /etc/initcpio/install
-#     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
-#         f.write(install_hook)
-
-#     run_hook = f"""#!/usr/bin/ash
-# run_latehook() {{
-# 	mountopts="rw,relatime,ssd,space_cache"
-#     msg "→ mounting subvolume '/current/usr' at '/usr'"
-#     mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
-# }}"""
-#     # To be added to /etc/initcpio/hooks/
-#     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
-#         f.write(run_hook)
-
-#     # initramfs
-#     mkinitcpio_conf = """MODULES=(btrfs)
-# BINARIES=()
-# FILES=()
-# HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
-# """
-#     with open("/mnt/etc/mkinitcpio.conf", "w") as f:
-#         f.write(mkinitcpio_conf)
-
-    # exec_chroot("mkinitcpio -A kodos -P")
-
 
 def get_kernel_version(mount_point):
     kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True).strip()
@@ -351,15 +292,9 @@ def setup_bootloader(conf, partition_list):
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
-        # Update /etc/dracut.conf.d/00-kodos.conf
-        # with open("/mnt/etc/dracut.conf.d/00-kodos.conf", "w") as f:
-        #     f.write("hostonly=\"yes\"\n")
-        #     f.write("add_dracutmodules+=\"btrfs\"\n")
 
         print("==== Setting up systemd-boot ====")
-        # kver = get_kernel_version(mount_point="/mnt")
         kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-        print(f"{kver=}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
@@ -370,8 +305,6 @@ def setup_bootloader(conf, partition_list):
         pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
         if "include" in loader_conf:
             pkgs_required += loader_conf["include"].values()
-
-        # exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
 
         exec_chroot(f"pacman -S --noconfirm {' '.join(pkgs_required)}")
         exec_chroot(
@@ -1277,12 +1210,9 @@ def install(config):
     # === Proc packages
     repos, repo_packages = proc_repos(conf)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
-    # pending_to_install = list(set(packages_to_install["packages"]) - setbase_packages["packages"]))
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
     manage_packages("/mnt", repos, "install", pending_to_install, chroot=True)
-    # Include installed base packages
-    # packages_to_install += base_packages
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
@@ -1297,10 +1227,6 @@ def install(config):
     # print("==== Deploying generation ====")
     store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
     generale_package_lock("/mnt", "/mnt/kod/generations/0")
-    # with open("/mnt/kod/generations/0/installed_packages", "w") as f:
-    #     f.write("\n".join(packages_to_install))
-    # with open("/mnt/kod/generations/0/enabled_services", "w") as f:
-    #     f.write("\n".join(system_services_to_enable))
   
     exec("umount -R /mnt")
 
@@ -1332,20 +1258,13 @@ def rebuild(config, new_generation=False, update=False):
 
     # Load current installed packages and enabled services
     if os.path.isfile(f"/kod/generations/{current_generation}/installed_packages"):
-        # installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
-        # services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
         current_state_path = f"/kod/generations/{current_generation}"
     else:
         print("Missing installed packages information")
         return
 
     current_packages, current_services = load_packages_services(current_state_path)
-    # with open(installed_packages_path) as f:
-    #     installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(f"{current_packages = }")
-
-    # with open(services_enabled_path) as f:
-    #     services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     print(f"{current_services = }")
 
     boot_partition, root_partition = get_partition_devices(conf)
@@ -1391,10 +1310,6 @@ def rebuild(config, new_generation=False, update=False):
     new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
         current_packages, packages_to_install, packages_to_remove, new_root_path
     )
-
-    # remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
-    # added_pkgs = set(packages_to_install) - set(installed_packages)
-    # update_pkg = set(installed_packages) & set(packages_to_install)
 
     # === Proc services
     next_services = get_services_to_enable(conf)
@@ -1452,11 +1367,6 @@ def rebuild(config, new_generation=False, update=False):
     # Create a list of installed packages
     store_packages_services(next_state_path, packages_to_install, new_service_to_enable)
     generale_package_lock(new_root_path, next_state_path)
-    # with open(f"{next_state_path}/installed_packages", "w") as f:
-    #     f.write("\n".join(packages_to_install))
-    # # Create a list of services enabled
-    # with open(f"{next_state_path}/enabled_services", "w") as f:
-    #     f.write("\n".join(system_services_to_enable))
 
     partition_list = load_fstab("/")
 
@@ -1526,7 +1436,7 @@ def rebuild_user(config, user=os.environ['USER']):
     print("Done")
 
 
-# # TODO: Update rollback
+# # TODO: Update rollbackboot loader
 # # @task(help={"generation": "Generation number to rollback to"})
 # @cli.command()
 # @click.option('-c', '--config', default=None, help='System configuration file')
