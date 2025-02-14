@@ -484,40 +484,6 @@ def get_max_generation():
     return generation
 
 
-# def proc_repos(conf):
-#     # TODO: Add support for custom repositories and to be used during rebuild
-#     repos_conf = conf.repos
-#     repos = {}
-#     packages = []
-#     for repo, repo_desc in repos_conf.items():
-#         repos[repo] = {}
-#         for action, cmd in repo_desc["commands"].items():
-#             repos[repo][action] = cmd
-
-#         if "build" in repo_desc:
-#             build_info = repo_desc["build"]
-#             url = build_info["url"]
-#             build_cmd = build_info["build_cmd"]
-#             name = build_info["name"]
-
-#             # TODO: Generalize this code to support other distros
-#             exec_chroot("pacman -S --needed --noconfirm git base-devel")
-#             exec_chroot(
-#                 f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
-#             )
-
-#         if "package" in repo_desc:
-#             exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}")
-#             packages += [repo_desc["package"]]
-
-#     exec("mkdir -p /mnt/var/kod")
-#     with open("/mnt/var/kod/repos.json", "w") as f:
-#         f.write(json.dumps(repos, indent=2))
-
-#     return repos, packages
-
-
-
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
@@ -1219,6 +1185,26 @@ def load_packages_services(state_path):
         services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     return packages, services
 
+def update_kernel_hook(kernel_package, mount_point):
+    def hook(): 
+        print(f"Update kernel ....{kernel_package}")
+        kernel_file = get_kernel_file(mount_point, package=kernel_package)
+        kver = kernel_file.split("/")[-2]
+        print(f"{kver=}")
+        print(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}", mount_point=mount_point)
+    return hook
+
+def update_initramfs_hook(kernel_package, mount_point):
+    def hook():
+        print(f"Update initramfs ....{kernel_package}")
+        kernel_file = get_kernel_file(mount_point, package=kernel_package)
+        kver = kernel_file.split("/")[-2]
+        print(f"{kver=}")
+        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img", mount_point=mount_point)
+        # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
+    return hook
+
 
 def get_packages_updates(current_packages, next_packages, remove_packages):
     packages_to_install = []
@@ -1229,7 +1215,7 @@ def get_packages_updates(current_packages, next_packages, remove_packages):
     next_kernel = next_packages["kernel"]
     if current_kernel != next_kernel:
         packages_to_install += [next_kernel]
-        hooks_to_run += [ "update_kelnel_hook", "update_initramfs_hook" ]
+        hooks_to_run += [ update_kernel_hook(next_kernel), update_initramfs_hook(next_kernel) ]
     # # TODO: Check kernel versions
     # if next_kernel.version == current_kernel.version: 
     #     packages_to_update += [next_kernel]
@@ -1386,6 +1372,7 @@ def rebuild(config, new_generation=False, update=False):
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
+    kernel_package = packages_to_install["kernel"] or "linux"
 
     # Package filtering
     new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(current_packages, packages_to_install, packages_to_remove)
@@ -1428,6 +1415,7 @@ def rebuild(config, new_generation=False, update=False):
     print("Running hooks")
     for hook in hooks_to_run:
         print(f"Running {hook}")
+        hook()
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
@@ -1456,9 +1444,14 @@ def rebuild(config, new_generation=False, update=False):
 
     partition_list = load_fstab("/")
 
+    kernel_file = get_kernel_file(new_root_path, package=kernel_package)
+    kver = kernel_file.split("/")[-2]
+    print(f"{kver=}")
+
+
     print("==== Deploying new generation ====")
     if new_generation:
-        create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
+        create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
     else:
         # Move current updated rootfs to a new generation
         exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
@@ -1470,7 +1463,7 @@ def rebuild(config, new_generation=False, update=False):
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(partition_list, subvol=f"generations/{generation_id}", mount_points=["/", "/usr"])
         generate_fstab(updated_partition_list, new_root_path)
-        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path)
+        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
 
     # Write generation number
     with open(f"{next_state_path}/rootfs/.generation", "w") as f:
