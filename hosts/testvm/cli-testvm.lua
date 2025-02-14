@@ -11,6 +11,8 @@ configs = require("configs")
 -- development = require("development")
 
 local use_gnome = false
+local use_plasma = false
+local use_cosmic = false
 
 return {
     repos = {
@@ -30,11 +32,12 @@ return {
     -- },
 
     boot = {
-        -- initrd = {
-        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        -- },
+        kernel = {
+            package = "linux-lts";
+            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"};
+        };
         loader = {
-            type = "systemd-boot",
+            type = "systemd-boot";
             -- type = "grub",
             timeout = 10,
             include = { "memtest86+" },
@@ -44,10 +47,10 @@ return {
     hardware = {
         -- pulseaudio = { enable = false },
 
-        sane = {
-            enable = true,
-            extra_packages = { "sane-airscan" },
-        },
+        -- sane = {
+        --     enable = true,
+        --     extra_packages = { "sane-airscan" },
+        -- },
 
         pipewire = {
             enable = true,
@@ -76,15 +79,15 @@ return {
                     LC_TELEPHONE = "en_CA.UTF-8";
                     LC_TIME = "en_CA.UTF-8";
             };
-        },
-        keymap = "us",
-        timezone = "America/Edmonton"
+        };
+        keymap = "us";
+        timezone = "America/Edmonton";
     };
 
     network = {
-        hostname = "testvm",
-        ipv6 = true
-    },
+        hostname = "testvm";
+        ipv6 = true;
+    };
 
     users = {
         root = {
@@ -94,9 +97,12 @@ return {
         abuss = {
             name = "Antal Buss",
             hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/usr/bin/fish";
-            extra_groups = map({ "audio", "input", "users", "video", "wheel" });
-
+            shell = "/usr/bin/fish",
+            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }); -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" }); 
+            openssh_authorized = {
+                keys = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOA6V+TZJ+BmBAU4FB0nbhYQ9XOFZwCHdwXTuQkb77sPi6fVcbzso5AofUc+3DhfN56ATNOOslvjutSPE8kIp3Uv91/c7DE0RHoidNl3oLre8bau2FT+9AUTZnNEtWH/qXp5+fzvGk417mSL3M5jdoRwude+AzhPNXmbdAzn08TMGAkjGrMQejXItcG1OhXKUjqeLmB0A0l3Ac8DGQ6EcSRtgPCiej8Boabn21K2OBfq64KwW/MMh/FWTHndyBF/lhfEos7tGPvrDN+5G05oGjf0fnMOxsmAUdTDbtOTTeMTvDwjJdzsGUluEDbWBYPNlg5wacbimkv51/Bm4YwsGOkkUTy6eCCS3d5j8PrMbB2oNZfByga01FohhWSX9bv35KAP4nq7no9M6nXj8rQVsF0gPndPK/pgX46tpJG+pE1Ul6sSLR2jnrN6oBKzhdZJ54a2wwFSd207Zvahdx3m9JEVhccmDxWltxjKHz+zChAHsqWC9Zcqozt0mDRJNalW8fRXKcSWPGVy1rfbwltiQzij+ChCQQlUG78zW8lU7Bz6FuyDsEFpZSat7jtbdDBY0a4F0yb4lkNvu+5heg+dhlKCFj9YeRDrnvcz94OKvAZW1Gsjbs83n6wphBipxUWku7y86iYyAAYQGKs4jihhYWrFtfZhSf1m6EUKXoWX87KQ== antal.buss@gmail.com"
+            };
+            
             dotfile_manager = configs.stow({
                     source_dir = "~/.dotfiles",
                     target_dir = "~/",
@@ -117,29 +123,28 @@ return {
                     deploy_config = true,
                 },
 
-                -- zsh = {
-                --     enable = true,
-                --     deploy_config = true,
-                --     extra_packages = {
-                --         -- "zsh-syntax-highlighting",
-                --         "zsh-autosuggestions",
-                --         "zsh-completions",
-                --         -- "zsh-history-substring-search",
-                --     }
-                --     -- autosuggestion = true,
-                --     -- enable_vfe_integration = true,
-                --     -- default_keymap = "emacs",
+                zsh = {
+                    enable = true,
+                    deploy_config = true,
+                    extra_packages = {
+                        -- "zsh-syntax-highlighting",
+                        "zsh-autosuggestions",
+                        "zsh-completions",
+                        -- "zsh-history-substring-search",
+                    }
+                    -- autosuggestion = true,
+                    -- enable_vfe_integration = true,
+                    -- default_keymap = "emacs",
 
-                --     -- oh_my_zsh = {
-                --     --     enable = true,
-                --     --     plugins = {"sudo"},
-                --     --     theme = "lukerandall"
-                --     -- }
-                -- },
+                    -- oh_my_zsh = {
+                    --     enable = true,
+                    --     plugins = {"sudo"},
+                    --     theme = "lukerandall"
+                    -- }
+                },
 
                 fish = {
-                    enable = true;
-                    -- deploy_config = false;
+                    enable = true,
                 };
 
                 neovim = {
@@ -147,11 +152,11 @@ return {
                     deploy_config = true,
                 },
 
-                emacs = {
-                    enable = true,
-                    package = "emacs-wayland",
-                    deploy_config = true,
-                },
+                -- emacs = {
+                --     enable = true,
+                --     package = "emacs-wayland",
+                --     deploy_config = true,
+                -- },
 
                 -- Gnome dconf configuration
                 dconf = {
@@ -166,14 +171,14 @@ return {
             },
 
             services = {
-                syncthing = {
-                    enable = true;
-                    config = configs.syncthing({
-                        service_name = "syncthing",
-                        options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
-                    }),
-                    -- extra_packages = { "aur:syncthing-gtk" },
-                }
+                -- syncthing = {
+                --     enable = true;
+                --     config = configs.syncthing({
+                --         service_name = "syncthing",
+                --         options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                --     }),
+                --     -- extra_packages = { "aur:syncthing-gtk" },
+                -- }
             },
 
             home = map({
@@ -213,38 +218,38 @@ return {
             },
     
             plasma = {
-                enable = false,
+                enable = use_plasma,
                 display_manager = "sddm",
                 extra_packages = {
                     "kde-applications",
-                    "aur:plasma5-themes-whitesur-git",
+                    -- "aur:plasma5-themes-whitesur-git",
                 },
             },
             cosmic = {
-                enable = false,
+                enable = use_cosmic,
                 display_manager = "cosmic-greeter",
             },
         }
     },
 
     fonts = {
-        -- font_dir = true,
-        -- packages = {
-        --     -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
-        --     "ttf-firacode-nerd",
-        --     "ttf-nerd-fonts-symbols",
-        --     "ttf-nerd-fonts-symbols-common",
-        --     "ttf-sourcecodepro-nerd",
-        --     "ttf-fira-sans",
-        --     "ttf-fira-code",
-        --     -- "fira-code-symbols",
-        --     "ttf-liberation",
-        --     "noto-fonts-emoji",
-        --     "adobe-source-serif-fonts",
-        --     -- "source-serif",
-        --     "ttf-ubuntu-font-family",
-        --     "aur:ttf-work-sans",
-        -- },
+        font_dir = true,
+        packages = {
+            -- -- (nerdfonts.override { fonts = [ "FiraCode" "SourceCodePro" "UbuntuMono" ]; })
+            -- "ttf-firacode-nerd",
+            -- "ttf-nerd-fonts-symbols",
+            -- "ttf-nerd-fonts-symbols-common",
+            -- "ttf-sourcecodepro-nerd",
+            -- "ttf-fira-sans",
+            -- "ttf-fira-code",
+            -- -- "fira-code-symbols",
+            -- "ttf-liberation",
+            -- "noto-fonts-emoji",
+            -- "adobe-source-serif-fonts",
+            -- -- "source-serif",
+            -- "ttf-ubuntu-font-family",
+            -- "aur:ttf-work-sans",
+        },
     },
 
     packages = list({
@@ -277,6 +282,8 @@ return {
 
         -- "firefox",
         -- "aur:brave-bin",
+        -- "vulkan-virtio",
+        -- "zed",
     });
     -- ..
     -- cli -- CLI tools

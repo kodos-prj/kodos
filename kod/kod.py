@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 import re
+from inspect import getsourcefile
+from os.path import abspath
 
 # import signal
 # from invoke import task
@@ -60,8 +62,7 @@ IfElse = require("utils").if_else
         conf = luart.execute(config_data)
     return conf
 
-
-def install_essentials_pkgs():
+def get_base_packages(conf):
     # CPU microcode
     with open("/proc/cpuinfo") as f:
         while True:
@@ -73,24 +74,37 @@ def install_essentials_pkgs():
                 microcode = "intel-ucode"
                 break
 
-    base_pkgs = [
-        "base",
-        "base-devel",
-        microcode,
-        "btrfs-progs",
-        "linux",
-        "linux-firmware",
-        "bash-completion",
-        "mlocate",
-        "sudo",
-        "schroot",
-        "whois",
-        "dracut",
-    ]
-    # TODO: remove this package dependency
-    base_pkgs += ["arch-install-scripts"]
+    if conf.boot and conf.boot.kernel and conf.boot.kernel.package:
+        kernel_package = conf.boot.kernel.package
+    else:
+        kernel_package = "linux"
 
-    exec(f"pacstrap -K /mnt {' '.join(base_pkgs)}")
+    # TODO: add verions to each package
+    packages = {
+        "kernel": kernel_package,
+        "base": [
+            "base",
+            "base-devel",
+            microcode,
+            "btrfs-progs",
+            "linux-firmware",
+            "bash-completion",
+            "mlocate",
+            "sudo",
+            "schroot",
+            "whois",
+            "dracut",
+            "git",
+        ]
+    }
+
+    # TODO: remove this package dependency
+    packages["base"] += ["arch-install-scripts"]
+    return packages
+
+
+def install_essentials_pkgs(base_pkgs):
+    exec(f"pacstrap -K /mnt {' '.join([base_pkgs["kernel"]] + base_pkgs['base'])}")
 
 
 def generate_fstab(partiton_list, mount_point="/mnt"):
@@ -171,7 +185,7 @@ description=KodOS
 directory=/
 groups=users,root
 root-groups=root,wheel
-root-users=abuss
+# root-users=abuss
 profile=kodos
 personality=linux
 """
@@ -185,7 +199,7 @@ directory=/
 union-type=overlay
 groups=users,root
 root-groups=root,wheel
-root-users=abuss
+# root-users=abuss
 profile=kodos
 personality=linux
 aliases=user_env
@@ -215,44 +229,19 @@ aliases=user_env
         f.write(venv_fstab)
 
 
-#     # Initcpio hooks
-#     install_hook = """#!/bin/bash
-# build() {
-#     add_runscript
-# }
-# help() {
-#     cat <<HELPEOF
-# This is a custom initcpio hook for mounting /usr subvolume to /usr.
-# HELPEOF
-# }
-#     """
-#     # To be added to /etc/initcpio/install
-#     with open("/mnt/etc/initcpio/install/kodos", "w") as f:
-#         f.write(install_hook)
-
-#     run_hook = f"""#!/usr/bin/ash
-# run_latehook() {{
-# 	mountopts="rw,relatime,ssd,space_cache"
-#     msg "→ mounting subvolume '/current/usr' at '/usr'"
-#     mount -o "$mountopts,subvol=current/usr" {root_part} /new_root/usr
-# }}"""
-#     # To be added to /etc/initcpio/hooks/
-#     with open("/mnt/etc/initcpio/hooks/kodos", "w") as f:
-#         f.write(run_hook)
-
-#     # initramfs
-#     mkinitcpio_conf = """MODULES=(btrfs)
-# BINARIES=()
-# FILES=()
-# HOOKS=(base kms udev keyboard autodetect keymap consolefont modconf block filesystems fsck btrfs kodos)
-# """
-#     with open("/mnt/etc/mkinitcpio.conf", "w") as f:
-#         f.write(mkinitcpio_conf)
-
-    # exec_chroot("mkinitcpio -A kodos -P")
+def get_kernel_version(mount_point):
+    kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True).strip()
+    return kernel_version
 
 
-def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt"):
+def get_kernel_file(mount_point, package="linux"):
+    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
+    kernel_file = kernel_file.split(" ")[-1].strip()
+    kver = kernel_file.split("/")[-2]
+    return kernel_file, kver
+
+
+def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt", kver=None):
     subvol=f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
     root_device = root_fs.source_uuid()
@@ -260,13 +249,16 @@ def create_boot_entry(generation, partition_list, boot_options=None, is_current=
     options += f" rootflags=subvol={subvol}"
     entry_name = "kodos" if is_current else f"kodos-{generation}"
 
+    if not kver:
+        kver = get_kernel_version(mount_point)
+
     today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
 title KodOS
 sort-key kodos
-version Generation {generation} KodOS (build {today})
-linux /vmlinuz-linux
-initrd /initramfs-linux.img
+version Generation {generation} KodOS (build {today} - {kver})
+linux /vmlinuz-linux-{kver}
+initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
     with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
@@ -286,7 +278,12 @@ def setup_bootloader(conf, partition_list):
     # bootloader
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
-    
+
+    if "kernel" in boot_conf and "package" in boot_conf["kernel"]:
+        kernel_package = boot_conf["kernel"]["package"]
+    else:
+        kernel_package = "linux"
+
     # Default bootloader
     boot_type = "systemd-boot"
     
@@ -295,23 +292,19 @@ def setup_bootloader(conf, partition_list):
 
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
+
         print("==== Setting up systemd-boot ====")
-        kernel_version = exec_chroot("pacman -Ql linux | grep vmlinuz", get_output=True)
-        kernel_file = kernel_version.split(" ")[1].strip()
-        kver = kernel_file.split("/")[-2]
-        print(f"{kver=}")
-        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux")
+        kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
-        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux.img")
-        create_boot_entry(0, partition_list, mount_point="/mnt")
+        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
+        create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     # Using Grub as bootloader
     if boot_type == "grub":
         pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
         if "include" in loader_conf:
             pkgs_required += loader_conf["include"].values()
-
-        # exec_chroot(c, "pacman -S --noconfirm grub efibootmgr grub-btrfs")
 
         exec_chroot(f"pacman -S --noconfirm {' '.join(pkgs_required)}")
         exec_chroot(
@@ -324,6 +317,9 @@ def setup_bootloader(conf, partition_list):
 def get_packages_to_install(conf):
     packages_to_install = []
     packages_to_remove = []
+
+    # Base packages
+    base_packages = get_base_packages(conf)
 
     # Desktop
     desktop_packages_to_install, desktop_packages_to_remove = proc_desktop(conf)
@@ -343,16 +339,17 @@ def get_packages_to_install(conf):
     # Font packages
     font_packages_to_install = proc_fonts(conf)
 
-    packages_to_install = list(
-        set(
-            desktop_packages_to_install
-            + hw_packages_to_install
-            + service_packages_to_install
-            + user_packages_to_install
-            + system_packages_to_install
-            + font_packages_to_install
+    packages_to_install = base_packages.copy()
+    packages_to_install["packages"] = list(
+            set(desktop_packages_to_install
+                + hw_packages_to_install
+                + service_packages_to_install
+                + user_packages_to_install
+                + system_packages_to_install
+                + font_packages_to_install
+            )
         )
-    )
+    
     packages_to_remove = list(set(desktop_packages_to_remove))
 
     return packages_to_install, packages_to_remove
@@ -420,12 +417,16 @@ def get_max_generation():
     return generation
 
 
-def proc_repos(conf):
+def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
     repos = {}
     packages = []
+    update_repos = False
     for repo, repo_desc in repos_conf.items():
+        if current_repos and repo in current_repos and not update:
+            repos[repo] = current_repos[repo]
+            continue
         repos[repo] = {}
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
@@ -437,18 +438,20 @@ def proc_repos(conf):
             name = build_info["name"]
 
             # TODO: Generalize this code to support other distros
-            exec_chroot("pacman -S --needed --noconfirm git base-devel")
+            # exec_chroot("pacman -S --needed --noconfirm git base-devel")
             exec_chroot(
-                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
+                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'", mount_point=mount_point,
             )
 
         if "package" in repo_desc:
-            exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}")
+            exec_chroot(f"pacman -S --needed --noconfirm {repo_desc['package']}", mount_point=mount_point)
             packages += [repo_desc["package"]]
+        update_repos = True
 
-    exec("mkdir -p /mnt/var/kod")
-    with open("/mnt/var/kod/repos.json", "w") as f:
-        f.write(json.dumps(repos, indent=2))
+    if update_repos:
+        exec(f"mkdir -p {mount_point}/var/kod")
+        with open(f"{mount_point}/var/kod/repos.json", "w") as f:
+            f.write(json.dumps(repos, indent=2))
 
     return repos, packages
 
@@ -930,8 +933,8 @@ def configure_user_scripts(ctx, user, user_configs):
             stages = list(prog_config.stages.values())
             if ctx.stage in stages:
                 command(ctx, config)
-
     ctx.user = old_user
+
 
 def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
     for service in list_of_services:
@@ -1095,6 +1098,85 @@ def get_generation(mount_point):
         return int(f.read().strip())
 
 
+def get_pending_packages(packages_to_install):
+    pending_to_install = packages_to_install["packages"]
+    return pending_to_install
+
+
+def store_packages_services(state_path, packages_to_install, system_services):
+    packahes_json = json.dumps(packages_to_install, indent=2)
+    with open(f"{state_path}/installed_packages", "w") as f:
+        f.write(packahes_json)
+    with open(f"{state_path}/enabled_services", "w") as f:
+        f.write("\n".join(system_services))
+
+
+def load_packages_services(state_path):
+    with open(f"{state_path}/installed_packages", "r") as f:
+        packages = json.load(f)
+    with open(f"{state_path}/enabled_services", "r") as f:
+        services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    return packages, services
+
+
+def generale_package_lock(mount_point, state_path):
+    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
+    with open(f"{state_path}/packages.lock", "w") as f:
+        f.write(installed_pakages_version)
+
+
+def load_package_lock(state_path):
+    packages = []
+    with open(f"{state_path}/packages.lock") as f:
+        packages = f.readlines()
+    return packages
+
+
+def update_kernel_hook(kernel_package, mount_point):
+    def hook(): 
+        print(f"Update kernel ....{kernel_package}")
+        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        print(f"{kver=}")
+        print(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}", mount_point=mount_point)
+    return hook
+
+def update_initramfs_hook(kernel_package, mount_point):
+    def hook():
+        print(f"Update initramfs ....{kernel_package}")
+        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        print(f"{kver=}")
+        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img", mount_point=mount_point)
+        # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
+    return hook
+
+
+def get_packages_updates(current_packages, next_packages, remove_packages, mount_point):
+    packages_to_install = []
+    packages_to_remove = []
+    packages_to_update = []
+    hooks_to_run = []
+    current_kernel = current_packages["kernel"]
+    next_kernel = next_packages["kernel"]
+    if current_kernel != next_kernel:
+        packages_to_install += [next_kernel]
+        hooks_to_run += [ update_kernel_hook(next_kernel, mount_point), update_initramfs_hook(next_kernel, mount_point) ]
+    # # TODO: Check kernel versions
+    # if next_kernel.version == current_kernel.version: 
+    #     packages_to_update += [next_kernel]
+    #     hooks_to_run += [ "update_kelnel_hook", "update_initramfs_hook" ]
+
+    remove_pkg = (set(current_packages["packages"]) - set(next_packages["packages"])) | set(remove_packages)
+    packages_to_remove += list(remove_pkg)
+
+    added_pkgs = set(next_packages["packages"]) - set(current_packages["packages"])
+    packages_to_install += list(added_pkgs)
+
+    update_pkg = set(current_packages) & set(next_packages)
+    packages_to_update += list(update_pkg)
+
+    return packages_to_install, packages_to_remove, packages_to_update, hooks_to_run
+
 ##############################################################################
 # stages
 # stage=="install" -> mount_point="/mnt", use_chroot=True
@@ -1119,7 +1201,8 @@ def install(config):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
 
     # Install base packages and configure system
-    install_essentials_pkgs()
+    base_packages = get_base_packages(conf)
+    install_essentials_pkgs(base_packages)
     configure_system(conf, root_part=root_partition, partition_list=partition_list)
     setup_bootloader(conf, partition_list)
     create_kod_user()
@@ -1127,10 +1210,9 @@ def install(config):
     # === Proc packages
     repos, repo_packages = proc_repos(conf)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
+    pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
-    packages_installed = manage_packages(
-        "/mnt", repos, "install", packages_to_install, chroot=True
-    )
+    manage_packages("/mnt", repos, "install", pending_to_install, chroot=True)
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(conf)
@@ -1143,10 +1225,8 @@ def install(config):
     proc_users(ctx, conf)
 
     # print("==== Deploying generation ====")
-    with open("/mnt/kod/generations/0/installed_packages", "w") as f:
-        f.write("\n".join(pkgs_installed))
-    with open("/mnt/kod/generations/0/enabled_services", "w") as f:
-        f.write("\n".join(system_services_to_enable))
+    store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
+    generale_package_lock("/mnt", "/mnt/kod/generations/0")
   
     exec("umount -R /mnt")
 
@@ -1168,11 +1248,6 @@ def rebuild(config, new_generation=False, update=False):
     conf = load_config(config)
     print("========================================")
 
-    repos = load_repos()
-    if repos is None:
-        print("Missing repos information")
-        return
-    
     # Get next generation number
     max_generation = get_max_generation()
     generation_id = int(max_generation) + 1
@@ -1183,29 +1258,24 @@ def rebuild(config, new_generation=False, update=False):
 
     # Load current installed packages and enabled services
     if os.path.isfile(f"/kod/generations/{current_generation}/installed_packages"):
-        installed_packages_path = f"/kod/generations/{current_generation}/installed_packages"
-        services_enabled_path = f"/kod/generations/{current_generation}/enabled_services"
+        current_state_path = f"/kod/generations/{current_generation}"
     else:
         print("Missing installed packages information")
         return
 
-    with open(installed_packages_path) as f:
-        installed_packages = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-    print(installed_packages)
-
-    with open(services_enabled_path) as f:
-        services_enabled = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
-    print(services_enabled)
+    current_packages, current_services = load_packages_services(current_state_path)
+    print(f"{current_packages = }")
+    print(f"{current_services = }")
 
     boot_partition, root_partition = get_partition_devices(conf)
 
-    gen_mount_point = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {gen_mount_point}")
+    next_state_path = f"/kod/generations/{generation_id}"
+    exec(f"mkdir -p {next_state_path}")
 
     if new_generation:
         print("Creating a new generation")
-        exec(f"btrfs subvolume snapshot / {gen_mount_point}/rootfs")
-        exec(f"btrfs subvolume snapshot /usr {gen_mount_point}/usr")
+        exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+        exec(f"btrfs subvolume snapshot /usr {next_state_path}/usr")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
@@ -1224,21 +1294,29 @@ def rebuild(config, new_generation=False, update=False):
     print("==========================================")
     print("==== Processing packages and services ====")
 
+    current_repos = load_repos()
+    repos, repo_packages = proc_repos(conf, current_repos, update, mount_point=new_root_path)
+    print("repo_packages\n", repo_packages)
+    if repos is None:
+        print("Missing repos information")
+        return
+    
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
+    kernel_package = packages_to_install["kernel"] or "linux"
 
     # Package filtering
-    remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
-    added_pkgs = set(packages_to_install) - set(installed_packages)
-    update_pkg = set(installed_packages) & set(packages_to_install)
+    new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
+        current_packages, packages_to_install, packages_to_remove, new_root_path
+    )
 
     # === Proc services
-    system_services_to_enable = get_services_to_enable(conf)
+    next_services = get_services_to_enable(conf)
 
     # Services filtering
-    services_to_disable = list(set(services_enabled) - set(system_services_to_enable))
-    new_service_to_enable = list(set(system_services_to_enable) - set(services_enabled))
+    services_to_disable = list(set(current_services) - set(next_services))
+    new_service_to_enable = list(set(next_services) - set(current_services))
 
     if not new_generation and services_to_disable:
         disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
@@ -1246,23 +1324,28 @@ def rebuild(config, new_generation=False, update=False):
     # ======
 
     # try:
-    if remove_pkg:
-        print("Packages to remove:", remove_pkg)
-        for pkg in remove_pkg:
+    if packages_to_remove:
+        print("Packages to remove:", packages_to_remove)
+        for pkg in packages_to_remove:
             try:
                 manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except:
                 pass
                 # print(f"Unable to remove {pkg}")
 
-    if update and update_pkg:
-        print("Packages to update:", update_pkg)
+    if update and packages_to_update:
+        print("Packages to update:", packages_to_update)
         refresh_package_db(new_root_path, new_generation)
-        manage_packages(new_root_path, repos, "update", update_pkg, chroot=use_chroot)
+        manage_packages(new_root_path, repos, "update", packages_to_update, chroot=use_chroot)
 
-    if added_pkgs:
-        print("Packages to install:", added_pkgs)
-        manage_packages(new_root_path, repos, "install", added_pkgs, chroot=use_chroot)
+    if new_packages_to_install:
+        print("Packages to install:", new_packages_to_install)
+        manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
+
+    print("Running hooks")
+    for hook in hooks_to_run:
+        print(f"Running {hook}")
+        hook()
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
@@ -1282,17 +1365,16 @@ def rebuild(config, new_generation=False, update=False):
 
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
-    with open(f"{gen_mount_point}/installed_packages", "w") as f:
-        f.write("\n".join(packages_to_install))
-    # Create a list of services enabled
-    with open(f"{gen_mount_point}/enabled_services", "w") as f:
-        f.write("\n".join(system_services_to_enable))
+    store_packages_services(next_state_path, packages_to_install, new_service_to_enable)
+    generale_package_lock(new_root_path, next_state_path)
 
     partition_list = load_fstab("/")
 
+    _kernel_file, kver = get_kernel_file(new_root_path, package=kernel_package)
+
     print("==== Deploying new generation ====")
     if new_generation:
-        create_boot_entry(generation_id, partition_list, mount_point=new_root_path)
+        create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
     else:
         # Move current updated rootfs to a new generation
         exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
@@ -1304,10 +1386,10 @@ def rebuild(config, new_generation=False, update=False):
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(partition_list, subvol=f"generations/{generation_id}", mount_points=["/", "/usr"])
         generate_fstab(updated_partition_list, new_root_path)
-        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path)
+        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
 
     # Write generation number
-    with open(f"{gen_mount_point}/rootfs/.generation", "w") as f:
+    with open(f"{next_state_path}/rootfs/.generation", "w") as f:
         f.write(str(generation_id))
 
     if new_generation:
@@ -1354,7 +1436,7 @@ def rebuild_user(config, user=os.environ['USER']):
     print("Done")
 
 
-# # TODO: Update rollback
+# # TODO: Update rollbackboot loader
 # # @task(help={"generation": "Generation number to rollback to"})
 # @cli.command()
 # @click.option('-c', '--config', default=None, help='System configuration file')
