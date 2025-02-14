@@ -13,35 +13,32 @@ development = require("development")
 local use_gnome = true
 local use_plasma = false
 local use_cosmic = false
+local use_cinnamon = false
 
 return {
     repos = {
         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
-    },
+    };
 
     devices = {
         -- disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
         disk0 = disk.disk_definition("/dev/sda", "34GB"),
-    },
-
-    -- bootloader = {
-    --     type = "systemd-boot",
-    --     location = "/boot/efi"
-    -- },
+    };
 
     boot = {
-        -- initrd = {
-        --     kernel_modules = {"xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"},
-        -- },
+        kernel = {
+            package = "linux";
+            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk" };
+        };
         loader = {
-            -- type = "systemd-boot",
-            type = "grub",
-            timeout = 10,
-            include = { "memtest86+" },
+            type = "systemd-boot";
+            -- type = "grub";
+            timeout = 10;
+            include = { "memtest86+" };
         },
-    },
+    };
 
     hardware = {
         -- pulseaudio = { enable = false },
@@ -49,16 +46,16 @@ return {
         sane = {
             enable = true,
             extra_packages = { "sane-airscan" },
-        },
+        };
 
         pipewire = {
-            enable = true,
+            enable = true;
             extra_packages = {
                 "pipewire-alsa",
                 "pipewire-pulse",
             },
-        },
-    },
+        }
+    };
 
 
     locale = {
@@ -84,21 +81,21 @@ return {
     };
 
     network = {
-        hostname = "eszkoz",
-        ipv6 = true
-    },
+        hostname = "eszkoz";
+        ipv6 = true;
+    };
 
     users = {
         
         root = {
-            no_password = true,
-            shell = "/usr/bin/fish",
-        },
+            no_password = true;
+            shell = "/bin/bash";
+        };
 
         abuss = {
-            name = "Antal Buss",
-            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/bin/zsh";
+            name = "Antal Buss";
+            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.";
+            shell = "/usr/bin/fish";
             extra_groups = map({ "audio", "input", "users", "video", "wheel" }); -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
             openssh_authorized = {
                 keys = { "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOA6V+TZJ+BmBAU4FB0nbhYQ9XOFZwCHdwXTuQkb77sPi6fVcbzso5AofUc+3DhfN56ATNOOslvjutSPE8kIp3Uv91/c7DE0RHoidNl3oLre8bau2FT+9AUTZnNEtWH/qXp5+fzvGk417mSL3M5jdoRwude+AzhPNXmbdAzn08TMGAkjGrMQejXItcG1OhXKUjqeLmB0A0l3Ac8DGQ6EcSRtgPCiej8Boabn21K2OBfq64KwW/MMh/FWTHndyBF/lhfEos7tGPvrDN+5G05oGjf0fnMOxsmAUdTDbtOTTeMTvDwjJdzsGUluEDbWBYPNlg5wacbimkv51/Bm4YwsGOkkUTy6eCCS3d5j8PrMbB2oNZfByga01FohhWSX9bv35KAP4nq7no9M6nXj8rQVsF0gPndPK/pgX46tpJG+pE1Ul6sSLR2jnrN6oBKzhdZJ54a2wwFSd207Zvahdx3m9JEVhccmDxWltxjKHz+zChAHsqWC9Zcqozt0mDRJNalW8fRXKcSWPGVy1rfbwltiQzij+ChCQQlUG78zW8lU7Bz6FuyDsEFpZSat7jtbdDBY0a4F0yb4lkNvu+5heg+dhlKCFj9YeRDrnvcz94OKvAZW1Gsjbs83n6wphBipxUWku7y86iYyAAYQGKs4jihhYWrFtfZhSf1m6EUKXoWX87KQ== antal.buss@gmail.com" }
@@ -112,7 +109,7 @@ return {
 
             programs = {
                 git = {
-                    enable = true,
+                    enable = true;
                     config = configs.git({
                         user_name = "Antal Buss",
                         user_email = "antal.buss@gmail.com",
@@ -120,44 +117,42 @@ return {
                 };
 
                 starship = { 
-                    enable = true,
-                    deploy_config = true,
+                    enable = true;
+                    deploy_config = true;
                 };
 
                 fish = {
                     enable = true;
-                    deploy_config = false;
                 };
 
-                zsh = {
-                    enable = true,
-                    deploy_config = true,
-                    extra_packages = {
-                        -- "zsh-syntax-highlighting",
-                        "zsh-autosuggestions",
-                        "zsh-completions",
-                        -- "zsh-history-substring-search",
-                    }
-                    -- autosuggestion = true,
-                    -- enable_vfe_integration = true,
-                    -- default_keymap = "emacs",
-
-                    -- oh_my_zsh = {
-                    --     enable = true,
-                    --     plugins = {"sudo"},
-                    --     theme = "lukerandall"
-                    -- }
-                };
+                -- zsh = {
+                --     enable = true,
+                --     deploy_config = true,
+                --     extra_packages = {
+                --         -- "zsh-syntax-highlighting",
+                --         "zsh-autosuggestions",
+                --         "zsh-completions",
+                --         -- "zsh-history-substring-search",
+                --     }
+                --     -- autosuggestion = true,
+                --     -- enable_vfe_integration = true,
+                --     -- default_keymap = "emacs",
+                --     -- oh_my_zsh = {
+                --     --     enable = true,
+                --     --     plugins = {"sudo"},
+                --     --     theme = "lukerandall"
+                --     -- }
+                -- };
 
                 neovim = {
-                    enable = true,
-                    deploy_config = true,
+                    enable = true;
+                    deploy_config = true;
                 };
 
                 emacs = {
-                    enable = true,
-                    package = "emacs-wayland",
-                    deploy_config = true,
+                    enable = true;
+                    package = "emacs-wayland";
+                    deploy_config = true;
                 };
 
                 -- Gnome dconf configuration
@@ -215,7 +210,7 @@ return {
                     "aur:whitesur-gtk-theme-git",
                     "aur:whitesur-icon-theme-git",
                 },
-            },
+            };
     
             plasma = {
                 enable = use_plasma,
@@ -224,10 +219,16 @@ return {
                     "kde-applications",
                     -- "aur:plasma5-themes-whitesur-git",
                 },
-            },
+            };
+
             cosmic = {
                 enable = use_cosmic;
                 display_manager = "cosmic-greeter",
+            };
+
+            cinnamon = {
+                enable = use_cinnamon;
+                display_manager = "gdm",
             },
         }
     },
