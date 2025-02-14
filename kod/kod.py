@@ -296,7 +296,8 @@ def get_kernel_version(mount_point):
 def get_kernel_file(mount_point, package="linux"):
     kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
     kernel_file = kernel_file.split(" ")[-1].strip()
-    return kernel_file
+    kver = kernel_file.split("/")[-2]
+    return kernel_file, kver
 
 
 def create_boot_entry(generation, partition_list, boot_options=None, is_current=False, mount_point="/mnt", kver=None):
@@ -357,8 +358,7 @@ def setup_bootloader(conf, partition_list):
 
         print("==== Setting up systemd-boot ====")
         # kver = get_kernel_version(mount_point="/mnt")
-        kernel_file = get_kernel_file(mount_point="/mnt", package=kernel_package)
-        kver = kernel_file.split("/")[-2]
+        kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         print(f"{kver=}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
@@ -1185,11 +1185,24 @@ def load_packages_services(state_path):
         services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     return packages, services
 
+
+def generale_package_lock(mount_point, state_path):
+    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
+    with open(f"{state_path}/packages.lock", "w") as f:
+        f.write(installed_pakages_version)
+
+
+def load_package_lock(state_path):
+    packages = []
+    with open(f"{state_path}/packages.lock") as f:
+        packages = f.readlines()
+    return packages
+
+
 def update_kernel_hook(kernel_package, mount_point):
     def hook(): 
         print(f"Update kernel ....{kernel_package}")
-        kernel_file = get_kernel_file(mount_point, package=kernel_package)
-        kver = kernel_file.split("/")[-2]
+        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         print(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}", mount_point=mount_point)
@@ -1198,8 +1211,7 @@ def update_kernel_hook(kernel_package, mount_point):
 def update_initramfs_hook(kernel_package, mount_point):
     def hook():
         print(f"Update initramfs ....{kernel_package}")
-        kernel_file = get_kernel_file(mount_point, package=kernel_package)
-        kver = kernel_file.split("/")[-2]
+        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img", mount_point=mount_point)
         # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
@@ -1284,6 +1296,7 @@ def install(config):
 
     # print("==== Deploying generation ====")
     store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
+    generale_package_lock("/mnt", "/mnt/kod/generations/0")
     # with open("/mnt/kod/generations/0/installed_packages", "w") as f:
     #     f.write("\n".join(packages_to_install))
     # with open("/mnt/kod/generations/0/enabled_services", "w") as f:
@@ -1438,6 +1451,7 @@ def rebuild(config, new_generation=False, update=False):
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
     store_packages_services(next_state_path, packages_to_install, new_service_to_enable)
+    generale_package_lock(new_root_path, next_state_path)
     # with open(f"{next_state_path}/installed_packages", "w") as f:
     #     f.write("\n".join(packages_to_install))
     # # Create a list of services enabled
@@ -1446,10 +1460,7 @@ def rebuild(config, new_generation=False, update=False):
 
     partition_list = load_fstab("/")
 
-    kernel_file = get_kernel_file(new_root_path, package=kernel_package)
-    kver = kernel_file.split("/")[-2]
-    print(f"{kver=}")
-
+    _kernel_file, kver = get_kernel_file(new_root_path, package=kernel_package)
 
     print("==== Deploying new generation ====")
     if new_generation:
