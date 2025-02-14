@@ -1206,7 +1206,7 @@ def update_initramfs_hook(kernel_package, mount_point):
     return hook
 
 
-def get_packages_updates(current_packages, next_packages, remove_packages):
+def get_packages_updates(current_packages, next_packages, remove_packages, mount_point):
     packages_to_install = []
     packages_to_remove = []
     packages_to_update = []
@@ -1215,7 +1215,7 @@ def get_packages_updates(current_packages, next_packages, remove_packages):
     next_kernel = next_packages["kernel"]
     if current_kernel != next_kernel:
         packages_to_install += [next_kernel]
-        hooks_to_run += [ update_kernel_hook(next_kernel), update_initramfs_hook(next_kernel) ]
+        hooks_to_run += [ update_kernel_hook(next_kernel, mount_point), update_initramfs_hook(next_kernel, mount_point) ]
     # # TODO: Check kernel versions
     # if next_kernel.version == current_kernel.version: 
     #     packages_to_update += [next_kernel]
@@ -1375,7 +1375,9 @@ def rebuild(config, new_generation=False, update=False):
     kernel_package = packages_to_install["kernel"] or "linux"
 
     # Package filtering
-    new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(current_packages, packages_to_install, packages_to_remove)
+    new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
+        current_packages, packages_to_install, packages_to_remove, new_root_path
+    )
 
     # remove_pkg = (set(installed_packages) - set(packages_to_install)) | set(packages_to_remove)
     # added_pkgs = set(packages_to_install) - set(installed_packages)
