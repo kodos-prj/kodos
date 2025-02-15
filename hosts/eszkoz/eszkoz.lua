@@ -9,6 +9,7 @@ configs = require("configs")
 -- Extra packages
 cli = require("cli")
 development = require("development")
+extra = require("extra")
 
 local use_gnome = true
 local use_plasma = false
@@ -293,7 +294,10 @@ return {
     ..
     cli -- CLI tools
     ..
-    development, -- Development tools
+    development -- Development tools
+    ..
+    extra;
+
 
     services = {
         -- Firmware update
