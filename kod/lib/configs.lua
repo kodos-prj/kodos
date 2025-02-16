@@ -163,7 +163,7 @@ end
 local function systemd_mount(config)
     local command = function (context, config)
         -- iterate over the config
-        for name, conf in config.pairs() 
+        for name, conf in config.pairs() do
             local service_name = "mnt-" .. name
             local service_desc = [[cat > /etc/systemd/system/{service_name}.mount << EOL
 [Unit]
