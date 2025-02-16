@@ -24,8 +24,8 @@ return {
     };
 
     devices = {
-        -- disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
-        disk0 = disk.disk_definition("/dev/sda", "34GB"),
+        disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
+        -- disk0 = disk.disk_definition("/dev/sda", "34GB"),
     };
 
     boot = {
