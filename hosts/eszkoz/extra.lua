@@ -1,5 +1,6 @@
 -- Extra packages
 
 return list({
-    "flatpak:io.freetubeapp.FreeTube"
+    "flatpak:io.freetubeapp.FreeTube",
+    "tailscale"
 })
