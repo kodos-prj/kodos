@@ -348,33 +348,31 @@ return {
         systemd = {
             enable = false;
             
-            mount = configs.mount(
-                {
-                    data = {
-                        type = "cifs";
-                        what = "//mmserver.lan/NAS1";
-                        where = "/mnt/data";
-                        description = "MMserverNAS1";
-                        options = "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000";
-                        after = "network.target";
-                        wanted_by = "multi-user.target";
-                        automount = true;
-                        automount_config = "TimeoutIdleSec=0";
-                    },
+            mount = configs.mount({
+                data = {
+                    type = "cifs";
+                    what = "//mmserver.lan/NAS1";
+                    where = "/mnt/data";
+                    description = "MMserverNAS1";
+                    options = "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000";
+                    after = "network.target";
+                    wanted_by = "multi-user.target";
+                    automount = true;
+                    automount_config = "TimeoutIdleSec=0";
+                },
 
-                    library = {
-                        type = "nfs";
-                        what = "homenas2.lan:/data/Documents";
-                        where = "/mnt/library/";
-                        description = "Document library"
-                        options = "noatime,x-systemd.automount,noauto";
-                        after = "network.target";
-                        wanted_by = "multi-user.target";
-                        automount = true;
-                        automount_config = "TimeoutIdleSec=600";
-                    }
+                library = {
+                    type = "nfs";
+                    what = "homenas2.lan:/data/Documents";
+                    where = "/mnt/library/";
+                    description = "Document library";
+                    options = "noatime,x-systemd.automount,noauto";
+                    after = "network.target";
+                    wanted_by = "multi-user.target";
+                    automount = true;
+                    automount_config = "TimeoutIdleSec=600";
                 }
-            );
+            });
         };
     }
 }
