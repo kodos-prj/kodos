@@ -287,6 +287,7 @@ return {
 
         "firefox",
         "aur:brave-bin",
+        "aur:zen-browser-bin",
 
         "freecad",
         "openscad",
