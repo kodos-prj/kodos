@@ -159,13 +159,8 @@ function copy_file(context, source)
     }
 end
 
--- Systemd-mount config
-local function systemd_mount(config)
-    local command = function (context, config)
-        -- iterate over the config
-        for name, conf in config.pairs() do
-            local service_name = "mnt-" .. name
-            local service_desc = [[cat > /etc/systemd/system/{service_name}.mount << EOL
+
+local service_mnt_desc = [[cat > /etc/systemd/system/{service_name}.mount << EOL
 [Unit]
 After={after}
 Description={description}
@@ -177,15 +172,8 @@ Where={where}
 [Install]
 WantedBy={wanted_by}
 EOL]]
-            local service_desc = service_desc:gsub("{service_name}", service_name)
-            for name, value in pairs(conf) do
-                service_desc = service_desc:gsub("{"..name.."}", value)
-            print("Configuring systemd-mount " .. service_name)
-            if context:execute("mkdir -p /etc/systemd/system/") then
-                context:execute(service_desc)
-            end
-            if config.automount then
-                local automount_desc = [[cat > /etc/systemd/system/{service_name}.automount << EOL
+
+local service_automount_desc = [[cat > /etc/systemd/system/{service_name}.automount << EOL
 [Unit]
 After={after}
 Description={description}
@@ -197,15 +185,32 @@ Where={where}
 [Install]
 WantedBy={wanted_by}
 EOL]]
-                local automount_desc = automount_desc:gsub("{service_name}", service_name)
+
+
+
+-- Systemd-mount config
+local function systemd_mount(config)
+    local command = function (context, config)
+        -- iterate over the config
+        for name, conf in config.pairs() do
+            local service_name = "mnt-" .. name
+            local service_desc = service_mnt_desc:gsub("{service_name}", service_name)
+            for name, value in pairs(conf) do
+                service_desc = service_desc:gsub("{"..name.."}", value)
+            end
+                print("Configuring systemd-mount " .. service_name)
+            if context:execute("mkdir -p /etc/systemd/system/") then
+                context:execute(service_desc)
+            end
+            if config.automount then
+                local automount_desc = service_automount_desc:gsub("{service_name}", service_name)
                 for name, value in pairs(conf) do
                     automount_desc = automount_desc:gsub("{"..name.."}", value)
-                
+                end
                 print("Configuring systemd-automount " .. service_name)
                 if context:execute("mkdir -p /etc/systemd/system/") then
                     context:execute(automount_desc)
                 end
-                
             end
         end
     end
