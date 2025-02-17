@@ -305,6 +305,8 @@ return {
     services = {
         -- Firmware update
         fwupd = { enable = true };
+
+        tailscale = { enable = true };
         
         -- TODO: Maybe move inside network
         networkmanager = {
