@@ -211,6 +211,7 @@ return {
                     "aur:nordic-theme",
                     "aur:whitesur-gtk-theme-git",
                     "aur:whitesur-icon-theme-git",
+                    "flatpak:com.mattjakeman.ExtensionManager"
                 },
             };
     
@@ -283,7 +284,7 @@ return {
         "aur:quickemu",
         "qemu-desktop",
         "aur:uxplay",
-        "aur:megasync",
+        "aur:megasync-bin",
 
         "firefox",
         "aur:brave-bin",
