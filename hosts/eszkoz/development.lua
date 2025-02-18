@@ -15,6 +15,7 @@ return {
     
     "python",
     "uv",
+    "ruff",
     
     -- Tools
     "gitg",

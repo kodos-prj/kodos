@@ -9,6 +9,7 @@ configs = require("configs")
 -- Extra packages
 cli = require("cli")
 development = require("development")
+extra = require("extra")
 
 local use_gnome = true
 local use_plasma = false
@@ -23,8 +24,8 @@ return {
     };
 
     devices = {
-        -- disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
-        disk0 = disk.disk_definition("/dev/sda", "34GB"),
+        disk0 = disk.disk_definition("/dev/nvme0n1", "34GB"),
+        -- disk0 = disk.disk_definition("/dev/sda", "34GB"),
     };
 
     boot = {
@@ -94,7 +95,8 @@ return {
 
         abuss = {
             name = "Antal Buss";
-            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.";
+            -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.";
+            hashed_password = "$6$MOkGLOzXlj0lIE2d$5sxAysiDyD/7ZfntgZaN3vJ48t.BMi2qwPxqjgVxGXKXrNlFxRvnO8uCvOlHaGW2pVDrjt0JLNR9GWH.2YT5j.";
             shell = "/usr/bin/fish";
             extra_groups = map({ "audio", "input", "users", "video", "wheel" }); -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
             openssh_authorized = {
@@ -209,6 +211,7 @@ return {
                     "aur:nordic-theme",
                     "aur:whitesur-gtk-theme-git",
                     "aur:whitesur-icon-theme-git",
+                    "flatpak:com.mattjakeman.ExtensionManager"
                 },
             };
     
@@ -281,10 +284,11 @@ return {
         "aur:quickemu",
         "qemu-desktop",
         "aur:uxplay",
-        "aur:megasync",
+        "aur:megasync-bin",
 
         "firefox",
         "aur:brave-bin",
+        "aur:zen-browser-bin",
 
         "freecad",
         "openscad",
@@ -293,17 +297,22 @@ return {
     ..
     cli -- CLI tools
     ..
-    development, -- Development tools
+    development -- Development tools
+    ..
+    extra;
+
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        fwupd = { enable = true };
+
+        tailscale = { enable = true };
         
         -- TODO: Maybe move inside network
         networkmanager = {
             enable = true,
             service_name = "NetworkManager",
-        },
+        };
         
         openssh = {
             enable = true,
@@ -311,7 +320,7 @@ return {
             settings = {
                 PermitRootLogin = false,
             }
-        },
+        };
     
         -- avahi = {
         --     enable = true,
@@ -326,7 +335,7 @@ return {
         cups = {
             enable = true,
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
-        },
+        };
     
         -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
@@ -338,6 +347,36 @@ return {
                     -- Enable = "Source,Sink,Media,Socket",
                 -- },
             -- },
-        },
+        };
+
+        systemd = {
+            enable = false;
+            
+            mount = configs.mount({
+                data = {
+                    type = "cifs";
+                    what = "//mmserver.lan/NAS1";
+                    where = "/mnt/data";
+                    description = "MMserverNAS1";
+                    options = "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000";
+                    after = "network.target";
+                    wanted_by = "multi-user.target";
+                    automount = true;
+                    automount_config = "TimeoutIdleSec=0";
+                },
+
+                library = {
+                    type = "nfs";
+                    what = "homenas2.lan:/data/Documents";
+                    where = "/mnt/library/";
+                    description = "Document library";
+                    options = "noatime,x-systemd.automount,noauto";
+                    after = "network.target";
+                    wanted_by = "multi-user.target";
+                    automount = true;
+                    automount_config = "TimeoutIdleSec=600";
+                }
+            });
+        };
     }
 }

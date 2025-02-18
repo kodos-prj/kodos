@@ -1,18 +1,15 @@
 import glob
 import json
 import os
-from pathlib import Path
 import re
-from inspect import getsourcefile
-from os.path import abspath
+from pathlib import Path
 
 # import signal
 # from invoke import task
 import click
 import lupa as lua
 
-
-from kod.common import set_debug, exec, exec_chroot
+from kod.common import exec, exec_chroot, set_debug
 from kod.filesytem import FsEntry, create_partitions, get_partition_devices
 
 
@@ -656,7 +653,7 @@ def create_user(ctx, user, info):
             for group in extra_groups:
                 try:
                     ctx.execute(f"usermod -aG {group} {user}")
-                except:
+                except Exception:
                     print(f"Group {group} does not exist")
             if "wheel" in extra_groups:
                 ctx.execute(
@@ -1329,7 +1326,7 @@ def rebuild(config, new_generation=False, update=False):
         for pkg in packages_to_remove:
             try:
                 manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
-            except:
+            except Exception:
                 pass
                 # print(f"Unable to remove {pkg}")
 
