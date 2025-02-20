@@ -344,7 +344,7 @@ return {
 
         systemd_mount = {
             services = {
-                data = config.mount({
+                data = configs.mount({
                     enable = true;
                     name = "mnt-data";
                     type = "cifs";
@@ -358,7 +358,7 @@ return {
                     automount_config = "TimeoutIdleSec=0";
                 }),
 
-                library = config.mount({
+                library = configs.mount({
                     enable = true;
                     name = "mnt-library";
                     type = "nfs";
