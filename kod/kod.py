@@ -595,11 +595,11 @@ def proc_system_packages(conf):
     return sys_packages
 
 
-def get_services_to_enable(conf):
+def get_services_to_enable(ctx, conf):
     # Desktop manager service
     desktop_services = proc_desktop_services(conf)
     # System services
-    services_to_enable = proc_services_to_enable(conf)
+    services_to_enable = proc_services_to_enable(ctx, conf)
 
     return desktop_services + services_to_enable
 
@@ -626,7 +626,7 @@ def proc_services(conf):
     return packages_to_install
 
 
-def proc_services_to_enable(conf):
+def proc_services_to_enable(ctx, conf):
     services_to_enable = []
     print("- processing services -----------")
     services = conf.services
@@ -639,7 +639,7 @@ def proc_services_to_enable(conf):
                 for sub_sevice, serv_desc in service.services.items():
                     print(f"Checking {sub_sevice} service discription")
                     if serv_desc.command:
-                        service_name = serv_desc.command(sub_sevice, serv_desc.config)
+                        service_name = serv_desc.command(ctx, sub_sevice, serv_desc.config)
                         services_to_enable.append(service_name)
             else:
                 if service.service_name:
@@ -1222,7 +1222,7 @@ def install(config):
     manage_packages("/mnt", repos, "install", pending_to_install, chroot=True)
 
     # === Proc services
-    system_services_to_enable = get_services_to_enable(conf)
+    system_services_to_enable = get_services_to_enable(ctx, conf)
     print(f"Services to enable: {system_services_to_enable}")
     enable_services(system_services_to_enable, use_chroot=True)
 
@@ -1296,7 +1296,7 @@ def rebuild(config, new_generation=False, update=False):
         new_root_path = "/"
         exec("mount -o remount,rw /usr")
 
-    # ctx = Context(os.environ['USER'], mount_point=mount_point, use_chroot=use_chroot)
+    ctx = Context(os.environ['USER'], mount_point=new_root_path, use_chroot=use_chroot)
 
     print("==========================================")
     print("==== Processing packages and services ====")
@@ -1319,7 +1319,7 @@ def rebuild(config, new_generation=False, update=False):
     )
 
     # === Proc services
-    next_services = get_services_to_enable(conf)
+    next_services = get_services_to_enable(ctx, conf)
 
     # Services filtering
     services_to_disable = list(set(current_services) - set(next_services))
