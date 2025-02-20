@@ -188,31 +188,32 @@ EOL]]
 local function systemd_mount(config)
     local command = function(context, config)
         -- iterate over the config
-        for serv_name, conf in config.pairs() do
-            local service_name = "mnt-" .. serv_name
-            local service_desc = service_mnt_desc:gsub("{service_name}", service_name)
-            for name, value in pairs(conf) do
-                service_desc = service_desc:gsub("{" .. name .. "}", value)
+        -- for serv_name, conf in config.pairs() do
+        local service_name = config.name
+        local service_desc = service_mnt_desc:gsub("{service_name}", service_name)
+        for name, value in pairs(config) do
+            service_desc = service_desc:gsub("{" .. name .. "}", tostring(value))
+        end
+        print("Configuring systemd-mount " .. service_name)
+        if context:execute("mkdir -p /etc/systemd/system/") then
+            context:execute(service_desc)
+        end
+        if config.automount then
+            local automount_desc = service_automount_desc:gsub("{service_name}", service_name)
+            for sname, value in pairs(config) do
+                automount_desc = automount_desc:gsub("{" .. sname .. "}", tostring(value))
             end
-            print("Configuring systemd-mount " .. service_name)
+            print("Configuring systemd-automount " .. service_name)
             if context:execute("mkdir -p /etc/systemd/system/") then
-                context:execute(service_desc)
-            end
-            if config.automount then
-                local automount_desc = service_automount_desc:gsub("{service_name}", service_name)
-                for sname, value in pairs(conf) do
-                    automount_desc = automount_desc:gsub("{" .. sname .. "}", value)
-                end
-                print("Configuring systemd-automount " .. service_name)
-                if context:execute("mkdir -p /etc/systemd/system/") then
-                    context:execute(automount_desc)
-                end
+                context:execute(automount_desc)
             end
         end
+        -- end
+        return service_name
     end
 
     return {
-        name = "systemd-mount",
+        name = config.name,
         command = command,
         config = config,
         stages = { "install", "rebuild" },

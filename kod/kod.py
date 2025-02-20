@@ -596,7 +596,9 @@ def proc_system_packages(conf):
 
 
 def get_services_to_enable(conf):
+    # Desktop manager service
     desktop_services = proc_desktop_services(conf)
+    # System services
     services_to_enable = proc_services_to_enable(conf)
 
     return desktop_services + services_to_enable
@@ -629,13 +631,21 @@ def proc_services_to_enable(conf):
     print("- processing services -----------")
     services = conf.services
     for name, service in services.items():
-        print(name, service.enable)
+        service_enable = service.enable or True
+        print(name, service_enable)
         service_name = name
-        if service.enable:
-            if service.service_name:
-                print("  using:", service.service_name)
-                service_name = service.service_name
-            services_to_enable.append(service_name)
+        if service_enable:
+            if "services" in service:
+                for sub_sevice, serv_desc in service.services.items():
+                    print(f"Checking {sub_sevice} service discription")
+                    if serv_desc.command:
+                        service_name = serv_desc.command(sub_sevice, serv_desc.config)
+                        services_to_enable.append(service_name)
+            else:
+                if service.service_name:
+                    print("  using:", service.service_name)
+                    service_name = service.service_name
+                services_to_enable.append(service_name)
 
     return services_to_enable
 
