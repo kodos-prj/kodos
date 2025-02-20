@@ -283,7 +283,7 @@ def setup_bootloader(conf, partition_list):
 
     # Default bootloader
     boot_type = "systemd-boot"
-    
+
     if "type" in loader_conf:
         boot_type = loader_conf["type"]
 
@@ -346,7 +346,7 @@ def get_packages_to_install(conf):
                 + font_packages_to_install
             )
         )
-    
+
     packages_to_remove = list(set(desktop_packages_to_remove))
 
     return packages_to_install, packages_to_remove
@@ -489,7 +489,7 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
             if chroot:
                 exec_chroot(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
-            else:    
+            else:
                 exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
             if chroot:
@@ -659,7 +659,7 @@ def create_user(ctx, user, info):
                 ctx.execute(
                     "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
                 )
-        
+
     # Shell
     if not info.shell:
         shell = "/bin/bash"
@@ -735,7 +735,7 @@ def proc_user_programs(conf):
                         name = desc.package
 
                     if desc.extra_packages:
-                        print("  extra packages:", prog.extra_packages)
+                        print("  extra packages:", desc.extra_packages)
                         for _, pkg in desc.extra_packages.items():
                             packages.append(pkg)
                     packages.append(name)
@@ -888,7 +888,7 @@ class Context:
         else:
             exec_prefix = f" su {self.user} -c "
             wrap = lambda s: f"'{s}'"
-        
+
         print(f"[Contex] Command: {command}")
         if self.use_chroot:
             exec_chroot(f"{exec_prefix} {wrap(command)}", mount_point=self.mount_point)
@@ -904,7 +904,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
 
     old_user = ctx.user
     ctx.user = user # TODO: <-- evaluate if this is still needed
-    
+
     # Calling dotfile_mngrs
     if user_configs["configs"] and dotfile_mngrs:
         # print("\nUSER:",os.environ['USER'],'\n')
@@ -965,12 +965,12 @@ def load_fstab(root_path=""):
     partition_list = []
     with open(f"{root_path}/etc/fstab") as f:
         entries = f.readlines()
-    
+
     for entry in entries:
         if not entry or entry == "\n" or entry.startswith("#"):
             continue
         (device, mount_point, fs_type, options, dump, pass_) = entry.split()
-        partition_list.append(FsEntry(device, mount_point, fs_type, options, dump, pass_))
+        partition_list.append(FsEntry(device, mount_point, fs_type, options, int(dump), int(pass_)))
     return partition_list
 
 
@@ -978,15 +978,15 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     # Initial generation
-    generation = 0 
+    generation = 0
     exec("mkdir -p /mnt/{store,generations,current}")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
         exec(f"mkdir -p /mnt/store/{dir}")
 
-    # Create home as subvolume if no /home is specified in the config 
-    # (TODO: Add support for custom home) 
+    # Create home as subvolume if no /home is specified in the config
+    # (TODO: Add support for custom home)
     exec("sudo btrfs subvolume create /mnt/store/home")
 
     # First generation
@@ -1026,7 +1026,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
         f.write(str(generation))
 
     print("===================================")
-        
+
     return partition_list
 
 
@@ -1048,7 +1048,7 @@ def create_next_generation(boot_part, root_part, generation):
     exec(f"mount {boot_part} {next_current}/boot")
     exec(f"mount {root_part} {next_current}/kod")
     exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
-    
+
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
         exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
@@ -1076,7 +1076,7 @@ def refresh_package_db(mount_point, new_generation):
 def proc_users(ctx, conf):
     users = conf.users
     # For each user: create user, configure dotfile manager, configure user programs
-    for user, info in users.items():    
+    for user, info in users.items():
         create_user(ctx, user, info)
 
         dotfile_mngrs = user_dotfile_manager(info)
@@ -1130,7 +1130,7 @@ def load_package_lock(state_path):
 
 
 def update_kernel_hook(kernel_package, mount_point):
-    def hook(): 
+    def hook():
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
@@ -1159,7 +1159,7 @@ def get_packages_updates(current_packages, next_packages, remove_packages, mount
         packages_to_install += [next_kernel]
         hooks_to_run += [ update_kernel_hook(next_kernel, mount_point), update_initramfs_hook(next_kernel, mount_point) ]
     # # TODO: Check kernel versions
-    # if next_kernel.version == current_kernel.version: 
+    # if next_kernel.version == current_kernel.version:
     #     packages_to_update += [next_kernel]
     #     hooks_to_run += [ "update_kelnel_hook", "update_initramfs_hook" ]
 
@@ -1187,9 +1187,9 @@ def get_packages_updates(current_packages, next_packages, remove_packages, mount
 # @click.option('--step', default=None, help='Step to start installing')
 def install(config):
     "Install KodOS in /mnt"
-    
+
     ctx = Context(os.environ['USER'], mount_point="/mnt", use_chroot=True, stage="install")
-        
+
     conf = load_config(config)
     print("-------------------------------")
     # if not step:
@@ -1224,7 +1224,7 @@ def install(config):
     # print("==== Deploying generation ====")
     store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
     generale_package_lock("/mnt", "/mnt/kod/generations/0")
-  
+
     exec("umount -R /mnt")
 
     print("Done")
@@ -1297,7 +1297,7 @@ def rebuild(config, new_generation=False, update=False):
     if repos is None:
         print("Missing repos information")
         return
-    
+
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
@@ -1408,10 +1408,10 @@ def rebuild(config, new_generation=False, update=False):
 def rebuild_user(config, user=os.environ['USER']):
     "Rebuild KodOS installation based on configuration file"
     # stage = "rebuild-user"
-    ctx = Context(os.environ['USER'], mount_point="/", use_chroot=False, stage="rebuild-user")   
+    ctx = Context(os.environ['USER'], mount_point="/", use_chroot=False, stage="rebuild-user")
     conf = load_config(config)
     users = conf.users
-    info = users[user] if user in users else None   
+    info = users[user] if user in users else None
     print("========================================")
 
     # === Proc users
@@ -1444,14 +1444,14 @@ def rebuild_user(config, user=os.environ['USER']):
 #     if generation is None:
 #         print("Please specify a generation number")
 #         return
-    
+
 #     conf = load_config(config)
 
 #     print("Updating current generation")
 #     rollback_path = f"/kod/generations/{generation}"
 #     boot_partition, root_partition = get_partition_devices(conf)
 #     copy_generation(boot_partition, root_partition, rollback_path, "/kod/current", new_generation=True)
-    
+
 #     update_boot(boot_partition, root_partition, "/current")
 
 #     # print("Recreating grub.cfg")
