@@ -1372,7 +1372,7 @@ def rebuild(config, new_generation=False, update=False):
 
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
-    store_packages_services(next_state_path, packages_to_install, new_service_to_enable)
+    store_packages_services(next_state_path, packages_to_install, next_services)
     generale_package_lock(new_root_path, next_state_path)
 
     partition_list = load_fstab("/")
@@ -1409,7 +1409,7 @@ def rebuild(config, new_generation=False, update=False):
     else:
         exec("mount -o remount,ro /usr")
 
-    print("Done")
+    print(f"Done. Generation {generation_id} created")
 
 
 @cli.command()
