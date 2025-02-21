@@ -12,8 +12,8 @@ development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = true
-local use_cinnamon = true
+local use_cosmic = false
+local use_pantheon = true
 
 return {
     repos = {
@@ -232,9 +232,9 @@ return {
                 display_manager = "cosmic-greeter",
             },
 
-            cinnamon = {
-                enable = use_cinnamon;
-                -- display_manager = "gdm",
+            pantheon = {
+                enable = use_pantheon;
+                display_manager = "lightdm",
             },
         }
     },
