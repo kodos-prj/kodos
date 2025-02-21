@@ -163,8 +163,10 @@ local service_mnt_desc = [[cat > /etc/systemd/system/{service_name}.mount << EOL
 After={after}
 Description={description}
 
-[Automount]
-TimeoutIdleSec=0
+[Mount]
+Type={type}
+Options={options}
+What={what}
 Where={where}
 
 [Install]
@@ -173,7 +175,6 @@ EOL]]
 
 local service_automount_desc = [[cat > /etc/systemd/system/{service_name}.automount << EOL
 [Unit]
-After={after}
 Description={description}
 
 [Automount]

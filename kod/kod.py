@@ -639,7 +639,7 @@ def proc_services_to_enable(ctx, conf):
                 for sub_sevice, serv_desc in service.services.items():
                     print(f"Checking {sub_sevice} service discription")
                     if serv_desc.command:
-                        service_name = serv_desc.command(ctx, sub_sevice, serv_desc.config)
+                        service_name = serv_desc.command(ctx, serv_desc.config)
                         services_to_enable.append(service_name)
             else:
                 if service.service_name:
