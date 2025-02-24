@@ -158,7 +158,8 @@ function copy_file(context, source)
     }
 end
 
-local service_mnt_desc = [[cat > /etc/systemd/system/{service_name}.mount << EOL
+-- Systemd-mount config templates
+local service_mnt_desc = [[bash -c "cat > /etc/systemd/system/{service_name}.mount << EOL
 [Unit]
 After={after}
 Description={description}
@@ -171,9 +172,9 @@ Where={where}
 
 [Install]
 WantedBy={wanted_by}
-EOL]]
+EOL"]]
 
-local service_automount_desc = [[cat > /etc/systemd/system/{service_name}.automount << EOL
+local service_automount_desc = [[bash -c "cat > /etc/systemd/system/{service_name}.automount << EOL
 [Unit]
 Description={description}
 
@@ -183,7 +184,7 @@ Where={where}
 
 [Install]
 WantedBy={wanted_by}
-EOL]]
+EOL"]]
 
 -- Systemd-mount config
 local function systemd_mount(config)
