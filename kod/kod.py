@@ -1150,9 +1150,14 @@ def generale_package_lock(mount_point, state_path):
 
 
 def load_package_lock(state_path):
-    packages = []
+    packages = {}
     with open(f"{state_path}/packages.lock") as f:
-        packages = f.readlines()
+        for line in f.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            package, version = line.split(" ")
+            packages[package] = version
     return packages
 
 
@@ -1174,24 +1179,27 @@ def update_initramfs_hook(kernel_package, mount_point):
         # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
     return hook
 
-def kernel_update_rquired(current_kernel, next_kernel, mount_point):
+def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages,mount_point):
     if current_kernel != next_kernel:
         return  True
-    new_kernel = exec_chroot(f"pacman -Qu | grep {current_kernel}", mount_point=mount_point, get_output=True)
-    print(f"{current_kernel=} {next_kernel=} {new_kernel=}")
-    if new_kernel:
+    new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
+    _, current_kernel_ver = current_installed_packages[current_kernel]
+    _, new_kernel_ver = new_kernel.strip().split(" ")
+
+    print(f"{current_kernel}={current_kernel_ver} {next_kernel}={new_kernel_ver} {new_kernel=}")
+    if current_kernel_ver != new_kernel_ver:
         return True
     return False
 
 
-def get_packages_updates(current_packages, next_packages, remove_packages, mount_point):
+def get_packages_updates(current_packages, next_packages, remove_packages, current_installed_packages, mount_point):
     packages_to_install = []
     packages_to_remove = []
     packages_to_update = []
     hooks_to_run = []
     current_kernel = current_packages["kernel"]
     next_kernel = next_packages["kernel"]
-    if kernel_update_rquired(current_kernel, next_kernel, mount_point):
+    if kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
         packages_to_install += [next_kernel]
         hooks_to_run += [ update_kernel_hook(next_kernel, mount_point), update_initramfs_hook(next_kernel, mount_point) ]
     # # TODO: Check kernel versions
@@ -1345,8 +1353,9 @@ def rebuild(config, new_generation=False, update=False):
     kernel_package = packages_to_install["kernel"] or "linux"
 
     # Package filtering
+    current_installed_packages = load_package_lock(current_state_path)
     new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
-        current_packages, packages_to_install, packages_to_remove, new_root_path
+        current_packages, packages_to_install, packages_to_remove, current_installed_packages, new_root_path
     )
 
     # === Proc services
