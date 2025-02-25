@@ -1177,7 +1177,7 @@ def update_initramfs_hook(kernel_package, mount_point):
 def kernel_update_rquired(current_kernel, next_kernel, mount_point):
     if current_kernel != next_kernel:
         return  True
-    new_kernel = exec_chroot("pacman -Qu | grep {current_kernel}", mount_point=mount_point, get_output=True)
+    new_kernel = exec_chroot(f"pacman -Qu | grep {current_kernel}", mount_point=mount_point, get_output=True)
     if new_kernel:
         return True
     return False
