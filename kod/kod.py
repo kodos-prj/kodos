@@ -1083,6 +1083,23 @@ def refresh_package_db(mount_point, new_generation):
         exec("pacman -Syy --noconfirm")
 
 
+def update_all_packages(mount_point, new_generation, repos):
+    # Use the repo update entry for all the repos
+    for repo, repo_desc in repos.items():
+        if "update" in repo_desc:
+            print(f"Updating {repo}")
+            if new_generation:
+                if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
+                    exec_chroot(f"runuser -u kod -- {repo_desc['update']} --noconfirm", mount_point=mount_point)
+                else:    
+                    exec_chroot(f"{repo_desc['update']}", mount_point=mount_point)  
+            else:
+                if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
+                    exec(f"runuser -u kod -- {repo_desc['update']} --noconfirm", mount_point=mount_point)
+                else:    
+                    exec(f"{repo_desc['update']}", mount_point=mount_point)
+
+
 def proc_users(ctx, conf):
     users = conf.users
     # For each user: create user, configure dotfile manager, configure user programs
@@ -1157,6 +1174,14 @@ def update_initramfs_hook(kernel_package, mount_point):
         # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
     return hook
 
+def kernel_update_rquired(current_kernel, next_kernel, mount_point):
+    if current_kernel != next_kernel:
+        return  True
+    new_kernel = exec_chroot("pacman -Qu | grep {current_kernel}", mount_point=mount_point, get_output=True)
+    if new_kernel:
+        return True
+    return False
+
 
 def get_packages_updates(current_packages, next_packages, remove_packages, mount_point):
     packages_to_install = []
@@ -1165,7 +1190,7 @@ def get_packages_updates(current_packages, next_packages, remove_packages, mount
     hooks_to_run = []
     current_kernel = current_packages["kernel"]
     next_kernel = next_packages["kernel"]
-    if current_kernel != next_kernel:
+    if kernel_update_rquired(current_kernel, next_kernel, mount_point):
         packages_to_install += [next_kernel]
         hooks_to_run += [ update_kernel_hook(next_kernel, mount_point), update_initramfs_hook(next_kernel, mount_point) ]
     # # TODO: Check kernel versions
@@ -1308,6 +1333,11 @@ def rebuild(config, new_generation=False, update=False):
         print("Missing repos information")
         return
 
+    if update:
+        print("Updating packages")
+        refresh_package_db(new_root_path, new_generation)
+        update_all_packages(new_root_path, new_generation, repos)
+    
    # === Proc packages
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     print("packages\n", packages_to_install)
@@ -1340,10 +1370,10 @@ def rebuild(config, new_generation=False, update=False):
                 pass
                 # print(f"Unable to remove {pkg}")
 
-    if update and packages_to_update:
-        print("Packages to update:", packages_to_update)
-        refresh_package_db(new_root_path, new_generation)
-        manage_packages(new_root_path, repos, "update", packages_to_update, chroot=use_chroot)
+    # if update and packages_to_update:
+        # print("Packages to update:", packages_to_update)
+        # refresh_package_db(new_root_path, new_generation)
+        # manage_packages(new_root_path, repos, "update", packages_to_update, chroot=use_chroot)
 
     if new_packages_to_install:
         print("Packages to install:", new_packages_to_install)
