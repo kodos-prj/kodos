@@ -216,7 +216,7 @@ aliases=user_env
 /dev            /dev            none    rw,bind         0       0
 /dev/pts        /dev/pts        none    rw,bind         0       0
 /home           /home           none    rw,bind         0       0
-/usr            /usr            none    rw,bind         0       0
+# /usr            /usr            none    rw,bind         0       0
 /tmp            /tmp            none    rw,bind         0       0
 /var/cache	    /var/cache      none	rw,bind		    0   	0
 /var/log	    /var/log        none	rw,bind		    0   	0
@@ -301,7 +301,8 @@ def setup_bootloader(conf, partition_list):
         kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
-        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
+        # exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
+        exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     # Using Grub as bootloader
@@ -1056,7 +1057,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     #         btrfs_options + f",subvol=generations/{generation}/usr",
     #     )
     # )
-    # partition_list.append(FsEntry("/usr", "/usr", "none", "rw,bind"))
+    partition_list.append(FsEntry("/usr", "/usr", "none", "rw,bind"))
 
     exec(f"mount -o subvol=store/home {root_part} /mnt/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
@@ -1219,7 +1220,8 @@ def update_initramfs_hook(kernel_package, mount_point):
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         exec_chroot(
-            f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img",
+            # f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img",
+            f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img",
             mount_point=mount_point,
         )
         # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
