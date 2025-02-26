@@ -1018,7 +1018,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     # First generation
     exec(f"mkdir -p /mnt/generations/{generation}")
     exec(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
-    exec(f"btrfs subvolume create /mnt/generations/{generation}/usr")
+    # exec(f"btrfs subvolume create /mnt/generations/{generation}/usr")
 
     # Mounting first generation
     exec("umount -R /mnt")
@@ -1033,7 +1033,8 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     ]
 
     # exec("mkdir -p /mnt/{home,var,root,boot}")
-    for dir in subdirs + ["boot", "home", "usr", "kod"]:
+    # for dir in subdirs + ["boot", "home", "usr", "kod"]:
+    for dir in subdirs + ["boot", "home", "kod"]:
         exec(f"mkdir -p /mnt/{dir}")
 
     exec(f"mount {boot_part} /mnt/boot")
@@ -1045,16 +1046,17 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     exec(f"mount {root_part} /mnt/kod")
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
-    exec(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
+    # exec(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
-    partition_list.append(
-        FsEntry(
-            root_part,
-            "/usr",
-            "btrfs",
-            btrfs_options + f",subvol=generations/{generation}/usr",
-        )
-    )
+    # partition_list.append(
+    #     FsEntry(
+    #         root_part,
+    #         "/usr",
+    #         "btrfs",
+    #         btrfs_options + f",subvol=generations/{generation}/usr",
+    #     )
+    # )
+    partition_list.append(FsEntry("/usr", "/usr", "none", "rw,bind"))
 
     exec(f"mount -o subvol=store/home {root_part} /mnt/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
