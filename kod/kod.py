@@ -1088,7 +1088,7 @@ def create_next_generation(boot_part, root_part, generation):
     exec(f"mkdir -p {next_current}")
 
     exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
-    exec(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
+    # exec(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
     exec(f"mount {boot_part} {next_current}/boot")
     exec(f"mount {root_part} {next_current}/kod")
     exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
@@ -1098,7 +1098,8 @@ def create_next_generation(boot_part, root_part, generation):
         exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
 
     partition_list = load_fstab()
-    change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
+    # change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
+    change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/"])
     generate_fstab(partition_list, next_current)
 
     # Write generation number
@@ -1370,19 +1371,19 @@ def rebuild(config, new_generation=False, update=False):
     if new_generation:
         print("Creating a new generation")
         exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
-        exec(f"btrfs subvolume snapshot /usr {next_state_path}/usr")
+        # exec(f"btrfs subvolume snapshot /usr {next_state_path}/usr")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
         # os._exit(0)
         exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
-        exec("btrfs subvolume snapshot /usr /kod/current/old-usr")
+        # exec("btrfs subvolume snapshot /usr /kod/current/old-usr")
         exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
         exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
         # gen_mount_point = f"/kod/generations/{current_generation}"
         use_chroot = False
         new_root_path = "/"
-        exec("mount -o remount,rw /usr")
+        # exec("mount -o remount,rw /usr")
 
     ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
 
@@ -1478,16 +1479,17 @@ def rebuild(config, new_generation=False, update=False):
     else:
         # Move current updated rootfs to a new generation
         exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
-        exec(f"mv /kod/generations/{current_generation}/usr /kod/generations/{generation_id}/")
+        # exec(f"mv /kod/generations/{current_generation}/usr /kod/generations/{generation_id}/")
         # Moving the current rootfs copy to the current generation path
         exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-        exec(f"mv /kod/current/old-usr /kod/generations/{current_generation}/usr")
+        # exec(f"mv /kod/current/old-usr /kod/generations/{current_generation}/usr")
         exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(
             partition_list,
             subvol=f"generations/{generation_id}",
-            mount_points=["/", "/usr"],
+            # mount_points=["/", "/usr"],
+            mount_points=["/"],
         )
         generate_fstab(updated_partition_list, new_root_path)
         create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
@@ -1499,7 +1501,7 @@ def rebuild(config, new_generation=False, update=False):
     if new_generation:
         for m in [
             "/boot",
-            "/usr",
+            # "/usr",
             "/kod",
             "/home",
             "/root",
@@ -1513,8 +1515,8 @@ def rebuild(config, new_generation=False, update=False):
         # exec(f"mount | grep {new_root_path}")
         exec(f"rm -rf {new_root_path}")
 
-    else:
-        exec("mount -o remount,ro /usr")
+    # else:
+        # exec("mount -o remount,ro /usr")
 
     print(f"Done. Generation {generation_id} created")
 
