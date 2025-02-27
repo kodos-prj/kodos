@@ -1057,7 +1057,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     #         btrfs_options + f",subvol=generations/{generation}/usr",
     #     )
     # )
-    partition_list.append(FsEntry("/usr", "/usr", "none", "rw,bind"))
+    # partition_list.append(FsEntry("/usr", "/usr", "none", "rw,bind"))
 
     exec(f"mount -o subvol=store/home {root_part} /mnt/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
