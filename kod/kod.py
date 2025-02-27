@@ -118,7 +118,6 @@ def generate_fstab(partiton_list, mount_point="/mnt"):
 
 def configure_system(conf, root_part, partition_list):
     # fstab
-    # exec("genfstab -U /mnt > /mnt/etc/fstab")
     generate_fstab(partition_list, "/mnt")
 
     # Locale
@@ -131,7 +130,6 @@ def configure_system(conf, root_part, partition_list):
     exec_chroot("hwclock --systohc")
 
     # Localization
-    # locale = dict(locale_conf["locale"])["default"]
     locale_spec = locale_conf.locale
     locale_default = locale_spec.default
     locale_to_generate = locale_default + "\n"
@@ -183,7 +181,6 @@ description=KodOS
 directory=/
 groups=users,root
 root-groups=root,wheel
-# root-users=abuss
 profile=kodos
 personality=linux
 """
@@ -197,7 +194,6 @@ directory=/
 union-type=overlay
 groups=users,root
 root-groups=root,wheel
-# root-users=abuss
 profile=kodos
 personality=linux
 aliases=user_env
@@ -216,7 +212,7 @@ aliases=user_env
 /dev            /dev            none    rw,bind         0       0
 /dev/pts        /dev/pts        none    rw,bind         0       0
 /home           /home           none    rw,bind         0       0
-/usr            /usr            none    rw,bind         0       0
+/root           /root           none    rw,bind         0       0
 /tmp            /tmp            none    rw,bind         0       0
 /var/cache	    /var/cache      none	rw,bind		    0   	0
 /var/log	    /var/log        none	rw,bind		    0   	0
@@ -301,7 +297,7 @@ def setup_bootloader(conf, partition_list):
         kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         exec_chroot("bootctl install")
-        exec_chroot(f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img")
+        exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     # Using Grub as bootloader
@@ -491,11 +487,6 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
             pkgs_per_repo[repo].append(pkg_name)
         else:
             pkgs_per_repo["official"].append(pkg)
-
-    # if chroot:
-    #     exec_prefix = f"arch-chroot {root_path}"
-    # else:
-    #     exec_prefix = ""
 
     for repo, pkgs in pkgs_per_repo.items():
         if len(pkgs) == 0:
@@ -834,7 +825,6 @@ def user_configs(user, info):
                 if "config" in prog and prog.config:
                     prog_conf = prog.config
                     if "command" in prog_conf:
-                        # command = prog_conf.command.format(**prog_conf.config)
                         commands_to_run.append(prog_conf)
 
     # Add extra deploy configs
@@ -850,7 +840,6 @@ def user_configs(user, info):
                 if desc.config:
                     serv_conf = desc.config
                     if "command" in serv_conf:
-                        # command = serv_conf.command.format(**serv_conf.config)
                         commands_to_run.append(serv_conf)
 
     configs_to_deploy = {"configs": deploy_configs, "run": commands_to_run}
@@ -860,7 +849,6 @@ def user_configs(user, info):
 
 def proc_user_services(conf):
     services_to_enable_user = {}
-    # services_to_enable = []
     print("- processing user programs -----------")
     users = conf.users
 
@@ -880,7 +868,6 @@ def proc_user_services(conf):
 
 def user_services(user, info):
     print(f"- processing user services {user} -----------")
-
     services = []
     if info.services:
         for service, desc in info.services.items():
@@ -925,12 +912,9 @@ class Context:
 
 def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     print(f"{dotfile_mngrs=}")
-    # print(f"{configs_to_deploy=}")
     print(f"Configuring user {user}")
-
     old_user = ctx.user
     ctx.user = user  # TODO: <-- evaluate if this is still needed
-
     # Calling dotfile_mngrs
     if user_configs["configs"] and dotfile_mngrs:
         # print("\nUSER:",os.environ['USER'],'\n')
@@ -945,7 +929,6 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
 
 def configure_user_scripts(ctx, user, user_configs):
     print(f"Configuring user {user}")
-
     old_user = ctx.user
     ctx.user = user  # TODO: <-- evaluate if this is still needed
     # Calling program's config commands
@@ -1018,7 +1001,6 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     # First generation
     exec(f"mkdir -p /mnt/generations/{generation}")
     exec(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
-    exec(f"btrfs subvolume create /mnt/generations/{generation}/usr")
 
     # Mounting first generation
     exec("umount -R /mnt")
@@ -1032,8 +1014,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
         )
     ]
 
-    # exec("mkdir -p /mnt/{home,var,root,boot}")
-    for dir in subdirs + ["boot", "home", "usr", "kod"]:
+    for dir in subdirs + ["boot", "home", "kod"]:
         exec(f"mkdir -p /mnt/{dir}")
 
     exec(f"mount {boot_part} /mnt/boot")
@@ -1045,16 +1026,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     exec(f"mount {root_part} /mnt/kod")
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
-    exec(f"mount -o subvol=generations/{generation}/usr {root_part} /mnt/usr")
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
-    partition_list.append(
-        FsEntry(
-            root_part,
-            "/usr",
-            "btrfs",
-            btrfs_options + f",subvol=generations/{generation}/usr",
-        )
-    )
 
     exec(f"mount -o subvol=store/home {root_part} /mnt/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
@@ -1086,7 +1058,6 @@ def create_next_generation(boot_part, root_part, generation):
     exec(f"mkdir -p {next_current}")
 
     exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
-    exec(f"mount -o subvol=generations/{generation}/usr {root_part} {next_current}/usr")
     exec(f"mount {boot_part} {next_current}/boot")
     exec(f"mount {root_part} {next_current}/kod")
     exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
@@ -1096,7 +1067,7 @@ def create_next_generation(boot_part, root_part, generation):
         exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
 
     partition_list = load_fstab()
-    change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/", "/usr"])
+    change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/"])
     generate_fstab(partition_list, next_current)
 
     # Write generation number
@@ -1216,10 +1187,9 @@ def update_initramfs_hook(kernel_package, mount_point):
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         exec_chroot(
-            f"dracut --kver {kver} --fstab --hostonly /boot/initramfs-linux-{kver}.img",
+            f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img",
             mount_point=mount_point,
         )
-        # create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     return hook
 
@@ -1368,19 +1338,16 @@ def rebuild(config, new_generation=False, update=False):
     if new_generation:
         print("Creating a new generation")
         exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
-        exec(f"btrfs subvolume snapshot /usr {next_state_path}/usr")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
         # os._exit(0)
         exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
-        exec("btrfs subvolume snapshot /usr /kod/current/old-usr")
         exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
         exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
-        # gen_mount_point = f"/kod/generations/{current_generation}"
         use_chroot = False
         new_root_path = "/"
-        exec("mount -o remount,rw /usr")
+        # exec("mount -o remount,rw /usr")
 
     ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
 
@@ -1447,7 +1414,6 @@ def rebuild(config, new_generation=False, update=False):
 
     # System services
     print(f"Services to enable: {new_service_to_enable}")
-    # enable_services(c, system_services_to_enable, mount_point, use_chroot=use_chroot)
     enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
 
     # # === Proc users
@@ -1476,16 +1442,14 @@ def rebuild(config, new_generation=False, update=False):
     else:
         # Move current updated rootfs to a new generation
         exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
-        exec(f"mv /kod/generations/{current_generation}/usr /kod/generations/{generation_id}/")
         # Moving the current rootfs copy to the current generation path
         exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-        exec(f"mv /kod/current/old-usr /kod/generations/{current_generation}/usr")
         exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(
             partition_list,
             subvol=f"generations/{generation_id}",
-            mount_points=["/", "/usr"],
+            mount_points=["/"],
         )
         generate_fstab(updated_partition_list, new_root_path)
         create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
@@ -1497,7 +1461,6 @@ def rebuild(config, new_generation=False, update=False):
     if new_generation:
         for m in [
             "/boot",
-            "/usr",
             "/kod",
             "/home",
             "/root",
@@ -1508,11 +1471,10 @@ def rebuild(config, new_generation=False, update=False):
         ]:
             exec(f"umount {new_root_path}{m}")
         exec(f"umount {new_root_path}")
-        # exec(f"mount | grep {new_root_path}")
         exec(f"rm -rf {new_root_path}")
 
-    else:
-        exec("mount -o remount,ro /usr")
+    # else:
+        # exec("mount -o remount,ro /usr")
 
     print(f"Done. Generation {generation_id} created")
 
