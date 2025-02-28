@@ -98,10 +98,10 @@ end
 
 local function git(config)
     local command = function(context, config)
-        local user_name = config.user_name
-        local user_email = config.user_email
-        context:execute("git config --global user.name \"" .. user_name .. "\"")
-        context:execute("git config --global user.email \"" .. user_email .. "\"")
+        for field, value in pairs(config) do
+            local field_name = field:gsub("_", ".")
+            context:execute("git config --global ".. field_name .." \"" .. value .. "\"")
+        end
     end
     return {
         name = "git",
