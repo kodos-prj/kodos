@@ -1474,7 +1474,7 @@ def rebuild(config, new_generation=False, update=False):
         exec(f"rm -rf {new_root_path}")
 
     # else:
-        # exec("mount -o remount,ro /usr")
+    # exec("mount -o remount,ro /usr")
 
     print(f"Done. Generation {generation_id} created")
 
@@ -1508,6 +1508,46 @@ def rebuild_user(config, user=os.environ["USER"]):
         print(f"User {user} not found in configuration file")
 
     print("Done")
+
+
+def manage_packages_shell(repos, action, list_of_packages, chroot):
+    pkgs_per_repo = {"official": []}
+    for pkg in list_of_packages:
+        if ":" in pkg:
+            repo, pkg_name = pkg.split(":")
+            if repo not in pkgs_per_repo:
+                pkgs_per_repo[repo] = []
+            pkgs_per_repo[repo].append(pkg_name)
+        else:
+            pkgs_per_repo["official"].append(pkg)
+
+    print(f"{pkgs_per_repo = }")
+    for repo, pkgs in pkgs_per_repo.items():
+        print(repo, "->", pkgs)
+        if len(pkgs) == 0:
+            continue
+        if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+            print(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
+            exec(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
+        else:
+            exec(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")
+
+
+@cli.command()
+@click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
+def shell(package=None):
+    "Run shell"
+
+    local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
+    print(f"{local_session=}")
+
+    if package:
+        print(f"{package=}")
+        current_repos = load_repos()
+        manage_packages_shell(current_repos, "install", package, chroot=local_session)
+
+    exec(f"schroot -r -c {local_session} -p")
+    exec(f"schroot -e -c {local_session}")
 
 
 # # TODO: Update rollbackboot loader
