@@ -40,6 +40,14 @@ pkgs_installed = []
 
 def load_config(config_filename: str):
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
+
+    if config_filename is None:
+        config_filename = "/etc/kodos"
+
+    if Path(config_filename).is_dir():
+        config_filename = Path(config_filename).joinpath("configuration.lua")
+
+    print(f"Config file: {config_filename}")
     config_path = Path(config_filename).resolve().parents[0]
     luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
     lib_path = Path(__file__).resolve().parents[0]
