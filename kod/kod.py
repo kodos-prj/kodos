@@ -38,28 +38,6 @@ RELEASE_TYPE="expeirimental"
 pkgs_installed = []
 
 
-# def load_config(config_filename: str):
-#     luart = lua.LuaRuntime(unpack_returned_tuples=True)
-#     config_path = Path(config_filename).resolve().parents[0]
-#     luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
-#     lib_path = Path(__file__).resolve().parents[0]
-#     luart.execute(f"package.path = '{lib_path}/lib/?.lua;' .. package.path")
-#     luart.execute("package.path = 'kod/lib/?.lua;' .. package.path")
-#     luart.execute("print(package.path)")
-#     print("Loading default libraries")
-#     default_libs = """
-# list = require("utils").list
-# map = require("utils").map
-# If = require("utils").if_true
-# IfElse = require("utils").if_else
-#     """
-#     luart.execute(default_libs)
-#     with open(config_filename) as f:
-#         config_data = f.read()
-#         conf = luart.execute(config_data)
-#     return conf
-
-
 def load_config(config_filename: str):
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
 
