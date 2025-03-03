@@ -28,6 +28,7 @@ _filesystem_type = {
     "noformat": None,
 }
 
+
 # # fstab
 # source          destination     type    options         dump    pass
 # /proc           /proc           none    rw,bind         0       0
@@ -52,7 +53,7 @@ class FsEntry:
 
     def __str__(self):
         return f"{self.source:<25} {self.destination:<15} {self.fs_type:<10} {self.options:<10} {self.dump:<10} {self.pass_}"
-    
+
     def mount(self, install_mountpoint):
         if self.fs_type == "btrfs":
             return f"mount -o {self.options} {self.source} {install_mountpoint}{self.destination}"
@@ -60,8 +61,8 @@ class FsEntry:
             return f"mount --bind {self.source} {install_mountpoint}{self.destination}"
         if self.fs_type == "esp":
             return f"mount -t vfat -o {self.options} {self.source} {install_mountpoint}{self.destination}"
-        return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"    
-    
+        return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+
     def source_uuid(self):
         if self.source[:5] == "/dev/":
             uuid = exec(f"lsblk -o UUID {self.source} | tail -n 1", get_output=True)
@@ -92,10 +93,12 @@ def create_btrfs(delay_action, part, blockdevice):
             mount_options = f"{mount_options},"
         else:
             mount_options = ""
-        
+
         install_mountpoint = "/mnt" + mountpoint
         if mountpoint == "/":
-            delay_action = [f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"] + delay_action
+            delay_action = [
+                f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"
+            ] + delay_action
             fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
         else:
             delay_action.append(f"mkdir -p {install_mountpoint}")
@@ -110,13 +113,14 @@ def create_btrfs(delay_action, part, blockdevice):
     print(".......................")
     return delay_action
 
+
 def create_partitions(conf):
     devices = conf.devices
     print(f"{devices=}")
 
     print(f"{list(devices.keys())=}")
-    print("->>",devices.disk0)
-    boot_partition = None 
+    print("->>", devices.disk0)
+    boot_partition = None
     root_partition = None
     partition_list = []
     for d_id, disk in devices.items():
@@ -131,23 +135,22 @@ def create_partitions(conf):
 
 
 def create_disk_partitions(disk_info):
-
-    device = disk_info['device']
+    device = disk_info["device"]
     # efi = disk_info['efi']
-    partitions = disk_info['partitions']
+    partitions = disk_info["partitions"]
 
-    if 'nvme' in device or 'mmcblk' in device:
+    if "nvme" in device or "mmcblk" in device:
         device_sufix = "p"
     else:
         device_sufix = ""
 
     # Delete partition table
     exec(f"wipefs -a {device}")
-    exec('sync')
+    exec("sync")
 
     # if efi:
-        # Create GPT label
-        # exec(f"parted -s {device} mklabel gpt")
+    # Create GPT label
+    # exec(f"parted -s {device} mklabel gpt")
 
     print(f"{partitions=}")
     if not partitions:
@@ -158,12 +161,12 @@ def create_disk_partitions(disk_info):
     root_partition = None
     partitions_list = []
     for pid, part in partitions.items():
-        name = part['name']
-        size = part['size']
-        filesystem_type = part['type']
-        mountpoint = part['mountpoint']
+        name = part["name"]
+        size = part["size"]
+        filesystem_type = part["type"]
+        mountpoint = part["mountpoint"]
         blockdevice = f"{device}{device_sufix}{pid}"
-        
+
         if name.lower() == "boot":
             boot_partition = blockdevice
         elif name.lower() == "root":
@@ -172,18 +175,18 @@ def create_disk_partitions(disk_info):
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _filesystem_type[filesystem_type]
 
-        exec(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}") 
-        
+        exec(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}")
+
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
                 exec(f"{cmd} {blockdevice}")
-        
+
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(delay_action, part, blockdevice)
 
-        if mountpoint and mountpoint != 'none':
+        if mountpoint and mountpoint != "none":
             install_mountpoint = "/mnt" + mountpoint
             if mountpoint != "/":
                 print(f"[DELAY] mkdir -p {install_mountpoint}")
@@ -194,19 +197,19 @@ def create_disk_partitions(disk_info):
             else:
                 delay_action = [
                     f"mkdir -p {install_mountpoint}",
-                    f"mount {blockdevice} {install_mountpoint}"
+                    f"mount {blockdevice} {install_mountpoint}",
                 ] + delay_action
                 partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
             print("====>", blockdevice, mountpoint)
 
-
     print("=======================")
     if delay_action:
         for cmd_action in delay_action:
-                exec(cmd_action)
+            exec(cmd_action)
     print("=======================")
 
     return boot_partition, root_partition, partitions_list
+
 
 def get_partition_devices(conf):
     devices = conf.devices
@@ -214,19 +217,18 @@ def get_partition_devices(conf):
     boot_partition = None
     root_partition = None
     for d_id, disk in devices.items():
+        device = disk["device"]
+        partitions = disk["partitions"]
 
-        device = disk['device']
-        partitions = disk['partitions']
-
-        if 'nvme' in device or 'mmcblk' in device:
+        if "nvme" in device or "mmcblk" in device:
             device_sufix = "p"
         else:
             device_sufix = ""
 
         for pid, part in partitions.items():
-            name = part['name']
+            name = part["name"]
             blockdevice = f"{device}{device_sufix}{pid}"
-            
+
             if name.lower() == "boot":
                 boot_partition = blockdevice
             elif name.lower() == "root":

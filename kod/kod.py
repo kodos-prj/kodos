@@ -905,10 +905,14 @@ class Context:
     def execute(self, command):
         if self.user == os.environ["USER"]:
             exec_prefix = ""
-            wrap = lambda s: s
         else:
             exec_prefix = f" su {self.user} -c "
-            wrap = lambda s: f"'{s}'"
+
+        def wrap(s):
+            if self.user == os.environ["USER"]:
+                return s
+            else:
+                return f"'{s}'"
 
         print(f"[Contex] Command: {command}")
         if self.use_chroot:
