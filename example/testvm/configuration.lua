@@ -18,7 +18,7 @@ local use_pantheon = false
 
 return {
     repos = {
-        arch = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
     },
