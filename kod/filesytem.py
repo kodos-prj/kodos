@@ -29,19 +29,7 @@ _filesystem_type = {
 }
 
 
-# # fstab
-# source          destination     type    options         dump    pass
-# /proc           /proc           none    rw,bind         0       0
-# /sys            /sys            none    rw,bind         0       0
-# /dev            /dev            none    rw,bind         0       0
-# /dev/pts        /dev/pts        none    rw,bind         0       0
-# /home           /home           none    rw,bind         0       0
-# /usr            /usr            none    rw,bind         0       0
-# /tmp            /tmp            none    rw,bind         0       0
-# /var/cache	    /var/cache      none	rw,bind		    0   	0
-# /var/log	    /var/log        none	rw,bind		    0   	0
-# /var/tmp	    /var/tmp        none	rw,bind		    0   	0
-# /var/kod	    /var/kod        none	rw,bind		    0   	0
+# fstab entry
 class FsEntry:
     def __init__(self, source, destination, fs_type, options, dump=0, pass_=0):
         self.source = source

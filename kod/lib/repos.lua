@@ -1,10 +1,11 @@
 -- Repository functions
 
-function arch_repo(mirrors)
-    -- Creates the repo entry for official arch repos 
+local function arch_repo(mirrors)
+    -- Creates the repo entry for official arch repos
     --  - mirrors: is list of url mirror in case a particular set of mirror is required
     return {
         type = "arch",
+        default = true,
         mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
         -- arch = "x86_64",
         repo = { "core", "extra" },
@@ -18,13 +19,13 @@ function arch_repo(mirrors)
 end
 
 
-function aur_repo(name, url, build_cmd, commands, run_as_root)
+local function aur_repo(name, url, build_cmd, commands, run_as_root)
     -- Creates the repo entry for AUR packages
     --  - name: name of the package to AUR helper
     --  - url: url for the AUR helper source code
     --  - build_cmd: command to build the AUR helper
     --  - commands: list of commands to interact with the AUR helper (install, update, remove, update_db)
-    --  - run_as_root: boolean to indicate if the commands should be run as root 
+    --  - run_as_root: boolean to indicate if the commands should be run as root
     default_commands = {
         install = name .. " -S --noconfirm",
         update = name .. " -Syu --noconfirm",
@@ -32,7 +33,7 @@ function aur_repo(name, url, build_cmd, commands, run_as_root)
         update_db = name .. " -Sy --noconfirm",
         run_as_root = run_as_root or false,
     }
-    
+
     aur = {
         type = "aur",
         build = {
@@ -46,7 +47,7 @@ function aur_repo(name, url, build_cmd, commands, run_as_root)
 end
 
 
-function flatpak_repo(repo, run_as_root)
+local function flatpak_repo(repo, run_as_root)
     -- Creates the repo entry for flatpak packages
     --  - repo: name of the flatpak repo to use (default is flathub)
     --  - run_as_root: boolean to indicate if the commands should be run as root
@@ -56,7 +57,7 @@ function flatpak_repo(repo, run_as_root)
         package = "flatpak",
         commands = {
             install = "flatpak install -y " .. repo,
-            update = "flatpak upgrate -y ",
+            update = "flatpak update -y ",
             remove = "flatpak uninstall -y " .. repo,
             -- run_as_root = run_as_root or true,
         }
