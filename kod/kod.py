@@ -1525,11 +1525,11 @@ def rebuild_user(config, user=os.environ["USER"]):
 
         dotfile_mngrs = user_dotfile_manager(info)
         user_configs_def = user_configs(user, info)
+        
+        proc_user_home(ctx, user, info)
 
         configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
         configure_user_scripts(ctx, user, user_configs_def)
-        
-        proc_user_home(ctx, user, info)
 
         services_to_enable = user_services(user, info)
         print(f"User services to enable: {services_to_enable}")

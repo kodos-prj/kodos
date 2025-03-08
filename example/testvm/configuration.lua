@@ -170,11 +170,13 @@ return {
                 whitesur_theme = themes({
                     repo_url = "https://github.com/vinceliuice/WhiteSur-gtk-theme.git";
                     color = "dark";
+                    nautilus = "glassy";
                 }),
                 
                 orchis_theme_2 = themes({
                     repo_url = "https://github.com/vinceliuice/Orchis-theme.git";
                     color = "dark";
+                    theme = "all";
                 }),
 
                 -- file("face.jpg", "/home/abuss/.face");
