@@ -214,19 +214,23 @@ aliases=user_env
     os.system("touch /mnt/etc/schroot/kodos/copyfiles")
     os.system("touch /mnt/etc/schroot/kodos/nssdatabases")
 
-    venv_fstab = """# <file system> <mount point>   <type>  <options>       <dump>  <pass>
-/proc           /proc           none    rw,bind         0       0
-/sys            /sys            none    rw,bind         0       0
-/dev            /dev            none    rw,bind         0       0
-/dev/pts        /dev/pts        none    rw,bind         0       0
-/home           /home           none    rw,bind         0       0
-/root           /root           none    rw,bind         0       0
-/tmp            /tmp            none    rw,bind         0       0
-/var/cache	    /var/cache      none	rw,bind		    0   	0
-/var/log	    /var/log        none	rw,bind		    0   	0
-/var/tmp	    /var/tmp        none	rw,bind		    0   	0
-/var/kod	    /var/kod        none	rw,bind		    0   	0
-"""
+    venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
+    for mount_point in [
+        "/proc",
+        "/sys",
+        "/dev",
+        "/dev/pts",
+        "/home",
+        "/root",
+        "/tmp",
+        "/run",
+        "/var/cache",
+        "/var/log",
+        "/var/tmp",
+        "/var/kod",
+    ]:
+        venv_fstab += f"{mount_point}\t{mount_point}\tnone\trw,bind\t0\t0\n"
+
     with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
@@ -855,6 +859,16 @@ def user_configs(user, info):
     return configs_to_deploy
 
 
+def proc_user_home(ctx, user, info):
+    print(f"Processing home for {user}")
+    if info.home:
+        for key, val in info.home.items():
+            if "build" in val:
+                print(f"Building {key} for {user}")
+                val.build(ctx, val.config)
+    print("Done - home processed")
+
+
 def proc_user_services(conf):
     services_to_enable_user = {}
     print("- processing user programs -----------")
@@ -1132,6 +1146,8 @@ def proc_users(ctx, conf):
 
         configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
         configure_user_scripts(ctx, user, user_configs_def)
+
+        proc_user_home(ctx, user, info)
 
         services_to_enable = user_services(user, info)
         print(f"User services to enable: {services_to_enable}")
@@ -1509,6 +1525,8 @@ def rebuild_user(config, user=os.environ["USER"]):
 
         dotfile_mngrs = user_dotfile_manager(info)
         user_configs_def = user_configs(user, info)
+        
+        proc_user_home(ctx, user, info)
 
         configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
         configure_user_scripts(ctx, user, user_configs_def)
