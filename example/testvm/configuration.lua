@@ -2,13 +2,13 @@ print("Eszkoz configuration")
 -- require("core.lua")
 -- package.path = '../example/?.lua;' .. package.path
 
-disk = require("disk")
-repos = require("repos")
-configs = require("configs")
+local disk = require("disk")
+local repos = require("repos")
+local configs = require("configs")
 
 -- Extra packages
-cli = require("cli")
-development = require("development")
+local cli = require("cli")
+local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
@@ -34,11 +34,11 @@ return {
 
     boot = {
         kernel = {
-            package = "linux-lts";
-            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk"};
-        };
+            package = "linux-lts",
+            modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk" },
+        },
         loader = {
-            type = "systemd-boot";
+            type = "systemd-boot",
             -- type = "grub",
             timeout = 10,
             include = { "memtest86+" },
@@ -65,30 +65,30 @@ return {
 
     locale = {
         locale = {
-            default = "en_CA.UTF-8 UTF-8";
+            default = "en_CA.UTF-8 UTF-8",
             extra_generate = {
                 "en_US.UTF-8 UTF-8", "en_GB.UTF-8 UTF-8"
-            };
+            },
             extra_settings = {
-                    LC_ADDRESS = "en_CA.UTF-8";
-                    LC_IDENTIFICATION = "en_CA.UTF-8";
-                    LC_MEASUREMENT = "en_CA.UTF-8";
-                    LC_MONETARY = "en_CA.UTF-8";
-                    LC_NAME = "en_CA.UTF-8";
-                    LC_NUMERIC = "en_CA.UTF-8";
-                    LC_PAPER = "en_CA.UTF-8";
-                    LC_TELEPHONE = "en_CA.UTF-8";
-                    LC_TIME = "en_CA.UTF-8";
-            };
-        };
-        keymap = "us";
-        timezone = "America/Edmonton";
-    };
+                LC_ADDRESS = "en_CA.UTF-8",
+                LC_IDENTIFICATION = "en_CA.UTF-8",
+                LC_MEASUREMENT = "en_CA.UTF-8",
+                LC_MONETARY = "en_CA.UTF-8",
+                LC_NAME = "en_CA.UTF-8",
+                LC_NUMERIC = "en_CA.UTF-8",
+                LC_PAPER = "en_CA.UTF-8",
+                LC_TELEPHONE = "en_CA.UTF-8",
+                LC_TIME = "en_CA.UTF-8",
+            },
+        },
+        keymap = "us",
+        timezone = "America/Edmonton",
+    },
 
     network = {
-        hostname = "testvm";
-        ipv6 = true;
-    };
+        hostname = "testvm",
+        ipv6 = true,
+    },
 
     users = {
         root = {
@@ -97,18 +97,20 @@ return {
         },
         abuss = {
             name = "Antal Buss",
-            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
+            hashed_password =
+            "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/usr/bin/fish",
-            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }); -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" }); 
+            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
             openssh_authorized = {
-                keys = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOA6V+TZJ+BmBAU4FB0nbhYQ9XOFZwCHdwXTuQkb77sPi6fVcbzso5AofUc+3DhfN56ATNOOslvjutSPE8kIp3Uv91/c7DE0RHoidNl3oLre8bau2FT+9AUTZnNEtWH/qXp5+fzvGk417mSL3M5jdoRwude+AzhPNXmbdAzn08TMGAkjGrMQejXItcG1OhXKUjqeLmB0A0l3Ac8DGQ6EcSRtgPCiej8Boabn21K2OBfq64KwW/MMh/FWTHndyBF/lhfEos7tGPvrDN+5G05oGjf0fnMOxsmAUdTDbtOTTeMTvDwjJdzsGUluEDbWBYPNlg5wacbimkv51/Bm4YwsGOkkUTy6eCCS3d5j8PrMbB2oNZfByga01FohhWSX9bv35KAP4nq7no9M6nXj8rQVsF0gPndPK/pgX46tpJG+pE1Ul6sSLR2jnrN6oBKzhdZJ54a2wwFSd207Zvahdx3m9JEVhccmDxWltxjKHz+zChAHsqWC9Zcqozt0mDRJNalW8fRXKcSWPGVy1rfbwltiQzij+ChCQQlUG78zW8lU7Bz6FuyDsEFpZSat7jtbdDBY0a4F0yb4lkNvu+5heg+dhlKCFj9YeRDrnvcz94OKvAZW1Gsjbs83n6wphBipxUWku7y86iYyAAYQGKs4jihhYWrFtfZhSf1m6EUKXoWX87KQ== antal.buss@gmail.com"
-            };
-            
+                keys =
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOA6V+TZJ+BmBAU4FB0nbhYQ9XOFZwCHdwXTuQkb77sPi6fVcbzso5AofUc+3DhfN56ATNOOslvjutSPE8kIp3Uv91/c7DE0RHoidNl3oLre8bau2FT+9AUTZnNEtWH/qXp5+fzvGk417mSL3M5jdoRwude+AzhPNXmbdAzn08TMGAkjGrMQejXItcG1OhXKUjqeLmB0A0l3Ac8DGQ6EcSRtgPCiej8Boabn21K2OBfq64KwW/MMh/FWTHndyBF/lhfEos7tGPvrDN+5G05oGjf0fnMOxsmAUdTDbtOTTeMTvDwjJdzsGUluEDbWBYPNlg5wacbimkv51/Bm4YwsGOkkUTy6eCCS3d5j8PrMbB2oNZfByga01FohhWSX9bv35KAP4nq7no9M6nXj8rQVsF0gPndPK/pgX46tpJG+pE1Ul6sSLR2jnrN6oBKzhdZJ54a2wwFSd207Zvahdx3m9JEVhccmDxWltxjKHz+zChAHsqWC9Zcqozt0mDRJNalW8fRXKcSWPGVy1rfbwltiQzij+ChCQQlUG78zW8lU7Bz6FuyDsEFpZSat7jtbdDBY0a4F0yb4lkNvu+5heg+dhlKCFj9YeRDrnvcz94OKvAZW1Gsjbs83n6wphBipxUWku7y86iYyAAYQGKs4jihhYWrFtfZhSf1m6EUKXoWX87KQ== antal.buss@gmail.com"
+            },
+
             dotfile_manager = configs.stow({
-                    source_dir = "~/.dotfiles",
-                    target_dir = "~/",
-                    repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
-                }),
+                source_dir = "~/.dotfiles",
+                target_dir = "~/",
+                repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
+            }),
 
             programs = {
                 git = {
@@ -119,7 +121,7 @@ return {
                     })
                 },
 
-                starship = { 
+                starship = {
                     enable = true,
                     deploy_config = true,
                 },
@@ -146,7 +148,7 @@ return {
 
                 fish = {
                     enable = true,
-                };
+                },
 
                 neovim = {
                     enable = true,
@@ -161,22 +163,23 @@ return {
 
                 -- Gnome dconf configuration
                 dconf = {
-                    enable = use_gnome;
-                    config = configs.dconf(require("gnome"));
-                };
-            };
+                    enable = use_gnome,
+                    config = configs.dconf(require("gnome")),
+                },
+            },
 
             deploy_configs = {
                 "home", -- General config for home directory (face, background, etc.)
-                "gtk", -- GTK themes
+                "gtk",  -- GTK themes
             },
 
             services = {
                 syncthing = {
-                    enable = true;
+                    enable = true,
                     config = configs.syncthing({
                         service_name = "syncthing",
-                        options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                        options =
+                        "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
                     }),
                     -- extra_packages = { "aur:syncthing-gtk" },
                 }
@@ -198,7 +201,7 @@ return {
         -- display_manager = "lightdm",
         desktop_manager = {
             gnome = {
-                enable = use_gnome;
+                enable = use_gnome,
                 display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"
@@ -218,7 +221,7 @@ return {
                     "flatpak:com.mattjakeman.ExtensionManager"
                 },
             },
-    
+
             plasma = {
                 enable = use_plasma,
                 display_manager = "sddm",
@@ -233,7 +236,7 @@ return {
             },
 
             pantheon = {
-                enable = use_pantheon;
+                enable = use_pantheon,
                 display_manager = "lightdm",
             },
         }
@@ -291,7 +294,7 @@ return {
         -- "aur:brave-bin",
         -- "vulkan-virtio",
         -- "zed",
-    });
+    }),
     -- ..
     -- cli -- CLI tools
     -- ..
@@ -300,13 +303,13 @@ return {
     services = {
         -- Firmware update
         fwupd = { enable = true },
-        
+
         -- TODO: Maybe move inside network
         networkmanager = {
             enable = true,
             service_name = "NetworkManager",
         },
-        
+
         openssh = {
             enable = true,
             service_name = "sshd",
@@ -314,7 +317,7 @@ return {
                 PermitRootLogin = false,
             }
         },
-    
+
         -- avahi = {
         --     enable = true,
         --     nssmdns = true,
@@ -324,52 +327,53 @@ return {
         --         userServices = true
         --     },
         -- },
-    
+
         cups = {
             enable = true,
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
-    
+
         -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
             enable = true,
             service_name = "bluetooth",
             package = "bluez",
             -- settings = {
-                -- General = {
-                    -- Enable = "Source,Sink,Media,Socket",
-                -- },
+            -- General = {
+            -- Enable = "Source,Sink,Media,Socket",
             -- },
-        };
+            -- },
+        },
 
         systemd_mount = {
             services = {
                 data = configs.mount({
-                    enable = true;
-                    name = "mnt-data";
-                    type = "cifs";
-                    what = "//mmserver.lan/NAS1";
-                    where = "/mnt/data";
-                    description = "MMserverNAS1";
-                    options = "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000";
-                    after = "network.target";
-                    wanted_by = "multi-user.target";
-                    automount = true;
-                    automount_config = "TimeoutIdleSec=0";
+                    enable = true,
+                    name = "mnt-data",
+                    type = "cifs",
+                    what = "//mmserver.lan/NAS1",
+                    where = "/mnt/data",
+                    description = "MMserverNAS1",
+                    options =
+                    "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000",
+                    after = "network.target",
+                    wanted_by = "multi-user.target",
+                    automount = true,
+                    automount_config = "TimeoutIdleSec=0",
                 }),
 
                 library = configs.mount({
-                    enable = true;
-                    name = "mnt-library";
-                    type = "nfs";
-                    what = "homenas2.lan:/data/Documents";
-                    where = "/mnt/library/";
-                    description = "Document library";
-                    options = "noatime,x-systemd.automount,noauto";
-                    after = "network.target";
-                    wanted_by = "multi-user.target";
-                    automount = true;
-                    automount_config = "TimeoutIdleSec=600";
+                    enable = true,
+                    name = "mnt-library",
+                    type = "nfs",
+                    what = "homenas2.lan:/data/Documents",
+                    where = "/mnt/library/",
+                    description = "Document library",
+                    options = "noatime,x-systemd.automount,noauto",
+                    after = "network.target",
+                    wanted_by = "multi-user.target",
+                    automount = true,
+                    automount_config = "TimeoutIdleSec=600",
                 })
             }
         },
