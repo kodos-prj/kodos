@@ -1,8 +1,14 @@
+## Main command to interact with the KodOS system
+# @Author: Anatal Buss
+# @version 0.1
+
+
 import glob
 import json
 import os
 import re
 from pathlib import Path
+from typing import Dict, List
 
 # import signal
 # from invoke import task
@@ -39,6 +45,13 @@ pkgs_installed = []
 
 
 def load_config(config_filename: str):
+    """
+    Load configuration from a file and return it as a table.
+
+    The configuration file is a Lua file that contains different sections to configure
+    the different aspects of the system.
+    """
+
     luart = lua.LuaRuntime(unpack_returned_tuples=True)
 
     if config_filename is None:
@@ -70,6 +83,19 @@ IfElse = require("utils").if_else
 
 def get_base_packages(conf):
     # CPU microcode
+    """
+    Get the base packages to install for the given configuration.
+
+    The function determines the right microcode package for the CPU and
+    the kernel package from the configuration. It then returns a table
+    with the packages to install.
+
+    Args:
+        conf (table): The configuration table.
+
+    Returns:
+        A list with the packages to install.
+    """
     with open("/proc/cpuinfo") as f:
         while True:
             line = f.readline()
@@ -109,11 +135,32 @@ def get_base_packages(conf):
     return packages
 
 
-def install_essentials_pkgs(base_pkgs):
-    exec(f"pacstrap -K /mnt {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
+def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
+    """
+    Install essential packages onto the specified mount point.
+
+    This function uses the Arch pacstrap command to install a set of base
+    packages including the kernel and other essential packages onto a
+    given mount point. The packages to be installed are determined by
+    the base_pkgs dictionary, which should contain 'kernel' and 'base'
+    keys.
+
+    Args:
+        base_pkgs (Dict): A dictionary containing the packages to install,
+                          with 'kernel' and 'base' keys.
+        mount_point (str): The mount point where the packages will be installed.
+    """
+    exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
 
 
-def generate_fstab(partiton_list, mount_point="/mnt"):
+def generate_fstab(partiton_list: List, mount_point: str):
+    """
+    Generate a fstab file at the specified mount point based on a list of Partitions.
+
+    Args:
+        partiton_list (List): A list of Partition objects to be written to the fstab file.
+        mount_point (str): The mount point where the fstab file will be written.
+    """
     print("Generating fstab")
     with open(f"{mount_point}/etc/fstab", "w") as f:
         for part in partiton_list:
@@ -124,9 +171,21 @@ def generate_fstab(partiton_list, mount_point="/mnt"):
             f.write(str(part) + "\n")
 
 
-def configure_system(conf, root_part, partition_list):
+def configure_system(conf, partition_list, mount_point: str):
     # fstab
-    generate_fstab(partition_list, "/mnt")
+    """
+    Configure a system based on the given configuration.
+
+    This function configures the network, timezone, localization, and other settings
+    for the given system. It also configures the schroot environment and generates
+    the necessary files for it.
+
+    Args:
+        conf (table): The configuration table.
+        partition_list (List): A list of Partition objects to be written to the fstab file.
+        mount_point (str): The mount point where the system will be configured.
+    """
+    generate_fstab(partition_list, mount_point)
 
     # Locale
     locale_conf = conf.locale
@@ -143,7 +202,7 @@ def configure_system(conf, root_part, partition_list):
     locale_to_generate = locale_default + "\n"
     if "extra_generate" in locale_spec and locale_spec.extra_generate:
         locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
-    with open("/mnt/etc/locale.gen", "w") as locale_file:
+    with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
         locale_file.write(locale_to_generate + "\n")
     exec_chroot("locale-gen")
 
@@ -152,7 +211,7 @@ def configure_system(conf, root_part, partition_list):
     if "extra_settings" in locale_spec and locale_spec.extra_settings:
         for k, v in locale_spec.extra_settings.items():
             locale_extra += f"{k}={v}\n"
-    with open("/mnt/etc/locale.conf", "w") as locale_file:
+    with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
         locale_file.write(f"LANG={locale_extra}\n")
 
     # Network
@@ -160,7 +219,7 @@ def configure_system(conf, root_part, partition_list):
 
     # hostname
     hostname = network_conf["hostname"]
-    exec(f"echo '{hostname}' > /mnt/etc/hostname")
+    exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
@@ -171,7 +230,7 @@ Name=*
         eth0_network += "DHCP=ipv4\n"
     if use_ipv6:
         eth0_network += "DHCP=ipv6\n"
-    with open("/mnt/etc/systemd/network/10-eth0.network", "w") as f:
+    with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
         f.write(eth0_network)
 
     # hosts
@@ -179,7 +238,7 @@ Name=*
     exec_chroot("echo '::1 localhost' >> /etc/hosts")
 
     # Replace default os-release
-    with open("/mnt/etc/os-release", "w") as f:
+    with open(f"{mount_point}/etc/os-release", "w") as f:
         f.write(os_release)
 
     # Configure schroot
@@ -192,7 +251,7 @@ root-groups=root,wheel
 profile=kodos
 personality=linux
 """
-    with open("/mnt/etc/schroot/chroot.d/system.conf", "w") as f:
+    with open(f"{mount_point}/etc/schroot/chroot.d/system.conf", "w") as f:
         f.write(system_schroot)
 
     venv_schroot = """[virtual_env]
@@ -206,16 +265,16 @@ profile=kodos
 personality=linux
 aliases=user_env
 """
-    with open("/mnt/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
+    with open(f"{mount_point}/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
         f.write(venv_schroot)
 
     # Setting profile
-    os.system("mkdir -p /mnt/etc/schroot/kodos")
-    os.system("touch /mnt/etc/schroot/kodos/copyfiles")
-    os.system("touch /mnt/etc/schroot/kodos/nssdatabases")
+    os.system(f"mkdir -p {mount_point}/etc/schroot/kodos")
+    os.system(f"touch {mount_point}/etc/schroot/kodos/copyfiles")
+    os.system(f"touch {mount_point}/etc/schroot/kodos/nssdatabases")
 
     venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
-    for mount_point in [
+    for mpoint in [
         "/proc",
         "/sys",
         "/dev",
@@ -229,18 +288,37 @@ aliases=user_env
         "/var/tmp",
         "/var/kod",
     ]:
-        venv_fstab += f"{mount_point}\t{mount_point}\tnone\trw,bind\t0\t0\n"
+        venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
 
-    with open("/mnt/etc/schroot/kodos/fstab", "w") as f:
+    with open(f"{mount_point}/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
 
-def get_kernel_version(mount_point):
+def get_kernel_version(mount_point: str):
+    """
+    Retrieve the kernel version from the specified mount point.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment to retrieve the kernel version from.
+
+    Returns:
+        str: The kernel version as a string.
+    """
     kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True).strip()
     return kernel_version
 
 
-def get_kernel_file(mount_point, package="linux"):
+def get_kernel_file(mount_point: str, package: str = "linux"):
+    """
+    Retrieve the kernel file path and version from the specified mount point.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment to retrieve the kernel file from.
+        package (str, optional): The package name to retrieve the kernel file from. Defaults to "linux".
+
+    Returns:
+        tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
+    """
     kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
     kernel_file = kernel_file.split(" ")[-1].strip()
     kver = kernel_file.split("/")[-2]
@@ -255,6 +333,18 @@ def create_boot_entry(
     mount_point="/mnt",
     kver=None,
 ):
+    """
+    Create a systemd-boot loader entry for the specified generation.
+
+    Args:
+        generation (int): The generation number to create an entry for.
+        partition_list (list): A list of Partition objects to use for determining the root device.
+        boot_options (list, optional): A list of additional boot options to include in the entry.
+        is_current (bool, optional): If True, the entry will be named "kodos" and set as the default.
+        mount_point (str, optional): The mount point of the chroot environment to write the entry to.
+        kver (str, optional): The kernel version to use in the entry. If not provided, the current kernel
+            version will be determined using `uname -r` in the chroot environment.
+    """
     subvol = f"generations/{generation}/rootfs"
     root_fs = [part for part in partition_list if part.destination in ["/"]][0]
     root_device = root_fs.source_uuid()
@@ -289,6 +379,13 @@ console-mode keep
 
 def setup_bootloader(conf, partition_list):
     # bootloader
+    """
+    Set up the bootloader based on the configuration.
+
+    Args:
+        conf (dict): The configuration dictionary.
+        partition_list (list): A list of Partition objects to use for determining the root device.
+    """
     boot_conf = conf.boot
     loader_conf = boot_conf["loader"]
 
@@ -327,6 +424,22 @@ def setup_bootloader(conf, partition_list):
 
 
 def get_packages_to_install(conf):
+    """
+    Determine the packages to install and remove based on the given configuration.
+
+    This function aggregates various categories of packages such as base, desktop,
+    hardware, services, user programs, system packages, and fonts. It consolidates
+    these into a list of packages to install and a list of packages to remove.
+
+    Args:
+        conf (table): The configuration table containing details for package selection.
+
+    Returns:
+        tuple: A tuple containing two elements:
+            - packages_to_install (dict): A dictionary with a "packages" key listing
+              all the unique packages to be installed.
+            - packages_to_remove (list): A list of packages to be removed.
+    """
     packages_to_install = []
     packages_to_remove = []
 
@@ -368,7 +481,21 @@ def get_packages_to_install(conf):
     return packages_to_install, packages_to_remove
 
 
-def get_list_of_dependencies(pkg):
+def get_list_of_dependencies(pkg: str):
+    """
+    Get the list of dependencies of a given package.
+
+    This function takes a package name and returns a list of packages it depends on.
+    It first checks if the package is a group, and if it is, it returns the list of
+    packages in the group. If it is not a group, it checks the dependencies of the package
+    and returns the list of dependencies.
+
+    Args:
+        pkg (str): The package name to get the dependencies of.
+
+    Returns:
+        list: A list of packages that the given package depends on.
+    """
     pkgs_list = [pkg]
     # check if it is a group
     pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
@@ -382,6 +509,17 @@ def get_list_of_dependencies(pkg):
 
 
 def update_fstab(root_path, new_mount_point_map):
+    """
+    Update the fstab file at the specified root path with new subvolume IDs for specified mount points.
+
+    This function reads the existing fstab file, modifies the subvolume options for mount points
+    present in the `new_mount_point_map`, and writes the updated lines back to the fstab file.
+
+    Args:
+        root_path (str): The root path where the fstab file is located.
+        new_mount_point_map (dict): A dictionary mapping mount points to their new subvolume IDs.
+
+    """
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
     with open(f"{root_path}/etc/fstab", "w") as f:
@@ -395,6 +533,17 @@ def update_fstab(root_path, new_mount_point_map):
 
 
 def change_subvol(partition_list, subvol, mount_points):
+    """
+    Modify the partition list by changing the subvolume of the given mount points to the given subvolume.
+
+    Args:
+        partition_list (list): The list of Partition objects to modify.
+        subvol (str): The new subvolume.
+        mount_points (list): The list of mount points to modify.
+
+    Returns:
+        list: The modified partition list.
+    """
     for part in partition_list:
         if part.destination in mount_points:
             options = part.options.split(",")
@@ -406,10 +555,29 @@ def change_subvol(partition_list, subvol, mount_points):
 
 
 def set_ro_mount(mount_point):
+    """
+    Set the given mount point to be read-only.
+
+    This function takes a mount point and mounts it read-only. This is useful for
+    making sure that the system files are not modified during the installation
+    process.
+
+    Args:
+        mount_point (str): The mount point to set to read-only.
+    """
     exec(f"mount -o remount,ro,bind {mount_point}")
 
 
 def change_ro_mount(root_path):
+    """
+    Modify the fstab file at the given root path to mount /usr read-only.
+
+    This function reads the existing fstab file, modifies the mount options for /usr
+    to be read-only, and writes the updated lines back to the fstab file.
+
+    Args:
+        root_path (str): The root path where the fstab file is located.
+    """
     with open(f"{root_path}/etc/fstab") as f:
         fstab = f.readlines()
     with open(f"{root_path}/etc/fstab", "w") as f:
@@ -420,6 +588,14 @@ def change_ro_mount(root_path):
 
 
 def get_max_generation():
+    """
+    Retrieve the highest numbered generation directory in /kod/generations.
+
+    If no generation directories exist, return 0.
+
+    Returns:
+        int: The highest numbered generation directory.
+    """
     generations = glob.glob("/kod/generations/*")
     generations = [p.split("/")[-1] for p in generations]
     generations = [int(p) for p in generations if p != "current"]
@@ -433,6 +609,24 @@ def get_max_generation():
 
 
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
+    """
+    Process the repository configuration from the given config.
+
+    This function reads the repository configuration from the given config and
+    register information about how to build, install, or update each repository.
+    The function will write the result to /var/kod/repos.json.
+
+    Args:
+        conf (dict): The configuration dictionary to read from.
+        current_repos (dict): The current repository configuration.
+        update (bool): If True, update the package list. Defaults to False.
+        mount_point (str): The mount point where the installation is being
+            performed. Defaults to "/mnt".
+
+    Returns:
+        tuple: A tuple containing the processed repository configuration and
+            the list of packages that were installed.
+    """
     # TODO: Add support for custom repositories and to be used during rebuild
     repos_conf = conf.repos
     repos = {}
@@ -476,19 +670,57 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
 
 
 def load_repos() -> dict | None:
+    """
+    Load the repository configuration from the file /var/kod/repos.json.
+
+    Returns a dictionary with the repository configuration, or None if the file
+    does not exist or is not a valid JSON file.
+
+    """
     repos = None
     with open("/var/kod/repos.json") as f:
         repos = json.load(f)
     return repos
 
 
-def create_kod_user():
+def create_kod_user(mount_point):
+    """
+    Create the 'kod' user and give it NOPASSWD access in the sudoers file.
+
+    This function creates a user named 'kod' with a home directory in
+    /var/kod/.home and adds it to the wheel group. It also creates a sudoers
+    file for the user which allows it to run any command with NOPASSWD.
+
+    Args:
+        mount_point (str): The mount point where the installation is being
+            performed.
+    """
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
-    with open("/mnt/etc/sudoers.d/kod", "w") as f:
+    with open(f"{mount_point}/etc/sudoers.d/kod", "w") as f:
         f.write("kod ALL=(ALL) NOPASSWD: ALL")
 
 
 def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
+    """
+    Manage package installation, update, or removal based on the provided repository configuration.
+
+    This function organizes the packages into their respective repositories,
+    executes the specified action (install, update, or remove) for each package
+    using the corresponding repository command, and handles privilege escalation
+    as needed based on the repository configuration and `chroot` flag.
+
+    Args:
+        root_path (str): The root path for chroot operations, if applicable.
+        repos (dict): A dictionary containing repository configurations and commands.
+        action (str): The action to perform on the packages (e.g., 'install', 'update', 'remove').
+        list_of_packages (list): A list of package names, potentially prefixed with
+                                 the repository name followed by a colon.
+        chroot (bool, optional): If True, execute the commands in a chroot environment
+                                 based at `root_path`. Defaults to False.
+
+    Returns:
+        list: A list of installed package names.
+    """
     packages_installed = []
     pkgs_per_repo = {"official": []}
     for pkg in list_of_packages:
@@ -524,6 +756,17 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
 
 
 def proc_desktop(conf):
+    """
+    Process the desktop configuration and generate the list of packages to install
+    and remove. This function will iterate over the desktop manager options and
+    process the packages to install and remove based on the configuration.
+
+    Args:
+        conf (dict): The configuration dictionary containing the desktop configuration.
+
+    Returns:
+        tuple: A tuple containing two lists: packages to install and packages to remove.
+    """
     packages_to_install = []
     packages_to_remove = []
     desktop = conf.desktop
@@ -563,6 +806,21 @@ def proc_desktop(conf):
 
 
 def proc_desktop_services(conf):
+    """
+    Process the desktop services configuration to determine which services 
+    should be enabled based on the provided configuration.
+
+    This function iterates over the desktop manager options and consolidates
+    the list of services to enable, including display managers, based on the 
+    configuration settings provided.
+
+    Args:
+        conf (dict): The configuration dictionary containing the desktop 
+                     services configuration.
+
+    Returns:
+        list: A list of service names that need to be enabled.
+    """
     services_to_enable = []
     desktop = conf.desktop
 
@@ -587,6 +845,18 @@ def proc_desktop_services(conf):
 
 
 def proc_hardware(conf):
+    """
+    Process the hardware configuration and generate the list of packages to install.
+
+    This function iterates over the hardware configuration and generates a list of
+    packages to install based on the configuration settings.
+
+    Args:
+        conf (dict): The configuration dictionary containing the hardware settings.
+
+    Returns:
+        list: A list of package names that need to be installed.
+    """
     packages = []
     print("- processing hardware -----------")
     hardware = conf.hardware
@@ -609,6 +879,20 @@ def proc_hardware(conf):
 
 
 def proc_system_packages(conf):
+    """
+    Process the system packages configuration and generate a list of packages to install.
+
+    This function extracts the system packages defined in the configuration
+    and returns them as a list.
+
+    Args:
+        conf (dict): The configuration dictionary containing the system
+                     packages information.
+
+    Returns:
+        list: A list of system package names to be installed.
+    """
+
     print("- processing packages -----------")
     sys_packages = list(conf.packages.values())
     return sys_packages
@@ -616,6 +900,20 @@ def proc_system_packages(conf):
 
 def get_services_to_enable(ctx, conf):
     # Desktop manager service
+    """
+    Process the services configuration and generate a list of services to enable.
+
+    This function processes the services configuration and returns a list of
+    services that need to be enabled.
+
+    Args:
+        ctx (Context): The context object.
+        conf (dict): The configuration dictionary containing the services
+                     information.
+
+    Returns:
+        list: A list of service names to be enabled.
+    """    
     desktop_services = proc_desktop_services(conf)
     # System services
     services_to_enable = proc_services_to_enable(ctx, conf)
@@ -624,6 +922,19 @@ def get_services_to_enable(ctx, conf):
 
 
 def proc_services(conf):
+    """
+    Process the services configuration and generate a list of packages to install.
+
+    This function processes the services configuration and returns a list of
+    packages that need to be installed.
+
+    Args:
+        conf (dict): The configuration dictionary containing the services
+                     information.
+
+    Returns:
+        list: A list of package names to be installed.
+    """
     packages_to_install = []
     print("- processing services -----------")
     services = conf.services
@@ -646,6 +957,20 @@ def proc_services(conf):
 
 
 def proc_services_to_enable(ctx, conf):
+    """
+    Process the services configuration and generate a list of services to enable.
+
+    This function processes the services configuration and returns a list of
+    services that need to be enabled.
+
+    Args:
+        ctx (Context): The context object.
+        conf (dict): The configuration dictionary containing the services
+                     information.
+
+    Returns:
+        list: A list of service names to be enabled.
+    """
     services_to_enable = []
     print("- processing services -----------")
     services = conf.services
@@ -670,8 +995,19 @@ def proc_services_to_enable(ctx, conf):
 
 
 def create_user(ctx, user, info):
-    # Normal users (no root)
+    """
+    Create a user in the system.
+
+    This function creates a user in the system according to the given information.
+
+    Args:
+        ctx (Context): The context object.
+        user (str): The user name to be created.
+        info (dict): The user information dictionary containing name, shell, password,
+                     and extra_groups.
+    """
     print(f">>> Creating user {user}")
+    # Normal users (no root)
     if user != "root":
         print(f"Creating user {user}")
         user_name = info["name"]
@@ -709,6 +1045,17 @@ def create_user(ctx, user, info):
 
 
 def proc_user_dotfile_manager(conf):
+    """
+    Process the user dotfile manager configuration and generate a dictionary of
+    user and their dotfile manager information.
+
+    Args:
+        conf (dict): The configuration dictionary containing the user
+                     information.
+
+    Returns:
+        dict: A dictionary of user name and their dotfile manager information.
+    """
     print("- processing user dotfile manager -----------")
     users = conf.users
     dotfile_mngs = {}
@@ -721,6 +1068,17 @@ def proc_user_dotfile_manager(conf):
 
 
 def user_dotfile_manager(info):
+    """
+    Process the user dotfile manager configuration and generate a dictionary of
+    user and their dotfile manager information.
+
+    Args:
+        info (dict): The user information dictionary containing the dotfile
+                     manager information.
+
+    Returns:
+        dict: A dictionary of user name and their dotfile manager information.
+    """
     print("- processing user dotfile manager -----------")
     dotfile_mngs = None
     if info.dotfile_manager:
@@ -731,6 +1089,19 @@ def user_dotfile_manager(info):
 
 
 def proc_user_programs(conf):
+    """
+    Process the user programs configuration and generate a list of packages to install.
+
+    This function iterates over the user configuration and extracts the programs
+    that need to be installed. It returns a list of packages to be installed.
+
+    Args:
+        conf (dict): The configuration dictionary containing the user
+                     information.
+
+    Returns:
+        list: A list of packages to be installed.
+    """
     packages = []
 
     print("- processing user programs -----------")
@@ -773,6 +1144,21 @@ def proc_user_programs(conf):
 
 
 def proc_user_configs(conf):
+    """
+    Process user configurations to determine deployable configs and commands.
+
+    This function processes the configuration for each user, extracting programs
+    and services to identify which configurations need to be deployed and which
+    commands need to be run.
+
+    Args:
+        conf (dict): A configuration dictionary containing users and their
+                     associated program and service information.
+
+    Returns:
+        dict: A dictionary mapping each user to their respective deployable
+              configurations and commands to run.
+    """
     configs_to_deploy = {}
 
     print("- processing user programs -----------")
@@ -819,6 +1205,24 @@ def proc_user_configs(conf):
 
 
 def user_configs(user, info):
+    """
+    Process the user configuration to determine deployable configs and commands.
+
+    This function iterates over the user's programs, services, and additional 
+    configuration settings to identify which configurations need to be deployed 
+    and which commands need to be executed.
+
+    Args:
+        user (str): The user name for which configurations are being processed.
+        info (dict): A dictionary containing the user's configuration details, 
+                     including programs, deploy_configs, and services.
+
+    Returns:
+        dict: A dictionary with two keys:
+            - "configs": A list of configuration names that need to be deployed.
+            - "run": A list of commands that need to be executed based on the 
+              user's configuration.
+    """
     configs_to_deploy = {}
 
     print("- processing user programs -----------")
@@ -860,6 +1264,21 @@ def user_configs(user, info):
 
 
 def proc_user_home(ctx, user, info):
+    """
+    Process the user's home configuration.
+
+    This function processes the user's home configuration, looking for any
+    configuration values that have a "build" key. If such a key is present,
+    the function calls the associated build function with the ctx and config
+    parameters.
+
+    Args:
+        ctx (Context): Context object to use for executing commands.
+        user (str): The user name for which the home configuration is being
+            processed.
+        info (dict): A dictionary containing the user's home configuration
+            information.
+    """
     print(f"Processing home for {user}")
     if info.home:
         for key, val in info.home.items():
@@ -870,6 +1289,20 @@ def proc_user_home(ctx, user, info):
 
 
 def proc_user_services(conf):
+    """
+    Process the user services configuration.
+
+    This function processes the user services configuration and generates a
+    dictionary mapping each user to their respective services to enable.
+
+    Args:
+        conf (dict): The configuration dictionary containing the user
+                     information.
+
+    Returns:
+        dict: A dictionary mapping each user to their respective services to
+              enable.
+    """
     services_to_enable_user = {}
     print("- processing user programs -----------")
     users = conf.users
@@ -889,6 +1322,21 @@ def proc_user_services(conf):
 
 
 def user_services(user, info):
+    """
+    Process the user services configuration to determine which services 
+    should be enabled based on the provided configuration.
+
+    This function iterates over the user's services configuration and 
+    returns a list of service names that need to be enabled.
+
+    Args:
+        user (str): The user name for which services are being processed.
+        info (dict): A dictionary containing the user's configuration details, 
+                     including services.
+
+    Returns:
+        list: A list of service names that need to be enabled.
+    """
     print(f"- processing user services {user} -----------")
     services = []
     if info.services:
@@ -901,6 +1349,20 @@ def user_services(user, info):
 
 
 def proc_fonts(conf):
+    """
+    Process the fonts configuration and generate a list of font packages to install.
+
+    This function examines the fonts configuration and returns a list of font
+    packages specified in the configuration.
+
+    Args:
+        conf (dict): The configuration dictionary containing the fonts 
+                     information.
+
+    Returns:
+        list: A list of font package names to be installed.
+    """
+
     packages_to_install = []
     print("- processing fonts -----------")
     fonts = conf.fonts
@@ -910,13 +1372,57 @@ def proc_fonts(conf):
 
 
 class Context:
+    """
+    Context class for executing commands.
+
+    This class represents the context in which commands are executed. It stores
+    information about the user and mount point that are used to execute commands.
+    """
+    user: str
+    mount_point: str
+    use_chroot: bool
+    stage: str
+
     def __init__(self, user, mount_point="/mnt", use_chroot=True, stage="install"):
+        """
+        Initialize the Context object.
+
+        This object stores information about the user and mount point that are
+        used to execute commands.
+
+        Parameters
+        ----------
+        user : str
+            The user name to use for executing commands.
+        mount_point : str
+            The mount point of the root filesystem to use for executing commands.
+            Defaults to "/mnt".
+        use_chroot : bool
+            If True, the command will be executed using chroot. Defaults to True.
+        stage : str
+            The stage of the installation. This can be either "install" or "rebuild".
+        """
         self.user = user
         self.mount_point = mount_point
         self.use_chroot = use_chroot
         self.stage = stage
 
     def execute(self, command):
+        """
+        Execute a command in the specified context.
+
+        This method constructs and executes a command based on the current context,
+        which includes the user, mount point, and chroot settings. If the context
+        user is different from the current environment user, the command is wrapped
+        with 'su' for user substitution. If chroot execution is enabled, the command
+        is executed within the chroot environment at the specified mount point.
+
+        Args:
+            command (str): The command to execute.
+
+        Returns:
+            bool: True if the command is executed successfully.
+        """
         if self.user == os.environ["USER"]:
             exec_prefix = ""
         else:
@@ -937,6 +1443,26 @@ class Context:
 
 
 def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
+    """
+    Configure user dotfiles using a specified dotfile manager.
+
+    This function sets up the dotfiles for a user by executing the commands
+    from the user's dotfile manager. It temporarily changes the context user
+    to the specified user for the duration of the configuration process.
+
+    Args:
+        ctx (Context): The context object used for executing commands.
+        user (str): The username for which to configure dotfiles.
+        user_configs (dict): A dictionary containing user configuration details,
+                             including deployable configurations.
+        dotfile_mngrs: The dotfile manager object responsible for handling
+                       dotfile operations.
+
+    Note:
+        The context user is temporarily changed to the specified user for the
+        configuration process and is restored to the original user afterward.
+    """
+
     print(f"{dotfile_mngrs=}")
     print(f"Configuring user {user}")
     old_user = ctx.user
@@ -954,6 +1480,25 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
 
 
 def configure_user_scripts(ctx, user, user_configs):
+    """
+    Configure user scripts based on user configuration.
+
+    This function executes the command configurations specified in the 
+    user's configuration for the current context stage. It temporarily 
+    changes the context user to the specified user for the execution of 
+    these commands and restores it afterward.
+
+    Args:
+        ctx (Context): The context object used for executing commands.
+        user (str): The username for which to configure scripts.
+        user_configs (dict): A dictionary containing user configuration 
+                             details, including executable commands.
+
+    Note:
+        The context user is temporarily changed to the specified user for 
+        the script execution process and is restored to the original user 
+        afterward.
+    """
     print(f"Configuring user {user}")
     old_user = ctx.user
     ctx.user = user  # TODO: <-- evaluate if this is still needed
@@ -969,6 +1514,25 @@ def configure_user_scripts(ctx, user, user_configs):
 
 
 def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
+    """
+    Enable a list of services in the specified mount point.
+
+    This function enables the specified list of services in the context of the
+    specified mount point. If `use_chroot` is True, it executes the enabling
+    command in a chroot environment based at `mount_point`. If `use_chroot` is
+    False (default), it executes the enabling command directly.
+
+    Args:
+        list_of_services (list): A list of service names to enable.
+        mount_point (str, optional): The mount point for chroot operations, if
+                                     applicable. Defaults to "/mnt".
+        use_chroot (bool, optional): If True, execute the enabling command in a
+                                     chroot environment based at `mount_point`.
+                                     Defaults to False.
+
+    Returns:
+        None
+    """
     for service in list_of_services:
         print(f"Enabling service: {service}")
         if use_chroot:
@@ -978,6 +1542,25 @@ def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
 
 
 def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
+    """
+    Disable a list of services in the specified mount point.
+
+    This function disables the specified list of services in the context of the
+    specified mount point. If `use_chroot` is True, it executes the disabling
+    command in a chroot environment based at `mount_point`. If `use_chroot` is
+    False (default), it executes the disabling command directly.
+
+    Args:
+        list_of_services (list): A list of service names to disable.
+        mount_point (str, optional): The mount point for chroot operations, if
+                                     applicable. Defaults to "/mnt".
+        use_chroot (bool, optional): If True, execute the disabling command in a
+                                     chroot environment based at `mount_point`.
+                                     Defaults to False.
+
+    Returns:
+        None
+    """
     for service in list_of_services:
         print(f"Disabling service: {service}")
         if use_chroot:
@@ -987,6 +1570,19 @@ def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
 
 
 def enable_user_services(ctx, user, services):
+    """
+    Enable services for a user in the specified context.
+
+    This function enables the specified services for the specified user in the
+    context of the specified context object. If the context object's stage is
+    "rebuild-user", it executes the enabling command; otherwise, it simply prints
+    a message indicating that it is not performing the enabling operation.
+
+    Args:
+        ctx (Context): The context object.
+        user (str): The user for which to enable the services.
+        services (list): A list of service names to enable.
+    """
     print(f"Enabling service: {services} for {user}")
 
     for service in services:
@@ -997,6 +1593,22 @@ def enable_user_services(ctx, user, services):
 
 
 def load_fstab(root_path=""):
+    """
+    Load a list of Partition objects from the specified fstab file.
+
+    This function reads the specified fstab file, parses its entries, and
+    returns a list of Partition objects representing the filesystem
+    hierarchy described in the file. The Partition objects are created
+    using the FsEntry class.
+
+    Args:
+        root_path (str, optional): The root path from which to read the
+            fstab file. Defaults to the current working directory.
+
+    Returns:
+        list: A list of Partition objects representing the filesystem
+            hierarchy described in the fstab file.
+    """
     partition_list = []
     with open(f"{root_path}/etc/fstab") as f:
         entries = f.readlines()
@@ -1009,28 +1621,45 @@ def load_fstab(root_path=""):
     return partition_list
 
 
-def create_filesystem_hierarchy(boot_part, root_part, partition_list):
+def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_point):
+    """
+    Create and configure a Btrfs filesystem hierarchy for KodOS.
+
+    This function sets up the initial filesystem hierarchy for KodOS using Btrfs 
+    subvolumes. It creates necessary directories and subvolumes, mounts the first 
+    generation, and binds the appropriate directories. It also creates and mounts 
+    the boot and kod partitions.
+
+    Args:
+        boot_part: The boot partition to be mounted.
+        root_part: The root partition to be used for creating subvolumes.
+        partition_list: A list of Partition objects representing the filesystem hierarchy.
+        mount_point: The mount point where the filesystem hierarchy will be created.
+
+    Returns:
+        list: An updated list of Partition objects reflecting the created filesystem hierarchy.
+    """
     print("===================================")
     print("== Creating filesystem hierarchy ==")
     # Initial generation
     generation = 0
-    exec("mkdir -p /mnt/{store,generations,current}")
+    exec(f"mkdir -p {mount_point}/" + "{store,generations,current}")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
-        exec(f"mkdir -p /mnt/store/{dir}")
+        exec(f"mkdir -p {mount_point}/store/{dir}")
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
-    exec("sudo btrfs subvolume create /mnt/store/home")
+    exec(f"sudo btrfs subvolume create {mount_point}/store/home")
 
     # First generation
-    exec(f"mkdir -p /mnt/generations/{generation}")
+    exec(f"mkdir -p {mount_point}/generations/{generation}")
     exec(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
 
     # Mounting first generation
-    exec("umount -R /mnt")
-    exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} /mnt")
+    exec(f"umount -R {mount_point}")
+    exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
     partition_list = [
         FsEntry(
             root_part,
@@ -1041,28 +1670,28 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
     ]
 
     for dir in subdirs + ["boot", "home", "kod"]:
-        exec(f"mkdir -p /mnt/{dir}")
+        exec(f"mkdir -p {mount_point}/{dir}")
 
-    exec(f"mount {boot_part} /mnt/boot")
+    exec(f"mount {boot_part} {mount_point}/boot")
     boot_options = (
         "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
     )
     partition_list.append(FsEntry(boot_part, "/boot", "vfat", boot_options))
 
-    exec(f"mount {root_part} /mnt/kod")
+    exec(f"mount {root_part} {mount_point}/kod")
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
 
-    exec(f"mount -o subvol=store/home {root_part} /mnt/home")
+    exec(f"mount -o subvol=store/home {root_part} {mount_point}/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
 
     for dir in subdirs:
-        exec(f"mount --bind /mnt/kod/store/{dir} /mnt/{dir}")
+        exec(f"mount --bind {mount_point}/kod/store/{dir} /mnt/{dir}")
         partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
 
     # Write generation number
-    with open("/mnt/.generation", "w") as f:
+    with open(f"{mount_point}/.generation", "w") as f:
         f.write(str(generation))
 
     print("===================================")
@@ -1073,6 +1702,20 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list):
 def create_next_generation(boot_part, root_part, generation):
     # Create generation
 
+    """
+    Create the next generation of the KodOS installation.
+
+    Mounts the generation at /.next_current and sets up the subvolumes and
+    mounts the partitions as specified in the fstab file.
+
+    Args:
+        boot_part (str): The device name of the boot partition
+        root_part (str): The device name of the root partition
+        generation (int): The generation number to create
+
+    Returns:
+        str: The path to the mounted generation
+    """
     next_current = "/kod/current/.next_current"
     # Mounting generation
     if os.path.ismount(next_current):
@@ -1106,6 +1749,17 @@ def create_next_generation(boot_part, root_part, generation):
 
 
 def refresh_package_db(mount_point, new_generation):
+    """
+    Refresh the package database.
+
+    This function runs pacman -Syy --noconfirm to refresh the package database.
+    If new_generation is True, it runs pacman inside the chroot environment.
+    Otherwise it runs pacman outside the chroot environment.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+        new_generation (bool): If True, run pacman inside the chroot environment.
+    """
     if new_generation:
         exec_chroot("pacman -Syy --noconfirm", mount_point=mount_point)
     else:
@@ -1113,6 +1767,14 @@ def refresh_package_db(mount_point, new_generation):
 
 
 def update_all_packages(mount_point, new_generation, repos):
+    """
+    Updates all packages in the system.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+        new_generation (bool): If True, run pacman inside the chroot environment.
+        repos (dict): A dictionary containing repository configurations and commands.
+    """
     # Use the repo update entry for all the repos
     for repo, repo_desc in repos.items():
         if "update" in repo_desc:
@@ -1136,6 +1798,16 @@ def update_all_packages(mount_point, new_generation, repos):
 
 
 def proc_users(ctx, conf):
+    """
+    Process all users in the given configuration.
+
+    For each user, this function creates the user, configures their dotfile manager,
+    configures their programs, and enables their services.
+
+    Args:
+        ctx (Context): The context object used for executing commands.
+        conf (dict): The configuration dictionary containing user information.
+    """
     users = conf.users
     # For each user: create user, configure dotfile manager, configure user programs
     for user, info in users.items():
@@ -1155,16 +1827,50 @@ def proc_users(ctx, conf):
 
 
 def get_generation(mount_point):
+    """
+    Retrieve the generation number from a specified mount point.
+
+    Args:
+        mount_point (str): The mount point to read the generation number from.
+
+    Returns:
+        int: The generation number as an integer.
+    """
     with open(f"{mount_point}/.generation", "r") as f:
         return int(f.read().strip())
 
 
 def get_pending_packages(packages_to_install):
+    """
+    Get the list of packages that are pending installation.
+
+    Args:
+        packages_to_install (dict): A dictionary containing the packages to install.
+            The dictionary should have a single key: "packages", which is a list of
+            package names.
+
+    Returns:
+        list: A list of package names that are pending installation.
+    """
     pending_to_install = packages_to_install["packages"]
     return pending_to_install
 
 
 def store_packages_services(state_path, packages_to_install, system_services):
+    """
+    Store the list of packages that are installed and the list of services that are enabled.
+
+    Stores the list of packages that are installed in a JSON file and the list of services
+    that are enabled in a plain text file.
+
+    Args:
+        state_path (str): The path to the state directory where the package and service
+            information should be stored.
+        packages_to_install (dict): A dictionary containing the packages to install.
+            The dictionary should have a single key: "packages", which is a list of
+            package names.
+        system_services (list): A list of system services that are enabled.
+    """
     packahes_json = json.dumps(packages_to_install, indent=2)
     with open(f"{state_path}/installed_packages", "w") as f:
         f.write(packahes_json)
@@ -1173,6 +1879,20 @@ def store_packages_services(state_path, packages_to_install, system_services):
 
 
 def load_packages_services(state_path):
+    """
+    Load the list of packages that are installed and the list of services that are enabled.
+
+    Args:
+        state_path (str): The path to the state directory where the package and service
+            information is stored.
+
+    Returns:
+        tuple: A tuple containing two elements:
+            - packages (dict): A dictionary containing the packages to install.
+              The dictionary should have a single key: "packages", which is a list of
+              package names.
+            - services (list): A list of system services that are enabled.
+    """    
     with open(f"{state_path}/installed_packages", "r") as f:
         packages = json.load(f)
     with open(f"{state_path}/enabled_services", "r") as f:
@@ -1181,12 +1901,38 @@ def load_packages_services(state_path):
 
 
 def generale_package_lock(mount_point, state_path):
+    """
+    Generate a file containing the list of installed packages and their versions.
+
+    This function uses the ``pacman -Q --noconfirm`` command to get the list of installed
+    packages and their versions in a chroot environment. The output is written to a file
+    named ``packages.lock`` in the specified ``state_path``.
+
+    Args:
+        mount_point (str): The path to the root directory of the chroot environment.
+        state_path (str): The path to the state directory where the package information
+            should be stored.
+    """
     installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
     with open(f"{state_path}/packages.lock", "w") as f:
         f.write(installed_pakages_version)
 
 
 def load_package_lock(state_path):
+    """
+    Load the list of installed packages and their versions from a lock file.
+
+    This function reads a file named `packages.lock` located at the provided
+    `state_path`. Each line of the file should contain a package name followed
+    by its version, separated by a space. The function parses the file and
+    returns a dictionary mapping package names to their respective versions.
+
+    Args:
+        state_path (str): The path to the directory containing the `packages.lock` file.
+
+    Returns:
+        dict: A dictionary where keys are package names and values are their corresponding versions.
+    """
     packages = {}
     with open(f"{state_path}/packages.lock") as f:
         for line in f.readlines():
@@ -1199,6 +1945,20 @@ def load_package_lock(state_path):
 
 
 def update_kernel_hook(kernel_package, mount_point):
+    """
+    Create a hook function to update the kernel for a specified package.
+
+    This function generates a hook that, when executed, copies the kernel file
+    for the specified kernel package from the chroot environment at the given
+    mount point to the /boot directory with a versioned filename.
+
+    Args:
+        kernel_package (str): The name of the kernel package to update.
+        mount_point (str): The mount point of the chroot environment.
+
+    Returns:
+        function: A hook function that performs the kernel update.
+    """
     def hook():
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
@@ -1210,6 +1970,20 @@ def update_kernel_hook(kernel_package, mount_point):
 
 
 def update_initramfs_hook(kernel_package, mount_point):
+    """
+    Create a hook function to update the initramfs for a specified package.
+
+    This function generates a hook that, when executed, generates an initramfs
+    file for the specified kernel package from the chroot environment at the
+    given mount point.
+
+    Args:
+        kernel_package (str): The name of the kernel package to update.
+        mount_point (str): The mount point of the chroot environment.
+
+    Returns:
+        function: A hook function that performs the initramfs update.
+    """
     def hook():
         print(f"Update initramfs ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
@@ -1223,6 +1997,23 @@ def update_initramfs_hook(kernel_package, mount_point):
 
 
 def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
+    """
+    Check if a kernel update is required.
+
+    This function compares the current kernel version with the next one and
+    returns True if they are different, indicating that a kernel update is
+    required.
+
+    Args:
+        current_kernel (str): The name of the current kernel package.
+        next_kernel (str): The name of the next kernel package.
+        current_installed_packages (dict): A dictionary mapping package names
+            to their respective versions.
+        mount_point (str): The mount point of the chroot environment.
+
+    Returns:
+        bool: True if a kernel update is required, False otherwise.
+    """
     if current_kernel != next_kernel:
         return True
     new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
@@ -1242,6 +2033,28 @@ def get_packages_updates(
     current_installed_packages,
     mount_point,
 ):
+    """
+    Determine the packages to install, remove, and update, as well as any necessary hooks to run.
+
+    This function compares the current and next package sets to decide which packages
+    need to be installed, removed, or updated. It also determines if a kernel update is 
+    required and prepares appropriate hooks for updating the kernel and initramfs.
+
+    Args:
+        current_packages (dict): A dictionary containing information about currently installed packages.
+        next_packages (dict): A dictionary containing information about packages to be installed.
+        remove_packages (list): A list of package names to be removed.
+        current_installed_packages (dict): A dictionary mapping currently installed package names to their versions.
+        mount_point (str): The mount point of the chroot environment.
+
+    Returns:
+        tuple: A tuple containing four elements:
+            - packages_to_install (list): A list of package names that need to be installed.
+            - packages_to_remove (list): A list of package names that need to be removed.
+            - packages_to_update (list): A list of package names that need to be updated.
+            - hooks_to_run (list): A list of hook functions that need to be executed.
+    """
+
     packages_to_install = []
     packages_to_remove = []
     packages_to_update = []
@@ -1268,63 +2081,55 @@ def get_packages_updates(
 
 
 ##############################################################################
-# stages
-# stage=="install" -> mount_point="/mnt", use_chroot=True
-# stage=="rebuild" -> if new_generation -> mount_point="/.new_rootfs", use_chroot=True
-# stage=="rebuild" -> if not new_generation -> mount_point="/", use_chroot=False
-# stage=="rebuild-user" -> mount_point="/", use_chroot=False
-##############################################################################
 
 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
-# @click.option('--step', default=None, help='Step to start installing')
-def install(config):
-    "Install KodOS in /mnt"
+@click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
+def install(config, mount_point):
+    "Install KodOS based on the given configuration"
 
-    ctx = Context(os.environ["USER"], mount_point="/mnt", use_chroot=True, stage="install")
+    ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
     conf = load_config(config)
     print("-------------------------------")
-    # if not step:
     boot_partition, root_partition, partition_list = create_partitions(conf)
 
-    partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list)
+    partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
 
     # Install base packages and configure system
     base_packages = get_base_packages(conf)
-    install_essentials_pkgs(base_packages)
-    configure_system(conf, root_part=root_partition, partition_list=partition_list)
+    install_essentials_pkgs(base_packages, mount_point)
+    configure_system(conf, partition_list=partition_list, mount_point=mount_point)
     setup_bootloader(conf, partition_list)
-    create_kod_user()
+    create_kod_user(mount_point)
 
     # === Proc packages
-    repos, repo_packages = proc_repos(conf)
+    repos, repo_packages = proc_repos(conf, mount_point=mount_point)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
-    manage_packages("/mnt", repos, "install", pending_to_install, chroot=True)
+    manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
 
     # === Proc services
     system_services_to_enable = get_services_to_enable(ctx, conf)
     print(f"Services to enable: {system_services_to_enable}")
     enable_services(system_services_to_enable, use_chroot=True)
 
-    # if not step or step == "users":
     # === Proc users
     print("\n====== Creating users ======")
     proc_users(ctx, conf)
 
     # print("==== Deploying generation ====")
-    store_packages_services("/mnt/kod/generations/0", packages_to_install, system_services_to_enable)
-    generale_package_lock("/mnt", "/mnt/kod/generations/0")
+    store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
+    generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
-    exec("umount -R /mnt")
+    exec(f"umount -R {mount_point}")
 
     print("Done")
-    exec(f"mount {root_partition} /mnt")
-    exec("cp -r /root/kodos /mnt/store/root/")
-    exec("umount /mnt")
+    exec(f"mount {root_partition} {mount_point}")
+    exec(f"cp -r /root/kodos {mount_point}/store/root/")
+    exec(f"umount {mount_point}")
     print(" Done installing KodOS")
 
 
@@ -1333,7 +2138,7 @@ def install(config):
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
 def rebuild(config, new_generation=False, update=False):
-    "Rebuild KodOS installation based on configuration file"
+    "Rebuild KodOS system installation"
 
     # stage = "rebuild"
     conf = load_config(config)
@@ -1511,7 +2316,7 @@ def rebuild(config, new_generation=False, update=False):
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
 def rebuild_user(config, user=os.environ["USER"]):
-    "Rebuild KodOS installation based on configuration file"
+    "Rebuild user configuration"
     # stage = "rebuild-user"
     ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
     conf = load_config(config)
@@ -1525,7 +2330,7 @@ def rebuild_user(config, user=os.environ["USER"]):
 
         dotfile_mngrs = user_dotfile_manager(info)
         user_configs_def = user_configs(user, info)
-        
+
         proc_user_home(ctx, user, info)
 
         configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
