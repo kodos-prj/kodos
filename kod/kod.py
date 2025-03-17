@@ -1655,7 +1655,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
 
     # First generation
     exec(f"mkdir -p {mount_point}/generations/{generation}")
-    exec(f"btrfs subvolume create /mnt/generations/{generation}/rootfs")
+    exec(f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs")
 
     # Mounting first generation
     exec(f"umount -R {mount_point}")
@@ -1687,7 +1687,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
 
     for dir in subdirs:
-        exec(f"mount --bind {mount_point}/kod/store/{dir} /mnt/{dir}")
+        exec(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}")
         partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
 
     # Write generation number

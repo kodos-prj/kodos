@@ -126,26 +126,6 @@ return {
                     deploy_config = true,
                 },
 
-                -- zsh = {
-                --     enable = true,
-                --     deploy_config = true,
-                --     extra_packages = {
-                --         -- "zsh-syntax-highlighting",
-                --         "zsh-autosuggestions",
-                --         "zsh-completions",
-                --         -- "zsh-history-substring-search",
-                --     }
-                --     -- autosuggestion = true,
-                --     -- enable_vfe_integration = true,
-                --     -- default_keymap = "emacs",
-
-                --     -- oh_my_zsh = {
-                --     --     enable = true,
-                --     --     plugins = {"sudo"},
-                --     --     theme = "lukerandall"
-                --     -- }
-                -- },
-
                 fish = {
                     enable = true,
                 },
