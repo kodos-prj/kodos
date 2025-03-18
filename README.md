@@ -21,7 +21,7 @@ KodOS is still in a Work-in-progress state, allowing install a system, manage ge
 
 KodOS is in development and it is not ready for production (however, I'm using it on my personal laptop and desktop). 
 
-# Installation
+# Installation and usage
 
 KodOS currently uses an official live iso for the target distribution, currently [Arch](https://archlinux.org/download/)
 
@@ -57,32 +57,48 @@ Installing a system requires a configuration that describe the target system. An
 
 Using the example configuration, running `uv run kod install -c example/testvm` will start the installation. The example configuration witll wipe the virtual disk and create 3 partions (`boot`, `swap` (optional), and `rootfs` (_btrfs_)). The first generation is created and the specified packages and services are installed, as well as the specified users. After finishing the installation, the system can be rebooted to boot to the new installed system. KodOS is automatically copied into the `/root/kodos` for future use.
 
-After loging as a normal user, we can run the configuration set for each user running `uv run kod rebuild-user -c example/testvm`. This command will process all the configurations defined for the current user. For example, if a dotfile manager program has been specified, or Lua functions has been used to configure a package, like generation of `.gitconfig` file.
+After loging as a normal user, we can run the configuration set for each user running 
+```bash
+uv run kod rebuild-user -c example/testvm
+```
+This command will process all the configurations defined for the current user. For example, if a dotfile manager program has been specified, or Lua functions has been used to configure a package, like generation of `.gitconfig` file.
 
 To add/remove packages or service, edit your configuration file and run:
 ```bash
 uv run kod rebuild -n -c example/testvm
 ```
+The previous command will recreate the given configuration in a new generation (`-n`), creating a new entry in the boot loader (`system-boot`). To use the new created generation, the system need to be rebooted to choose the desired generation to boot. If the option `-n` is not used, a new generation is created and but the changes introduced are inmediatly available without reboot. This on-site generetaion could have issues with programs that replaces actual functionality (e.g. changing the display manager). 
+
+KodOS provides a functionality to temporary install a package(s), similar to the functionality provide by `nix shell`. The implementation of `kod shell` uses [pchroot](https://man.archlinux.org/man/schroot.1) and ovelayfs to create a temporary enviroment to install packages. For example, the following command will create a temporary shell where `smem` from AUR and `neofetch` from Arch extra are installed, and the programs are accesable inside the created shell. When the shell is closed, all the installed packages are removed (overlay is destroyed).
+
+```bash
+uv run kod shell -p aur:smem -p neofetch
+```
+
+Currently, not all the programs work using `kod shell`. Some of the problems are related to permissions to access the current display (Wayland or X11), the program detects that is running in a chroot environment, or other issues.
 
 ## [Configuration file](#configuration)
-The configuration file is a lua file that contains defferent sections to configure the different aspects of the system. An example of a basic configuration file is the following:
+The configuration file is a Lua file that contains defferent sections to configure the different aspects of the system. An example of a basic configuration file is the following:
 
 ```lua
-disk = require("disk")
+-- Helper scripts 
+disk = require("disk") 
 repos = require("repos")
 dotmgr = require("dotfile_manager")
 configs = require("configs")
 
 return {
     repos = {
-        official = repos.arch_repo("https://mirror.rackspace.com/archlinux");
+        -- The following package sources are defined by script functions freom repo 
+        arch = repos.arch_repo("https://mirror.rackspace.com/archlinux");
         -- Uses yay as package manager for AUR
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git");
         flatpak = repos.flatpak_repo("flathub");
     },
 
     devices = {
-        -- Defines partition layout for the /dev/vda device using 3GB of swap
+        -- disk0 is a disk partition layout (boot, swap (optional), and rootfs) over the /dev/vda device, created using a script function 
+        -- The swap size (3GB in this case) is optional
         disk0 = disk.disk_definition("/dev/vda", "3GB");
     };
 
@@ -111,10 +127,24 @@ return {
 
     locale = {
         locale = {
-            default = "en_US.UTF-8 UTF-8\nen_CA.UTF-8 UTF-8";
-        },
+            default = "en_CA.UTF-8 UTF-8";
+            extra_generate = {
+                "en_US.UTF-8 UTF-8", "en_GB.UTF-8 UTF-8"
+            };
+            extra_settings = {
+                LC_ADDRESS = "en_CA.UTF-8",
+                LC_IDENTIFICATION = "en_CA.UTF-8",
+                LC_MEASUREMENT = "en_CA.UTF-8",
+                LC_MONETARY = "en_CA.UTF-8",
+                LC_NAME = "en_CA.UTF-8",
+                LC_NUMERIC = "en_CA.UTF-8",
+                LC_PAPER = "en_CA.UTF-8",
+                LC_TELEPHONE = "en_CA.UTF-8",
+                LC_TIME = "en_CA.UTF-8",
+            },
+        };
         keymap = "us";
-        timezone = "America/Edmonton"
+        timezone = "America/Edmonton";
     };
 
     network = {
@@ -127,20 +157,25 @@ return {
             no_password = true,
             shell = "/bin/bash",
         };
-        abuss = {
-            name = "Demo User",
-            hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
+        demo-user = {
+            name = "Demo User";
+            password = "changme";
+            -- or use a hash version of the passward 
+            -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/bin/zsh",
 
+            -- Specify if a program to hadle dotfiles is used. In this case stow
             dotfile_manager = dotmgr.stow({
                     source_dir = "~/.dotfiles",
                     target_dir = "~/",
                     repo_url = "http://git.homecloud.lan/demouser/dotconfig.git",
                 });
 
+            -- Programs used for the user. This programs aree installed at the system level and are available for all the users
             programs = {
                 git = {
                     enable = true,
+                    -- Uses a script function to configure .gitconfig
                     config = configs.git({
                         user_name = "Demo User",
                         user_email = "demo.user@gmail.com",
@@ -158,16 +193,18 @@ return {
 
                 neovim = {
                     enable = true,
+                    -- This option instruct the dotfile manager to deply the configuration for neovim
                     deploy_config = true,
                 };
             };
 
-            -- Configuration to deploy using the defined dotfile manager
+            -- Configuration to deploy using the defined dotfile manager not associated to any program in particular
             deploy_configs = {
                 "home", -- General config for home directory (face, background, etc.)
                 "gtk", -- GTK themes
             },
 
+            -- Services enabled at the user level
             services = {
                 syncthing = {
                     enable = false,
@@ -181,6 +218,8 @@ return {
     };
 
     desktop = {
+        -- General display manager to use. Use this option if multiple desktop managers wants to be  installed.
+        -- IF it is not used, each desktop manager could define it own display manager. 
         display_manager = "gdm";
 
         desktop_manager = {
@@ -227,6 +266,7 @@ return {
         },
     };
 
+    -- System packages to install
     packages = {
         "neovim",
         "htop",
@@ -239,6 +279,7 @@ return {
         "flatpak:com.visualstudio.code",
     };
 
+    -- System services
     services = {
         -- Firmware update
         fwupd = { enable = true },
@@ -254,7 +295,8 @@ return {
             settings = {
                 PermitRootLogin = false,
             }
-        }; 
+        };
+
         cups = {
             enable = true,
             extra_packages = { "gutenprint" },
