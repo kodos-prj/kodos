@@ -21,8 +21,10 @@ KodOS is still a work-in-progress but supports system installation, generation m
 - **Partial support for `kod shell`** (similar to `nix shell`).
 - **Extensible** to work with other distributions. (Currently, only Arch Linux is supported, with Debian planned for the future).
 
-KodOS is in development and not yet production-ready (though I personally use it on my laptop and desktop).
-If you want to try it, please use first a virtual machine to get familiar with the system and configuration file.
+KodOS is still under development and not yet ready for production, although I personally use it on both my laptop and desktop. The currently implemented features are based on my personal requirements, but I'm open to adding new functionality. I will continue to work on it during my spare time, with plans to introduce more features and expand support for other distributions.
+
+If you're interested in trying it out, I recommend starting with a virtual machine to familiarize yourself with the system and its configuration file.
+
 
 # Installation and usage
 
