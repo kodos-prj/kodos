@@ -7,37 +7,50 @@
 
 # Introduction
 
-KodOS is a tool for installation and package management of a Linux distribution. It uses [Lua](https://www.lua.org/) as a declarative languge for configurations to enable reproducibility. KodOS follow some of the ideas of [NixOS](https://nixos.org/). KodOS rather than providing its own package ecosystem, it leverages packages from other Linux distributions (currently Arch Linux), simillar to and [AshOS](https://github.com/ashos/ashos). KodOS uses Btrfs snapshots to provide the concept of "generations," allowing users to boot previous versions of the system. This provides an efficient way to handle system rollbacks and upgrades.
+KodOS is a tool for installing and managing packages in a Linux distribution. It uses [Lua](https://www.lua.org/) as a declarative language for configurations, enabling reproducibility. KodOS follows many concepts from [NixOS](https://nixos.org/). Rather than providing its own package ecosystem, KodOS leverages packages from other Linux distributions (currently Arch Linux), similar to [AshOS](https://github.com/ashos/ashos).
 
-KodOS is still in a Work-in-progress state, allowing install a system, manage generations (updates and rollback), as well a minimal support for package configurations. New package configurations can be added using Lua. 
+KodOS employs Btrfs snapshots to provide "generations," allowing users to boot into previous versions of the system. This feature enables efficient handling of system atomic rollbacks and upgrades.
+
+KodOS is still a work-in-progress but supports system installation, generation management (updates and rollbacks), and minimal package configuration support. New package configurations can be added using Lua.
 
 # Features
-- Support for generations through Btrfs snapshots.
-- Declarative configuration of the system using Lua to decribe the configuration.
-- Different package sources can be used and new ones can be added using Lua. Current Arch repos (core and extra), AUR and flatpak are supported.
-- New package configurations can be added using Lua.
-- Partial support for `kod shell -p` (simillar to `nix shell -p`). Currently some GUI applications are not working, but so far, CLI apps work fine.
-- The tool can be extended to work with different distributions. (Currently only Arch is supported, but Debian is in the future plans).
 
-KodOS is in development and it is not ready for production (however, I'm using it on my personal laptop and desktop). 
+- **Generation support** via Btrfs snapshots.
+- **Declarative system configuration** using Lua.
+- **Multiple package sources** are supported, including Arch repositories (core, extra), AUR, and Flatpak. New sources can be added using Lua.
+- **Partial support for `kod shell`** (similar to `nix shell`).
+- **Extensible** to work with other distributions. (Currently, only Arch Linux is supported, with Debian planned for the future).
+
+KodOS is in development and not yet production-ready (though I personally use it on my laptop and desktop).
+If you want to try it, please use first a virtual machine to get familiar with the system and configuration file.
 
 # Installation and usage
 
-KodOS currently uses an official live iso for the target distribution, currently [Arch](https://archlinux.org/download/)
+KodOS requires an official live ISO of the target distribution (currently [Arch](https://archlinux.org/download/))
 
-After booting with the live iso, you need to install the required packages for installation:
+### 1. Boot with the Live ISO
+
+After booting the live ISO, install the required packages for installation:
+
 ```bash
 pacman -Syy
 pacman -S git uv
 ```
 
-To install the KodOS (`kod` cli tool), clone the repository:
+### 2. Install KodOS (`kod` CLI tool)
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/kodos-prj/kodos.git
 ```
+Navigate to the kodos directory and run:
 
-Then, enter to the `kodos` directory and run `uv run kod`. This will download the library dependencies and run the `kod` command to show the help:
+```bash
+uv run kod
+```
+
+This will download the required dependencies and display the help message:
 
 ```bash
 Usage: kod [OPTIONS] COMMAND [ARGS]...
@@ -53,32 +66,58 @@ Commands:
   shell         Run shell
 ```
 
-Installing a system requires a configuration that describe the target system. An example of a simple configuration to be used to install over a virtual machine is [`example/testvm/configuration.lua`](https://github.com/kodos-prj/kodos/blob/main/example/testvm/configuration.lua).
+### 3. Example Installation
 
-Using the example configuration, running `uv run kod install -c example/testvm` will start the installation. The example configuration witll wipe the virtual disk and create 3 partions (`boot`, `swap` (optional), and `rootfs` (_btrfs_)). The first generation is created and the specified packages and services are installed, as well as the specified users. After finishing the installation, the system can be rebooted to boot to the new installed system. KodOS is automatically copied into the `/root/kodos` for future use.
+To install the system, you need a configuration file that describes the target system. An example configuration for a virtual machine can be found at [`example/testvm/configuration.lua`](https://github.com/kodos-prj/kodos/blob/main/example/testvm/configuration.lua).
 
-After loging as a normal user, we can run the configuration set for each user running 
+Use the example configuration with the following command to start the installation:
+
 ```bash
 uv run kod rebuild-user -c example/testvm
 ```
-This command will process all the configurations defined for the current user. For example, if a dotfile manager program has been specified, or Lua functions has been used to configure a package, like generation of `.gitconfig` file.
 
-To add/remove packages or service, edit your configuration file and run:
+By default, `kod` will look for a file called `configuration.lua` in the specified directory path, unless a particular configuration file path is provided.
+
+The previous command will wipe the virtual disk and create three partitions: _boot_, _swap_ (optional), and _rootfs_ (using Btrfs). The first generation will be created, and the specified packages, services, and users will be installed.
+
+After installation, reboot the system to boot into the newly installed system. KodOS is copied to `/root/kodos` for future use.
+
+### 4. Rebuilding User Configuration
+
+After logging in as a normal user, you can run the following to rebuild the user configuration:
+
+```bash
+uv run kod rebuild-user -c example/testvm
+```
+
+This will process all the configurations defined for the current user, such as dotfile managers or package-specific configurations (e.g., `.gitconfig` generation).
+
+### 5. Adding/Removing Packages or Services
+
+To modify the system configuration, edit the configuration file and run:
+
 ```bash
 uv run kod rebuild -n -c example/testvm
 ```
-The previous command will recreate the given configuration in a new generation (`-n`), creating a new entry in the boot loader (`system-boot`). To use the new created generation, the system need to be rebooted to choose the desired generation to boot. If the option `-n` is not used, a new generation is created and but the changes introduced are inmediatly available without reboot. This on-site generetaion could have issues with programs that replaces actual functionality (e.g. changing the display manager). 
+This will create a new generation (`-n`), adding an entry to the boot loader (`system-boot`). To use the new generation, reboot the system and select the desired one. If the `-n` flag is not used, the changes will take effect immediately without rebooting. However, changes like display manager updates may cause issues in this case.
 
-KodOS provides a functionality to temporary install a package(s), similar to the functionality provide by `nix shell`. The implementation of `kod shell` uses [pchroot](https://man.archlinux.org/man/schroot.1) and ovelayfs to create a temporary enviroment to install packages. For example, the following command will create a temporary shell where `smem` from AUR and `neofetch` from Arch extra are installed, and the programs are accesable inside the created shell. When the shell is closed, all the installed packages are removed (overlay is destroyed).
+### 6. Temporary Package Installation with kod shell
+
+KodOS supports temporarily installing packages using `kod shell`, which works similarly to `nix shell`. This feature uses [schroot](https://man.archlinux.org/man/schroot.1) and overlayfs to create a temporary environment.
+
+For example, to install `smem` from AUR and `neofetch` from Arch extra in a temporary shell, run:
 
 ```bash
 uv run kod shell -p aur:smem -p neofetch
 ```
 
-Currently, not all the programs work using `kod shell`. Some of the problems are related to permissions to access the current display (Wayland or X11), the program detects that is running in a chroot environment, or other issues.
+When the shell is closed, the installed packages will be removed (the overlay is destroyed). Note that some programs may have issues running in this environment, especially with Wayland/X11 permissions or chroot detection.
+
+----
 
 ## [Configuration file](#configuration)
-The configuration file is a Lua file that contains defferent sections to configure the different aspects of the system. An example of a basic configuration file is the following:
+
+The configuration file is written in Lua and defines various sections for configuring the system. Here’s a basic example of a configuration file:
 
 ```lua
 -- Helper scripts 
@@ -304,3 +343,4 @@ return {
     }
 }
 ```
+
