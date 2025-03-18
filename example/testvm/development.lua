@@ -15,8 +15,6 @@ return {
     
     "python",
     "uv",
-    -- "nodejs",
-    -- "nodePackages.npm",
     
     -- Tools
     "gitg",
@@ -25,6 +23,6 @@ return {
     -- Editors
     "neovim",
     "lite-xl",
-    -- "emacs-wayland",
+    "emacs-wayland",
 
 }

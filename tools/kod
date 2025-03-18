@@ -1,7 +1,7 @@
 #!/bin/bash
 
 pushd .
-cd /home/abuss/Work/devel/kodos/kodos/
+cd /root/kodos
 uv run kod $@
 popd
 
