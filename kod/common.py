@@ -21,21 +21,23 @@ def set_debug(val=True):
     use_debug = val
 
 
-def exec(cmd, get_output=False):
+def exec(cmd) -> str: #, get_output=False):
     if use_debug:
         print(">>", color.PURPLE + cmd + color.END)
+        return ""
     else:
-        if get_output:
-            return os.popen(cmd).read()
-        else:
-            os.system(cmd)
+        # if get_output:
+        return os.popen(cmd).read()
+        # else:
+        #     os.system(cmd)
 
 
-def exec_chroot(cmd, mount_point="/mnt", get_output=False):
+def exec_chroot(cmd, mount_point="/mnt") -> str: #, get_output=False):
     print(cmd)
     chroot_cmd = f"arch-chroot {mount_point} "
     chroot_cmd += cmd
-    if get_output:
-        return exec(chroot_cmd, get_output=True)
-    else:
-        exec(chroot_cmd, get_output=False)
+    # if get_output:
+    return exec(chroot_cmd) #, get_output=True)
+    # else:
+    #     exec(chroot_cmd, get_output=False)
+    #     return ""

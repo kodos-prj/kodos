@@ -1,7 +1,7 @@
 # [tool.poetry]
 [project]
 name = "kod"
-version = "0.1.0.dev1"
+version = "0.1.3.dev1"
 description = "Kod package management"
 authors = [{name="Antal Buss"}, {email="antal.buss@gmail.com"}]
 readme = "README.md"
