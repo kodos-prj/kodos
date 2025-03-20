@@ -7,7 +7,7 @@ import os
 
 import click
 
-from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
+# from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import exec, set_debug
 from kod.core import (
     Context,
@@ -57,6 +57,7 @@ def cli(debug):
     set_debug(debug)
 
 # pkgs_installed = []
+base_distribution = "arch"
 
 ##############################################################################
 
@@ -66,10 +67,19 @@ def cli(debug):
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
 def install(config, mount_point):
     "Install KodOS based on the given configuration"
-
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
     conf = load_config(config)
+
+    base_distribution = conf.base_distribution
+    base_distribution = "arch" if base_distribution is None else base_distribution
+    print("Base distribution:",base_distribution)
+
+    if base_distribution == "debian":
+        from kod.debian import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
+    else:
+        from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
+
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)
 
