@@ -81,10 +81,10 @@ return {
             shell = "/bin/bash",
         },
         demo_user = {
-            name = "Demo User";
-            password = "changeme";
+            name = "Demo User",
+            password = "changeme",
             -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/usr/bin/fish";
+            shell = "/usr/bin/fish",
             extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
 
             dotfile_manager = configs.stow({
@@ -214,39 +214,39 @@ return {
     },
 
     packages = list({
-        "iw",
-        "stow",
-        "mc",
-        "less",
-        "neovim",
-        "htop",
-        "libgtop",
-        "uv",
-        "python-invoke",
-        "git",
-        -- "poetry",
-        "neofetch",
-        "helix",
-        "ghostty",
-        -- AUR packages
-        -- "aur:visual-studio-code-bin",
-        -- "aur:floorp-bin",
-        -- "aur:mission-center",
-        -- Flatpak packages
-        -- "flatpak:com.mattjakeman.ExtensionManager",
-        -- "flatpak:com.visualstudio.code",
-        -- "distrobox",
-        -- "aur:quickemu",
-        -- "aur:uxplay",
-        -- "aur:megasync",
+            "iw",
+            "stow",
+            "mc",
+            "less",
+            "neovim",
+            "htop",
+            "libgtop",
+            "uv",
+            "python-invoke",
+            "git",
+            -- "poetry",
+            "neofetch",
+            "helix",
+            "ghostty",
+            -- AUR packages
+            -- "aur:visual-studio-code-bin",
+            -- "aur:floorp-bin",
+            -- "aur:mission-center",
+            -- Flatpak packages
+            -- "flatpak:com.mattjakeman.ExtensionManager",
+            -- "flatpak:com.visualstudio.code",
+            -- "distrobox",
+            -- "aur:quickemu",
+            -- "aur:uxplay",
+            -- "aur:megasync",
 
-        "firefox",
-        -- "aur:brave-bin",
-        -- "vulkan-virtio",
-        -- "zed",
-    }),
-    ..
-    cli; -- CLI tools
+            "firefox",
+            -- "aur:brave-bin",
+            -- "vulkan-virtio",
+            -- "zed",
+        })
+        ..
+        cli, -- CLI tools
     -- ..
     -- development, -- Development tools
 
