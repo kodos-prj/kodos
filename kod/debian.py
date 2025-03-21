@@ -47,7 +47,7 @@ def get_base_packages(conf):
             "systemd-boot",
             # "firmware-linux", # Requires non-free repo
             # "bash-completion",
-            "plocate",
+            # "plocate",
             "locales",
             "sudo",
             "schroot",
@@ -78,9 +78,9 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
         mount_point (str): The mount point where the packages will be installed.
     """
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
-    exec(f"sudo apt install debootstrap")
-    exec(f"sudo debootstrap --merged-usr stable /mnt")
-    exec_chroot(f"bash -c `yes | DEBIAN_FRONTEND=noninteractive apt-get install -yqq {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}`", mount_point=mount_point)
+    exec(f"apt install -y debootstrap gdisk")
+    exec(f"debootstrap --merged-usr stable /mnt")
+    exec_chroot(f"bash -c `yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}`", mount_point=mount_point)
 
 
 # Debian (partial)
