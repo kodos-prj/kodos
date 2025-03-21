@@ -45,7 +45,7 @@ def get_base_packages(conf):
             # microcode,
             "btrfs-progs",
             "systemd-boot",
-            "firmware-linux",
+            # "firmware-linux", # Requires non-free repo
             # "bash-completion",
             "plocate",
             "sudo",
