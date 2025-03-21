@@ -70,10 +70,10 @@ local function deb_repo(mirrors)
         -- arch = "x86_64",
         repo = { "stable" },
         commands = {
-            install = "yes | apt install",
-            update = "yes | apt reinstall",
-            remove = "yes | apt remove",
-            update_db = "yes | apt update",
+            install = "DEBIAN_FRONTEND=noninteractive yes | apt install -yqq",
+            update = "DEBIAN_FRONTEND=noninteractive yes | apt reinstall -yqq",
+            remove = "DEBIAN_FRONTEND=noninteractive yes | apt remove -yqq",
+            update_db = "DEBIAN_FRONTEND=noninteractive yes | apt update -yqq",
         }
     }
 end
