@@ -84,7 +84,7 @@ def generate_fstab(partiton_list: List, mount_point: str):
     with open(f"{mount_point}/etc/fstab", "w") as f:
         for part in partiton_list:
             if part.source[:5] == "/dev/":
-                uuid = exec(f"lsblk -o UUID {part.source} | tail -n 1") #, get_output=True)
+                uuid = exec(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
                 if uuid:
                     part.source = f"UUID={uuid.strip()}"
             f.write(str(part) + "\n")
@@ -258,7 +258,7 @@ def create_boot_entry(
     if not kver:
         kver = get_kernel_version(mount_point)
 
-    today = exec("date +'%Y-%m-%d %H:%M:%S'").strip() # , get_output=True).strip()
+    today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
 title KodOS
 sort-key kodos
@@ -1697,23 +1697,6 @@ def load_packages_services(state_path):
         services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     return packages, services
 
-# Core
-def generale_package_lock(mount_point, state_path):
-    """
-    Generate a file containing the list of installed packages and their versions.
-
-    This function uses the ``pacman -Q --noconfirm`` command to get the list of installed
-    packages and their versions in a chroot environment. The output is written to a file
-    named ``packages.lock`` in the specified ``state_path``.
-
-    Args:
-        mount_point (str): The path to the root directory of the chroot environment.
-        state_path (str): The path to the state directory where the package information
-            should be stored.
-    """
-    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point) #, get_output=True)
-    with open(f"{state_path}/packages.lock", "w") as f:
-        f.write(installed_pakages_version)
 
 # Core
 def load_package_lock(state_path):

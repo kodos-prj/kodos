@@ -91,7 +91,7 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
     """
-    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point) #, get_output=True)
+    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
     kernel_file = kernel_file.split(" ")[-1].strip()
     kver = kernel_file.split("/")[-2]
     return kernel_file, kver
@@ -115,14 +115,14 @@ def get_list_of_dependencies(pkg: str):
     """
     pkgs_list = [pkg]
     # check if it is a group
-    # pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
-    pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
+    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
+    # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
     else:
         # check if it is a (meta-)package
-        # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
+        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
+        # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
 
@@ -226,7 +226,7 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     """
     if current_kernel != next_kernel:
         return True
-    new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point) #, get_output=True)
+    new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
     current_kernel_ver = current_installed_packages[current_kernel]
     new_kernel_ver = new_kernel.strip().split(" ")[1]
 
@@ -234,3 +234,21 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     if current_kernel_ver != new_kernel_ver:
         return True
     return False
+
+# Arch
+def generale_package_lock(mount_point, state_path):
+    """
+    Generate a file containing the list of installed packages and their versions.
+
+    This function uses the ``pacman -Q --noconfirm`` command to get the list of installed
+    packages and their versions in a chroot environment. The output is written to a file
+    named ``packages.lock`` in the specified ``state_path``.
+
+    Args:
+        mount_point (str): The path to the root directory of the chroot environment.
+        state_path (str): The path to the state directory where the package information
+            should be stored.
+    """
+    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
+    with open(f"{state_path}/packages.lock", "w") as f:
+        f.write(installed_pakages_version)

@@ -8,7 +8,7 @@ import os
 import click
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
-from kod.common import exec, set_debug
+from kod.common import exec, set_debug, set_verbose
 from kod.core import (
     Context,
     change_subvol,
@@ -22,7 +22,6 @@ from kod.core import (
     disable_services,
     enable_services,
     enable_user_services,
-    generale_package_lock,
     generate_fstab,
     get_max_generation,
     get_packages_to_install,
@@ -53,8 +52,10 @@ from kod.filesytem import create_partitions, get_partition_devices
 #####################################################################################################
 @click.group()
 @click.option("-d", "--debug", is_flag=True)
-def cli(debug):
+@click.option("-v", "--verbose", is_flag=True)
+def cli(debug, verbose):
     set_debug(debug)
+    set_verbose(verbose)
 
 # pkgs_installed = []
 base_distribution = "arch"
@@ -76,9 +77,23 @@ def install(config, mount_point):
     print("Base distribution:",base_distribution)
 
     if base_distribution == "debian":
-        from kod.debian import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
+        from kod.debian import (
+            generale_package_lock,
+            get_base_packages,
+            get_kernel_file,
+            install_essentials_pkgs,
+            proc_repos,
+            refresh_package_db,
+        )
     else:
-        from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
+        from kod.arch import (
+            generale_package_lock,
+            get_base_packages,
+            get_kernel_file,
+            install_essentials_pkgs,
+            proc_repos,
+            refresh_package_db,
+        )
 
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)
