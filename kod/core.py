@@ -1460,7 +1460,9 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
     print("== Creating filesystem hierarchy ==")
     # Initial generation
     generation = 0
-    exec(f"mkdir -p {mount_point}/" + "{store,generations,current}")
+    exec(f"mkdir -p {mount_point}/store")
+    exec(f"mkdir -p {mount_point}/generations")
+    exec(f"mkdir -p {mount_point}/current")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
