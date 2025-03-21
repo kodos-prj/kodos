@@ -80,7 +80,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
     exec(f"sudo apt install debootstrap")
     exec(f"sudo debootstrap --merged-usr stable /mnt")
-    exec_chroot(f"yes | DEBIAN_FRONTEND=noninteractive apt-get install -yqq {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}", mount_point=mount_point)
+    exec_chroot(f"bash -c `yes | DEBIAN_FRONTEND=noninteractive apt-get install -yqq {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}`", mount_point=mount_point)
 
 
 # Debian (partial)
