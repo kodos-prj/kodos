@@ -85,6 +85,7 @@ def install(config, mount_point):
             proc_repos,
             refresh_package_db,
         )
+        exec(f"apt install -y gdisk")
     else:
         from kod.arch import (
             generale_package_lock,
@@ -104,7 +105,7 @@ def install(config, mount_point):
     base_packages = get_base_packages(conf) # TODO: this function requires a wrapper
     install_essentials_pkgs(base_packages, mount_point) # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    setup_bootloader(conf, partition_list)
+    setup_bootloader(conf, partition_list, base_distribution)
     create_kod_user(mount_point)
 
     # === Proc packages

@@ -280,7 +280,7 @@ console-mode keep
         f.write(loader_conf_systemd)
 
 # Core
-def setup_bootloader(conf, partition_list):
+def setup_bootloader(conf, partition_list, base_distribution):
     # bootloader
     """
     Set up the bootloader based on the configuration.
@@ -306,24 +306,28 @@ def setup_bootloader(conf, partition_list):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
-        kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+        if base_distribution == "arch":
+            kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+            exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+        else:
+            kver = "6.1.0-32-amd64" # TODO: Fis this!!
         exec_chroot("bootctl install")
         exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
     # Using Grub as bootloader
     if boot_type == "grub":
-        pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
-        if "include" in loader_conf:
-            pkgs_required += loader_conf["include"].values()
+        pass
+        # pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
+        # if "include" in loader_conf:
+        #     pkgs_required += loader_conf["include"].values()
 
-        exec_chroot(f"pacman -S --noconfirm {' '.join(pkgs_required)}")
-        exec_chroot(
-            "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB",
-        )
-        exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
-        # pkgs_installed += ["efibootmgr"]
+        # exec_chroot(f"pacman -S --noconfirm {' '.join(pkgs_required)}")
+        # exec_chroot(
+        #     "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB",
+        # )
+        # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
+        # # pkgs_installed += ["efibootmgr"]
 
 # Core
 def get_packages_to_install(conf):

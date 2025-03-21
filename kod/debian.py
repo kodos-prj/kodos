@@ -1,6 +1,7 @@
 # Arch specific functions
 
 from kod.common import exec_chroot, exec
+from kod.core import create_boot_entry
 import json
 from typing import Dict
 
@@ -80,7 +81,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
     exec(f"apt install -y debootstrap gdisk")
     exec(f"debootstrap --merged-usr stable /mnt")
-    exec_chroot(f"bash -c `yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}`", mount_point=mount_point)
+    exec_chroot(f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'", mount_point=mount_point)
 
 
 # Debian (partial)
