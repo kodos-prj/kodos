@@ -86,7 +86,7 @@ return {
             -- password = "changeme",
             hashed_password =
             "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/usr/bin/fish",
+            shell = "/bin/bash",
             extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
 
             dotfile_manager = configs.stow({
@@ -120,7 +120,7 @@ return {
 
                 emacs = {
                     enable = true,
-                    package = "emacs-wayland",
+                    -- package = "emacs-wayland",
                     deploy_config = true,
                 },
 
@@ -222,13 +222,13 @@ return {
         "less",
         "neovim",
         "htop",
-        "libgtop",
+        -- "libgtop",
         -- "uv",
         -- "python-invoke",
         "git",
         -- "poetry",
         "neofetch",
-        "helix",
+        -- "helix",
         -- "ghostty",
         -- AUR packages
         -- "aur:visual-studio-code-bin",
@@ -260,11 +260,13 @@ return {
         networkmanager = {
             enable = true,
             service_name = "NetworkManager",
+            package = "network-manager",
         },
 
         openssh = {
             enable = true,
             service_name = "sshd",
+            package = "openssh-server",
             settings = {
                 PermitRootLogin = false,
             }
