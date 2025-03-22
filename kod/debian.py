@@ -79,9 +79,12 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
         mount_point (str): The mount point where the packages will be installed.
     """
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
-    exec(f"apt install -y debootstrap gdisk")
-    exec(f"debootstrap --merged-usr stable /mnt")
-    exec_chroot(f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'", mount_point=mount_point)
+    exec("apt install -y debootstrap gdisk")
+    exec("debootstrap --merged-usr stable /mnt")
+    exec_chroot(
+        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'",
+        mount_point=mount_point,
+    )
 
 
 # Debian (partial)
@@ -131,7 +134,8 @@ def get_list_of_dependencies(pkg: str):
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
 
-# Arch
+
+# Debian
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     """
     Process the repository configuration from the given config.
@@ -191,6 +195,7 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
             f.write(json.dumps(repos, indent=2))
 
     return repos, packages
+
 
 # Arch
 def refresh_package_db(mount_point, new_generation):

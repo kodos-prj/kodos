@@ -1,4 +1,5 @@
 from ast import Str
+from os.path import isdir
 from this import s
 # Core functionality
 
@@ -267,6 +268,9 @@ linux /vmlinuz-linux-{kver}
 initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
+    entries_path = f"{mount_point}/boot/loader/entries/"
+    if not os.path.isdir(entries_path):
+        os.makedirs(entries_path)
     with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
         f.write(entry_conf)
 
@@ -278,6 +282,7 @@ console-mode keep
 """
     with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
         f.write(loader_conf_systemd)
+
 
 # Core
 def setup_bootloader(conf, partition_list, base_distribution):
@@ -518,6 +523,7 @@ def create_kod_user(mount_point):
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
     with open(f"{mount_point}/etc/sudoers.d/kod", "w") as f:
         f.write("kod ALL=(ALL) NOPASSWD: ALL")
+
 
 # Core
 # TODO: Replace official with check of default repo flag
@@ -1464,9 +1470,8 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
     print("== Creating filesystem hierarchy ==")
     # Initial generation
     generation = 0
-    exec(f"mkdir -p {mount_point}/store")
-    exec(f"mkdir -p {mount_point}/generations")
-    exec(f"mkdir -p {mount_point}/current")
+    for dir in ["store", "generations", "current"]:
+        exec(f"mkdir -p {mount_point}/{dir}")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
