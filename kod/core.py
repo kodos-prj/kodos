@@ -41,12 +41,12 @@ def set_base_distribution(base_dist):
     global base_distribution
     base_distribution = base_dist
     if base_dist == "debian":
-        import debian
+        import kod.debian as dist
 
-        return debian
-    import arch
+        return dist
+    import kod.arch as dist
 
-    return arch
+    return dist
 
 
 # Core
