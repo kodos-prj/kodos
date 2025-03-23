@@ -99,7 +99,7 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
 
 def setup_linux(kernel_package):
     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-    exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+    exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}")
     return kver
 
 

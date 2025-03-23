@@ -278,7 +278,7 @@ def create_boot_entry(
 title KodOS
 sort-key kodos
 version Generation {generation} KodOS (build {today} - {kver})
-linux /vmlinuz-linux-{kver}
+linux /vmlinuz-{kver}
 initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
