@@ -868,6 +868,9 @@ def create_user(ctx, user, info):
                 ctx.execute(
                     "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
                 )
+                ctx.execute(
+                    "sed -i 's/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/' /etc/pam.d/su",
+                )
 
     # Shell
     if not info.shell:
