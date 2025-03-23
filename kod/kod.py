@@ -37,6 +37,7 @@ from kod.core import (
     manage_packages_shell,
     proc_user_home,
     proc_users,
+    set_base_distribution,
     setup_bootloader,
     store_packages_services,
     update_all_packages,
@@ -57,6 +58,7 @@ def cli(debug, verbose):
     set_debug(debug)
     set_verbose(verbose)
 
+
 # pkgs_installed = []
 base_distribution = "arch"
 
@@ -74,27 +76,29 @@ def install(config, mount_point):
 
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
-    print("Base distribution:",base_distribution)
+    print("Base distribution:", base_distribution)
 
-    if base_distribution == "debian":
-        from kod.debian import (
-            generale_package_lock,
-            get_base_packages,
-            get_kernel_file,
-            install_essentials_pkgs,
-            proc_repos,
-            refresh_package_db,
-        )
-        exec(f"apt install -y gdisk")
-    else:
-        from kod.arch import (
-            generale_package_lock,
-            get_base_packages,
-            get_kernel_file,
-            install_essentials_pkgs,
-            proc_repos,
-            refresh_package_db,
-        )
+    dist = set_base_distribution(base_distribution)
+
+    # if base_distribution == "debian":
+    #     from kod.debian import (
+    #         generale_package_lock,
+    #         get_base_packages,
+    #         get_kernel_file,
+    #         install_essentials_pkgs,
+    #         proc_repos,
+    #         refresh_package_db,
+    #     )
+    #     exec(f"apt install -y gdisk")
+    # else:
+    #     from kod.arch import (
+    #         generale_package_lock,
+    #         get_base_packages,
+    #         get_kernel_file,
+    #         install_essentials_pkgs,
+    #         proc_repos,
+    #         refresh_package_db,
+    #     )
 
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)
@@ -102,14 +106,14 @@ def install(config, mount_point):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
 
     # Install base packages and configure system
-    base_packages = get_base_packages(conf) # TODO: this function requires a wrapper
-    install_essentials_pkgs(base_packages, mount_point) # TODO: this function requires a wrapper
+    base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    setup_bootloader(conf, partition_list, base_distribution)
+    setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
     # === Proc packages
-    repos, repo_packages = proc_repos(conf, mount_point=mount_point) # TODO: this function requires a wrapper
+    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
@@ -126,7 +130,7 @@ def install(config, mount_point):
 
     # print("==== Deploying generation ====")
     store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
-    generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
+    dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
     exec(f"umount -R {mount_point}")
 
@@ -200,7 +204,7 @@ def rebuild(config, new_generation=False, update=False):
 
     if update:
         print("Updating packages")
-        refresh_package_db(new_root_path, new_generation) # TODO: this function requires a wrapper
+        refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
         update_all_packages(new_root_path, new_generation, repos)
 
     # === Proc packages
@@ -271,7 +275,9 @@ def rebuild(config, new_generation=False, update=False):
 
     partition_list = load_fstab("/")
 
-    _kernel_file, kver = get_kernel_file(new_root_path, package=kernel_package) # TODO: this function requires a wrapper
+    _kernel_file, kver = get_kernel_file(
+        new_root_path, package=kernel_package
+    )  # TODO: this function requires a wrapper
 
     print("==== Deploying new generation ====")
     if new_generation:

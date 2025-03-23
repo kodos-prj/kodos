@@ -106,6 +106,12 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     return kernel_file, kver
 
 
+def setup_linux(kernel_package):
+    kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+    # exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+    return kver
+
+
 # Arch
 def get_list_of_dependencies(pkg: str):
     """

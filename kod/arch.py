@@ -97,6 +97,12 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     return kernel_file, kver
 
 
+def setup_linux(kernel_package):
+    kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+    exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+    return kver
+
+
 # Arch
 def get_list_of_dependencies(pkg: str):
     """
@@ -125,6 +131,7 @@ def get_list_of_dependencies(pkg: str):
         # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
+
 
 # Arch
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
@@ -187,6 +194,7 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
 
     return repos, packages
 
+
 # Arch
 def refresh_package_db(mount_point, new_generation):
     """
@@ -204,6 +212,7 @@ def refresh_package_db(mount_point, new_generation):
         exec_chroot("pacman -Syy --noconfirm", mount_point=mount_point)
     else:
         exec("pacman -Syy --noconfirm")
+
 
 # Arch
 def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
@@ -234,6 +243,7 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     if current_kernel_ver != new_kernel_ver:
         return True
     return False
+
 
 # Arch
 def generale_package_lock(mount_point, state_path):

@@ -10,7 +10,7 @@ from typing import List
 import lupa as lua
 
 from kod.common import exec_chroot, exec
-from kod.arch import get_kernel_file
+from kod.arch import get_kernel_file, setup_linux
 from kod.arch import get_base_packages
 import re
 import glob
@@ -32,6 +32,21 @@ BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
 RELEASE_TYPE="expeirimental"
 """
 #####################################################################################################
+
+
+base_distribution = "arch"
+
+
+def set_base_distribution(base_dist):
+    global base_distribution
+    base_distribution = base_dist
+    if base_dist == "debian":
+        import debian
+
+        return debian
+    import arch
+
+    return arch
 
 
 # Core
@@ -287,7 +302,7 @@ console-mode keep
 
 
 # Core
-def setup_bootloader(conf, partition_list, base_distribution):
+def setup_bootloader(conf, partition_list, dist):
     # bootloader
     """
     Set up the bootloader based on the configuration.
@@ -313,11 +328,12 @@ def setup_bootloader(conf, partition_list, base_distribution):
     # Using systemd-boot as bootloader
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
-        if base_distribution == "arch":
-            kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-            exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
-        else:
-            kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+        kver = dist.setup_linux(kernel_package)
+        # if base_distribution == "arch":
+        #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+        #     exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+        # else:
+        #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot("bootctl install")
         exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
