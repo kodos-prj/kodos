@@ -102,7 +102,7 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
         f"apt-cache depends {package} | grep Depends", mount_point=mount_point, get_output=True
     )
     kernel_file = kernel_file_depend.split(":")[1].strip()
-    kver = kernel_file.split("-", 1)[-1]
+    kver = kernel_file.split("-", 2)[-1]
     return kernel_file, kver
 
 

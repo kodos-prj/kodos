@@ -1,6 +1,3 @@
-from ast import Str
-from os.path import isdir
-from this import s
 # Core functionality
 
 import os
@@ -335,6 +332,7 @@ def setup_bootloader(conf, partition_list, dist):
         # else:
         #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot("bootctl install")
+        print("KVER:", kver)
         exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
