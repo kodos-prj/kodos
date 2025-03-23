@@ -90,6 +90,7 @@ def generate_fstab(partiton_list: List, mount_point: str):
                     part.source = f"UUID={uuid.strip()}"
             f.write(str(part) + "\n")
 
+
 # Core?
 def configure_system(conf, partition_list, mount_point: str):
     # fstab
@@ -213,6 +214,7 @@ aliases=user_env
     with open(f"{mount_point}/etc/schroot/kodos/fstab", "w") as f:
         f.write(venv_fstab)
 
+
 # Core
 def get_kernel_version(mount_point: str):
     """
@@ -224,7 +226,7 @@ def get_kernel_version(mount_point: str):
     Returns:
         str: The kernel version as a string.
     """
-    kernel_version = exec_chroot("uname -r", mount_point=mount_point).strip() #, get_output=True).strip()
+    kernel_version = exec_chroot("uname -r", mount_point=mount_point, get_output=True).strip()
     return kernel_version
 
 
@@ -315,7 +317,7 @@ def setup_bootloader(conf, partition_list, base_distribution):
             kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
             exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
         else:
-            kver = "6.1.0-32-amd64" # TODO: Fis this!!
+            kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot("bootctl install")
         exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
@@ -333,6 +335,7 @@ def setup_bootloader(conf, partition_list, base_distribution):
         # )
         # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
         # # pkgs_installed += ["efibootmgr"]
+
 
 # Core
 def get_packages_to_install(conf):
@@ -392,6 +395,7 @@ def get_packages_to_install(conf):
 
     return packages_to_install, packages_to_remove
 
+
 # Core
 def update_fstab(root_path, new_mount_point_map):
     """
@@ -416,6 +420,7 @@ def update_fstab(root_path, new_mount_point_map):
                 line = "\t".join(cols) + "\n"
             f.write(line)
 
+
 # Core
 def change_subvol(partition_list, subvol, mount_points):
     """
@@ -438,6 +443,7 @@ def change_subvol(partition_list, subvol, mount_points):
                     part.options = part.options.replace(opt, f"subvol={subvol}/{subvol_path}")
     return partition_list
 
+
 # Core
 def set_ro_mount(mount_point):
     """
@@ -451,6 +457,7 @@ def set_ro_mount(mount_point):
         mount_point (str): The mount point to set to read-only.
     """
     exec(f"mount -o remount,ro,bind {mount_point}")
+
 
 # Core
 def change_ro_mount(root_path):
@@ -470,6 +477,7 @@ def change_ro_mount(root_path):
             if "/usr" in line:
                 line = line.replace("rw,", "ro,")
             f.write(line)
+
 
 # Core
 def get_max_generation():
@@ -506,6 +514,7 @@ def load_repos() -> dict | None:
     with open("/var/kod/repos.json") as f:
         repos = json.load(f)
     return repos
+
 
 # Core
 def create_kod_user(mount_point):
@@ -581,6 +590,7 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
 
 # --------------------------------------
 
+
 # Core
 def proc_desktop(conf):
     """
@@ -631,6 +641,7 @@ def proc_desktop(conf):
 
     return packages_to_install, packages_to_remove
 
+
 # Core
 def proc_desktop_services(conf):
     """
@@ -670,6 +681,7 @@ def proc_desktop_services(conf):
 
     return services_to_enable
 
+
 # Core
 def proc_hardware(conf):
     """
@@ -704,6 +716,7 @@ def proc_hardware(conf):
 
     return packages
 
+
 # Core
 def proc_system_packages(conf):
     """
@@ -723,6 +736,7 @@ def proc_system_packages(conf):
     print("- processing packages -----------")
     sys_packages = list(conf.packages.values())
     return sys_packages
+
 
 # Core
 def get_services_to_enable(ctx, conf):
@@ -746,6 +760,7 @@ def get_services_to_enable(ctx, conf):
     services_to_enable = proc_services_to_enable(ctx, conf)
 
     return desktop_services + services_to_enable
+
 
 # Core
 def proc_services(conf):
@@ -781,6 +796,7 @@ def proc_services(conf):
             packages_to_install += pkgs
 
     return packages_to_install
+
 
 # Core
 def proc_services_to_enable(ctx, conf):
@@ -819,6 +835,7 @@ def proc_services_to_enable(ctx, conf):
                 services_to_enable.append(service_name)
 
     return services_to_enable
+
 
 # Core
 def create_user(ctx, user, info):
@@ -870,6 +887,7 @@ def create_user(ctx, user, info):
         else:
             ctx.execute(f"passwd {user}")
 
+
 # Core
 def proc_user_dotfile_manager(conf):
     """
@@ -893,6 +911,7 @@ def proc_user_dotfile_manager(conf):
 
     return dotfile_mngs
 
+
 # Core
 def user_dotfile_manager(info):
     """
@@ -913,6 +932,7 @@ def user_dotfile_manager(info):
         dotfile_mngs = info.dotfile_manager
 
     return dotfile_mngs
+
 
 # Core
 def proc_user_programs(conf):
@@ -968,6 +988,7 @@ def proc_user_programs(conf):
                     packages.append(name)
 
     return packages
+
 
 # Core
 def proc_user_configs(conf):
@@ -1030,6 +1051,7 @@ def proc_user_configs(conf):
 
     return configs_to_deploy
 
+
 # Core
 def user_configs(user, info):
     """
@@ -1089,6 +1111,7 @@ def user_configs(user, info):
 
     return configs_to_deploy
 
+
 # Core
 def proc_user_home(ctx, user, info):
     """
@@ -1113,6 +1136,7 @@ def proc_user_home(ctx, user, info):
                 print(f"Building {key} for {user}")
                 val.build(ctx, val.config)
     print("Done - home processed")
+
 
 # Core
 def proc_user_services(conf):
@@ -1147,6 +1171,7 @@ def proc_user_services(conf):
 
     return services_to_enable_user
 
+
 # Core
 def user_services(user, info):
     """
@@ -1174,6 +1199,7 @@ def user_services(user, info):
 
     return services
 
+
 # Core
 def proc_fonts(conf):
     """
@@ -1197,6 +1223,7 @@ def proc_fonts(conf):
         packages_to_install += fonts.packages.values()
     return packages_to_install
 
+
 # Core
 class Context:
     """
@@ -1205,6 +1232,7 @@ class Context:
     This class represents the context in which commands are executed. It stores
     information about the user and mount point that are used to execute commands.
     """
+
     user: str
     mount_point: str
     use_chroot: bool
@@ -1268,6 +1296,7 @@ class Context:
             exec(f"{exec_prefix} {wrap(command)}")
         return True
 
+
 # Core
 def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
     """
@@ -1305,6 +1334,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
             call_init = False
     ctx.user = old_user
 
+
 # Core
 def configure_user_scripts(ctx, user, user_configs):
     """
@@ -1339,6 +1369,7 @@ def configure_user_scripts(ctx, user, user_configs):
                 command(ctx, config)
     ctx.user = old_user
 
+
 # Core
 def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
     """
@@ -1366,6 +1397,7 @@ def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
             exec_chroot(f"systemctl enable {service}", mount_point=mount_point)
         else:
             exec(f"systemctl enable --now {service}")
+
 
 # Core
 def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
@@ -1395,6 +1427,7 @@ def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
         else:
             exec(f"systemctl disable --now {service}")
 
+
 # Core
 def enable_user_services(ctx, user, services):
     """
@@ -1417,6 +1450,7 @@ def enable_user_services(ctx, user, services):
             print("Running: ", f"systemctl --user enable --now {service}")
             ctx.execute(f"systemctl --user enable --now {service}")
         print("Done - services enabled")
+
 
 # Core
 def load_fstab(root_path=""):
@@ -1446,6 +1480,7 @@ def load_fstab(root_path=""):
         (device, mount_point, fs_type, options, dump, pass_) = entry.split()
         partition_list.append(FsEntry(device, mount_point, fs_type, options, int(dump), int(pass_)))
     return partition_list
+
 
 # Core
 def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_point):
@@ -1526,6 +1561,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
 
     return partition_list
 
+
 # Core
 def create_next_generation(boot_part, root_part, generation):
     """
@@ -1605,6 +1641,7 @@ def update_all_packages(mount_point, new_generation, repos):
                 else:
                     exec(f"{repo_desc['update']}", mount_point=mount_point)
 
+
 # Core
 def proc_users(ctx, conf):
     """
@@ -1634,6 +1671,7 @@ def proc_users(ctx, conf):
         print(f"User services to enable: {services_to_enable}")
         enable_user_services(ctx, user, services_to_enable)
 
+
 # Core
 def get_generation(mount_point):
     """
@@ -1647,6 +1685,7 @@ def get_generation(mount_point):
     """
     with open(f"{mount_point}/.generation", "r") as f:
         return int(f.read().strip())
+
 
 # Core
 def get_pending_packages(packages_to_install):
@@ -1663,6 +1702,7 @@ def get_pending_packages(packages_to_install):
     """
     pending_to_install = packages_to_install["packages"]
     return pending_to_install
+
 
 # Core
 def store_packages_services(state_path, packages_to_install, system_services):
@@ -1685,6 +1725,7 @@ def store_packages_services(state_path, packages_to_install, system_services):
         f.write(packahes_json)
     with open(f"{state_path}/enabled_services", "w") as f:
         f.write("\n".join(system_services))
+
 
 # Core
 def load_packages_services(state_path):
@@ -1735,6 +1776,7 @@ def load_package_lock(state_path):
             packages[package] = version
     return packages
 
+
 # Core
 def update_kernel_hook(kernel_package, mount_point):
     """
@@ -1751,6 +1793,7 @@ def update_kernel_hook(kernel_package, mount_point):
     Returns:
         function: A hook function that performs the kernel update.
     """
+
     def hook():
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
@@ -1759,6 +1802,7 @@ def update_kernel_hook(kernel_package, mount_point):
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}", mount_point=mount_point)
 
     return hook
+
 
 # Core
 def update_initramfs_hook(kernel_package, mount_point):
@@ -1776,6 +1820,7 @@ def update_initramfs_hook(kernel_package, mount_point):
     Returns:
         function: A hook function that performs the initramfs update.
     """
+
     def hook():
         print(f"Update initramfs ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
@@ -1841,6 +1886,7 @@ def get_packages_updates(
     packages_to_update += list(update_pkg)
 
     return packages_to_install, packages_to_remove, packages_to_update, hooks_to_run
+
 
 # Core
 def manage_packages_shell(repos, action, list_of_packages, chroot):

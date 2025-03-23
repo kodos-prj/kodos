@@ -1,7 +1,6 @@
 # Arch specific functions
 
 from kod.common import exec_chroot, exec
-from kod.core import create_boot_entry
 import json
 from typing import Dict
 
@@ -87,7 +86,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     )
 
 
-# Debian (partial)
+# Debian
 def get_kernel_file(mount_point: str, package: str = "linux"):
     """
     Retrieve the kernel file path and version from the specified mount point.
@@ -99,9 +98,11 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
     """
-    kernel_file = exec_chroot(f"dpkg -l {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
-    kernel_file = kernel_file.split(" ")[-1].strip()
-    kver = kernel_file.split("/")[-2]
+    kernel_file_depend = exec_chroot(
+        f"apt-cache depends {package} | grep Depends", mount_point=mount_point, get_output=True
+    )
+    kernel_file = kernel_file_depend.split(":")[1].strip()
+    kver = kernel_file.split("-", 1)[-1]
     return kernel_file, kver
 
 
@@ -215,6 +216,7 @@ def refresh_package_db(mount_point, new_generation):
     else:
         exec("pacman -Syy --noconfirm")
 
+
 # Arch
 def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
     """
@@ -244,6 +246,7 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     if current_kernel_ver != new_kernel_ver:
         return True
     return False
+
 
 # Debian
 def generale_package_lock(mount_point, state_path):
