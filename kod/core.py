@@ -596,9 +596,13 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
                 exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
             if chroot:
-                exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
+                for pkg in pkgs:
+                    exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path)
+                # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
             else:
-                exec(f"{repos[repo][action]} {' '.join(pkgs)}")
+                for pkg in pkgs:
+                    exec(f"{repos[repo][action]} {pkg}")
+                # exec(f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
     return packages_installed
 
