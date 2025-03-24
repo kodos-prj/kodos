@@ -8,7 +8,7 @@ local configs = require("configs")
 local cli = require("cli")
 local development = require("development")
 
-local use_gnome = false
+local use_gnome = true
 local use_plasma = false
 local use_cosmic = false
 local use_pantheon = false
@@ -236,7 +236,7 @@ return {
         -- "aur:mission-center",
         -- Flatpak packages
         -- "flatpak:com.mattjakeman.ExtensionManager",
-        -- "flatpak:com.visualstudio.code",
+        "flatpak:com.visualstudio.code",
         -- "distrobox",
         -- "aur:quickemu",
         -- "aur:uxplay",
