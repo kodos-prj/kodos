@@ -583,6 +583,7 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
             pkgs_per_repo["official"].append(pkg)
 
     for repo, pkgs in pkgs_per_repo.items():
+        print(f"==> {repo}: {pkgs}")
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
