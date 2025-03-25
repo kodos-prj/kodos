@@ -80,25 +80,8 @@ def install(config, mount_point):
 
     dist = set_base_distribution(base_distribution)
 
-    # if base_distribution == "debian":
-    #     from kod.debian import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         get_kernel_file,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #         refresh_package_db,
-    #     )
-    #     exec(f"apt install -y gdisk")
-    # else:
-    #     from kod.arch import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         get_kernel_file,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #         refresh_package_db,
-    #     )
+    # Prepare enviroment to install
+    dist.prepare_for_installation()
 
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)

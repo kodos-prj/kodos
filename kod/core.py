@@ -583,7 +583,7 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
             pkgs_per_repo["official"].append(pkg)
 
     for repo, pkgs in pkgs_per_repo.items():
-        print(f"==> {repo}: {pkgs}")
+        wrong_pkgs = []
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
@@ -597,13 +597,18 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
         else:
             if chroot:
                 for pkg in pkgs:
-                    exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path)
+                    result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
+                    if re.match(r"^[Ee]rror", result):
+                        wrong_pkgs.append(pkg)
                 # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
             else:
                 for pkg in pkgs:
-                    exec(f"{repos[repo][action]} {pkg}")
+                    result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
+                    if re.match(r"^[Ee]rror", result):
+                        wrong_pkgs.append(pkg)
                 # exec(f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
+    print("Wrong packages:", wrong_pkgs)
     return packages_installed
 
 

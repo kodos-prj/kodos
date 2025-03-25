@@ -246,6 +246,9 @@ return {
         -- "aur:brave-bin",
         -- "vulkan-virtio",
         -- "zed",
+        "docker.io",
+        "docker-cli",
+        "docker-compose",
     }),
     -- ..
     -- cli, -- CLI tools

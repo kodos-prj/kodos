@@ -5,6 +5,10 @@ import json
 from typing import Dict
 
 
+def prepare_for_installation():
+    pass
+
+
 # Arch
 def get_base_packages(conf):
     # CPU microcode

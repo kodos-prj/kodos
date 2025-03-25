@@ -5,6 +5,10 @@ import json
 from typing import Dict
 
 
+def prepare_for_installation():
+    exec("apt install -y gdisk btrfs-progs dosfstools")
+
+
 # Debian
 def get_base_packages(conf):
     # CPU microcode
@@ -107,8 +111,7 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
 
 
 def setup_linux(kernel_package):
-    kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-    # exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
+    _, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
     return kver
 
 
