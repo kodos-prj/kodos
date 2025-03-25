@@ -71,9 +71,9 @@ local function deb_repo(mirrors)
         repo = { "stable" },
         commands = {
             -- install = "DEBIAN_FRONTEND=noninteractive yes | apt install -yqq",
-            install = "apt install -y",
-            update = "apt reinstall -y",
-            remove = "apt remove -y",
+            install = "apt-get install -y",
+            update = "apt-get reinstall -y",
+            remove = "apt-get remove -y",
             update_db = "apt update -y",
         }
     }
