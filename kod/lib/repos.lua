@@ -54,7 +54,7 @@ local function flatpak_repo(repo, run_as_root)
         package = "flatpak",
         commands = {
             install = "flatpak install -y " .. repo,
-            update = "flatpak upgrate -y ",
+            update = "flatpak upgrade -y ",
             remove = "flatpak uninstall -y " .. repo,
             -- run_as_root = run_as_root or true,
         }

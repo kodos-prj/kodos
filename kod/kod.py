@@ -133,6 +133,13 @@ def rebuild(config, new_generation=False, update=False):
 
     # stage = "rebuild"
     conf = load_config(config)
+
+    base_distribution = conf.base_distribution
+    base_distribution = "arch" if base_distribution is None else base_distribution
+    print("Base distribution:", base_distribution)
+
+    dist = set_base_distribution(base_distribution)
+
     print("========================================")
 
     # Get next generation number
@@ -179,7 +186,7 @@ def rebuild(config, new_generation=False, update=False):
     print("==== Processing packages and services ====")
 
     current_repos = load_repos()
-    repos, repo_packages = proc_repos(conf, current_repos, update, mount_point=new_root_path)
+    repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
     print("repo_packages\n", repo_packages)
     if repos is None:
         print("Missing repos information")
@@ -187,7 +194,7 @@ def rebuild(config, new_generation=False, update=False):
 
     if update:
         print("Updating packages")
-        refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
+        dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
         update_all_packages(new_root_path, new_generation, repos)
 
     # === Proc packages
@@ -254,11 +261,11 @@ def rebuild(config, new_generation=False, update=False):
     # Storing list of installed packages and enabled services
     # Create a list of installed packages
     store_packages_services(next_state_path, packages_to_install, next_services)
-    generale_package_lock(new_root_path, next_state_path)
+    dist.generale_package_lock(new_root_path, next_state_path)
 
     partition_list = load_fstab("/")
 
-    _kernel_file, kver = get_kernel_file(
+    _kernel_file, kver = dist.get_kernel_file(
         new_root_path, package=kernel_package
     )  # TODO: this function requires a wrapper
 
