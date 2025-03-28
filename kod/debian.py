@@ -227,7 +227,7 @@ def refresh_package_db(mount_point, new_generation):
         exec("pacman -Syy --noconfirm")
 
 
-# Arch
+# Debian
 def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
     """
     Check if a kernel update is required.
@@ -248,9 +248,9 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     """
     if current_kernel != next_kernel:
         return True
-    new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
+    new_kernel = exec_chroot(f"apt-cache madison {current_kernel}", mount_point=mount_point, get_output=True)
     current_kernel_ver = current_installed_packages[current_kernel]
-    new_kernel_ver = new_kernel.strip().split(" ")[1]
+    new_kernel_ver = new_kernel.split("|")[1].strip()
 
     print(f"{current_kernel}={current_kernel_ver} {next_kernel}={new_kernel_ver} {new_kernel=}")
     if current_kernel_ver != new_kernel_ver:

@@ -7,14 +7,14 @@ from typing import List
 import lupa as lua
 
 from kod.common import exec_chroot, exec
-from kod.arch import get_kernel_file, setup_linux
+from kod.arch import get_kernel_file
 from kod.arch import get_base_packages
 import re
 import glob
 import json
 from kod.arch import get_list_of_dependencies
 from kod.filesytem import FsEntry
-from kod.arch import kernel_update_rquired
+# from kod.arch import kernel_update_rquired
 
 #####################################################################################################
 os_release = """NAME="KodOS Linux"
@@ -1862,6 +1862,7 @@ def update_initramfs_hook(kernel_package, mount_point):
 
 # Core
 def get_packages_updates(
+    dist,
     current_packages,
     next_packages,
     remove_packages,
@@ -1896,7 +1897,7 @@ def get_packages_updates(
     hooks_to_run = []
     current_kernel = current_packages["kernel"]
     next_kernel = next_packages["kernel"]
-    if kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
+    if dist.kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
         packages_to_install += [next_kernel]
         hooks_to_run += [
             update_kernel_hook(next_kernel, mount_point),

@@ -205,6 +205,7 @@ def rebuild(config, new_generation=False, update=False):
     # Package filtering
     current_installed_packages = load_package_lock(current_state_path)
     new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
+        dist,
         current_packages,
         packages_to_install,
         packages_to_remove,
