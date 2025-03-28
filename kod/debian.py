@@ -6,10 +6,10 @@ from typing import Dict
 
 
 def prepare_for_installation():
-    pass
+    exec("apt install -y gdisk btrfs-progs dosfstools")
 
 
-# Arch
+# Debian
 def get_base_packages(conf):
     # CPU microcode
     """
@@ -29,28 +29,30 @@ def get_base_packages(conf):
         while True:
             line = f.readline()
             if "AuthenticAMD" in line:
-                microcode = "amd-ucode"
+                microcode = "amd64-microcode"
                 break
             if "GenuineIntel" in line:
-                microcode = "intel-ucode"
+                microcode = "intel-microcode"
                 break
 
     if conf.boot and conf.boot.kernel and conf.boot.kernel.package:
         kernel_package = conf.boot.kernel.package
     else:
-        kernel_package = "linux"
+        kernel_package = "linux-image-amd64"
 
     # TODO: add verions to each package
     packages = {
         "kernel": kernel_package,
         "base": [
-            "base",
-            "base-devel",
-            microcode,
+            # "base",
+            # "base-devel",
+            # microcode,
             "btrfs-progs",
-            "linux-firmware",
-            "bash-completion",
-            "mlocate",
+            "systemd-boot",
+            # "firmware-linux", # Requires non-free repo
+            # "bash-completion",
+            # "plocate",
+            "locales",
             "sudo",
             "schroot",
             "whois",
@@ -58,18 +60,17 @@ def get_base_packages(conf):
             "git",
         ],
     }
-
     # TODO: remove this package dependency
-    packages["base"] += ["arch-install-scripts"]
+    # packages["base"] += ["arch-install-scripts"]
     return packages
 
 
-# Arch
+# Debian
 def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     """
     Install essential packages onto the specified mount point.
 
-    This function uses the Arch pacstrap command to install a set of base
+    This function uses the Debian debootstrap command to install a set of base
     packages including the kernel and other essential packages onto a
     given mount point. The packages to be installed are determined by
     the base_pkgs dictionary, which should contain 'kernel' and 'base'
@@ -80,10 +81,16 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
                           with 'kernel' and 'base' keys.
         mount_point (str): The mount point where the packages will be installed.
     """
-    exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
+    # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
+    exec("apt install -y debootstrap gdisk")
+    exec("debootstrap --merged-usr testing /mnt")
+    exec_chroot(
+        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'",
+        mount_point=mount_point,
+    )
 
 
-# Arch
+# Debian
 def get_kernel_file(mount_point: str, package: str = "linux"):
     """
     Retrieve the kernel file path and version from the specified mount point.
@@ -95,15 +102,16 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
     """
-    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
-    kernel_file = kernel_file.split(" ")[-1].strip()
-    kver = kernel_file.split("/")[-2]
+    kernel_file_depend = exec_chroot(
+        f"apt-cache depends {package} | grep Depends", mount_point=mount_point, get_output=True
+    )
+    kernel_file = kernel_file_depend.split(":")[1].strip()
+    kver = kernel_file.split("-", 2)[-1]
     return kernel_file, kver
 
 
 def setup_linux(kernel_package):
-    kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-    exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}")
+    _, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
     return kver
 
 
@@ -137,7 +145,7 @@ def get_list_of_dependencies(pkg: str):
     return pkgs_list
 
 
-# Arch
+# Debian
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     """
     Process the repository configuration from the given config.
@@ -183,12 +191,12 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
                 mount_point=mount_point,
             )
 
-        if "package" in repo_desc:
-            exec_chroot(
-                f"pacman -S --needed --noconfirm {repo_desc['package']}",
-                mount_point=mount_point,
-            )
-            packages += [repo_desc["package"]]
+        # if "package" in repo_desc:
+        #     exec_chroot(
+        #         f"pacman -S --needed --noconfirm {repo_desc['package']}",
+        #         mount_point=mount_point,
+        #     )
+        #     packages += [repo_desc["package"]]
         update_repos = True
 
     if update_repos:
@@ -249,7 +257,7 @@ def kernel_update_rquired(current_kernel, next_kernel, current_installed_package
     return False
 
 
-# Arch
+# Debian
 def generale_package_lock(mount_point, state_path):
     """
     Generate a file containing the list of installed packages and their versions.
@@ -263,6 +271,6 @@ def generale_package_lock(mount_point, state_path):
         state_path (str): The path to the state directory where the package information
             should be stored.
     """
-    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
+    installed_pakages_version = exec_chroot("dpkg -l", mount_point=mount_point, get_output=True)
     with open(f"{state_path}/packages.lock", "w") as f:
         f.write(installed_pakages_version)

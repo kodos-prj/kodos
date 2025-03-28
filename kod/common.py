@@ -21,23 +21,23 @@ def set_debug(val=True):
     use_debug = val
 
 
-def exec(cmd) -> str: #, get_output=False):
-    if use_debug:
+def set_verbose(val=True):
+    global use_verbose
+    use_verbose = val
+
+
+def exec(cmd, get_output=False) -> str:
+    if use_debug or use_verbose:
         print(">>", color.PURPLE + cmd + color.END)
-        return ""
-    else:
-        # if get_output:
-        return os.popen(cmd).read()
-        # else:
-        #     os.system(cmd)
+    if not use_debug:
+        if get_output:
+            return os.popen(cmd).read()
+        else:
+            os.system(cmd)
+    return ""
 
 
-def exec_chroot(cmd, mount_point="/mnt") -> str: #, get_output=False):
-    print(cmd)
+def exec_chroot(cmd, mount_point="/mnt", get_output=False) -> str:
     chroot_cmd = f"arch-chroot {mount_point} "
     chroot_cmd += cmd
-    # if get_output:
-    return exec(chroot_cmd) #, get_output=True)
-    # else:
-    #     exec(chroot_cmd, get_output=False)
-    #     return ""
+    return exec(chroot_cmd, get_output=True)

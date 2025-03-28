@@ -61,8 +61,28 @@ local function flatpak_repo(repo, run_as_root)
     }
 end
 
+local function deb_repo(mirrors)
+    -- Creates the repo entry for official arch repos
+    --  - mirrors: is list of url mirror in case a particular set of mirror is required
+    return {
+        type = "arch",
+        mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
+        -- arch = "x86_64",
+        repo = { "stable" },
+        commands = {
+            -- install = "DEBIAN_FRONTEND=noninteractive yes | apt install -yqq",
+            install = "apt-get install -y",
+            update = "apt-get reinstall -y",
+            remove = "apt-get remove -y",
+            update_db = "apt update -y",
+        }
+    }
+end
+
+
 return {
     arch_repo = arch_repo,
     aur_repo = aur_repo,
     flatpak_repo = flatpak_repo,
+    deb_repo = deb_repo,
 }
