@@ -274,7 +274,7 @@ def generale_package_lock(mount_point, state_path):
     """
     installed_pakages_version = exec_chroot("dpkg -l", mount_point=mount_point, get_output=True)
     with open(f"{state_path}/packages.lock", "w") as f:
-        for line in installed_pakages_version:
+        for line in installed_pakages_version.split("\n"):
             if line[:2] == "ii":
                 pkg = re.split("[ ]+", line)
                 f.write(f"{pkg[1]} {pkg[2]}\n")
