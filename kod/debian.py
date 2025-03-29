@@ -84,11 +84,13 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     """
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
     exec("apt install -y debootstrap gdisk")
-    exec("debootstrap --merged-usr testing /mnt")
-    exec_chroot(
-        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'",
-        mount_point=mount_point,
+    exec(
+        f"debootstrap --merged-usr --variant=minibase --include={','.join([base_pkgs['kernel']] + base_pkgs['base'])} testing /mnt"
     )
+    # exec_chroot(
+    #     f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'",
+    #     mount_point=mount_point,
+    # )
 
 
 # Debian
