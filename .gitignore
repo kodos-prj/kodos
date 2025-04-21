@@ -1,4 +1,4 @@
 mnt/
 .venv/
 __pycache__
-flake.lock
+.DS_Store

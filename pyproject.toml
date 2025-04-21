@@ -11,6 +11,9 @@ dependencies = [
   "click >= 8.1.8",
 ]
 
+[project.urls]
+Repository = "https://github.com/kodos-prj/kodos"
+
 [project.scripts]
 kod = "kod.kod:cli"
 
