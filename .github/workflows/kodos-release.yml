@@ -8,6 +8,7 @@ on:
     branches: [ "main" ]
     tags:
     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  workflow_dispatch:  
 
 permissions:
   contents: read
@@ -16,14 +17,17 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    
+    permissions:
+      contents: write
+    
     steps:
     - uses: actions/checkout@v4
 
     - name: Set up Python 3.12
       uses: actions/setup-python@v3
       with:
-        python-version: "3.10"
+        python-version: "3.12"
 
     - name: Install dependencies
       run: |
@@ -36,9 +40,11 @@ jobs:
         uv build
 
     - name: Release with Notes
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           dist/*.whl
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+              
