@@ -6,8 +6,9 @@ name: KodOS release
 on:
   push:
     branches: [ "main" ]
-    # tags:
-    # - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  workflow_dispatch:  
 
 permissions:
   contents: read
@@ -36,11 +37,13 @@ jobs:
         uv build
 
     - name: Release with Notes
-      uses: softprops/action-gh-release@v2.2.2
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           dist/*.whl
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAGS: ${{ inputs.tags }}
+        ENVIRONMENT: ${{ inputs.environment }}
 
               
