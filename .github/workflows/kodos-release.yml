@@ -43,7 +43,5 @@ jobs:
           dist/*.whl
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAGS: ${{ inputs.tags }}
-        ENVIRONMENT: ${{ inputs.environment }}
 
               
