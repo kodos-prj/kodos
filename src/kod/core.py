@@ -1824,8 +1824,8 @@ def update_kernel_hook(kernel_package, mount_point):
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
-        print(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
-        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}", mount_point=mount_point)
+        print(f"cp {kernel_file} /boot/vmlinuz-{kver}")
+        exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}", mount_point=mount_point)
 
     return hook
 
