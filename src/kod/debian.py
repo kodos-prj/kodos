@@ -8,15 +8,15 @@ of the Arch module but uses Debian/Ubuntu specific tools and package managers.
 import re
 from kod.common import exec_chroot, exec
 import json
-from typing import Dict
+from typing import Dict, Any
 
 
-def prepare_for_installation():
+def prepare_for_installation() -> None:
     exec("apt install -y gdisk btrfs-progs dosfstools")
 
 
 # Debian
-def get_base_packages(conf):
+def get_base_packages(conf: Any) -> Dict[str, Any]:
     # CPU microcode
     """
     Get the base packages to install for the given configuration.
@@ -90,8 +90,9 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
     exec("apt install -y debootstrap gdisk")
     exec("debootstrap --merged-usr testing /mnt")
+    packages = " ".join([base_pkgs["kernel"]] + base_pkgs["base"])
     exec_chroot(
-        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}'",
+        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {packages}'",
         mount_point=mount_point,
     )
 

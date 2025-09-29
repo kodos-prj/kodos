@@ -5,10 +5,12 @@ and mount point configuration. It includes support for various filesystem types
 and handles fstab entries for system mounting.
 """
 
+from typing import Dict, List, Optional, Tuple, Any
+
 from kod.common import exec
 ########################################################################################
 
-_filesystem_cmd = {
+_filesystem_cmd: Dict[str, Optional[str]] = {
     "esp": "mkfs.vfat -F32",
     "fat32": "mkfs.vfat -F32",
     "vfat": "mkfs.vfat",
@@ -27,7 +29,7 @@ _filesystem_cmd = {
     "noformat": None,
 }
 
-_filesystem_type = {
+_filesystem_type: Dict[str, Optional[str]] = {
     "esp": "ef00",
     # "vfat": "",
     "btrfs": "8300",
@@ -65,16 +67,18 @@ class FsEntry:
         pass_ (int): Filesystem check order (0=no check, 1=root, 2=other)
     """
 
-    def __init__(self, source, destination, fs_type, options, dump=0, pass_=0):
+    def __init__(
+        self, source: str, destination: str, fs_type: str, options: str, dump: int = 0, pass_: int = 0
+    ) -> None:
         """Initialize a filesystem entry.
 
         Args:
-            source (str): Source device path or UUID
-            destination (str): Mount point destination
-            fs_type (str): Filesystem type
-            options (str): Mount options string
-            dump (int): Dump backup frequency. Defaults to 0.
-            pass_ (int): Filesystem check pass number. Defaults to 0.
+            source: Source device path or UUID
+            destination: Mount point destination
+            fs_type: Filesystem type
+            options: Mount options string
+            dump: Dump backup frequency. Defaults to 0.
+            pass_: Filesystem check pass number. Defaults to 0.
         """
         self.source = source
         self.destination = destination
@@ -83,22 +87,25 @@ class FsEntry:
         self.dump = dump
         self.pass_ = pass_
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return a formatted string representation of the fstab entry.
 
         Returns:
-            str: Formatted fstab entry with proper column alignment.
+            Formatted fstab entry with proper column alignment.
         """
-        return f"{self.source:<25} {self.destination:<15} {self.fs_type:<10} {self.options:<10} {self.dump:<10} {self.pass_}"
+        return (
+            f"{self.source:<25} {self.destination:<15} {self.fs_type:<10} "
+            f"{self.options:<10} {self.dump:<10} {self.pass_}"
+        )
 
-    def mount(self, install_mountpoint):
+    def mount(self, install_mountpoint: str) -> str:
         """Generate mount command for this filesystem entry.
 
         Args:
-            install_mountpoint (str): Base installation mount point path.
+            install_mountpoint: Base installation mount point path.
 
         Returns:
-            str: Mount command string for this filesystem entry.
+            Mount command string for this filesystem entry.
         """
         if self.fs_type == "btrfs":
             return f"mount -o {self.options} {self.source} {install_mountpoint}{self.destination}"
@@ -108,7 +115,7 @@ class FsEntry:
             return f"mount -t vfat -o {self.options} {self.source} {install_mountpoint}{self.destination}"
         return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"
 
-    def source_uuid(self):
+    def source_uuid(self) -> str:
         """Get the UUID representation of the source device.
 
         If the source is a block device path (starts with /dev/), this method
@@ -116,7 +123,7 @@ class FsEntry:
         returns the original source value.
 
         Returns:
-            str: UUID=<uuid> format string if device has UUID, otherwise the original source.
+            UUID=<uuid> format string if device has UUID, otherwise the original source.
         """
         if self.source[:5] == "/dev/":
             uuid = exec(f"lsblk -o UUID {self.source} | tail -n 1", get_output=True)
@@ -125,7 +132,7 @@ class FsEntry:
         return self.source
 
 
-def create_btrfs(delay_action, part, blockdevice):
+def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[str]:
     """Create BTRFS filesystem with subvolumes and mount configuration.
 
     This function creates a BTRFS filesystem and sets up subvolumes according
@@ -133,12 +140,12 @@ def create_btrfs(delay_action, part, blockdevice):
     for the subvolumes.
 
     Args:
-        delay_action (list): List of delayed mount commands to execute later.
-        part (dict): Partition configuration containing subvolume information.
-        blockdevice (str): Block device path for the BTRFS filesystem.
+        delay_action: List of delayed mount commands to execute later.
+        part: Partition configuration containing subvolume information.
+        blockdevice: Block device path for the BTRFS filesystem.
 
     Returns:
-        list: Updated delay_action list with mount commands for subvolumes.
+        Updated delay_action list with mount commands for subvolumes.
     """
     print("Cheking subvolumes")
     fstab_desc = []
@@ -182,7 +189,7 @@ def create_btrfs(delay_action, part, blockdevice):
     return delay_action
 
 
-def create_partitions(conf):
+def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
     """Create partitions for all configured devices.
 
     This function processes all devices in the configuration and creates
@@ -193,9 +200,9 @@ def create_partitions(conf):
         conf: Configuration object containing device specifications.
 
     Returns:
-        tuple: (boot_partition, root_partition, partition_list) where
-               boot_partition and root_partition are device paths or None,
-               and partition_list contains all created FsEntry objects.
+        Tuple containing (boot_partition, root_partition, partition_list) where
+        boot_partition and root_partition are device paths or None,
+        and partition_list contains all created FsEntry objects.
     """
     devices = conf.devices
     print(f"{devices=}")
@@ -216,7 +223,7 @@ def create_partitions(conf):
     return boot_partition, root_partition, partition_list
 
 
-def create_disk_partitions(disk_info):
+def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
     """Create partitions on a single disk device.
 
     This function handles the creation of partitions on a single disk according
@@ -224,13 +231,13 @@ def create_disk_partitions(disk_info):
     new partitions with specified filesystems, and sets up mount points.
 
     Args:
-        disk_info (dict): Dictionary containing device path and partition specifications.
-                         Expected keys: 'device', 'partitions'
+        disk_info: Dictionary containing device path and partition specifications.
+                  Expected keys: 'device', 'partitions'
 
     Returns:
-        tuple: (boot_partition, root_partition, partitions_list) where
-               boot_partition and root_partition are device paths or None,
-               and partitions_list contains FsEntry objects for created partitions.
+        Tuple containing (boot_partition, root_partition, partitions_list) where
+        boot_partition and root_partition are device paths or None,
+        and partitions_list contains FsEntry objects for created partitions.
     """
     device = disk_info["device"]
     # efi = disk_info['efi']
@@ -308,7 +315,7 @@ def create_disk_partitions(disk_info):
     return boot_partition, root_partition, partitions_list
 
 
-def get_partition_devices(conf):
+def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
     """Get boot and root partition device paths from configuration.
 
     This function scans the device configuration to identify which devices
@@ -318,7 +325,7 @@ def get_partition_devices(conf):
         conf: Configuration object containing device specifications.
 
     Returns:
-        tuple: (boot_partition, root_partition) device paths or None if not found.
+        Tuple containing (boot_partition, root_partition) device paths or None if not found.
     """
     devices = conf.devices
 

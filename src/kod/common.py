@@ -6,7 +6,8 @@ and system interaction used throughout the KodOS system.
 
 import os
 
-use_debug = True
+use_debug: bool = True
+use_verbose: bool = False
 
 
 class color:
@@ -24,27 +25,27 @@ class color:
     END = "\033[0m"
 
 
-def set_debug(val=True):
+def set_debug(val: bool = True) -> None:
     """Set the global debug mode state.
 
     Args:
-        val (bool): Whether to enable debug mode. Defaults to True.
+        val: Whether to enable debug mode. Defaults to True.
     """
     global use_debug
     use_debug = val
 
 
-def set_verbose(val=True):
+def set_verbose(val: bool = True) -> None:
     """Set the global verbose mode state.
 
     Args:
-        val (bool): Whether to enable verbose mode. Defaults to True.
+        val: Whether to enable verbose mode. Defaults to True.
     """
     global use_verbose
     use_verbose = val
 
 
-def exec(cmd, get_output=False) -> str:
+def exec(cmd: str, get_output: bool = False) -> str:
     """Execute a shell command with optional debug output.
 
     This is a critical function that handles command execution throughout KodOS.
@@ -52,11 +53,11 @@ def exec(cmd, get_output=False) -> str:
     it actually executes the command.
 
     Args:
-        cmd (str): The shell command to execute.
-        get_output (bool): Whether to return command output. Defaults to False.
+        cmd: The shell command to execute.
+        get_output: Whether to return command output. Defaults to False.
 
     Returns:
-        str: Command output if get_output=True, empty string otherwise.
+        Command output if get_output=True, empty string otherwise.
     """
     if use_debug or use_verbose:
         print(">>", color.PURPLE + cmd + color.END)
@@ -68,16 +69,16 @@ def exec(cmd, get_output=False) -> str:
     return ""
 
 
-def exec_chroot(cmd, mount_point="/mnt", get_output=False) -> str:
+def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False) -> str:
     """Execute a command within a chroot environment.
 
     Args:
-        cmd (str): The command to execute inside the chroot.
-        mount_point (str): The mount point for the chroot. Defaults to "/mnt".
-        get_output (bool): Whether to return command output. Defaults to False.
+        cmd: The command to execute inside the chroot.
+        mount_point: The mount point for the chroot. Defaults to "/mnt".
+        get_output: Whether to return command output. Defaults to False.
 
     Returns:
-        str: Command output from the chroot execution.
+        Command output from the chroot execution.
     """
     chroot_cmd = f"arch-chroot {mount_point} "
     chroot_cmd += cmd

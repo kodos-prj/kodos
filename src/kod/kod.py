@@ -8,6 +8,7 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
+from typing import Optional, Tuple
 
 import click
 
@@ -58,7 +59,7 @@ from kod.filesytem import create_partitions, get_partition_devices
 @click.group()
 @click.option("-d", "--debug", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def cli(debug, verbose):
+def cli(debug: bool, verbose: bool) -> None:
     set_debug(debug)
     set_verbose(verbose)
 
@@ -72,7 +73,7 @@ base_distribution = "arch"
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
-def install(config, mount_point):
+def install(config: Optional[str], mount_point: str) -> None:
     "Install KodOS based on the given configuration"
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
@@ -145,7 +146,7 @@ def install(config, mount_point):
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
-def rebuild(config, new_generation=False, update=False):
+def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False) -> None:
     "Rebuild KodOS system installation"
 
     # stage = "rebuild"
@@ -332,7 +333,7 @@ def rebuild(config, new_generation=False, update=False):
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
-def rebuild_user(config, user=os.environ["USER"]):
+def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
     "Rebuild user configuration"
     # stage = "rebuild-user"
     ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
@@ -364,7 +365,7 @@ def rebuild_user(config, user=os.environ["USER"]):
 
 @cli.command()
 @click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
-def shell(package=None):
+def shell(package: Optional[Tuple[str, ...]] = None) -> None:
     "Run shell"
 
     local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
