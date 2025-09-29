@@ -1,4 +1,9 @@
-# Arch specific functions
+"""Arch Linux specific package and system management functions.
+
+This module provides Arch Linux specific implementations for package installation,
+system configuration, user management, and service handling. It includes functions
+for detecting hardware-specific packages and managing Arch-specific tools.
+"""
 
 from kod.common import exec_chroot, exec
 import json

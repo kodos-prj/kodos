@@ -1,4 +1,9 @@
-# Arch specific functions
+"""Debian/Ubuntu specific package and system management functions.
+
+This module provides Debian and Ubuntu specific implementations for package installation,
+system configuration, user management, and service handling. It mirrors the functionality
+of the Arch module but uses Debian/Ubuntu specific tools and package managers.
+"""
 
 import re
 from kod.common import exec_chroot, exec

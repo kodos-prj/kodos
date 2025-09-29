@@ -1,4 +1,9 @@
-# Core functionality
+"""Core functionality and configuration management for KodOS.
+
+This module contains the main functionality for KodOS including Lua configuration
+processing, package management, user configuration, and system setup. It serves
+as the central orchestrator for the installation and configuration process.
+"""
 
 import glob
 import json
