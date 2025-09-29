@@ -1,30 +1,34 @@
-# Arch specific functions
+"""Arch Linux specific package and system management functions.
+
+This module provides Arch Linux specific implementations for package installation,
+system configuration, user management, and service handling. It includes functions
+for detecting hardware-specific packages and managing Arch-specific tools.
+"""
 
 from kod.common import exec_chroot, exec
 import json
-from typing import Dict
+from typing import Dict, Any
 
 
-def prepare_for_installation():
+def prepare_for_installation() -> None:
     pass
 
 
 # Arch
-def get_base_packages(conf):
-    # CPU microcode
-    """
-    Get the base packages to install for the given configuration.
+def get_base_packages(conf: Any) -> Dict[str, Any]:
+    """Get the base packages to install for the given configuration.
 
     The function determines the right microcode package for the CPU and
     the kernel package from the configuration. It then returns a table
     with the packages to install.
 
     Args:
-        conf (table): The configuration table.
+        conf: The configuration object.
 
     Returns:
-        A list with the packages to install.
+        A dictionary with the packages to install.
     """
+    # CPU microcode
     with open("/proc/cpuinfo") as f:
         while True:
             line = f.readline()

@@ -1,8 +1,14 @@
-## Main command to interact with the KodOS system
-# @Author: Anatal Buss
-# @version 0.1
+"""Main command-line interface for the KodOS system.
+
+This module provides the primary CLI interface using Click framework for interacting
+with KodOS functionality including installation, configuration, and system management.
+
+@Author: Anatal Buss
+@version 0.1
+"""
 
 import os
+from typing import Optional, Tuple
 
 import click
 
@@ -53,9 +59,10 @@ from kod.filesytem import create_partitions, get_partition_devices
 @click.group()
 @click.option("-d", "--debug", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
-def cli(debug, verbose):
+def cli(debug: bool, verbose: bool) -> None:
     set_debug(debug)
     set_verbose(verbose)
+
 
 # pkgs_installed = []
 base_distribution = "arch"
@@ -66,7 +73,7 @@ base_distribution = "arch"
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
-def install(config, mount_point):
+def install(config: Optional[str], mount_point: str) -> None:
     "Install KodOS based on the given configuration"
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
@@ -74,7 +81,7 @@ def install(config, mount_point):
 
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
-    print("Base distribution:",base_distribution)
+    print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
 
@@ -100,14 +107,14 @@ def install(config, mount_point):
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
 
     # Install base packages and configure system
-    base_packages = dist.get_base_packages(conf) # TODO: this function requires a wrapper
-    dist.install_essentials_pkgs(base_packages, mount_point) # TODO: this function requires a wrapper
+    base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
     setup_bootloader(conf, partition_list, base_distribution)
     create_kod_user(mount_point)
 
     # === Proc packages
-    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point) # TODO: this function requires a wrapper
+    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
@@ -139,14 +146,14 @@ def install(config, mount_point):
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
-def rebuild(config, new_generation=False, update=False):
+def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False) -> None:
     "Rebuild KodOS system installation"
 
     # stage = "rebuild"
     conf = load_config(config)
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
-    print("Base distribution:",base_distribution)
+    print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
 
@@ -204,7 +211,7 @@ def rebuild(config, new_generation=False, update=False):
 
     if update:
         print("Updating packages")
-        dist.refresh_package_db(new_root_path, new_generation) # TODO: this function requires a wrapper
+        dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
         update_all_packages(new_root_path, new_generation, repos)
 
     # === Proc packages
@@ -276,7 +283,9 @@ def rebuild(config, new_generation=False, update=False):
 
     partition_list = load_fstab("/")
 
-    _kernel_file, kver = dist.get_kernel_file(new_root_path, package=kernel_package) # TODO: this function requires a wrapper
+    _kernel_file, kver = dist.get_kernel_file(
+        new_root_path, package=kernel_package
+    )  # TODO: this function requires a wrapper
 
     print("==== Deploying new generation ====")
     if new_generation:
@@ -324,7 +333,7 @@ def rebuild(config, new_generation=False, update=False):
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
-def rebuild_user(config, user=os.environ["USER"]):
+def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
     "Rebuild user configuration"
     # stage = "rebuild-user"
     ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
@@ -356,7 +365,7 @@ def rebuild_user(config, user=os.environ["USER"]):
 
 @cli.command()
 @click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
-def shell(package=None):
+def shell(package: Optional[Tuple[str, ...]] = None) -> None:
     "Run shell"
 
     local_session = exec("schroot -c virtual_env -b", get_output=True).strip()

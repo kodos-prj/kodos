@@ -1,11 +1,16 @@
-# Core functionality
+"""Core functionality and configuration management for KodOS.
+
+This module contains the main functionality for KodOS including Lua configuration
+processing, package management, user configuration, and system setup. It serves
+as the central orchestrator for the installation and configuration process.
+"""
 
 import glob
 import json
 import os
 import re
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Optional, Any, Tuple, Callable
 
 import lupa as lua
 
@@ -30,10 +35,18 @@ RELEASE_TYPE="expeirimental"
 #####################################################################################################
 
 
-base_distribution = "arch"
+base_distribution: str = "arch"
 
 
-def set_base_distribution(base_dist):
+def set_base_distribution(base_dist: str) -> Any:
+    """Set the base distribution and return the corresponding module.
+
+    Args:
+        base_dist: The base distribution name ("debian" or "arch").
+
+    Returns:
+        The distribution-specific module.
+    """
     global base_distribution
     base_distribution = base_dist
     if base_dist == "debian":
@@ -46,21 +59,26 @@ def set_base_distribution(base_dist):
 
 
 # Core
-def load_config(config_filename: str):
-    """
-    Load configuration from a file and return it as a table.
+def load_config(config_filename: Optional[str]) -> Any:
+    """Load configuration from a file and return it as a table.
 
     The configuration file is a Lua file that contains different sections to configure
     the different aspects of the system.
+
+    Args:
+        config_filename: Path to the configuration file.
+
+    Returns:
+        The loaded configuration as a Lua table.
     """
 
-    luart = lua.LuaRuntime(unpack_returned_tuples=True)
+    luart = lua.LuaRuntime()
 
     if config_filename is None:
         config_filename = "/etc/kodos"
 
     if Path(config_filename).is_dir():
-        config_filename = Path(config_filename).joinpath("configuration.lua")
+        config_filename = str(Path(config_filename).joinpath("configuration.lua"))
 
     print(f"Config file: {config_filename}")
     config_path = Path(config_filename).resolve().parents[0]
@@ -84,7 +102,7 @@ IfElse = require("utils").if_else
 
 
 # Core
-def generate_fstab(partiton_list: List, mount_point: str):
+def generate_fstab(partiton_list: List, mount_point: str) -> None:
     """
     Generate a fstab file at the specified mount point based on a list of Partitions.
 
@@ -103,7 +121,7 @@ def generate_fstab(partiton_list: List, mount_point: str):
 
 
 # Core?
-def configure_system(conf, partition_list, mount_point: str):
+def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # fstab
     """
     Configure a system based on the given configuration.
@@ -227,7 +245,7 @@ aliases=user_env
 
 
 # Core
-def get_kernel_version(mount_point: str):
+def get_kernel_version(mount_point: str) -> str:
     """
     Retrieve the kernel version from the specified mount point.
 
@@ -243,13 +261,13 @@ def get_kernel_version(mount_point: str):
 
 # Core
 def create_boot_entry(
-    generation,
-    partition_list,
-    boot_options=None,
-    is_current=False,
-    mount_point="/mnt",
-    kver=None,
-):
+    generation: int,
+    partition_list: List,
+    boot_options: Optional[List[str]] = None,
+    is_current: bool = False,
+    mount_point: str = "/mnt",
+    kver: Optional[str] = None,
+) -> None:
     """
     Create a systemd-boot loader entry for the specified generation.
 
@@ -298,7 +316,7 @@ console-mode keep
 
 
 # Core
-def setup_bootloader(conf, partition_list, dist):
+def setup_bootloader(conf: Any, partition_list: List, dist: Any) -> None:
     # bootloader
     """
     Set up the bootloader based on the configuration.
@@ -351,7 +369,7 @@ def setup_bootloader(conf, partition_list, dist):
 
 
 # Core
-def get_packages_to_install(conf):
+def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]:
     """
     Determine the packages to install and remove based on the given configuration.
 
@@ -410,7 +428,7 @@ def get_packages_to_install(conf):
 
 
 # Core
-def update_fstab(root_path, new_mount_point_map):
+def update_fstab(root_path: str, new_mount_point_map: Dict[str, str]) -> None:
     """
     Update the fstab file at the specified root path with new subvolume IDs for specified mount points.
 
@@ -435,7 +453,7 @@ def update_fstab(root_path, new_mount_point_map):
 
 
 # Core
-def change_subvol(partition_list, subvol, mount_points):
+def change_subvol(partition_list: List, subvol: str, mount_points: List[str]) -> List:
     """
     Modify the partition list by changing the subvolume of the given mount points to the given subvolume.
 
@@ -458,7 +476,7 @@ def change_subvol(partition_list, subvol, mount_points):
 
 
 # Core
-def set_ro_mount(mount_point):
+def set_ro_mount(mount_point: str) -> None:
     """
     Set the given mount point to be read-only.
 
@@ -473,7 +491,7 @@ def set_ro_mount(mount_point):
 
 
 # Core
-def change_ro_mount(root_path):
+def change_ro_mount(root_path: str) -> None:
     """
     Modify the fstab file at the given root path to mount /usr read-only.
 
@@ -493,7 +511,7 @@ def change_ro_mount(root_path):
 
 
 # Core
-def get_max_generation():
+def get_max_generation() -> int:
     """
     Retrieve the highest numbered generation directory in /kod/generations.
 
@@ -515,7 +533,7 @@ def get_max_generation():
 
 
 # Core
-def load_repos() -> dict | None:
+def load_repos() -> Optional[Dict[str, Any]]:
     """
     Load the repository configuration from the file /var/kod/repos.json.
 
@@ -530,7 +548,7 @@ def load_repos() -> dict | None:
 
 
 # Core
-def create_kod_user(mount_point):
+def create_kod_user(mount_point: str) -> None:
     """
     Create the 'kod' user and give it NOPASSWD access in the sudoers file.
 
@@ -549,7 +567,9 @@ def create_kod_user(mount_point):
 
 # Core
 # TODO: Replace official with check of default repo flag
-def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
+def manage_packages(
+    root_path: str, repos: Dict[str, Any], action: str, list_of_packages: List[str], chroot: bool = False
+) -> List[str]:
     """
     Manage package installation, update, or removal based on the provided repository configuration.
 
@@ -572,6 +592,8 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
     """
     packages_installed = []
     pkgs_per_repo = {"official": []}
+    wrong_pkgs: List[str] = []  # Initialize outside the loop
+
     for pkg in list_of_packages:
         if ":" in pkg:
             repo, pkg_name = pkg.split(":")
@@ -582,7 +604,6 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
             pkgs_per_repo["official"].append(pkg)
 
     for repo, pkgs in pkgs_per_repo.items():
-        wrong_pkgs = []
         if len(pkgs) == 0:
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
@@ -615,7 +636,7 @@ def manage_packages(root_path, repos, action, list_of_packages, chroot=False):
 
 
 # Core
-def proc_desktop(conf):
+def proc_desktop(conf: Any) -> Tuple[List[str], List[str]]:
     """
     Process the desktop configuration and generate the list of packages to install
     and remove. This function will iterate over the desktop manager options and
@@ -666,7 +687,7 @@ def proc_desktop(conf):
 
 
 # Core
-def proc_desktop_services(conf):
+def proc_desktop_services(conf: Any) -> List[str]:
     """
     Process the desktop services configuration to determine which services
     should be enabled based on the provided configuration.
@@ -706,7 +727,7 @@ def proc_desktop_services(conf):
 
 
 # Core
-def proc_hardware(conf):
+def proc_hardware(conf: Any) -> List[str]:
     """
     Process the hardware configuration and generate the list of packages to install.
 
@@ -741,7 +762,7 @@ def proc_hardware(conf):
 
 
 # Core
-def proc_system_packages(conf):
+def proc_system_packages(conf: Any) -> List[str]:
     """
     Process the system packages configuration and generate a list of packages to install.
 
@@ -762,7 +783,7 @@ def proc_system_packages(conf):
 
 
 # Core
-def get_services_to_enable(ctx, conf):
+def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     # Desktop manager service
     """
     Process the services configuration and generate a list of services to enable.
@@ -786,7 +807,7 @@ def get_services_to_enable(ctx, conf):
 
 
 # Core
-def proc_services(conf):
+def proc_services(conf: Any) -> List[str]:
     """
     Process the services configuration and generate a list of packages to install.
 
@@ -822,7 +843,7 @@ def proc_services(conf):
 
 
 # Core
-def proc_services_to_enable(ctx, conf):
+def proc_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     """
     Process the services configuration and generate a list of services to enable.
 
@@ -861,7 +882,7 @@ def proc_services_to_enable(ctx, conf):
 
 
 # Core
-def create_user(ctx, user, info):
+def create_user(ctx: Any, user: str, info: Any) -> None:
     """
     Create a user in the system.
 
@@ -915,7 +936,7 @@ def create_user(ctx, user, info):
 
 
 # Core
-def proc_user_dotfile_manager(conf):
+def proc_user_dotfile_manager(conf: Any) -> Dict[str, Any]:
     """
     Process the user dotfile manager configuration and generate a dictionary of
     user and their dotfile manager information.
@@ -939,7 +960,7 @@ def proc_user_dotfile_manager(conf):
 
 
 # Core
-def user_dotfile_manager(info):
+def user_dotfile_manager(info: Any) -> Optional[Dict[str, Any]]:
     """
     Process the user dotfile manager configuration and generate a dictionary of
     user and their dotfile manager information.
@@ -961,7 +982,7 @@ def user_dotfile_manager(info):
 
 
 # Core
-def proc_user_programs(conf):
+def proc_user_programs(conf: Any) -> List[str]:
     """
     Process the user programs configuration and generate a list of packages to install.
 
@@ -1017,7 +1038,7 @@ def proc_user_programs(conf):
 
 
 # Core
-def proc_user_configs(conf):
+def proc_user_configs(conf: Any) -> Dict[str, Any]:
     """
     Process user configurations to determine deployable configs and commands.
 
@@ -1079,7 +1100,7 @@ def proc_user_configs(conf):
 
 
 # Core
-def user_configs(user, info):
+def user_configs(user: str, info: Any) -> Dict[str, Any]:
     """
     Process the user configuration to determine deployable configs and commands.
 
@@ -1139,7 +1160,7 @@ def user_configs(user, info):
 
 
 # Core
-def proc_user_home(ctx, user, info):
+def proc_user_home(ctx: Any, user: str, info: Any) -> None:
     """
     Process the user's home configuration.
 
@@ -1165,7 +1186,7 @@ def proc_user_home(ctx, user, info):
 
 
 # Core
-def proc_user_services(conf):
+def proc_user_services(conf: Any) -> Dict[str, Any]:
     """
     Process the user services configuration.
 
@@ -1199,7 +1220,7 @@ def proc_user_services(conf):
 
 
 # Core
-def user_services(user, info):
+def user_services(user: str, info: Any) -> List[str]:
     """
     Process the user services configuration to determine which services
     should be enabled based on the provided configuration.
@@ -1227,7 +1248,7 @@ def user_services(user, info):
 
 
 # Core
-def proc_fonts(conf):
+def proc_fonts(conf: Any) -> List[str]:
     """
     Process the fonts configuration and generate a list of font packages to install.
 
@@ -1264,7 +1285,7 @@ class Context:
     use_chroot: bool
     stage: str
 
-    def __init__(self, user, mount_point="/mnt", use_chroot=True, stage="install"):
+    def __init__(self, user: str, mount_point: str = "/mnt", use_chroot: bool = True, stage: str = "install") -> None:
         """
         Initialize the Context object.
 
@@ -1288,7 +1309,7 @@ class Context:
         self.use_chroot = use_chroot
         self.stage = stage
 
-    def execute(self, command):
+    def execute(self, command: str) -> bool:
         """
         Execute a command in the specified context.
 
@@ -1309,7 +1330,7 @@ class Context:
         else:
             exec_prefix = f" su {self.user} -c "
 
-        def wrap(s):
+        def wrap(s: str) -> str:
             if self.user == os.environ["USER"]:
                 return s
             else:
@@ -1324,7 +1345,7 @@ class Context:
 
 
 # Core
-def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
+def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngrs: Any) -> None:
     """
     Configure user dotfiles using a specified dotfile manager.
 
@@ -1362,7 +1383,7 @@ def configure_user_dotfiles(ctx, user, user_configs, dotfile_mngrs):
 
 
 # Core
-def configure_user_scripts(ctx, user, user_configs):
+def configure_user_scripts(ctx: Any, user: str, user_configs: Any) -> None:
     """
     Configure user scripts based on user configuration.
 
@@ -1397,7 +1418,7 @@ def configure_user_scripts(ctx, user, user_configs):
 
 
 # Core
-def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
+def enable_services(list_of_services: List[str], mount_point: str = "/mnt", use_chroot: bool = False) -> None:
     """
     Enable a list of services in the specified mount point.
 
@@ -1426,7 +1447,7 @@ def enable_services(list_of_services, mount_point="/mnt", use_chroot=False):
 
 
 # Core
-def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
+def disable_services(list_of_services: List[str], mount_point: str = "/mnt", use_chroot: bool = False) -> None:
     """
     Disable a list of services in the specified mount point.
 
@@ -1455,7 +1476,7 @@ def disable_services(list_of_services, mount_point="/mnt", use_chroot=False):
 
 
 # Core
-def enable_user_services(ctx, user, services):
+def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
     """
     Enable services for a user in the specified context.
 
@@ -1479,7 +1500,7 @@ def enable_user_services(ctx, user, services):
 
 
 # Core
-def load_fstab(root_path=""):
+def load_fstab(root_path: str = "") -> List[str]:
     """
     Load a list of Partition objects from the specified fstab file.
 
@@ -1509,7 +1530,7 @@ def load_fstab(root_path=""):
 
 
 # Core
-def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_point):
+def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: List, mount_point: str) -> List:
     """
     Create and configure a Btrfs filesystem hierarchy for KodOS.
 
@@ -1589,7 +1610,7 @@ def create_filesystem_hierarchy(boot_part, root_part, partition_list, mount_poin
 
 
 # Core
-def create_next_generation(boot_part, root_part, generation):
+def create_next_generation(boot_part: str, root_part: str, generation: int) -> str:
     """
     Create the next generation of the KodOS installation.
 
@@ -1637,7 +1658,7 @@ def create_next_generation(boot_part, root_part, generation):
 
 
 # Core
-def update_all_packages(mount_point, new_generation, repos):
+def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str, Any]) -> None:
     """
     Updates all packages in the system.
 
@@ -1660,16 +1681,13 @@ def update_all_packages(mount_point, new_generation, repos):
                     exec_chroot(f"{repo_desc['update']}", mount_point=mount_point)
             else:
                 if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
-                    exec(
-                        f"runuser -u kod -- {repo_desc['update']} --noconfirm",
-                        mount_point=mount_point,
-                    )
+                    exec(f"runuser -u kod -- {repo_desc['update']} --noconfirm")
                 else:
-                    exec(f"{repo_desc['update']}", mount_point=mount_point)
+                    exec(f"{repo_desc['update']}")
 
 
 # Core
-def proc_users(ctx, conf):
+def proc_users(ctx: Any, conf: Any) -> None:
     """
     Process all users in the given configuration.
 
@@ -1699,7 +1717,7 @@ def proc_users(ctx, conf):
 
 
 # Core
-def get_generation(mount_point):
+def get_generation(mount_point: str) -> int:
     """
     Retrieve the generation number from a specified mount point.
 
@@ -1714,7 +1732,7 @@ def get_generation(mount_point):
 
 
 # Core
-def get_pending_packages(packages_to_install):
+def get_pending_packages(packages_to_install: Dict[str, List[str]]) -> List[str]:
     """
     Get the list of packages that are pending installation.
 
@@ -1731,7 +1749,9 @@ def get_pending_packages(packages_to_install):
 
 
 # Core
-def store_packages_services(state_path, packages_to_install, system_services):
+def store_packages_services(
+    state_path: str, packages_to_install: Dict[str, List[str]], system_services: List[str]
+) -> None:
     """
     Store the list of packages that are installed and the list of services that are enabled.
 
@@ -1754,7 +1774,7 @@ def store_packages_services(state_path, packages_to_install, system_services):
 
 
 # Core
-def load_packages_services(state_path):
+def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
     """
     Load the list of packages that are installed and the list of services that are enabled.
 
@@ -1777,7 +1797,7 @@ def load_packages_services(state_path):
 
 
 # Core
-def load_package_lock(state_path):
+def load_package_lock(state_path: str) -> Optional[Dict[str, str]]:
     """
     Load the list of installed packages and their versions from a lock file.
 
@@ -1804,7 +1824,7 @@ def load_package_lock(state_path):
 
 
 # Core
-def update_kernel_hook(kernel_package, mount_point):
+def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], None]:
     """
     Create a hook function to update the kernel for a specified package.
 
@@ -1820,7 +1840,7 @@ def update_kernel_hook(kernel_package, mount_point):
         function: A hook function that performs the kernel update.
     """
 
-    def hook():
+    def hook() -> None:
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
@@ -1831,7 +1851,7 @@ def update_kernel_hook(kernel_package, mount_point):
 
 
 # Core
-def update_initramfs_hook(kernel_package, mount_point):
+def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[], None]:
     """
     Create a hook function to update the initramfs for a specified package.
 
@@ -1847,7 +1867,7 @@ def update_initramfs_hook(kernel_package, mount_point):
         function: A hook function that performs the initramfs update.
     """
 
-    def hook():
+    def hook() -> None:
         print(f"Update initramfs ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
@@ -1861,13 +1881,13 @@ def update_initramfs_hook(kernel_package, mount_point):
 
 # Core
 def get_packages_updates(
-    dist,
-    current_packages,
-    next_packages,
-    remove_packages,
-    current_installed_packages,
-    mount_point,
-):
+    dist: Any,
+    current_packages: Dict[str, Any],
+    next_packages: Dict[str, Any],
+    remove_packages: List[str],
+    current_installed_packages: List[str],
+    mount_point: str,
+) -> Tuple[List[str], List[str], List[str], List[Callable[[], None]]]:
     """
     Determine the packages to install, remove, and update, as well as any necessary hooks to run.
 
@@ -1916,7 +1936,7 @@ def get_packages_updates(
 
 
 # Core
-def manage_packages_shell(repos, action, list_of_packages, chroot):
+def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: List[str], chroot: bool) -> None:
     pkgs_per_repo = {"official": []}
     for pkg in list_of_packages:
         if ":" in pkg:
