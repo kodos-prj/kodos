@@ -7,7 +7,7 @@ and handles fstab entries for system mounting.
 
 from typing import Dict, List, Optional, Tuple, Any
 
-from kod.common import exec
+from kod.common import exec, exec_critical, exec_warn
 ########################################################################################
 
 _filesystem_cmd: Dict[str, Optional[str]] = {
@@ -149,7 +149,8 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
     """
     print("Cheking subvolumes")
     fstab_desc = []
-    exec(f"mount {blockdevice} /mnt")
+    exec_critical(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt")
+
     fstab_desc.append(FsEntry(blockdevice, "/", "btrfs", "defaults", 0, 0))
     print(fstab_desc[0])
     print(fstab_desc[0].mount("/mnt"))
@@ -162,7 +163,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
 
         create_svol = "/mnt" + subvol
         # print(subvol, mountpoint, mount_options)
-        exec(f"btrfs subvolume create {create_svol}")
+        exec_critical(f"btrfs subvolume create {create_svol}", f"Failed to create btrfs subvolume {create_svol}")
 
         if mount_options:
             mount_options = f"{mount_options},"
@@ -181,7 +182,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
             fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
         # partition_list.append((blockdevice, subvol, mountpoint))
 
-    exec("umount -R /mnt")
+    exec_warn("umount -R /mnt", "Failed to unmount /mnt")
     print(".......................")
     for f in fstab_desc:
         print(f)
@@ -249,8 +250,8 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
         device_sufix = ""
 
     # Delete partition table
-    exec(f"wipefs -a {device}")
-    exec("sync")
+    exec_critical(f"wipefs -a {device}", f"Failed to wipe partition table on {device}")
+    exec_critical("sync", "Failed to sync after wiping partition table")
 
     # if efi:
     # Create GPT label
@@ -279,13 +280,16 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _filesystem_type[filesystem_type]
 
-        exec(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}")
+        exec_critical(
+            f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}",
+            f"Failed to create partition {name} on {device}",
+        )
 
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
-                exec(f"{cmd} {blockdevice}")
+                exec_critical(f"{cmd} {blockdevice}", f"Failed to format {blockdevice} as {filesystem_type}")
 
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(delay_action, part, blockdevice)

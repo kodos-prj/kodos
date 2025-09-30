@@ -8,12 +8,21 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
+import sys
 from typing import Optional, Tuple
 
 import click
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
-from kod.common import exec, set_debug, set_verbose
+from kod.common import (
+    exec,
+    set_debug,
+    set_verbose,
+    CommandExecutionError,
+    CommandTimeoutError,
+    exec_warn,
+    exec_critical,
+)
 from kod.core import (
     Context,
     change_subvol,
@@ -133,12 +142,12 @@ def install(config: Optional[str], mount_point: str) -> None:
     store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
     dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
-    exec(f"umount -R {mount_point}")
+    exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
     print("Done")
-    exec(f"mount {root_partition} {mount_point}")
-    exec(f"cp -r /root/kodos {mount_point}/store/root/")
-    exec(f"umount {mount_point}")
+    exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
+    exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
+    exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
     print(" Done installing KodOS")
 
 
@@ -249,8 +258,8 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             try:
                 manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except Exception:
+                # Silently ignore package removal failures as they may not be critical
                 pass
-                # print(f"Unable to remove {pkg}")
 
     if new_packages_to_install:
         print("Packages to install:", new_packages_to_install)

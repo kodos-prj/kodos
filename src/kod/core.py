@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Any, Tuple, Callable
 import lupa as lua
 
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
-from kod.common import exec, exec_chroot
+from kod.common import exec, exec_chroot, exec_critical, exec_batch_with_fallback, exec_collect_errors
 from kod.filesytem import FsEntry
 
 # from kod.arch import kernel_update_rquired
@@ -608,23 +608,41 @@ def manage_packages(
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
             if chroot:
-                exec_chroot(
-                    f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}",
-                    mount_point=root_path,
-                )
+                try:
+                    exec_chroot(
+                        f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}",
+                        mount_point=root_path,
+                    )
+                except Exception as e:
+                    print(f"Error: Package operation failed in chroot for {repo}: {e}")
+                    print(f"Failed packages: {pkgs}")
+                    wrong_pkgs.extend(pkgs)
             else:
-                exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+                try:
+                    exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+                except Exception as e:
+                    print(f"Error: Package operation failed for {repo}: {e}")
+                    print(f"Failed packages: {pkgs}")
+                    wrong_pkgs.extend(pkgs)
         else:
             if chroot:
                 for pkg in pkgs:
-                    result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
-                    if re.match(r"^[Ee]rror", result):
+                    try:
+                        result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
+                        if re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg} in chroot: {e}")
                         wrong_pkgs.append(pkg)
                 # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
             else:
                 for pkg in pkgs:
-                    result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
-                    if re.match(r"^[Ee]rror", result):
+                    try:
+                        result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
+                        if re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg}: {e}")
                         wrong_pkgs.append(pkg)
                 # exec(f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
@@ -1561,15 +1579,20 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
-    exec(f"sudo btrfs subvolume create {mount_point}/store/home")
+    exec_critical(f"sudo btrfs subvolume create {mount_point}/store/home", "Critical filesystem setup failed")
 
     # First generation
-    exec(f"mkdir -p {mount_point}/generations/{generation}")
-    exec(f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs")
+    exec_critical(f"mkdir -p {mount_point}/generations/{generation}", f"Generation setup failed - directory creation")
+    exec_critical(
+        f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs",
+        f"Generation setup failed - subvolume creation",
+    )
 
     # Mounting first generation
-    exec(f"umount -R {mount_point}")
-    exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount")
+    exec_critical(
+        f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
+    )
     partition_list = [
         FsEntry(
             root_part,
