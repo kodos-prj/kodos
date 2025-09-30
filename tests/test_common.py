@@ -9,9 +9,10 @@ import tempfile
 import os
 import sys
 import pytest
+from pathlib import Path
 
 # Add the src directory to Python path for testing
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from kod.common import (
     exec,

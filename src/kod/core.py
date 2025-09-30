@@ -299,9 +299,9 @@ linux /vmlinuz-{kver}
 initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
-    entries_path = f"{mount_point}/boot/loader/entries/"
-    if not os.path.isdir(entries_path):
-        os.makedirs(entries_path)
+    entries_path = Path(f"{mount_point}/boot/loader/entries/")
+    if not entries_path.is_dir():
+        entries_path.mkdir(parents=True, exist_ok=True)
     with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
         f.write(entry_conf)
 
@@ -1648,9 +1648,9 @@ def create_next_generation(boot_part: str, root_part: str, generation: int) -> s
     Returns:
         str: The path to the mounted generation
     """
-    next_current = "/kod/current/.next_current"
+    next_current = Path("/kod/current/.next_current")
     # Mounting generation
-    if os.path.ismount(next_current):
+    if next_current.is_mount():
         print("Reboot is required to update generation")
         os._exit(0)
         exec(f"umount -R {next_current}")

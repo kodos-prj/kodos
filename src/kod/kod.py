@@ -9,6 +9,7 @@ with KodOS functionality including installation, configuration, and system manag
 
 import os
 import sys
+from pathlib import Path
 from typing import Optional, Tuple
 
 import click
@@ -177,7 +178,8 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     print(f"{current_generation = }")
 
     # Load current installed packages and enabled services
-    if os.path.isfile(f"/kod/generations/{current_generation}/installed_packages"):
+    packages_file = Path(f"/kod/generations/{current_generation}/installed_packages")
+    if packages_file.is_file():
         current_state_path = f"/kod/generations/{current_generation}"
     else:
         print("Missing installed packages information")

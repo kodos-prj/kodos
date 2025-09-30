@@ -10,6 +10,7 @@ import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Tuple, List
 
 use_debug: bool = True
@@ -232,14 +233,15 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         OSError: If chroot environment is not accessible.
     """
     # Validate that mount_point exists and is accessible
-    if not os.path.isdir(mount_point):
+    mount_path = Path(mount_point)
+    if not mount_path.is_dir():
         raise OSError(f"Chroot mount point does not exist: {mount_point}")
 
     # Validate that essential chroot components exist
     essential_paths = ["/bin", "/usr", "/etc"]
     for path in essential_paths:
-        full_path = os.path.join(mount_point, path.lstrip("/"))
-        if not os.path.exists(full_path):
+        full_path = mount_path / path.lstrip("/")
+        if not full_path.exists():
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
     # Escape the mount point to prevent injection
