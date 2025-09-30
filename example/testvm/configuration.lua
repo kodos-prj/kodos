@@ -10,7 +10,7 @@ local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = true
+local use_cosmic = false
 local use_pantheon = false
 
 return {
@@ -27,7 +27,7 @@ return {
 
     boot = {
         kernel = {
-            package = "linux-lts",
+            package = "linux",
             modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk" },
         },
         loader = {
@@ -117,11 +117,11 @@ return {
                     deploy_config = true,
                 },
 
-                emacs = {
-                    enable = true,
-                    package = "emacs-wayland",
-                    deploy_config = true,
-                },
+                -- emacs = {
+                --     enable = true,
+                --     package = "emacs-wayland",
+                --     deploy_config = true,
+                -- },
 
                 -- Gnome dconf configuration
                 dconf = {
@@ -246,8 +246,8 @@ return {
             -- "vulkan-virtio",
             -- "zed",
         })
-        ..
-        cli, -- CLI tools
+        -- ..
+        -- cli, -- CLI tools
     -- ..
     -- development, -- Development tools
 
