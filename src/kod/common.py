@@ -10,7 +10,7 @@ import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 use_debug: bool = True
 use_verbose: bool = False
@@ -281,3 +281,123 @@ def exec_with_retry(cmd: str, max_retries: int = 3, retry_delay: float = 1.0, **
 
     # This should never be reached
     raise RuntimeError(f"Unexpected exit from retry loop for command: {cmd}")
+
+
+def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
+    """Execute a critical command that must succeed or raise RuntimeError.
+
+    This function is used for operations that are essential for system functionality.
+    If the command fails, it logs the error and raises a RuntimeError with a
+    descriptive message.
+
+    Args:
+        cmd: Command to execute
+        error_msg: Descriptive error message for RuntimeError
+        **kwargs: Additional arguments passed to exec()
+
+    Returns:
+        Command output
+
+    Raises:
+        RuntimeError: If command fails, wrapping the original exception
+    """
+    try:
+        return exec(cmd, **kwargs)
+    except Exception as e:
+        print(f"Error: {error_msg}: {e}")
+        raise RuntimeError(error_msg) from e
+
+
+def exec_warn(cmd: str, warning_msg: str, **kwargs) -> Optional[str]:
+    """Execute a command with warning on failure, continuing execution.
+
+    This function is used for non-critical operations where failure should
+    be logged as a warning but execution should continue.
+
+    Args:
+        cmd: Command to execute
+        warning_msg: Warning message to display on failure
+        **kwargs: Additional arguments passed to exec()
+
+    Returns:
+        Command output on success, None on failure
+    """
+    try:
+        return exec(cmd, **kwargs)
+    except Exception as e:
+        print(f"Warning: {warning_msg}: {e}")
+        return None
+
+
+def exec_collect_errors(commands: list[Tuple[str, str]], collect_failures: bool = True, **kwargs) -> list[str]:
+    """Execute multiple commands and collect failures without stopping.
+
+    This function is useful for operations like package management where
+    individual items may fail but the process should continue for other items.
+
+    Args:
+        commands: List of (command, identifier) tuples to execute
+        collect_failures: Whether to collect and return failed identifiers
+        **kwargs: Additional arguments passed to exec()
+
+    Returns:
+        List of failed identifiers if collect_failures=True, empty list otherwise
+    """
+    failures = []
+
+    for cmd, identifier in commands:
+        try:
+            exec(cmd, **kwargs)
+        except Exception as e:
+            print(f"Error: Command failed for {identifier}: {e}")
+            if collect_failures:
+                failures.append(identifier)
+
+    return failures
+
+
+def exec_batch_with_fallback(
+    items: list[str], batch_cmd_template: str, single_cmd_template: str, identifier: str = "operation", **kwargs
+) -> list[str]:
+    """Execute items in batch, falling back to individual execution on failure.
+
+    This pattern is common in package management where bulk operations are
+    attempted first, then individual operations for failed items.
+
+    Args:
+        items: List of items to process
+        batch_cmd_template: Command template for batch operation (use {items} placeholder)
+        single_cmd_template: Command template for single item operation (use {item} placeholder)
+        identifier: Description for error messages
+        **kwargs: Additional arguments passed to exec()
+
+    Returns:
+        List of failed items
+    """
+    if not items:
+        return []
+
+    failures = []
+
+    # Try batch operation first
+    try:
+        batch_cmd = batch_cmd_template.format(items=" ".join(items))
+        exec(batch_cmd, **kwargs)
+        return []  # All succeeded
+    except Exception as e:
+        print(f"Error: Batch {identifier} failed: {e}")
+        print(f"Falling back to individual {identifier}")
+
+    # Fall back to individual operations
+    for item in items:
+        try:
+            single_cmd = single_cmd_template.format(item=item)
+            result = exec(single_cmd, get_output=True, **kwargs)
+            # Check for error patterns in output
+            if result and any(pattern in result.lower() for pattern in ["error", "failed", "not found"]):
+                failures.append(item)
+        except Exception as e:
+            print(f"Error: {identifier} failed for {item}: {e}")
+            failures.append(item)
+
+    return failures

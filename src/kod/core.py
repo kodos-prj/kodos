@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Any, Tuple, Callable
 import lupa as lua
 
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
-from kod.common import exec, exec_chroot
+from kod.common import exec, exec_chroot, exec_critical, exec_batch_with_fallback, exec_collect_errors
 from kod.filesytem import FsEntry
 
 # from kod.arch import kernel_update_rquired
@@ -1579,27 +1579,20 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
-    try:
-        exec(f"sudo btrfs subvolume create {mount_point}/store/home")
-    except Exception as e:
-        print(f"Error: Failed to create btrfs home subvolume: {e}")
-        raise RuntimeError("Critical filesystem setup failed") from e
+    exec_critical(f"sudo btrfs subvolume create {mount_point}/store/home", "Critical filesystem setup failed")
 
     # First generation
-    try:
-        exec(f"mkdir -p {mount_point}/generations/{generation}")
-        exec(f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs")
-    except Exception as e:
-        print(f"Error: Failed to create generation {generation} subvolume: {e}")
-        raise RuntimeError("Generation setup failed") from e
+    exec_critical(f"mkdir -p {mount_point}/generations/{generation}", f"Generation setup failed - directory creation")
+    exec_critical(
+        f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs",
+        f"Generation setup failed - subvolume creation",
+    )
 
     # Mounting first generation
-    try:
-        exec(f"umount -R {mount_point}")
-        exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
-    except Exception as e:
-        print(f"Error: Failed to mount generation {generation}: {e}")
-        raise RuntimeError("Generation mount failed") from e
+    exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount")
+    exec_critical(
+        f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
+    )
     partition_list = [
         FsEntry(
             root_part,

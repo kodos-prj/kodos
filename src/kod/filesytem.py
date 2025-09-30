@@ -7,7 +7,7 @@ and handles fstab entries for system mounting.
 
 from typing import Dict, List, Optional, Tuple, Any
 
-from kod.common import exec
+from kod.common import exec, exec_critical, exec_warn
 ########################################################################################
 
 _filesystem_cmd: Dict[str, Optional[str]] = {
@@ -149,11 +149,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
     """
     print("Cheking subvolumes")
     fstab_desc = []
-    try:
-        exec(f"mount {blockdevice} /mnt")
-    except Exception as e:
-        print(f"Error: Failed to mount {blockdevice} to /mnt: {e}")
-        raise RuntimeError(f"Mount operation failed for {blockdevice}") from e
+    exec_critical(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt")
 
     fstab_desc.append(FsEntry(blockdevice, "/", "btrfs", "defaults", 0, 0))
     print(fstab_desc[0])
@@ -167,11 +163,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
 
         create_svol = "/mnt" + subvol
         # print(subvol, mountpoint, mount_options)
-        try:
-            exec(f"btrfs subvolume create {create_svol}")
-        except Exception as e:
-            print(f"Error: Failed to create btrfs subvolume {create_svol}: {e}")
-            raise RuntimeError(f"Subvolume creation failed for {create_svol}") from e
+        exec_critical(f"btrfs subvolume create {create_svol}", f"Failed to create btrfs subvolume {create_svol}")
 
         if mount_options:
             mount_options = f"{mount_options},"
@@ -190,11 +182,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
             fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
         # partition_list.append((blockdevice, subvol, mountpoint))
 
-    try:
-        exec("umount -R /mnt")
-    except Exception as e:
-        print(f"Warning: Failed to unmount /mnt: {e}")
-        # Continue execution as this might not be critical
+    exec_warn("umount -R /mnt", "Failed to unmount /mnt")
     print(".......................")
     for f in fstab_desc:
         print(f)
@@ -262,12 +250,8 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
         device_sufix = ""
 
     # Delete partition table
-    try:
-        exec(f"wipefs -a {device}")
-        exec("sync")
-    except Exception as e:
-        print(f"Error: Failed to wipe partition table on {device}: {e}")
-        raise RuntimeError(f"Disk preparation failed for {device}") from e
+    exec_critical(f"wipefs -a {device}", f"Failed to wipe partition table on {device}")
+    exec_critical("sync", "Failed to sync after wiping partition table")
 
     # if efi:
     # Create GPT label
@@ -296,21 +280,16 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _filesystem_type[filesystem_type]
 
-        try:
-            exec(f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}")
-        except Exception as e:
-            print(f"Error: Failed to create partition {name} on {device}: {e}")
-            raise RuntimeError(f"Partition creation failed for {name}") from e
+        exec_critical(
+            f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}",
+            f"Failed to create partition {name} on {device}",
+        )
 
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
-                try:
-                    exec(f"{cmd} {blockdevice}")
-                except Exception as e:
-                    print(f"Error: Failed to format {blockdevice} as {filesystem_type}: {e}")
-                    raise RuntimeError(f"Filesystem formatting failed for {blockdevice}") from e
+                exec_critical(f"{cmd} {blockdevice}", f"Failed to format {blockdevice} as {filesystem_type}")
 
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(delay_action, part, blockdevice)
