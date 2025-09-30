@@ -14,7 +14,6 @@ return list({
     "lazygit",   -- Terminal Git client
     "lurk",      -- Modern Unix `strace`
     -- "aur:moar-bin", -- Modern Unix `less`
-    "neofetch",  -- Terminal system info
     -- nurl # Nix URL fetcher
     -- ripgrep # Modern Unix `grep`
     "tldr",      -- Modern Unix `man`
@@ -25,7 +24,7 @@ return list({
     "broot",
     "lsd",
     "btop",
-    -- zoxide
+    "zoxide",
     -- wezterm
     -- pandoc
     "github-cli", -- Github client
