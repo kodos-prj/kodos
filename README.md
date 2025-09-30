@@ -115,6 +115,29 @@ uv run kod shell -p aur:smem -p neofetch
 
 When the shell is closed, the installed packages will be removed (the overlay is destroyed). Note that some programs may have issues running in this environment, especially with Wayland/X11 permissions or chroot detection.
 
+### 7. Running Unit Tests
+
+To run the comprehensive unit test suite for KodOS:
+
+```bash
+# Install development dependencies (includes pytest)
+uv sync --dev
+
+# Run all tests with verbose output
+uv run pytest tests/test_common.py -v
+
+# Run tests without verbose output
+uv run pytest tests/test_common.py
+```
+
+The test suite includes 25 tests covering:
+- Core `exec()` function functionality and error handling
+- Command safety validation and timeout handling  
+- Error handling abstractions (`exec_critical`, `exec_warn`, etc.)
+- Custom exception classes and their properties
+
+All tests should pass for a healthy codebase.
+
 ----
 
 ## [Configuration file](#configuration)
