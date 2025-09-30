@@ -403,3 +403,20 @@ def exec_batch_with_fallback(
             failures.append(item)
 
     return failures
+
+
+class Context:
+    """Context object for managing execution environment."""
+
+    def __init__(self, user: str, mount_point: str = "/mnt", use_chroot: bool = True, stage: str = "install"):
+        self.user = user
+        self.mount_point = mount_point
+        self.use_chroot = use_chroot
+        self.stage = stage
+
+    def execute(self, command: str) -> None:
+        """Execute a command in the appropriate context."""
+        if self.use_chroot and self.mount_point != "/":
+            exec_chroot(command, mount_point=self.mount_point)
+        else:
+            exec(command)
