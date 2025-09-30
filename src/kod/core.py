@@ -71,10 +71,26 @@ def load_config(config_filename: Optional[str]) -> Any:
         print(f"Configuration file {config_filename} does not exist")
         return None
 
+    # Add lib directory to Lua package path so require() can find the libraries
+    lib_dir = Path(__file__).parent / "lib"
+    config_dir = Path(config_filename).parent
+    luart.execute(f'package.path = package.path .. ";{lib_dir}/?.lua;{config_dir}/?.lua"')
+
+    # Load utils globally so list() and map() functions are available everywhere
+    luart.execute("""
+        local utils = require("utils")
+        for k, v in pairs(utils) do
+            _G[k] = v
+        end
+    """)
+
     with open(config_filename, "r") as config_file:
         luacode = config_file.read()
 
-    conf = luart.eval(luacode)
+    # Use execute to run the code and capture the return value
+    luart.execute(f"config_result = (function() {luacode} end)()")
+    conf = luart.eval("config_result")
+
     if conf is not None:
         return conf
 
