@@ -8,12 +8,13 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
+import sys
 from typing import Optional, Tuple
 
 import click
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
-from kod.common import exec, set_debug, set_verbose
+from kod.common import exec, set_debug, set_verbose, CommandExecutionError, CommandTimeoutError
 from kod.core import (
     Context,
     change_subvol,
@@ -133,12 +134,19 @@ def install(config: Optional[str], mount_point: str) -> None:
     store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
     dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
-    exec(f"umount -R {mount_point}")
+    try:
+        exec(f"umount -R {mount_point}")
+    except Exception as e:
+        print(f"Warning: Failed to unmount {mount_point}: {e}")
 
     print("Done")
-    exec(f"mount {root_partition} {mount_point}")
-    exec(f"cp -r /root/kodos {mount_point}/store/root/")
-    exec(f"umount {mount_point}")
+    try:
+        exec(f"mount {root_partition} {mount_point}")
+        exec(f"cp -r /root/kodos {mount_point}/store/root/")
+        exec(f"umount {mount_point}")
+    except Exception as e:
+        print(f"Error: Failed to copy kodos to installation: {e}")
+        raise RuntimeError("Installation finalization failed") from e
     print(" Done installing KodOS")
 
 

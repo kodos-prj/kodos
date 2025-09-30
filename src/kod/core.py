@@ -608,23 +608,41 @@ def manage_packages(
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
             if chroot:
-                exec_chroot(
-                    f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}",
-                    mount_point=root_path,
-                )
+                try:
+                    exec_chroot(
+                        f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}",
+                        mount_point=root_path,
+                    )
+                except Exception as e:
+                    print(f"Error: Package operation failed in chroot for {repo}: {e}")
+                    print(f"Failed packages: {pkgs}")
+                    wrong_pkgs.extend(pkgs)
             else:
-                exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+                try:
+                    exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+                except Exception as e:
+                    print(f"Error: Package operation failed for {repo}: {e}")
+                    print(f"Failed packages: {pkgs}")
+                    wrong_pkgs.extend(pkgs)
         else:
             if chroot:
                 for pkg in pkgs:
-                    result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
-                    if re.match(r"^[Ee]rror", result):
+                    try:
+                        result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
+                        if re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg} in chroot: {e}")
                         wrong_pkgs.append(pkg)
                 # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
             else:
                 for pkg in pkgs:
-                    result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
-                    if re.match(r"^[Ee]rror", result):
+                    try:
+                        result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
+                        if re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg}: {e}")
                         wrong_pkgs.append(pkg)
                 # exec(f"{repos[repo][action]} {' '.join(pkgs)}")
         packages_installed += pkgs
@@ -1561,15 +1579,27 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
-    exec(f"sudo btrfs subvolume create {mount_point}/store/home")
+    try:
+        exec(f"sudo btrfs subvolume create {mount_point}/store/home")
+    except Exception as e:
+        print(f"Error: Failed to create btrfs home subvolume: {e}")
+        raise RuntimeError("Critical filesystem setup failed") from e
 
     # First generation
-    exec(f"mkdir -p {mount_point}/generations/{generation}")
-    exec(f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs")
+    try:
+        exec(f"mkdir -p {mount_point}/generations/{generation}")
+        exec(f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs")
+    except Exception as e:
+        print(f"Error: Failed to create generation {generation} subvolume: {e}")
+        raise RuntimeError("Generation setup failed") from e
 
     # Mounting first generation
-    exec(f"umount -R {mount_point}")
-    exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    try:
+        exec(f"umount -R {mount_point}")
+        exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
+    except Exception as e:
+        print(f"Error: Failed to mount generation {generation}: {e}")
+        raise RuntimeError("Generation mount failed") from e
     partition_list = [
         FsEntry(
             root_part,
