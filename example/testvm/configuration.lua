@@ -270,7 +270,7 @@ return {
         },
 
         cups = {
-            enable = true,
+            enable = false,
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
 
@@ -284,7 +284,7 @@ return {
         systemd_mount = {
             services = {
                 data = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-data",
                     type = "cifs",
                     what = "//mmserver.lan/NAS1",
@@ -299,7 +299,7 @@ return {
                 }),
 
                 library = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-library",
                     type = "nfs",
                     what = "homenas2.lan:/data/Documents",
