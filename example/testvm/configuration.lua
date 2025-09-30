@@ -245,7 +245,7 @@ return {
             -- "aur:brave-bin",
             -- "vulkan-virtio",
             -- "zed",
-        })
+        }),
         -- ..
         -- cli, -- CLI tools
     -- ..
