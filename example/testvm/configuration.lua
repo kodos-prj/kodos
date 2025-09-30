@@ -81,8 +81,8 @@ return {
             no_password = true,
             shell = "/bin/bash",
         },
-        demo_user = {
-            name = "Demo User",
+        abuss = {
+            name = "abuss",
             password = "changeme",
             -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/usr/bin/fish",
@@ -98,8 +98,8 @@ return {
                 git = {
                     enable = true,
                     config = configs.git({
-                        user_name = "Demol User",
-                        user_email = "demo.user@acme.com",
+                        user_name = "Antal Buss",
+                        user_email = "antal.buss@gmail.com",
                     })
                 },
 
