@@ -137,7 +137,7 @@ return {
 
             services = {
                 syncthing = {
-                    enable = true,
+                    enable = false,
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options =
