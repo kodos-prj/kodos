@@ -136,15 +136,15 @@ return {
             },
 
             services = {
-                syncthing = {
-                    enable = false,
-                    config = configs.syncthing({
-                        service_name = "syncthing",
-                        options =
-                        "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
-                    }),
-                    -- extra_packages = { "aur:syncthing-gtk" },
-                }
+                -- syncthing = {
+                --     enable = false,
+                --     config = configs.syncthing({
+                --         service_name = "syncthing",
+                --         options =
+                --         "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                --     }),
+                --     -- extra_packages = { "aur:syncthing-gtk" },
+                -- }
             },
 
         },
@@ -206,11 +206,11 @@ return {
             "ttf-sourcecodepro-nerd",
             "ttf-fira-sans",
             "ttf-fira-code",
-            "ttf-liberation",
-            "noto-fonts-emoji",
-            "adobe-source-serif-fonts",
-            "ttf-ubuntu-font-family",
-            "aur:ttf-work-sans",
+            -- "ttf-liberation",
+            -- "noto-fonts-emoji",
+            -- "ttf-ubuntu-font-family",
+            -- "adobe-source-serif-fonts",
+            -- "aur:ttf-work-sans",
         },
     },
 
@@ -253,7 +253,7 @@ return {
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        fwupd = { enable = false },
 
         -- TODO: Maybe move inside network
         networkmanager = {
@@ -276,7 +276,7 @@ return {
 
         -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
-            enable = true,
+            enable = false,
             service_name = "bluetooth",
             package = "bluez",
         },
