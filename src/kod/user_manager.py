@@ -80,6 +80,7 @@ def create_user(ctx: Context, user: str, info: Any) -> None:
 
     ctx.execute(f"useradd -m {user} -c '{user_name}'")
 
+    print(f"{extra_groups = }")
     if extra_groups:
         if isinstance(extra_groups, dict):
             for group in extra_groups.values():

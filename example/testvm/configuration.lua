@@ -86,7 +86,7 @@ return {
             password = "changeme",
             -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/usr/bin/fish",
-            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
+            extra_groups = list({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
 
             dotfile_manager = configs.stow({
                 source_dir = "~/.dotfiles",
