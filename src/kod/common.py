@@ -11,7 +11,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 use_debug: bool = True
 use_verbose: bool = False
@@ -216,7 +216,7 @@ def exec_safe(cmd: str, *args, **kwargs) -> str:
     return exec(full_cmd, **kwargs)
 
 
-def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, **kwargs) -> str:
+def exec_chroot(cmd: str, mount_point: Union[str, Path] = "/mnt", get_output: bool = False, **kwargs) -> str:
     """Execute a command within a chroot environment with error handling.
 
     Args:
@@ -245,7 +245,7 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
     # Escape the mount point to prevent injection
-    safe_mount_point = shlex.quote(mount_point)
+    safe_mount_point = shlex.quote(str(mount_point))
     # Construct chroot command - using arch-chroot for Arch-specific functionality
     chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
 

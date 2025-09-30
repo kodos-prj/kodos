@@ -6,7 +6,6 @@ It includes support for various filesystem types and handles fstab entries for s
 """
 
 import re
-from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any
 
 from kod.common import exec, exec_critical, exec_warn

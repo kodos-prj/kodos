@@ -4,7 +4,6 @@ This module handles user creation, dotfile management, user services,
 and user-specific configurations.
 """
 
-import os
 from typing import Any, Dict, List, Optional
 
 from .common import Context, exec, exec_chroot
@@ -61,7 +60,7 @@ def create_kod_user(mount_point: str) -> None:
         f.write("kod ALL=(ALL) NOPASSWD: ALL")
 
 
-def create_user(ctx: Any, user: str, info: Any) -> None:
+def create_user(ctx: Context, user: str, info: Any) -> None:
     """
     Create a user in the system.
 
@@ -100,7 +99,7 @@ def create_user(ctx: Any, user: str, info: Any) -> None:
     ctx.execute(f"usermod -s {shell} {user}")
 
 
-def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
+def get_services_to_enable(ctx: Context, conf: Any) -> List[str]:
     """
     Get services to enable from configuration.
 
@@ -114,7 +113,7 @@ def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     return proc_services_to_enable(ctx, conf)
 
 
-def proc_services_to_enable(ctx: Any, conf: Any) -> List[str]:
+def proc_services_to_enable(ctx: Context, conf: Any) -> List[str]:
     """
     Process and return a list of services to enable based on the given configuration.
 
@@ -179,7 +178,7 @@ def user_services(user: str, info: Any) -> List[str]:
     return services
 
 
-def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
+def enable_user_services(ctx: Context, user: str, services: List[str]) -> None:
     """
     Enable user services for a specific user.
 
@@ -282,7 +281,7 @@ def user_dotfile_manager(info: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-def proc_user_home(ctx: Any, user: str, info: Any) -> None:
+def proc_user_home(ctx: Context, user: str, info: Any) -> None:
     """
     Process user home directory configuration.
 
@@ -297,7 +296,7 @@ def proc_user_home(ctx: Any, user: str, info: Any) -> None:
                 config_info.build(ctx, config_info)
 
 
-def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngrs: Any) -> None:
+def configure_user_dotfiles(ctx: Context, user: str, user_configs: Any, dotfile_mngrs: Any) -> None:
     """
     Configure dotfiles for a user.
 
@@ -318,7 +317,7 @@ def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngr
     ctx.user = old_user
 
 
-def configure_user_scripts(ctx: Any, user: str, user_configs: Any) -> None:
+def configure_user_scripts(ctx: Context, user: str, user_configs: Any) -> None:
     """
     Configure user scripts.
 
@@ -339,7 +338,7 @@ def configure_user_scripts(ctx: Any, user: str, user_configs: Any) -> None:
     ctx.user = old_user
 
 
-def proc_users(ctx: Any, conf: Any) -> None:
+def proc_users(ctx: Context, conf: Any) -> None:
     """
     Process all users from configuration.
 
