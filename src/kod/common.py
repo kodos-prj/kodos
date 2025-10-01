@@ -428,6 +428,6 @@ class Context:
     def execute(self, command: str) -> None:
         """Execute a command in the appropriate context."""
         if self.use_chroot and self.mount_point != "/":
-            exec_chroot(command, mount_point=self.mount_point, warning=True)
+            exec_chroot(command, mount_point=self.mount_point)
         else:
             exec(command)
