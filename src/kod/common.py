@@ -91,7 +91,7 @@ def set_verbose(val: bool = True) -> None:
     use_verbose = val
 
 
-def _validate_command(cmd: str, allow_unsafe: bool = False) -> None:
+def _validate_command(cmd: str, allow_unsafe: bool = True) -> None:
     """Validate command for basic safety checks.
 
     Args:
@@ -123,7 +123,7 @@ def exec(
     get_output: bool = False,
     check_return_code: bool = True,
     timeout: Optional[int] = None,
-    allow_unsafe: bool = False,
+    allow_unsafe: bool = True,
     encoding: str = "utf-8",
 ) -> str:
     """Execute a shell command with comprehensive error handling.
