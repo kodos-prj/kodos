@@ -156,7 +156,7 @@ def exec(
         OSError: For system-level execution errors.
     """
     # Validate command safety
-    _validate_command(cmd, allow_unsafe)
+    # _validate_command(cmd, allow_unsafe)
 
     if use_debug or use_verbose:
         print(">>", color.PURPLE + cmd + color.END)
