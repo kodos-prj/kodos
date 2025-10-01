@@ -187,10 +187,11 @@ def exec(
             result = subprocess.run(cmd, shell=True)
 
             # if check_return_code and result.returncode != 0:
-            logger.error(f"Command failed: {cmd}")
-            logger.error(f"Return code: {result.returncode}")
-            # raise CommandExecutionError(cmd, result.returncode)
-            print(f"Problem: Command failed: {cmd} with return code {result.returncode}")
+            if result.returncode != 0:
+                logger.error(f"Command failed: {cmd}")
+                logger.error(f"Return code: {result.returncode}")
+                # raise CommandExecutionError(cmd, result.returncode)
+                print(f"Problem: Command failed: {cmd} with return code {result.returncode}")
             return ""
 
     # except subprocess.TimeoutExpired:
