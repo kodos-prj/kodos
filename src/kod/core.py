@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Any, Tuple, Callable
 import lupa as lua
 
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
-from kod.common import exec, exec_chroot, exec_critical, exec_batch_with_fallback, exec_collect_errors
+from kod.common import exec, exec_chroot, exec_critical
 from kod.filesytem import FsEntry
 
 # from kod.arch import kernel_update_rquired
