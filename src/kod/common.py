@@ -171,7 +171,8 @@ def exec(
             # result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, encoding=encoding)
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding=encoding)
 
-            if check_return_code and result.returncode != 0:
+            # if check_return_code and result.returncode != 0:
+            if result.returncode != 0:
                 logger.error(f"Command failed: {cmd}")
                 logger.error(f"Return code: {result.returncode}")
                 logger.error(f"Stderr: {result.stderr}")
