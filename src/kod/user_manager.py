@@ -75,7 +75,8 @@ def create_user(ctx: Context, user: str, info: Any) -> None:
     print(f">>> Creating user {user}")
 
     user_name = info.name if hasattr(info, "name") else user
-    extra_groups = info.extra_groups if hasattr(info, "extra_groups") else []
+    # extra_groups = info.extra_groups if hasattr(info, "extra_groups") else []
+    extra_groups = list(info.extra_groups.values()) if "extra_groups" in info else []
     shell = info.shell if hasattr(info, "shell") else "/bin/bash"
 
     ctx.execute(f"useradd -m {user} -c '{user_name}'")
