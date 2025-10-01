@@ -20,6 +20,7 @@ from kod.common import (
     exec_warn,
     set_debug,
     set_verbose,
+    report_problems,
 )
 
 
@@ -149,6 +150,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
     print("Done")
+    report_problems()
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
     exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
