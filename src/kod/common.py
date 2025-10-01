@@ -258,7 +258,7 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
     # Escape the mount point to prevent injection
-    safe_mount_point = shlex.quote(mount_point)
+    safe_mount_point = shlex.quote(str(mount_point))
     # Construct chroot command - using arch-chroot for Arch-specific functionality
     chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
 
