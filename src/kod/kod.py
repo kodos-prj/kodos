@@ -120,7 +120,8 @@ def install(config: Optional[str], mount_point: str) -> None:
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    setup_bootloader(conf, partition_list, base_distribution)
+    # setup_bootloader(conf, partition_list, base_distribution)
+    setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
     # === Proc packages
