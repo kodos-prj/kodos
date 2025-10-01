@@ -182,7 +182,8 @@ def exec(
             return result.stdout
         else:
             # For commands without output capture, use subprocess.run
-            result = subprocess.run(cmd, shell=True, timeout=timeout)
+            # result = subprocess.run(cmd, shell=True, timeout=timeout)
+            result = subprocess.run(cmd, shell=True)
 
             if check_return_code and result.returncode != 0:
                 logger.error(f"Command failed: {cmd}")
