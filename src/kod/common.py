@@ -216,7 +216,9 @@ def exec_safe(cmd: str, *args, **kwargs) -> str:
     return exec(full_cmd, **kwargs)
 
 
-def exec_chroot(cmd: str, mount_point: Union[str, Path] = "/mnt", get_output: bool = False, **kwargs) -> str:
+def exec_chroot(
+    cmd: str, mount_point: Union[str, Path] = "/mnt", get_output: bool = False, warning: bool = False, **kwargs
+) -> str:
     """Execute a command within a chroot environment with error handling.
 
     Args:
@@ -249,7 +251,11 @@ def exec_chroot(cmd: str, mount_point: Union[str, Path] = "/mnt", get_output: bo
     # Construct chroot command - using arch-chroot for Arch-specific functionality
     chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
 
-    return exec(chroot_cmd, get_output=get_output, **kwargs)
+    if warning:
+        return exec_warn(
+            chroot_cmd, f"Warning: {chroot_cmd} failed", get_output=get_output, check_return_code=False, **kwargs
+        )
+    return exec(chroot_cmd, get_output=get_output, check_return_code=False, **kwargs)
 
 
 def exec_with_retry(cmd: str, max_retries: int = 3, retry_delay: float = 1.0, **kwargs) -> str:
@@ -417,6 +423,6 @@ class Context:
     def execute(self, command: str) -> None:
         """Execute a command in the appropriate context."""
         if self.use_chroot and self.mount_point != "/":
-            exec_chroot(command, mount_point=self.mount_point)
+            exec_chroot(command, mount_point=self.mount_point, warning=True)
         else:
             exec(command)
