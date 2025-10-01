@@ -1,0 +1,34 @@
+##
+## Arch Linux repository mirrorlist
+## Generated on 2025-09-30
+##
+
+## Canada
+Server = http://mirror.0xem.ma/arch/$repo/os/$arch
+Server = https://mirror.0xem.ma/arch/$repo/os/$arch
+Server = https://mirror.acadielinux.ca/mirror/arch/$repo/os/$arch
+Server = https://arch.mirror.winslow.cloud/$repo/os/$arch
+Server = http://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
+Server = https://ca.mirrors.cicku.me/archlinux/$repo/os/$arch
+Server = http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch
+Server = https://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch
+Server = http://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch
+Server = https://mirror.csclub.uwaterloo.ca/archlinux/$repo/os/$arch
+Server = http://mirror2.evolution-host.com/archlinux/$repo/os/$arch
+Server = https://mirror2.evolution-host.com/archlinux/$repo/os/$arch
+Server = https://stygian.failzero.net/mirror/archlinux/$repo/os/$arch
+Server = https://mirror.franscorack.com/archlinux/$repo/os/$arch
+Server = http://mirror.its.dal.ca/archlinux/$repo/os/$arch
+Server = http://mirror.quantum5.ca/archlinux/$repo/os/$arch
+Server = https://mirror.quantum5.ca/archlinux/$repo/os/$arch
+Server = http://muug.ca/mirror/archlinux/$repo/os/$arch
+Server = https://muug.ca/mirror/archlinux/$repo/os/$arch
+Server = http://mirrors.pablonara.com/archlinux/$repo/os/$arch
+Server = https://mirrors.pablonara.com/archlinux/$repo/os/$arch
+Server = https://upstream-1.pablonara.com/archlinux/$repo/os/$arch
+Server = http://archlinux.mirror.rafal.ca/$repo/os/$arch
+Server = http://mirror.scd31.com/arch/$repo/os/$arch
+Server = https://mirror.scd31.com/arch/$repo/os/$arch
+Server = http://mirror.xenyth.net/archlinux/$repo/os/$arch
+Server = https://mirror.xenyth.net/archlinux/$repo/os/$arch
+

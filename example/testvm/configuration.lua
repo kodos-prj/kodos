@@ -10,12 +10,13 @@ local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = true
+local use_cosmic = false
 local use_pantheon = false
 
 return {
     repos = {
-        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+        -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+        official = repos.arch_repo("https://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
     },
@@ -26,7 +27,7 @@ return {
 
     boot = {
         kernel = {
-            package = "linux-lts",
+            package = "linux",
             modules = { "xhci_pci", "ohci_pci", "ehci_pci", "virtio_pci", "ahci", "usbhid", "sr_mod", "virtio_blk" },
         },
         loader = {
@@ -80,12 +81,12 @@ return {
             no_password = true,
             shell = "/bin/bash",
         },
-        demo_user = {
-            name = "Demo User",
+        abuss = {
+            name = "abuss",
             password = "changeme",
             -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/usr/bin/fish",
-            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
+            extra_groups = list({ "audio", "input", "network", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
 
             dotfile_manager = configs.stow({
                 source_dir = "~/.dotfiles",
@@ -97,8 +98,8 @@ return {
                 git = {
                     enable = true,
                     config = configs.git({
-                        user_name = "Demol User",
-                        user_email = "demo.user@acme.com",
+                        user_name = "Antal Buss",
+                        user_email = "antal.buss@gmail.com",
                     })
                 },
 
@@ -116,11 +117,11 @@ return {
                     deploy_config = true,
                 },
 
-                emacs = {
-                    enable = true,
-                    package = "emacs-wayland",
-                    deploy_config = true,
-                },
+                -- emacs = {
+                --     enable = true,
+                --     package = "emacs-wayland",
+                --     deploy_config = true,
+                -- },
 
                 -- Gnome dconf configuration
                 dconf = {
@@ -135,15 +136,15 @@ return {
             },
 
             services = {
-                syncthing = {
-                    enable = true,
-                    config = configs.syncthing({
-                        service_name = "syncthing",
-                        options =
-                        "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
-                    }),
-                    -- extra_packages = { "aur:syncthing-gtk" },
-                }
+                -- syncthing = {
+                --     enable = false,
+                --     config = configs.syncthing({
+                --         service_name = "syncthing",
+                --         options =
+                --         "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
+                --     }),
+                --     -- extra_packages = { "aur:syncthing-gtk" },
+                -- }
             },
 
         },
@@ -205,11 +206,11 @@ return {
             "ttf-sourcecodepro-nerd",
             "ttf-fira-sans",
             "ttf-fira-code",
-            "ttf-liberation",
-            "noto-fonts-emoji",
-            "adobe-source-serif-fonts",
-            "ttf-ubuntu-font-family",
-            "aur:ttf-work-sans",
+            -- "ttf-liberation",
+            -- "noto-fonts-emoji",
+            -- "ttf-ubuntu-font-family",
+            -- "adobe-source-serif-fonts",
+            -- "aur:ttf-work-sans",
         },
     },
 
@@ -218,14 +219,14 @@ return {
             "stow",
             "mc",
             "less",
-            "neovim",
+            -- "neovim",
             "htop",
             "libgtop",
             "uv",
             "python-invoke",
             "git",
             -- "poetry",
-            "neofetch",
+            -- "neofetch",
             "helix",
             "ghostty",
             -- AUR packages
@@ -240,19 +241,19 @@ return {
             -- "aur:uxplay",
             -- "aur:megasync",
 
-            "firefox",
+            -- "firefox",
             -- "aur:brave-bin",
             -- "vulkan-virtio",
             -- "zed",
-        })
-        ..
-        cli, -- CLI tools
+        }),
+        -- ..
+        -- cli, -- CLI tools
     -- ..
     -- development, -- Development tools
 
     services = {
         -- Firmware update
-        fwupd = { enable = true },
+        fwupd = { enable = false },
 
         -- TODO: Maybe move inside network
         networkmanager = {
@@ -269,13 +270,13 @@ return {
         },
 
         cups = {
-            enable = true,
+            enable = false,
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
 
         -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
-            enable = true,
+            enable = false,
             service_name = "bluetooth",
             package = "bluez",
         },
@@ -283,7 +284,7 @@ return {
         systemd_mount = {
             services = {
                 data = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-data",
                     type = "cifs",
                     what = "//mmserver.lan/NAS1",
@@ -298,7 +299,7 @@ return {
                 }),
 
                 library = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-library",
                     type = "nfs",
                     what = "homenas2.lan:/data/Documents",

@@ -8,59 +8,63 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
-import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
 import click
 
-# from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
+    Context,
     exec,
+    exec_critical,
+    exec_warn,
     set_debug,
     set_verbose,
-    CommandExecutionError,
-    CommandTimeoutError,
-    exec_warn,
-    exec_critical,
+    report_problems,
 )
-from kod.core import (
-    Context,
-    change_subvol,
-    configure_system,
-    configure_user_dotfiles,
-    configure_user_scripts,
+
+
+from .boot_manager import (
     create_boot_entry,
-    create_filesystem_hierarchy,
-    create_kod_user,
     create_next_generation,
-    disable_services,
-    enable_services,
-    enable_user_services,
-    generate_fstab,
     get_max_generation,
+    setup_bootloader,
+)
+from .core import load_config, load_repos, set_base_distribution
+from .filesystem import (
+    change_subvol,
+    create_filesystem_hierarchy,
+    create_partitions,
+    generate_fstab,
+    get_partition_devices,
+    load_fstab,
+)
+from .package_manager import (
     get_packages_to_install,
     get_packages_updates,
     get_pending_packages,
-    get_services_to_enable,
-    load_config,
-    load_fstab,
     load_package_lock,
     load_packages_services,
-    load_repos,
     manage_packages,
     manage_packages_shell,
-    proc_user_home,
-    proc_users,
-    setup_bootloader,
     store_packages_services,
     update_all_packages,
+)
+from .system_config import configure_system
+from .user_manager import (
+    configure_user_dotfiles,
+    configure_user_scripts,
+    create_kod_user,
+    disable_services,
+    enable_services,
+    enable_user_services,
+    get_services_to_enable,
+    proc_user_home,
+    proc_users,
     user_configs,
     user_dotfile_manager,
     user_services,
 )
-from kod.core import set_base_distribution
-from kod.filesytem import create_partitions, get_partition_devices
 
 # from kod.core import *
 
@@ -120,7 +124,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    setup_bootloader(conf, partition_list, base_distribution)
+    setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
     # === Proc packages
@@ -146,6 +150,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
     print("Done")
+    report_problems()
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
     exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
