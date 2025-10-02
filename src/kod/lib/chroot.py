@@ -68,7 +68,7 @@ class Chroot:
         else:
             # If command is a string, use bash -c
             # chroot_args = ["chroot", chrootdir, "/bin/bash", "-c"] + command.split(" ")
-            chroot_args = ["chroot", chrootdir] + command.split(" ")
+            chroot_args = ["chroot", chrootdir] + command.strip().split(" ")
 
         env = os.environ.copy()
         env["SHELL"] = "/bin/bash"
