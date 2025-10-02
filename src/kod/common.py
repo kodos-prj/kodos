@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple, List
 
+from .chroot import chroot, ChrootError
+
 use_debug: bool = True
 use_verbose: bool = False
 problems: list[dict] = []
@@ -257,12 +259,19 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         if not full_path.exists():
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
-    # Escape the mount point to prevent injection
-    safe_mount_point = shlex.quote(str(mount_point))
-    # Construct chroot command - using arch-chroot for Arch-specific functionality
-    chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
-
-    return exec(chroot_cmd, get_output=get_output, **kwargs)
+    # Use chroot module if available, otherwise fallback to command execution
+    if chroot:
+        try:
+            result = chroot(str(mount_point), cmd, get_output=get_output)
+            return result if result is not None else ""
+        except ChrootError as e:
+            raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
+    else:
+        # Fallback: Escape the mount point to prevent injection
+        safe_mount_point = shlex.quote(str(mount_point))
+        # Construct chroot command - using arch-chroot for Arch-specific functionality
+        chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
+        return exec(chroot_cmd, get_output=get_output, **kwargs)
 
 
 # def exec_with_retry(cmd: str, max_retries: int = 3, retry_delay: float = 1.0, **kwargs) -> str:
