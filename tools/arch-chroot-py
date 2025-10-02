@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""
+Python implementation of arch-chroot command.
+
+This provides the same functionality as the original bash arch-chroot script
+but uses the Python chroot module from kod.lib for the implementation.
+"""
+
+import sys
+import os
+import argparse
+from pathlib import Path
+
+# Add the src directory to the Python path so we can import from kod.lib
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
+try:
+    from kod.lib.chroot import Chroot, ChrootError
+except ImportError as e:
+    print(f"Error: Could not import chroot module: {e}", file=sys.stderr)
+    print("Make sure you're running this from the project root directory.", file=sys.stderr)
+    sys.exit(1)
+
+
+class ArchChrootPy:
+    def __init__(self):
+        self.unshare_mode = False
+        self.userspec = None
+
+    def usage(self):
+        return """usage: arch-chroot-py chroot-dir [command] [arguments...]
+
+    -h                  Print this help message
+    -N                  Run in unshare mode as a regular user (not implemented)
+    -u <user>[:group]   Specify non-root user and optional group to use (not implemented)
+
+If 'command' is unspecified, arch-chroot-py will launch /bin/bash.
+
+Note that when using arch-chroot-py, the target chroot directory *should* be a
+mountpoint. This ensures that tools such as pacman(8) or findmnt(8) have an
+accurate hierarchy of the mounted filesystems within the chroot.
+
+If your chroot target is not a mountpoint, you can bind mount the directory on
+itself to make it a mountpoint, i.e. 'mount --bind /your/chroot /your/chroot'.
+"""
+
+    def arch_chroot(self, chrootdir: str, command: list = None):
+        """Execute arch-chroot functionality using the Python chroot module."""
+        if os.geteuid() != 0:
+            print("Error: This script must be run with root privileges", file=sys.stderr)
+            sys.exit(1)
+
+        if not os.path.isdir(chrootdir):
+            print(f"Error: Can't create chroot on non-directory {chrootdir}", file=sys.stderr)
+            sys.exit(1)
+
+        # Check if it's a mountpoint (warning only)
+        try:
+            import subprocess
+            result = subprocess.run(['mountpoint', '-q', chrootdir], capture_output=True)
+            if result.returncode != 0:
+                print(f"Warning: {chrootdir} is not a mountpoint. This may have undesirable side effects.", 
+                      file=sys.stderr)
+        except FileNotFoundError:
+            # mountpoint command not available, skip check
+            pass
+
+        # Prepare command
+        if not command:
+            cmd = "/bin/bash"
+        else:
+            # Join command arguments with proper shell escaping
+            import shlex
+            cmd = " ".join(shlex.quote(arg) for arg in command)
+
+        # Execute using the chroot module
+        try:
+            chroot_instance = Chroot()
+            chroot_instance.execute(chrootdir, cmd, get_output=False)
+        except ChrootError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        except KeyboardInterrupt:
+            sys.exit(130)
+        except Exception as e:
+            print(f"Unexpected error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    def run(self, args):
+        """Main entry point for the script."""
+        parser = argparse.ArgumentParser(
+            description="Python implementation of arch-chroot",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="""If 'command' is unspecified, arch-chroot-py will launch /bin/bash.
+
+Note that when using arch-chroot-py, the target chroot directory *should* be a
+mountpoint. This ensures that tools such as pacman(8) or findmnt(8) have an
+accurate hierarchy of the mounted filesystems within the chroot.
+
+If your chroot target is not a mountpoint, you can bind mount the directory on
+itself to make it a mountpoint, i.e. 'mount --bind /your/chroot /your/chroot'."""
+        )
+
+        parser.add_argument(
+            '-N', '--unshare',
+            action='store_true',
+            help='Run in unshare mode as a regular user (not implemented)'
+        )
+        parser.add_argument(
+            '-u', '--userspec',
+            metavar='USER[:GROUP]',
+            help='Specify non-root user and optional group to use (not implemented)'
+        )
+        parser.add_argument(
+            'chrootdir',
+            help='Target chroot directory'
+        )
+        parser.add_argument(
+            'command',
+            nargs='*',
+            help='Command and arguments to run in chroot'
+        )
+
+        parsed_args = parser.parse_args(args)
+
+        # Store options
+        self.unshare_mode = parsed_args.unshare
+        self.userspec = parsed_args.userspec
+
+        # Warn about unimplemented features
+        if self.unshare_mode:
+            print("Warning: Unshare mode (-N) is not yet implemented", file=sys.stderr)
+        if self.userspec:
+            print("Warning: User specification (-u) is not yet implemented", file=sys.stderr)
+
+        # Execute arch-chroot
+        self.arch_chroot(parsed_args.chrootdir, parsed_args.command)
+
+
+def main():
+    """Main entry point when run as a script."""
+    arch_chroot_py = ArchChrootPy()
+    arch_chroot_py.run(sys.argv[1:])
+
+
+if __name__ == "__main__":
+    main()
