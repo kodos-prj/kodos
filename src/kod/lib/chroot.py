@@ -4,7 +4,7 @@ import os
 import sys
 import subprocess
 import atexit
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class ChrootError(Exception):
@@ -51,7 +51,7 @@ class Chroot:
                     pass
         self.active_mounts.clear()
 
-    def execute(self, chrootdir: str, command: str, get_output: bool = False) -> Optional[str]:
+    def execute(self, chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
         if os.geteuid() != 0:
             raise ChrootError("This operation requires root privileges")
 
@@ -61,7 +61,14 @@ class Chroot:
         if not self.chroot_setup(chrootdir):
             raise ChrootError(f"Failed to setup chroot environment: {chrootdir}")
 
-        chroot_args = ["chroot", chrootdir, "/bin/bash", "-c", command]
+        # Handle both string commands and list of arguments
+        if isinstance(command, list):
+            # If command is a list, pass arguments directly
+            chroot_args = ["chroot", chrootdir] + command
+        else:
+            # If command is a string, use bash -c
+            chroot_args = ["chroot", chrootdir, "/bin/bash", "-c", command]
+
         env = os.environ.copy()
         env["SHELL"] = "/bin/bash"
 
@@ -79,12 +86,12 @@ class Chroot:
             raise ChrootError(f"Command failed in chroot: {command}")
 
 
-def chroot(chrootdir: str, command: str, get_output: bool = False) -> Optional[str]:
+def chroot(chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
     """Execute a command in a chroot environment.
 
     Args:
         chrootdir: Path to the chroot directory
-        command: Command to execute
+        command: Command to execute (string or list of arguments)
         get_output: Whether to capture and return command output
 
     Returns:

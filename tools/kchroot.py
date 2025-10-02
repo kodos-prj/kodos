@@ -292,10 +292,25 @@ def kchroot(
 
 def main():
     """Main entry point for the script."""
-    parser = argparse.ArgumentParser(
-        description="kchroot - Enhanced chroot command with proper setup",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""If 'command' is unspecified, kchroot will launch /bin/bash.
+    # Handle the case where command arguments might start with dashes
+    # by manually parsing the arguments
+
+    args = sys.argv[1:]
+    chrootdir = None
+    command_args = []
+    unshare_mode = False
+    userspec = None
+
+    i = 0
+    while i < len(args):
+        arg = args[i]
+
+        if arg in ["-h", "--help"]:
+            # Show help and exit
+            parser = argparse.ArgumentParser(
+                description="kchroot - Enhanced chroot command with proper setup",
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                epilog="""If 'command' is unspecified, kchroot will launch /bin/bash.
 
 Note that when using kchroot, the target chroot directory *should* be a
 mountpoint. This ensures that tools such as pacman(8) or findmnt(8) have an
@@ -303,22 +318,41 @@ accurate hierarchy of the mounted filesystems within the chroot.
 
 If your chroot target is not a mountpoint, you can bind mount the directory on
 itself to make it a mountpoint, i.e. 'mount --bind /your/chroot /your/chroot'.""",
-    )
+            )
+            parser.add_argument("-N", "--unshare", action="store_true", help="Run in unshare mode as a regular user")
+            parser.add_argument(
+                "-u", "--userspec", metavar="USER[:GROUP]", help="Specify non-root user and optional group to use"
+            )
+            parser.add_argument("chrootdir", help="Target chroot directory")
+            parser.add_argument("command", nargs="*", help="Command and arguments to run in chroot")
+            parser.print_help()
+            sys.exit(0)
+        elif arg in ["-N", "--unshare"]:
+            unshare_mode = True
+            i += 1
+        elif arg in ["-u", "--userspec"]:
+            userspec = args[i + 1] if i + 1 < len(args) else None
+            i += 2
+        elif arg.startswith("-"):
+            print(f"Error: Unknown option '{arg}'", file=sys.stderr)
+            print("Use -h or --help for usage information", file=sys.stderr)
+            sys.exit(1)
+        else:
+            # This should be the chrootdir, everything after is command
+            chrootdir = arg
+            command_args = args[i + 1 :]
+            break
 
-    parser.add_argument("-N", "--unshare", action="store_true", help="Run in unshare mode as a regular user")
-    parser.add_argument(
-        "-u", "--userspec", metavar="USER[:GROUP]", help="Specify non-root user and optional group to use"
-    )
-    parser.add_argument("chrootdir", help="Target chroot directory")
-    parser.add_argument("command", nargs="*", help="Command and arguments to run in chroot")
-
-    args = parser.parse_args()
+    if chrootdir is None:
+        print("Error: Missing required argument 'chrootdir'", file=sys.stderr)
+        print("Use -h or --help for usage information", file=sys.stderr)
+        sys.exit(1)
 
     chroot = KChroot()
-    chroot.unshare_mode = args.unshare
+    chroot.unshare_mode = unshare_mode
 
     try:
-        chroot.kchroot(args.chrootdir, args.command, args.userspec)
+        chroot.kchroot(chrootdir, command_args, userspec)
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as e:
