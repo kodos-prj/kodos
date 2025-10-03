@@ -74,12 +74,13 @@ class Chroot:
 
         pid_unshare_cmd = ["unshare", "--fork", "--pid"]
         pid_unshare_cmd.extend(chroot_args)
-
+        print("Executing command in chroot:", pid_unshare_cmd)
         try:
             if get_output:
                 result = subprocess.run(
                     pid_unshare_cmd, env=env, shell=True, capture_output=True, text=True, check=True
                 )
+                print(result)
                 return result.stdout
             else:
                 subprocess.run(pid_unshare_cmd, env=env, shell=True, check=True)

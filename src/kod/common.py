@@ -262,6 +262,7 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
     try:
         print(f"###({get_output})>", cmd)
         result = chroot(str(mount_point), cmd, get_output=get_output)
+        print("###~", result)
         return result if result is not None else ""
     except ChrootError as e:
         raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
