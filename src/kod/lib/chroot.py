@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import subprocess
 import atexit
 from typing import List, Optional, Union
@@ -51,7 +50,7 @@ class Chroot:
                     pass
         self.active_mounts.clear()
 
-    def execute(self, chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
+    def execute(self, chrootdir: str, command: str | List[str], get_output: bool = False) -> Optional[str]:
         if os.geteuid() != 0:
             raise ChrootError("This operation requires root privileges")
 
@@ -68,7 +67,7 @@ class Chroot:
         else:
             # If command is a string, use bash -c
             # chroot_args = ["chroot", chrootdir, "/bin/bash", "-c"] + command.split(" ")
-            chroot_args = ["chroot", chrootdir] + command.strip().split(" ")
+            chroot_args = ["chroot", chrootdir, command]
 
         env = os.environ.copy()
         env["SHELL"] = "/bin/bash"
@@ -78,10 +77,12 @@ class Chroot:
 
         try:
             if get_output:
-                result = subprocess.run(pid_unshare_cmd, env=env, capture_output=True, text=True, check=True)
+                result = subprocess.run(
+                    pid_unshare_cmd, env=env, shell=True, capture_output=True, text=True, check=True
+                )
                 return result.stdout
             else:
-                subprocess.run(pid_unshare_cmd, env=env, check=True)
+                subprocess.run(pid_unshare_cmd, env=env, shell=True, check=True)
                 return None
         except subprocess.CalledProcessError as e:
             raise ChrootError(f"Command failed in chroot: {command}")

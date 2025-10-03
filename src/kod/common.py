@@ -264,6 +264,10 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         return result if result is not None else ""
     except ChrootError as e:
         raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
+    # safe_mount_point = shlex.quote(str(mount_point))
+    # Construct chroot command - using arch-chroot for Arch-specific functionality
+    # chroot_cmd = f"kchroot.py {safe_mount_point} {cmd}"
+    # return exec(chroot_cmd, get_output=get_output, **kwargs)
 
 
 # def exec_with_retry(cmd: str, max_retries: int = 3, retry_delay: float = 1.0, **kwargs) -> str:
