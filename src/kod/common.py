@@ -260,6 +260,7 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
     try:
+        print(f"###({get_output})>", cmd)
         result = chroot(str(mount_point), cmd, get_output=get_output)
         return result if result is not None else ""
     except ChrootError as e:
