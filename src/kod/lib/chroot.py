@@ -65,8 +65,6 @@ class Chroot:
             # If command is a list, pass arguments directly
             chroot_args = ["chroot", chrootdir] + command
         else:
-            # If command is a string, use bash -c
-            # chroot_args = ["chroot", chrootdir, "/bin/bash", "-c"] + command.split(" ")
             chroot_args = ["chroot", chrootdir, command]
 
         env = os.environ.copy()
@@ -74,13 +72,10 @@ class Chroot:
 
         pid_unshare_cmd = ["unshare", "--fork", "--pid"]
         pid_unshare_cmd.extend(chroot_args)
-        print("Executing command in chroot:", pid_unshare_cmd)
         safe_cmd = """ """.join(pid_unshare_cmd)
-        print("Safe command:", safe_cmd)
         try:
             if get_output:
                 result = subprocess.run(safe_cmd, env=env, shell=True, capture_output=True, text=True, check=True)
-                print(result)
                 return result.stdout
             else:
                 subprocess.run(safe_cmd, env=env, shell=True, check=True)

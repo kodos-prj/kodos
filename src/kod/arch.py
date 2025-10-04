@@ -180,10 +180,8 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
             build_cmd = build_info["build_cmd"]
             name = build_info["name"]
 
-            # TODO: Generalize this code to support other distros
-            # exec_chroot("pacman -S --needed --noconfirm git base-devel")
             exec_chroot(
-                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
+                f"runuser -u kod -- /bin/bash -c 'cd && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
                 mount_point=mount_point,
             )
 

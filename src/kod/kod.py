@@ -324,19 +324,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         f.write(str(generation_id))
 
     if new_generation:
-        for m in [
-            "/boot",
-            "/kod",
-            "/home",
-            "/root",
-            "/var/log",
-            "/var/tmp",
-            "/var/cache",
-            "/var/kod",
-        ]:
-            exec(f"umount {new_root_path}{m}")
-        exec(f"umount {new_root_path}")
-        exec(f"rm -rf {new_root_path}")
+        exec(f"umount -R {new_root_path}")
 
     # else:
     # exec("mount -o remount,ro /usr")
