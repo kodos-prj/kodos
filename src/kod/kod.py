@@ -59,7 +59,7 @@ from kod.core import (
     user_services,
 )
 from kod.core import set_base_distribution
-from kod.filesytem import create_partitions, get_partition_devices
+from kod.filesystem import create_partitions, get_partition_devices
 
 # from kod.core import *
 
