@@ -15,7 +15,8 @@ local use_pantheon = false
 
 return {
     repos = {
-        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+        -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+        official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
     },
@@ -80,12 +81,12 @@ return {
             no_password = true,
             shell = "/bin/bash",
         },
-        demo_user = {
-            name = "Demo User",
+        abuss = {
+            name = "Antal Buss",
             password = "changeme",
             -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
             shell = "/usr/bin/fish",
-            extra_groups = map({ "audio", "input", "networkmanager", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
+            extra_groups = list({ "audio", "input", "network", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
 
             dotfile_manager = configs.stow({
                 source_dir = "~/.dotfiles",
@@ -112,15 +113,15 @@ return {
                 },
 
                 neovim = {
-                    enable = true,
+                    enable = false,
                     deploy_config = true,
                 },
 
-                emacs = {
-                    enable = true,
-                    package = "emacs-wayland",
-                    deploy_config = true,
-                },
+                -- emacs = {
+                --     enable = true,
+                --     package = "emacs-wayland",
+                --     deploy_config = true,
+                -- },
 
                 -- Gnome dconf configuration
                 dconf = {
@@ -205,11 +206,11 @@ return {
             "ttf-sourcecodepro-nerd",
             "ttf-fira-sans",
             "ttf-fira-code",
-            "ttf-liberation",
-            "noto-fonts-emoji",
-            "adobe-source-serif-fonts",
-            "ttf-ubuntu-font-family",
-            "aur:ttf-work-sans",
+            -- "ttf-liberation",
+            -- "noto-fonts-emoji",
+            -- "adobe-source-serif-fonts",
+            -- "ttf-ubuntu-font-family",
+            -- "aur:ttf-work-sans",
         },
     },
 
@@ -218,14 +219,14 @@ return {
             "stow",
             "mc",
             "less",
-            "neovim",
+            -- "neovim",
             "htop",
             "libgtop",
             "uv",
             "python-invoke",
             "git",
             -- "poetry",
-            "neofetch",
+            -- "neofetch",
             "helix",
             "ghostty",
             -- AUR packages
@@ -240,13 +241,13 @@ return {
             -- "aur:uxplay",
             -- "aur:megasync",
 
-            "firefox",
+            -- "firefox",
             -- "aur:brave-bin",
             -- "vulkan-virtio",
             -- "zed",
-        })
-        ..
-        cli, -- CLI tools
+        }),
+        -- ..
+        -- cli, -- CLI tools
     -- ..
     -- development, -- Development tools
 
@@ -283,7 +284,7 @@ return {
         systemd_mount = {
             services = {
                 data = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-data",
                     type = "cifs",
                     what = "//mmserver.lan/NAS1",
@@ -298,7 +299,7 @@ return {
                 }),
 
                 library = configs.mount({
-                    enable = true,
+                    enable = false,
                     name = "mnt-library",
                     type = "nfs",
                     what = "homenas2.lan:/data/Documents",

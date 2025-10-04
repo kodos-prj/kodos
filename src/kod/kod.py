@@ -19,8 +19,7 @@ from kod.common import (
     exec,
     set_debug,
     set_verbose,
-    CommandExecutionError,
-    CommandTimeoutError,
+    report_problems,
     exec_warn,
     exec_critical,
 )
@@ -120,7 +119,8 @@ def install(config: Optional[str], mount_point: str) -> None:
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    setup_bootloader(conf, partition_list, base_distribution)
+    # setup_bootloader(conf, partition_list, base_distribution)
+    setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
     # === Proc packages
@@ -146,6 +146,9 @@ def install(config: Optional[str], mount_point: str) -> None:
     exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
     print("Done")
+    print("=-=-=-=-=-=-=-=-=-=-")
+    report_problems()
+    print("-=-=-=-=-=-=-=-=-=-=")
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
     exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
@@ -321,19 +324,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         f.write(str(generation_id))
 
     if new_generation:
-        for m in [
-            "/boot",
-            "/kod",
-            "/home",
-            "/root",
-            "/var/log",
-            "/var/tmp",
-            "/var/cache",
-            "/var/kod",
-        ]:
-            exec(f"umount {new_root_path}{m}")
-        exec(f"umount {new_root_path}")
-        exec(f"rm -rf {new_root_path}")
+        exec(f"umount -R {new_root_path}")
 
     # else:
     # exec("mount -o remount,ro /usr")
