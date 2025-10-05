@@ -11,7 +11,7 @@ local development = require("development")
 local use_gnome = false
 local use_plasma = false
 local use_cosmic = true
-local use_pantheon = false
+local use_pantheon = true
 
 return {
     repos = {
@@ -113,6 +113,11 @@ return {
                 },
 
                 neovim = {
+                    enable = false,
+                    deploy_config = true,
+                },
+
+                helix = {
                     enable = false,
                     deploy_config = true,
                 },
@@ -227,7 +232,7 @@ return {
             "git",
             -- "poetry",
             -- "neofetch",
-            "helix",
+            -- "helix",
             "ghostty",
             -- AUR packages
             -- "aur:visual-studio-code-bin",

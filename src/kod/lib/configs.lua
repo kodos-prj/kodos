@@ -1,31 +1,16 @@
 -- Program Configuration generation
 
--- local function isdir(spath)
---     local response = os.execute("cd " .. spath)
---     if response then
---         return true
---     end
---     return false
--- end
-
-
 
 local function stow(config)
     local command = function(context, config, program, init)
-        local source = path.absolute(config.source_dir) or path.absolute("~/.dotfiles")
-        local target = path.absolute(config.target_dir) or home_dir()
+        local source = path.expanduser(config.source_dir) or path.expanduser("~/.dotfiles")
+        local target = path.expanduser(config.target_dir) or home_dir()
 
         local git_clone = "git clone " .. config.repo_url .. " " .. source
 
-        -- if init then
-        --     -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
-        --     if not is_dir(source) then
-        --         context:execute(git_clone)
-        --     end
-        -- end
         if init then
             if path.is_dir(source) then
-                context.execute("cd {source} && git pull")
+                context.execute("cd "..source.." && git pull")
             else
                 context:execute(git_clone)
             end
