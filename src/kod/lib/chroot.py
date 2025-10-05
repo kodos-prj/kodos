@@ -81,7 +81,8 @@ class Chroot:
                 subprocess.run(safe_cmd, env=env, shell=True, check=True)
                 return None
         except subprocess.CalledProcessError as e:
-            raise ChrootError(f"Command failed in chroot: {command}")
+            # raise ChrootError(f"Command failed in chroot: {command}")
+            print(e)
 
 
 def chroot(chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
