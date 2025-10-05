@@ -58,6 +58,14 @@ def set_base_distribution(base_dist: str) -> Any:
     return dist
 
 
+# ------------------
+def is_dir(path: str) -> bool:
+    return Path(path).is_dir()
+
+
+# ------------------
+
+
 # Core
 def load_config(config_filename: Optional[str]) -> Any:
     """Load configuration from a file and return it as a table.
@@ -88,6 +96,27 @@ def load_config(config_filename: Optional[str]) -> Any:
     luart.execute("package.path = 'kod/lib/?.lua;' .. package.path")
     luart.execute("print(package.path)")
     print("Loading default libraries")
+
+    # # Load the Lua runtime and add path functionality
+    # import lupa
+
+    # luart = lupa.LuaRuntime()
+
+    # # Import PathWrapper and make it available to Lua
+    # try:
+    #     from kod.path_wrapper import Path, PathWrapper, home, cwd, temp_dir
+
+    #     # Create a path module table for Lua
+    #     path_module = luart.table_from({"Path": Path, "home": home, "cwd": cwd, "temp_dir": temp_dir})
+
+    #     # Make the path module available in Lua
+    #     luart.globals()["path"] = path_module
+    # except ImportError:
+    #     # Fallback if PathWrapper is not available
+    #     pass
+
+    luart.globals()["is_dir"] = is_dir
+
     default_libs = """
 list = require("utils").list
 map = require("utils").map
@@ -1669,7 +1698,7 @@ def create_next_generation(boot_part: str, root_part: str, generation: int) -> s
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/"])
-    generate_fstab(partition_list, next_current)
+    generate_fstab(partition_list, str(next_current))
 
     # Write generation number
     with open(f"{next_current}/.generation", "w") as f:
@@ -1677,7 +1706,7 @@ def create_next_generation(boot_part: str, root_part: str, generation: int) -> s
 
     print("===================================")
 
-    return next_current
+    return str(next_current)
 
 
 # Core

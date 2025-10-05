@@ -1,12 +1,12 @@
 -- Program Configuration generation
 
-local function isdir(spath)
-    local response = os.execute("cd " .. spath)
-    if response then
-        return true
-    end
-    return false
-end
+-- local function isdir(spath)
+--     local response = os.execute("cd " .. spath)
+--     if response then
+--         return true
+--     end
+--     return false
+-- end
 
 
 
@@ -19,7 +19,7 @@ local function stow(config)
 
         if init then
             -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
-            if not isdir(source) then
+            if not is_dir(source) then
                 context:execute(git_clone)
             end
         end
