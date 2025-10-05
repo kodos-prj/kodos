@@ -142,7 +142,14 @@ def load_config(config_filename: Optional[str]) -> Any:
     # luart.globals()["is_dir"] = is_dir
     # luart.globals()["home_dir"] = home_dir
     path_module = luart.table_from(
-        {"is_dir": is_dir, "is_file": is_file, "home_dir": home_dir, "exists": exists, "absolute": absolute}
+        {
+            "is_dir": is_dir,
+            "is_file": is_file,
+            "home_dir": home_dir,
+            "exists": exists,
+            "absolute": absolute,
+            "expanduser": expanduser,
+        }
     )
 
     # Make the path module available in Lua
