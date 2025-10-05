@@ -91,7 +91,7 @@ return {
             dotfile_manager = configs.stow({
                 source_dir = "~/.dotfiles",
                 target_dir = "~/",
-                repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
+                repo_url = "https://github.com/abuss/dotconfig.git",
             }),
 
             programs = {
