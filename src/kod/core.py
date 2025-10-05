@@ -67,6 +67,26 @@ def home_dir() -> str:
     return Path().home()
 
 
+def absolute(path: str) -> str:
+    return str(Path(path).absolute())
+
+
+def resolve(path: str) -> str:
+    return str(Path(path).resolve())
+
+
+def expanduser(path: str) -> str:
+    return str(Path(path).expanduser())
+
+
+def exists(path: str) -> bool:
+    return Path(path).exists()
+
+
+def is_file(path: str) -> bool:
+    return Path(path).is_file()
+
+
 # ------------------
 
 
@@ -119,8 +139,14 @@ def load_config(config_filename: Optional[str]) -> Any:
     #     # Fallback if PathWrapper is not available
     #     pass
 
-    luart.globals()["is_dir"] = is_dir
-    luart.globals()["home_dir"] = home_dir
+    # luart.globals()["is_dir"] = is_dir
+    # luart.globals()["home_dir"] = home_dir
+    path_module = luart.table_from(
+        {"is_dir": is_dir, "is_file": is_file, "home_dir": home_dir, "exists": exists, "absolute": absolute}
+    )
+
+    # Make the path module available in Lua
+    luart.globals()["path"] = path_module
 
     default_libs = """
 list = require("utils").list

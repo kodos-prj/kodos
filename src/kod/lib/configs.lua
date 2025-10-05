@@ -12,8 +12,8 @@
 
 local function stow(config)
     local command = function(context, config, program, init)
-        local source = config.source_dir or "~/.dotfiles"
-        local target = config.target_dir or home_dir()
+        local source = path.absolute(config.source_dir) or path.absolute("~/.dotfiles")
+        local target = path.absolute(config.target_dir) or home_dir()
 
         local git_clone = "git clone " .. config.repo_url .. " " .. source
 
@@ -23,10 +23,12 @@ local function stow(config)
         --         context:execute(git_clone)
         --     end
         -- end
-        if is_dir(source) then
-            context.execute("cd {source} && git pull")
-        else
-            context:execute(git_clone)
+        if init then
+            if path.is_dir(source) then
+                context.execute("cd {source} && git pull")
+            else
+                context:execute(git_clone)
+            end
         end
             
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
