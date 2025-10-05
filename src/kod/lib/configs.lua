@@ -17,14 +17,16 @@ local function stow(config)
 
         local git_clone = "git clone " .. config.repo_url .. " " .. source
 
-        if init then
-            -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
-            if not is_dir(source) then
-                context:execute(git_clone)
-            end
-        end
+        -- if init then
+        --     -- context:execute("if [ ! -d "..source.." ] ; then\n"..git_clone.."\nfi")
+        --     if not is_dir(source) then
+        --         context:execute(git_clone)
+        --     end
+        -- end
         if is_dir(source) then
             context.execute("cd {source} && git pull")
+        else
+            context:execute(git_clone)
         end
             
         context:execute("stow -R -t " .. target .. " -d " .. source .. " " .. program)
