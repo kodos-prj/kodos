@@ -63,6 +63,10 @@ def is_dir(path: str) -> bool:
     return Path(path).is_dir()
 
 
+def home_dir() -> str:
+    return Path().home()
+
+
 # ------------------
 
 
@@ -116,6 +120,7 @@ def load_config(config_filename: Optional[str]) -> Any:
     #     pass
 
     luart.globals()["is_dir"] = is_dir
+    luart.globals()["home_dir"] = home_dir
 
     default_libs = """
 list = require("utils").list
