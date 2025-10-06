@@ -142,9 +142,14 @@ def exec(
                 logger.error(f"Command failed: {cmd}")
                 logger.error(f"Return code: {result.returncode}")
                 logger.error(f"Stderr: {result.stderr}")
-                # raise CommandExecutionError(cmd, result.returncode, result.stderr, result.stdout)
                 problems.append(
-                    {"cmd": cmd, "return_code": result.returncode, "stderr": result.stderr, "stdout": result.stdout}
+                    {
+                        "type": "command_execution",
+                        "command": cmd,
+                        "return_code": result.returncode,
+                        "stderr": result.stderr,
+                        "stdout": result.stdout,
+                    }
                 )
 
             return result.stdout
@@ -157,8 +162,7 @@ def exec(
             if result.returncode != 0:
                 logger.error(f"Command failed: {cmd}")
                 logger.error(f"Return code: {result.returncode}")
-                # raise CommandExecutionError(cmd, result.returncode)
-                print(f"Problem: Command failed: {cmd} with return code {result.returncode}")
+                problems.append({"type": "command_execution", "command": cmd, "return_code": result.returncode})
             return ""
 
     # except subprocess.TimeoutExpired:
@@ -198,9 +202,9 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
             logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
     try:
-        print(f"###({get_output})>", cmd)
+        # print(f"###({get_output})>", cmd)
         result = chroot(str(mount_point), cmd, get_output=get_output)
-        print("###~", result)
+        # print("###~", result)
         return result if result is not None else ""
     except ChrootError as e:
         raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
@@ -224,11 +228,16 @@ def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
     Raises:
         RuntimeError: If command fails, wrapping the original exception
     """
-    try:
-        return exec(cmd, **kwargs)
-    except Exception as e:
-        print(f"Error: {error_msg}: {e}")
-        raise RuntimeError(error_msg) from e
+    initial_problem_count = len(problems)
+    result = exec(cmd, **kwargs)
+
+    # Check if new problems were added (indicating command failure)
+    if len(problems) > initial_problem_count:
+        latest_problem = problems[-1]
+        print(f"Error: {error_msg}")
+        raise RuntimeError(error_msg)
+
+    return result
 
 
 def exec_warn(cmd: str, warning_msg: str, **kwargs) -> Optional[str]:
@@ -245,8 +254,12 @@ def exec_warn(cmd: str, warning_msg: str, **kwargs) -> Optional[str]:
     Returns:
         Command output on success, None on failure
     """
-    try:
-        return exec(cmd, **kwargs)
-    except Exception as e:
-        print(f"Warning: {warning_msg}: {e}")
+    initial_problem_count = len(problems)
+    result = exec(cmd, **kwargs)
+
+    # Check if new problems were added (indicating command failure)
+    if len(problems) > initial_problem_count:
+        print(f"Warning: {warning_msg}")
         return None
+
+    return result

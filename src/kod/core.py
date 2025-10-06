@@ -122,23 +122,6 @@ def load_config(config_filename: Optional[str]) -> Any:
     print("Loading default libraries")
 
     # # Load the Lua runtime and add path functionality
-    # import lupa
-
-    # luart = lupa.LuaRuntime()
-
-    # # Import PathWrapper and make it available to Lua
-    # try:
-    #     from kod.path_wrapper import Path, PathWrapper, home, cwd, temp_dir
-
-    #     # Create a path module table for Lua
-    #     path_module = luart.table_from({"Path": Path, "home": home, "cwd": cwd, "temp_dir": temp_dir})
-
-    #     # Make the path module available in Lua
-    #     luart.globals()["path"] = path_module
-    # except ImportError:
-    #     # Fallback if PathWrapper is not available
-    #     pass
-
     # luart.globals()["is_dir"] = is_dir
     # luart.globals()["home_dir"] = home_dir
     path_module = luart.table_from(
