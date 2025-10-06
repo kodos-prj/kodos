@@ -8,10 +8,10 @@ local configs = require("configs")
 local cli = require("cli")
 local development = require("development")
 
-local use_gnome = false
+local use_gnome = true
 local use_plasma = false
 local use_cosmic = true
-local use_pantheon = true
+local use_pantheon = false
 
 return {
     repos = {
@@ -192,7 +192,7 @@ return {
             },
             cosmic = {
                 enable = use_cosmic,
-                display_manager = "cosmic-greeter",
+                -- display_manager = "cosmic-greeter",
             },
 
             pantheon = {
