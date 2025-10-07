@@ -88,11 +88,11 @@ class Chroot:
                 return None
         except subprocess.CalledProcessError as e:
             # raise ChrootError(f"Command failed in chroot: {command}")
-            print(RED + "[CPE]" + e + END)
+            print(RED + f"[CPE] {e}" + END)
             # print(e)
         except Exception as e:
             # raise ChrootError(f"Command failed in chroot: {command}")
-            print(RED + "[E]" + e + END)
+            print(RED + f"[E] {e}" + END)
 
 
 def chroot(chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
