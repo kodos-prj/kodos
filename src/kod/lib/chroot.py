@@ -4,6 +4,7 @@ import os
 import subprocess
 import atexit
 from typing import List, Optional, Union
+from kod.common import color
 
 
 class ChrootError(Exception):
