@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from .lib.chroot import ChrootError, chroot
+# from .lib.chroot import ChrootError, chroot
 
 use_debug: bool = True
 use_verbose: bool = False
@@ -189,25 +189,31 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         CommandExecutionError: If chroot command fails.
         OSError: If chroot environment is not accessible.
     """
-    # Validate that mount_point exists and is accessible
-    mount_path = Path(mount_point)
-    if not mount_path.is_dir():
-        raise OSError(f"Chroot mount point does not exist: {mount_point}")
+    # # Validate that mount_point exists and is accessible
+    # mount_path = Path(mount_point)
+    # if not mount_path.is_dir():
+    #     raise OSError(f"Chroot mount point does not exist: {mount_point}")
 
-    # Validate that essential chroot components exist
-    essential_paths = ["/bin", "/usr", "/etc"]
-    for path in essential_paths:
-        full_path = mount_path / path.lstrip("/")
-        if not full_path.exists():
-            logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
+    # # Validate that essential chroot components exist
+    # essential_paths = ["/bin", "/usr", "/etc"]
+    # for path in essential_paths:
+    #     full_path = mount_path / path.lstrip("/")
+    #     if not full_path.exists():
+    #         logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
 
-    try:
-        # print(f"###({get_output})>", cmd)
-        result = chroot(str(mount_point), cmd, get_output=get_output)
-        # print("###~", result)
-        return result if result is not None else ""
-    except ChrootError as e:
-        raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
+    # try:
+    #     # print(f"###({get_output})>", cmd)
+    #     result = chroot(str(mount_point), cmd, get_output=get_output)
+    #     # print("###~", result)
+    #     return result if result is not None else ""
+    # except ChrootError as e:
+    #     raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
+    # Escape the mount point to prevent injection
+    safe_mount_point = shlex.quote(str(mount_point))
+    # Construct chroot command - using arch-chroot for Arch-specific functionality
+    chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
+
+    return exec(chroot_cmd, get_output=get_output, **kwargs)
 
 
 def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
