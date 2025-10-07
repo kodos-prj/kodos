@@ -4,7 +4,12 @@ import os
 import subprocess
 import atexit
 from typing import List, Optional, Union
-from kod.common import color
+# from kod.common import color
+
+RED = "\033[91m"
+BOLD = "\033[1m"
+UNDERLINE = "\033[4m"
+END = "\033[0m"
 
 
 class ChrootError(Exception):
@@ -83,11 +88,11 @@ class Chroot:
                 return None
         except subprocess.CalledProcessError as e:
             # raise ChrootError(f"Command failed in chroot: {command}")
-            print(color.RED + "[CPE]" + e + color.END)
+            print(RED + "[CPE]" + e + END)
             # print(e)
         except Exception as e:
             # raise ChrootError(f"Command failed in chroot: {command}")
-            print(color.RED + "[E]" + e + color.END)
+            print(RED + "[E]" + e + END)
 
 
 def chroot(chrootdir: str, command: Union[str, List[str]], get_output: bool = False) -> Optional[str]:
