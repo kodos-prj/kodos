@@ -215,8 +215,8 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
 
     # return exec(chroot_cmd, get_output=get_output, **kwargs)
     with ChrootManager(mount_point) as chroot:
-        result = chroot.execute(cmd)
-        return result if result is not None else ""
+        result = chroot.execute(cmd, capture_output=get_output)
+        return result.stdout if get_output is not None else ""
 
 
 def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
