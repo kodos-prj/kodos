@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-# from .lib.chroot import ChrootError, chroot
+from chorut import ChrootManager
 
 use_debug: bool = True
 use_verbose: bool = False
@@ -209,11 +209,14 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
     # except ChrootError as e:
     #     raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
     # Escape the mount point to prevent injection
-    safe_mount_point = shlex.quote(str(mount_point))
+    # safe_mount_point = shlex.quote(str(mount_point))
     # Construct chroot command - using arch-chroot for Arch-specific functionality
-    chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
+    # chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
 
-    return exec(chroot_cmd, get_output=get_output, **kwargs)
+    # return exec(chroot_cmd, get_output=get_output, **kwargs)
+    with ChrootManager(mount_point) as chroot:
+        result = chroot.execute(cmd)
+        return result if result is not None else ""
 
 
 def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:

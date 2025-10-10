@@ -25,6 +25,7 @@ from kod.common import (
     set_debug,
     set_verbose,
     report_problems,
+    problems,
 )
 
 
@@ -52,10 +53,16 @@ def test_successful_command_with_output():
 
 def test_failed_command_execution():
     """Test that failed commands are handled (adds to problems list)."""
+    # Clear any existing problems
+    problems.clear()
+
     # The current implementation doesn't raise exceptions but adds to problems
     result = exec("false", get_output=True)
     # Should return empty string and add to problems list
     assert isinstance(result, str)
+    assert len(problems) > 0
+    assert problems[-1]["type"] == "command_execution"
+    assert problems[-1]["command"] == "false"
 
 
 def test_debug_mode():
@@ -133,11 +140,14 @@ def test_exec_critical_success():
 
 
 def test_exec_critical_failure():
-    """Test that exec_critical handles command failure (current implementation doesn't raise)."""
-    # NOTE: Current implementation of exec() doesn't raise exceptions for failed commands
-    # So exec_critical won't raise RuntimeError either - it just returns the result
-    result = exec_critical("false", "Test operation failed")
-    assert isinstance(result, str)
+    """Test that exec_critical raises RuntimeError when command fails."""
+    # Clear any existing problems
+    problems.clear()
+
+    with pytest.raises(RuntimeError) as exc_info:
+        exec_critical("false", "Test operation failed")
+
+    assert "Test operation failed" in str(exc_info.value)
 
 
 def test_exec_warn_success():
@@ -149,11 +159,13 @@ def test_exec_warn_success():
 
 
 def test_exec_warn_failure():
-    """Test that exec_warn handles command failure (current implementation doesn't return None)."""
-    # NOTE: Current implementation of exec() doesn't raise exceptions for failed commands
-    # So exec_warn won't return None either - it returns the command output (empty string)
+    """Test that exec_warn returns None when command fails."""
+    # Clear any existing problems
+    problems.clear()
+
     result = exec_warn("false", "Test warning message")
-    assert isinstance(result, str)
+    assert result is None
+    assert len(problems) > 0
 
 
 # Test cases for chroot functionality
