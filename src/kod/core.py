@@ -979,10 +979,10 @@ def create_user(ctx: Any, user: str, info: Any) -> None:
                     print(f"Group {group} does not exist")
             if "wheel" in extra_groups:
                 ctx.execute(
-                    "sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers",
+                    "bash -c \"sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers\"",
                 )
                 ctx.execute(
-                    "sed -i 's/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/' /etc/pam.d/su",
+                    "bash -c \"sed -i 's/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/' /etc/pam.d/su\"",
                 )
 
     # Shell
@@ -999,7 +999,7 @@ def create_user(ctx: Any, user: str, info: Any) -> None:
             ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
         elif info.password:
             print("Assign the provided password after encryption")
-            ctx.execute(f"usermod -p `mkpasswd -m sha-512 {info.password}` {user}")
+            ctx.execute(f'bash -c "usermod -p \\`mkpasswd -m sha-512 {info.password}\\` {user}"')
         else:
             ctx.execute(f"passwd {user}")
 
