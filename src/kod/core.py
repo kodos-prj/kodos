@@ -1407,7 +1407,8 @@ class Context:
 
         print(f"[Contex] Command: {command}")
         if self.use_chroot:
-            exec_chroot(f"{exec_prefix} {wrap(command)}", mount_point=self.mount_point)
+            print(f"##> {exec_prefix} {wrap(command)}")
+            exec_chroot(f"bash -c '{exec_prefix} {wrap(command)}'", mount_point=self.mount_point)
         else:
             exec(f"{exec_prefix} {wrap(command)}")
         return True
