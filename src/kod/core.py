@@ -400,6 +400,7 @@ def setup_bootloader(conf: Any, partition_list: List, dist: Any) -> None:
         #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         exec_chroot("bootctl install")
         print("KVER:", kver)
+        input(f"Before setting boot using dracut {kver}")
         exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
         create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
 
@@ -1945,6 +1946,7 @@ def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[],
         print(f"Update initramfs ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
+        input(f"Before update initrm (hook) {kver=}")
         exec_chroot(
             f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img",
             mount_point=mount_point,

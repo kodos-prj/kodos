@@ -102,11 +102,13 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
     kernel_file = kernel_file.split(" ")[-1].strip()
     kver = kernel_file.split("/")[-2]
+    input(f"In get_kernel_file {kernel_file=} {kver=}")
     return kernel_file, kver
 
 
 def setup_linux(kernel_package):
     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
+    input(f"In setup_linux {kver=}")
     exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}")
     return kver
 
