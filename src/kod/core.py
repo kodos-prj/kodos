@@ -1917,6 +1917,7 @@ def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], No
         print(f"Update kernel ....{kernel_package}")
         kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
+        input(f"Before update /boot/vmlinuz-{kver}")
         print(f"cp {kernel_file} /boot/vmlinuz-{kver}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}", mount_point=mount_point)
 
