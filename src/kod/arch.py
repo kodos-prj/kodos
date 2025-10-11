@@ -99,7 +99,9 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
     """
-    kernel_file = exec_chroot(f"pacman -Ql {package} | grep vmlinuz", mount_point=mount_point, get_output=True)
+    kernel_file = exec_chroot(
+        f"bash -c 'pacman -Ql {package} | grep vmlinuz'", mount_point=mount_point, get_output=True
+    )
     print(f"pacman -Ql {package} | grep vmlinuz")
     kernel_file = kernel_file.split(" ")[-1].strip()
     kver = kernel_file.split("/")[-2]
