@@ -118,15 +118,11 @@ def install(config: Optional[str], mount_point: str) -> None:
     # Install base packages and configure system
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
 
-    input("Before install essentials")
-
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
 
-    input("Before configure system")
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
     # setup_bootloader(conf, partition_list, base_distribution)
 
-    input("Before setup boot loader")
     setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
@@ -143,7 +139,6 @@ def install(config: Optional[str], mount_point: str) -> None:
     enable_services(system_services_to_enable, use_chroot=True)
 
     # === Proc users
-    input("Before creating users")
     print("\n====== Creating users ======")
     proc_users(ctx, conf)
 
