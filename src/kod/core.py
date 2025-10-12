@@ -1379,7 +1379,7 @@ class Context:
         self.use_chroot = use_chroot
         self.stage = stage
 
-    def execute(self, command: str) -> bool:
+    def execute(self, command: str, get_output: bool = False) -> str:
         """
         Execute a command in the specified context.
 
@@ -1391,9 +1391,10 @@ class Context:
 
         Args:
             command (str): The command to execute.
+            get_output (bool): Whether to return command output. Defaults to False.
 
         Returns:
-            bool: True if the command is executed successfully.
+            str: Command output if get_output=True, empty string otherwise.
         """
         if self.user == os.environ["USER"]:
             exec_prefix = ""
@@ -1409,10 +1410,14 @@ class Context:
         print(f"[Contex] Command: {command}")
         if self.use_chroot:
             print(f"##> {exec_prefix} {wrap(command)}")
-            exec_chroot(f"{exec_prefix} {wrap(command)}", mount_point=self.mount_point)
+            result = exec_chroot(f"{exec_prefix} {wrap(command)}", mount_point=self.mount_point, get_output=get_output)
         else:
-            exec(f"{exec_prefix} {wrap(command)}")
-        return True
+            result = exec(f"{exec_prefix} {wrap(command)}", get_output=get_output)
+
+        if get_output:
+            return result
+        else:
+            return ""
 
 
 # Core
