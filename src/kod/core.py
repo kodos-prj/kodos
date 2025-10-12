@@ -999,7 +999,8 @@ def create_user(ctx: Any, user: str, info: Any) -> None:
             ctx.execute(f"usermod -p '{info.hashed_password}' {user}")
         elif info.password:
             print("Assign the provided password after encryption")
-            ctx.execute(f"usermod -p $(mkpasswd -m sha-512 {info.password}) {user}")
+            encrypted_pass = ctx.execute(f"mkpasswd -m sha-512 {info.password}", get_output=True).strip()
+            ctx.execute(f"usermod -p '{encrypted_pass}' {user}")
         else:
             ctx.execute(f"passwd {user}")
 
