@@ -234,7 +234,7 @@ def refresh_package_db(mount_point, new_generation):
 
 
 # Debian
-def kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
+def kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point):
     """
     Check if a kernel update is required.
 

@@ -18,7 +18,7 @@ from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencie
 from kod.common import exec, exec_chroot, exec_critical
 from kod.filesystem import FsEntry
 
-# from kod.arch import kernel_update_rquired
+# from kod.arch import kernel_update_required
 
 #####################################################################################################
 os_release = """NAME="KodOS Linux"
@@ -1995,7 +1995,7 @@ def get_packages_updates(
     hooks_to_run = []
     current_kernel = current_packages["kernel"]
     next_kernel = next_packages["kernel"]
-    if dist.kernel_update_rquired(current_kernel, next_kernel, current_installed_packages, mount_point):
+    if dist.kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point):
         packages_to_install += [next_kernel]
         hooks_to_run += [
             update_kernel_hook(next_kernel, mount_point),
