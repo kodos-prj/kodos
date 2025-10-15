@@ -8,7 +8,6 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
-import sys
 from pathlib import Path
 from typing import Optional, Tuple
 

@@ -5,12 +5,8 @@ and system interaction used throughout the KodOS system.
 """
 
 import logging
-import os
-import shlex
 import subprocess
-import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 from chorut import ChrootManager
