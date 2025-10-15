@@ -10,6 +10,7 @@ import os
 import sys
 import pytest
 from pathlib import Path
+from chorut import ChrootError
 
 # Add the src directory to Python path for testing
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -173,7 +174,7 @@ def test_exec_warn_failure():
 
 def test_exec_chroot_invalid_mount_point():
     """Test that exec_chroot handles invalid mount points correctly."""
-    with pytest.raises(OSError) as exc_info:
+    with pytest.raises(ChrootError) as exc_info:
         exec_chroot("echo test", "/nonexistent/path")
 
     assert "does not exist" in str(exc_info.value)

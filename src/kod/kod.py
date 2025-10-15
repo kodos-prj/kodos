@@ -13,7 +13,6 @@ from typing import Optional, Tuple
 
 import click
 
-# from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
     exec,
     set_debug,
@@ -22,45 +21,50 @@ from kod.common import (
     exec_warn,
     exec_critical,
 )
-from kod.core import (
-    Context,
-    change_subvol,
-    configure_system,
-    configure_user_dotfiles,
-    configure_user_scripts,
-    create_boot_entry,
+from kod.boot import create_boot_entry, setup_bootloader
+from kod.context import Context
+from kod.generations import (
     create_filesystem_hierarchy,
-    create_kod_user,
     create_next_generation,
-    disable_services,
-    enable_services,
-    enable_user_services,
-    generate_fstab,
     get_max_generation,
+    load_package_lock,
+    load_packages_services,
+    store_packages_services,
+)
+from kod.packages import (
     get_packages_to_install,
     get_packages_updates,
     get_pending_packages,
-    get_services_to_enable,
-    load_config,
-    load_fstab,
-    load_package_lock,
-    load_packages_services,
-    load_repos,
     manage_packages,
     manage_packages_shell,
-    proc_user_home,
-    proc_users,
-    setup_bootloader,
-    store_packages_services,
     update_all_packages,
-    user_configs,
-    user_dotfile_manager,
+)
+from kod.services import (
+    disable_services,
+    enable_services,
+    enable_user_services,
+    get_services_to_enable,
     user_services,
 )
-from kod.core import set_base_distribution
+from kod.system import (
+    change_subvol,
+    configure_system,
+    generate_fstab,
+    load_config,
+    load_fstab,
+    load_repos,
+    set_base_distribution,
+)
+from kod.users import (
+    configure_user_dotfiles,
+    configure_user_scripts,
+    create_kod_user,
+    proc_user_home,
+    proc_users,
+    user_configs,
+    user_dotfile_manager,
+)
 from kod.filesystem import create_partitions, get_partition_devices
-
-# from kod.core import *
 
 
 #####################################################################################################
@@ -72,7 +76,6 @@ def cli(debug: bool, verbose: bool) -> None:
     set_verbose(verbose)
 
 
-# pkgs_installed = []
 base_distribution = "arch"
 
 ##############################################################################
@@ -82,7 +85,7 @@ base_distribution = "arch"
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
 def install(config: Optional[str], mount_point: str) -> None:
-    "Install KodOS based on the given configuration"
+    """Install KodOS based on the given configuration"""
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
     conf = load_config(config)
@@ -93,40 +96,23 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     dist = set_base_distribution(base_distribution)
 
-    # if base_distribution == "debian":
-    #     from kod.debian import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-    #     exec("apt install -y gdisk")
-    # else:
-    #     from kod.arch import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)
 
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
 
     # Install base packages and configure system
-    base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    base_packages = dist.get_base_packages(conf)
 
-    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
+    dist.install_essentials_pkgs(base_packages, mount_point)
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    # setup_bootloader(conf, partition_list, base_distribution)
 
     setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
 
     # === Proc packages
-    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
+    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)
     packages_to_install, packages_to_remove = get_packages_to_install(conf)
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
@@ -141,14 +127,13 @@ def install(config: Optional[str], mount_point: str) -> None:
     print("\n====== Creating users ======")
     proc_users(ctx, conf)
 
-    # print("==== Deploying generation ====")
     store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
     dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
     exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
     print("Done")
-    print("=-=-=-=-=-=-=-=-=-=-")
+    print("=-=-=-=-=-=-=-=-=-=-=")
     report_problems()
     print("-=-=-=-=-=-=-=-=-=-=")
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
@@ -162,9 +147,8 @@ def install(config: Optional[str], mount_point: str) -> None:
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
 def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False) -> None:
-    "Rebuild KodOS system installation"
+    """Rebuild KodOS system installation"""
 
-    # stage = "rebuild"
     conf = load_config(config)
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
@@ -205,13 +189,11 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
-        # os._exit(0)
         exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
         exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
         exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
         use_chroot = False
         new_root_path = "/"
-        # exec("mount -o remount,rw /usr")
 
     ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
 
@@ -227,7 +209,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
     if update:
         print("Updating packages")
-        dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
+        dist.refresh_package_db(new_root_path, new_generation)
         update_all_packages(new_root_path, new_generation, repos)
 
     # === Proc packages
@@ -256,16 +238,12 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     if not new_generation and services_to_disable:
         disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
 
-    # ======
-
-    # try:
     if packages_to_remove:
         print("Packages to remove:", packages_to_remove)
         for pkg in packages_to_remove:
             try:
                 manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
             except Exception:
-                # Silently ignore package removal failures as they may not be critical
                 pass
 
     if new_packages_to_install:
@@ -281,19 +259,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     print(f"Services to enable: {new_service_to_enable}")
     enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
 
-    # # === Proc users
-    # print("\n====== Processing users ======")
-    # # TODO: Check if repo is already cloned
-    # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    # user_configs = proc_user_configs(conf)
-    # configure_users(c, user_dotfile_mngrs, user_configs)
-
-    # user_services_to_enable = proc_user_services(conf)
-    # print(f"User services to enable: {user_services_to_enable}")
-    # enable_user_services(c, user_services_to_enable, use_chroot=True)
-
-    # Storing list of installed packages and enabled services
-    # Create a list of installed packages
     store_packages_services(next_state_path, packages_to_install, next_services)
     dist.generale_package_lock(new_root_path, next_state_path)
 
@@ -301,15 +266,13 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
     _kernel_file, kver = dist.get_kernel_file(
         new_root_path, package=kernel_package
-    )  # TODO: this function requires a wrapper
+    )
 
     print("==== Deploying new generation ====")
     if new_generation:
         create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
     else:
-        # Move current updated rootfs to a new generation
         exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
-        # Moving the current rootfs copy to the current generation path
         exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
         exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
         exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
@@ -328,9 +291,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     if new_generation:
         exec(f"umount -R {new_root_path}")
 
-    # else:
-    # exec("mount -o remount,ro /usr")
-
     print(f"Done. Generation {generation_id} created")
 
 
@@ -338,15 +298,13 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
 def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
-    "Rebuild user configuration"
-    # stage = "rebuild-user"
+    """Rebuild user configuration"""
     ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
     conf = load_config(config)
     users = conf.users
     info = users[user] if user in users else None
     print("========================================")
 
-    # === Proc users
     if info:
         print("\n====== Processing users ======")
 
@@ -370,7 +328,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
 @cli.command()
 @click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
 def shell(package: Optional[Tuple[str, ...]] = None) -> None:
-    "Run shell"
+    """Run shell"""
 
     local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
     print(f"{local_session=}")
@@ -383,33 +341,6 @@ def shell(package: Optional[Tuple[str, ...]] = None) -> None:
     exec(f"schroot -r -c {local_session} -p")
     exec(f"schroot -e -c {local_session}")
 
-
-# # TODO: Update rollbackboot loader
-# # @task(help={"generation": "Generation number to rollback to"})
-# @cli.command()
-# @click.option('-c', '--config', default=None, help='System configuration file')
-# @click.option('-g','--generation', default=None, help='Generation number to rollback to')
-# def rollback(config, generation=None):
-#     "Rollback current generation to use the specified generation"
-
-#     if generation is None:
-#         print("Please specify a generation number")
-#         return
-
-#     conf = load_config(config)
-
-#     print("Updating current generation")
-#     rollback_path = f"/kod/generations/{generation}"
-#     boot_partition, root_partition = get_partition_devices(conf)
-#     copy_generation(boot_partition, root_partition, rollback_path, "/kod/current", new_generation=True)
-
-#     update_boot(boot_partition, root_partition, "/current")
-
-#     # print("Recreating grub.cfg")
-#     # exec("grub-mkconfig -o /boot/grub/grub.cfg")
-#     print("Done")
-
-##############################################################################
 
 if __name__ == "__main__":
     cli()
