@@ -8,7 +8,7 @@ requires-python = ">= 3.12"
 dependencies = [
   "lupa >= 2.2",
   "click >= 8.1.8",
-  "chorut>=0.1.4",
+  "chorut>=0.1.8",
 ]
 
 [project.optional-dependencies]
