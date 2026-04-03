@@ -4,9 +4,9 @@ version = "0.1.4.1"
 description = "Kod package management"
 authors = [{name="Antal Buss"}, {email="antal.buss@gmail.com"}]
 readme = "README.md"
-requires-python = ">= 3.12"
+requires-python = ">= 3.14"
 dependencies = [
-  "lupa >= 2.2",
+  "lupa >= 2.6",
   "click >= 8.1.8",
   "chorut>=0.1.8",
 ]
@@ -21,6 +21,7 @@ Repository = "https://github.com/kodos-prj/kodos"
 
 [project.scripts]
 kod = "kod.kod:cli"
+nkod = "kod.nkod:cli"
 
 [build-system]
 requires = ["hatchling"]

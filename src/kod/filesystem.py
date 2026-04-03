@@ -5,9 +5,10 @@ and mount point configuration. It includes support for various filesystem types
 and handles fstab entries for system mounting.
 """
 
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from kod.common import exec, exec_critical, exec_warn
+
 ########################################################################################
 
 _filesystem_cmd: Dict[str, Optional[str]] = {
@@ -35,6 +36,12 @@ _filesystem_type: Dict[str, Optional[str]] = {
     "btrfs": "8300",
     "linux-swap": "8200",
     "noformat": None,
+}
+
+_parted_fs_type: Dict[str, str] = {
+    "esp": "esp",
+    "btrfs": "linux",
+    "linux-swap": "swap",
 }
 
 
@@ -132,7 +139,7 @@ class FsEntry:
         return self.source
 
 
-def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[str]:
+def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: bool = False) -> List[str]:
     """Create BTRFS filesystem with subvolumes and mount configuration.
 
     This function creates a BTRFS filesystem and sets up subvolumes according
@@ -149,7 +156,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
     """
     print("Cheking subvolumes")
     fstab_desc = []
-    exec_critical(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt")
+    exec_critical(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt", dry_run=dry_run)
 
     fstab_desc.append(FsEntry(blockdevice, "/", "btrfs", "defaults", 0, 0))
     print(fstab_desc[0])
@@ -163,7 +170,9 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
 
         create_svol = "/mnt" + subvol
         # print(subvol, mountpoint, mount_options)
-        exec_critical(f"btrfs subvolume create {create_svol}", f"Failed to create btrfs subvolume {create_svol}")
+        exec_critical(
+            f"btrfs subvolume create {create_svol}", f"Failed to create btrfs subvolume {create_svol}", dry_run=dry_run
+        )
 
         if mount_options:
             mount_options = f"{mount_options},"
@@ -182,7 +191,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
             fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
         # partition_list.append((blockdevice, subvol, mountpoint))
 
-    exec_warn("umount -R /mnt", "Failed to unmount /mnt")
+    exec_warn("umount -R /mnt", "Failed to unmount /mnt", dry_run=dry_run)
     print(".......................")
     for f in fstab_desc:
         print(f)
@@ -190,7 +199,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str) -> List[s
     return delay_action
 
 
-def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
+def create_partitions(conf: Any, dry_run: bool = False) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
     """Create partitions for all configured devices.
 
     This function processes all devices in the configuration and creates
@@ -205,7 +214,7 @@ def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsE
         boot_partition and root_partition are device paths or None,
         and partition_list contains all created FsEntry objects.
     """
-    devices = conf.devices
+    devices = conf.system.devices if hasattr(conf, "system") and hasattr(conf.system, "devices") else conf.devices
     print(f"{devices=}")
 
     print(f"{list(devices.keys())=}")
@@ -215,7 +224,7 @@ def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsE
     partition_list = []
     for d_id, disk in devices.items():
         print(d_id)
-        boot_part, root_part, part_list = create_disk_partitions(disk)
+        boot_part, root_part, part_list = create_disk_partitions(disk, dry_run=dry_run)
         partition_list += part_list
         if boot_part:
             boot_partition = boot_part
@@ -224,7 +233,9 @@ def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsE
     return boot_partition, root_partition, partition_list
 
 
-def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
+def create_disk_partitions(
+    disk_info: Dict[str, Any], dry_run: bool = False
+) -> Tuple[Optional[str], Optional[str], List[FsEntry]]:
     """Create partitions on a single disk device.
 
     This function handles the creation of partitions on a single disk according
@@ -250,12 +261,10 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
         device_sufix = ""
 
     # Delete partition table
-    exec_critical(f"wipefs -a {device}", f"Failed to wipe partition table on {device}")
-    exec_critical("sync", "Failed to sync after wiping partition table")
+    exec_critical(f"wipefs -a {device}", f"Failed to wipe partition table on {device}", dry_run=dry_run)
+    exec_critical("sync", "Failed to sync after wiping partition table", dry_run=dry_run)
 
-    # if efi:
-    # Create GPT label
-    # exec(f"parted -s {device} mklabel gpt")
+    exec_critical(f"parted -s {device} mklabel gpt", f"Failed to create GPT label on {device}", dry_run=dry_run)
 
     print(f"{partitions=}")
     if not partitions:
@@ -278,21 +287,24 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
             root_partition = blockdevice
 
         end = 0 if size == "100%" else f"+{size}"
-        partition_type = _filesystem_type[filesystem_type]
+        partition_type = _parted_fs_type.get(filesystem_type, "linux")
 
         exec_critical(
-            f"sgdisk -n 0:0:{end} -t 0:{partition_type} -c 0:{name} {device}",
+            f"parted -s {device} mkpart {name} {partition_type} 0 {end}",
             f"Failed to create partition {name} on {device}",
+            dry_run=dry_run,
         )
 
         # Format filesystem
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
-                exec_critical(f"{cmd} {blockdevice}", f"Failed to format {blockdevice} as {filesystem_type}")
+                exec_critical(
+                    f"{cmd} {blockdevice}", f"Failed to format {blockdevice} as {filesystem_type}", dry_run=dry_run
+                )
 
         if filesystem_type == "btrfs":
-            delay_action = create_btrfs(delay_action, part, blockdevice)
+            delay_action = create_btrfs(delay_action, part, blockdevice, dry_run=dry_run)
 
         if mountpoint and mountpoint != "none":
             install_mountpoint = "/mnt" + mountpoint
@@ -313,7 +325,7 @@ def create_disk_partitions(disk_info: Dict[str, Any]) -> Tuple[Optional[str], Op
     print("=======================")
     if delay_action:
         for cmd_action in delay_action:
-            exec(cmd_action)
+            exec(cmd_action, dry_run=dry_run)
     print("=======================")
 
     return boot_partition, root_partition, partitions_list

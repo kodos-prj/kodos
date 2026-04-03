@@ -10,7 +10,9 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Callable
+from tarfile import DIRTYPE
+from this import d
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import lupa as lua
 
@@ -103,6 +105,7 @@ def load_config(config_filename: Optional[str]) -> Any:
     Returns:
         The loaded configuration as a Lua table.
     """
+    from kod.repos import AUR, Arch, Flatpak
 
     luart = lua.LuaRuntime()
 
@@ -145,6 +148,44 @@ If = require("utils").if_true
 IfElse = require("utils").if_else
     """
     luart.execute(default_libs)
+
+    # Make repository classes available in Lua
+    # Return Python PackageList objects directly
+    def make_lua_repo(RepoClass):
+        def repo_factory(url):
+            return RepoClass(url)
+
+        return repo_factory
+
+    luart.globals()["Arch"] = lambda url: Arch(url)
+
+    def make_aur(*args):
+        if not args:
+            return AUR("yay", "https://aur.archlinux.org/")
+        elif len(args) == 1:
+            return AUR("yay", "https://aur.archlinux.org/")(args[0])
+        elif len(args) == 2:
+            return AUR(args[0], args[1])
+        else:
+            return AUR(args[0], args[1])(*args[2:])
+
+    luart.globals()["AUR"] = make_aur
+    luart.globals()["Flatpak"] = lambda url: Flatpak(url)
+
+    # Create a helper function for concatenating package lists in Lua
+    # since Lua's + operator doesn't automatically work with Python __add__
+    def concat_packages(*lists):
+        """Concatenate multiple PackageLists"""
+        result = None
+        for lst in lists:
+            if result is None:
+                result = lst
+            else:
+                result = result.__add__(lst)
+        return result
+
+    luart.globals()["extend"] = concat_packages
+
     with open(config_filename) as f:
         config_data = f.read()
         conf = luart.execute(config_data)
@@ -152,7 +193,7 @@ IfElse = require("utils").if_else
 
 
 # Core
-def generate_fstab(partiton_list: List, mount_point: str) -> None:
+def generate_fstab(partiton_list: List, mount_point: str, dry_run: bool = False) -> None:
     """
     Generate a fstab file at the specified mount point based on a list of Partitions.
 
@@ -161,6 +202,11 @@ def generate_fstab(partiton_list: List, mount_point: str) -> None:
         mount_point (str): The mount point where the fstab file will be written.
     """
     print("Generating fstab")
+    if dry_run:
+        print("Dry run enabled, fstab content:")
+        for part in partiton_list:
+            print(str(part))
+        return
     with open(f"{mount_point}/etc/fstab", "w") as f:
         for part in partiton_list:
             if part.source[:5] == "/dev/":
@@ -171,7 +217,7 @@ def generate_fstab(partiton_list: List, mount_point: str) -> None:
 
 
 # Core?
-def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
+def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run: bool = False) -> None:
     # fstab
     """
     Configure a system based on the given configuration.
@@ -185,16 +231,16 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
         partition_list (List): A list of Partition objects to be written to the fstab file.
         mount_point (str): The mount point where the system will be configured.
     """
-    generate_fstab(partition_list, mount_point)
+    generate_fstab(partition_list, mount_point, dry_run=dry_run)
 
     # Locale
-    locale_conf = conf.locale
+    locale_conf = conf.system.locale
     if locale_conf:
         time_zone = locale_conf["timezone"]
     else:
         time_zone = "GMT"
-    exec_chroot(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
-    exec_chroot("hwclock --systohc")
+    exec_chroot(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime", dry_run=dry_run)
+    exec_chroot("hwclock --systohc", dry_run=dry_run)
 
     # Localization
     locale_spec = locale_conf.locale
@@ -202,24 +248,32 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     locale_to_generate = locale_default + "\n"
     if "extra_generate" in locale_spec and locale_spec.extra_generate:
         locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
-    with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
-        locale_file.write(locale_to_generate + "\n")
-    exec_chroot("locale-gen")
+    if dry_run:
+        print(f"Dry run enabled: '{mount_point}/etc/locale.gen' content:")
+        print(locale_to_generate)
+    else:
+        with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
+            locale_file.write(locale_to_generate + "\n")
+    exec_chroot("locale-gen", dry_run=dry_run)
 
     locale_name = locale_default.split()[0]
     locale_extra = locale_name + "\n"
     if "extra_settings" in locale_spec and locale_spec.extra_settings:
         for k, v in locale_spec.extra_settings.items():
             locale_extra += f"{k}={v}\n"
-    with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
-        locale_file.write(f"LANG={locale_extra}\n")
+    if dry_run:
+        print(f"Dry run enabled: '{mount_point}/etc/locale.conf' content:")
+        print(locale_extra)
+    else:
+        with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
+            locale_file.write(f"LANG={locale_extra}\n")
 
     # Network
     network_conf = conf.network
 
     # hostname
     hostname = network_conf["hostname"]
-    exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
+    exec(f"echo '{hostname}' > {mount_point}/etc/hostname", dry_run=dry_run)
     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
@@ -230,68 +284,77 @@ Name=*
         eth0_network += "DHCP=ipv4\n"
     if use_ipv6:
         eth0_network += "DHCP=ipv6\n"
-    with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-        f.write(eth0_network)
+    if dry_run:
+        print(f"Dry run enabled: '{mount_point}/etc/systemd/network/10-eth0.network' content:")
+        print(eth0_network)
+    else:
+        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
+            f.write(eth0_network)
 
     # hosts
-    exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts")
-    exec_chroot("echo '::1 localhost' >> /etc/hosts")
+    exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts", dry_run=dry_run)
+    exec_chroot("echo '::1 localhost' >> /etc/hosts", dry_run=dry_run)
 
     # Replace default os-release
-    with open(f"{mount_point}/etc/os-release", "w") as f:
-        f.write(os_release)
+    if dry_run:
+        print(f"Dry run enabled: '{mount_point}/etc/os-release' content:")
+        print(os_release)
+    else:
+        with open(f"{mount_point}/etc/os-release", "w") as f:
+            f.write(os_release)
 
-    # Configure schroot
-    system_schroot = """[system]
-type=directory
-description=KodOS
-directory=/
-groups=users,root
-root-groups=root,wheel
-profile=kodos
-personality=linux
-"""
-    with open(f"{mount_point}/etc/schroot/chroot.d/system.conf", "w") as f:
-        f.write(system_schroot)
 
-    venv_schroot = """[virtual_env]
-type=directory
-description=KodOS
-directory=/
-union-type=overlay
-groups=users,root
-root-groups=root,wheel
-profile=kodos
-personality=linux
-aliases=user_env
-"""
-    with open(f"{mount_point}/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
-        f.write(venv_schroot)
+#     # Configure schroot
+#     system_schroot = """[system]
+# type=directory
+# description=KodOS
+# directory=/
+# groups=users,root
+# root-groups=root,wheel
+# profile=kodos
+# personality=linux
+# """
+#     with open(f"{mount_point}/etc/schroot/chroot.d/system.conf", "w") as f:
+#         f.write(system_schroot)
 
-    # Setting profile
-    os.system(f"mkdir -p {mount_point}/etc/schroot/kodos")
-    os.system(f"touch {mount_point}/etc/schroot/kodos/copyfiles")
-    os.system(f"touch {mount_point}/etc/schroot/kodos/nssdatabases")
+#     venv_schroot = """[virtual_env]
+# type=directory
+# description=KodOS
+# directory=/
+# union-type=overlay
+# groups=users,root
+# root-groups=root,wheel
+# profile=kodos
+# personality=linux
+# aliases=user_env
+# """
+#     with open(f"{mount_point}/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
+#         f.write(venv_schroot)
 
-    venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
-    for mpoint in [
-        "/proc",
-        "/sys",
-        "/dev",
-        "/dev/pts",
-        "/home",
-        "/root",
-        "/tmp",
-        "/run",
-        "/var/cache",
-        "/var/log",
-        "/var/tmp",
-        "/var/kod",
-    ]:
-        venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
+#     # Setting profile
+#     os.system(f"mkdir -p {mount_point}/etc/schroot/kodos")
+#     os.system(f"touch {mount_point}/etc/schroot/kodos/copyfiles")
+#     os.system(f"touch {mount_point}/etc/schroot/kodos/nssdatabases")
 
-    with open(f"{mount_point}/etc/schroot/kodos/fstab", "w") as f:
-        f.write(venv_fstab)
+# venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
+# for mpoint in [
+#     "/proc",
+#     "/sys",
+#     "/dev",
+#     "/dev/pts",
+#     "/home",
+#     "/root",
+#     "/tmp",
+#     "/run",
+#     "/var/cache",
+#     "/var/log",
+#     "/var/tmp",
+#     "/var/kod",
+# ]:
+#     venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
+
+# with open(f"{mount_point}/etc/schroot/kodos/fstab", "w") as f:
+#     f.write(venv_fstab)
 
 
 # Core
@@ -1605,7 +1668,9 @@ def load_fstab(root_path: str = "") -> List[str]:
 
 
 # Core
-def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: List, mount_point: str) -> List:
+def create_filesystem_hierarchy(
+    boot_part: Any, root_part: Any, partition_list: List, mount_point: str, dry_run: bool = False
+) -> List:
     """
     Create and configure a Btrfs filesystem hierarchy for KodOS.
 
@@ -1628,27 +1693,36 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
     # Initial generation
     generation = 0
     for dir in ["store", "generations", "current"]:
-        exec(f"mkdir -p {mount_point}/{dir}")
+        exec(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
-        exec(f"mkdir -p {mount_point}/store/{dir}")
+        exec(f"mkdir -p {mount_point}/store/{dir}", dry_run=dry_run)
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
-    exec_critical(f"sudo btrfs subvolume create {mount_point}/store/home", "Critical filesystem setup failed")
+    exec_critical(
+        f"sudo btrfs subvolume create {mount_point}/store/home", "Critical filesystem setup failed", dry_run=dry_run
+    )
 
     # First generation
-    exec_critical(f"mkdir -p {mount_point}/generations/{generation}", f"Generation setup failed - directory creation")
+    exec_critical(
+        f"mkdir -p {mount_point}/generations/{generation}",
+        f"Generation setup failed - directory creation",
+        dry_run=dry_run,
+    )
     exec_critical(
         f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs",
         f"Generation setup failed - subvolume creation",
+        dry_run=dry_run,
     )
 
     # Mounting first generation
-    exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount")
+    exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount", dry_run=dry_run)
     exec_critical(
-        f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
+        f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}",
+        f"Generation mount failed - mount",
+        dry_run=dry_run,
     )
     partition_list = [
         FsEntry(
@@ -1660,29 +1734,33 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
     ]
 
     for dir in subdirs + ["boot", "home", "kod"]:
-        exec(f"mkdir -p {mount_point}/{dir}")
+        exec(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
 
-    exec(f"mount {boot_part} {mount_point}/boot")
+    exec(f"mount {boot_part} {mount_point}/boot", dry_run=dry_run)
     boot_options = (
         "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
     )
     partition_list.append(FsEntry(boot_part, "/boot", "vfat", boot_options))
 
-    exec(f"mount {root_part} {mount_point}/kod")
+    exec(f"mount {root_part} {mount_point}/kod", dry_run=dry_run)
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
 
-    exec(f"mount -o subvol=store/home {root_part} {mount_point}/home")
+    exec(f"mount -o subvol=store/home {root_part} {mount_point}/home", dry_run=dry_run)
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
 
     for dir in subdirs:
-        exec(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}")
+        exec(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}", dry_run=dry_run)
         partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
 
     # Write generation number
-    with open(f"{mount_point}/.generation", "w") as f:
-        f.write(str(generation))
+    if dry_run:
+        print(f"Dry run enabled - skipping writing generation number to {mount_point}/.generation")
+        print(generation)
+    else:
+        with open(f"{mount_point}/.generation", "w") as f:
+            f.write(str(generation))
 
     print("===================================")
 

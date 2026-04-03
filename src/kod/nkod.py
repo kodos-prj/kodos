@@ -20,6 +20,7 @@ from kod.common import (
     exec_warn,
     report_problems,
     set_debug,
+    set_dry_run,
     set_verbose,
 )
 from kod.core import (
@@ -62,14 +63,27 @@ from kod.filesystem import create_partitions, get_partition_devices
 
 # from kod.core import *
 
+use_debug: bool = True
+use_verbose: bool = False
+use_dry_run: bool = False
+
 
 #####################################################################################################
+# @click.group()
+# @click.option("-d", "--debug", is_flag=True)
+# @click.option("-v", "--verbose", is_flag=True)
+# @click.option("--dry-run", is_flag=True, help="Simulate actions without making changes")
+# def cli(debug: bool, verbose: bool, dry_run: bool) -> None:
+#     global use_debug, use_verbose, use_dry_run
+#     use_debug = debug
+#     use_verbose = verbose
+#     use_dry_run = dry_run
+
+
 @click.group()
-@click.option("-d", "--debug", is_flag=True)
-@click.option("-v", "--verbose", is_flag=True)
-def cli(debug: bool, verbose: bool) -> None:
-    set_debug(debug)
-    set_verbose(verbose)
+def cli() -> None:
+    """KodOS CLI - A tool for managing KodOS system installation and configuration."""
+    pass
 
 
 # pkgs_installed = []
@@ -78,20 +92,51 @@ base_distribution = "arch"
 ##############################################################################
 
 
+def print_lua_table(table, indent=0):
+    """Print a Lua table recursively with proper indentation.
+
+    Args:
+        table: The table/dict to print
+        indent: Current indentation level
+    """
+    import lupa
+
+    if lupa.lua_type(table) != "table":
+        print(" " * indent + str(table))
+        return
+
+    print(" " * indent + "{")
+    for key, value in table.items():
+        if lupa.lua_type(value) == "table":
+            print(" " * (indent + 2) + f"{key} = ")
+            print_lua_table(value, indent + 2)
+        else:
+            print(" " * (indent + 2) + f"{key} = {value},")
+    print(" " * indent + "}")
+
+
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
-def install(config: Optional[str], mount_point: str) -> None:
+@click.option("--dry-run", is_flag=True, help="Simulate actions without making changes")
+def install(config: Optional[str], mount_point: str, dry_run: bool = False) -> None:
     "Install KodOS based on the given configuration"
+
+    print("use_dry_run", use_dry_run)
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
     conf = load_config(config)
+
+    print_lua_table(conf)
 
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
     print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
+
+    print("========================================")
+    print(dist)
 
     # if base_distribution == "debian":
     #     from kod.debian import (
@@ -110,50 +155,53 @@ def install(config: Optional[str], mount_point: str) -> None:
     #     )
 
     print("-------------------------------")
-    boot_partition, root_partition, partition_list = create_partitions(conf)
+    boot_partition, root_partition, partition_list = create_partitions(conf, dry_run=dry_run)
 
-    partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
+    partition_list = create_filesystem_hierarchy(
+        boot_partition, root_partition, partition_list, mount_point, dry_run=dry_run
+    )
 
     # Install base packages and configure system
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    print("Base packages:", base_packages)
 
-    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
+    dist.install_essentials_pkgs(base_packages, mount_point, dry_run=dry_run)  # TODO: this function requires a wrapper
 
-    configure_system(conf, partition_list=partition_list, mount_point=mount_point)
+    configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=dry_run)
     # setup_bootloader(conf, partition_list, base_distribution)
 
-    setup_bootloader(conf, partition_list, dist)
-    create_kod_user(mount_point)
+    # setup_bootloader(conf, partition_list, dist)
+    # create_kod_user(mount_point)
 
-    # === Proc packages
-    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
-    packages_to_install, packages_to_remove = get_packages_to_install(conf)
-    pending_to_install = get_pending_packages(packages_to_install)
-    print("packages\n", packages_to_install)
+    # # === Proc packages
+    # repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
+    # packages_to_install, packages_to_remove = get_packages_to_install(conf)
+    # pending_to_install = get_pending_packages(packages_to_install)
+    # print("packages\n", packages_to_install)
 
-    manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
-    # === Proc services
-    system_services_to_enable = get_services_to_enable(ctx, conf)
-    print(f"Services to enable: {system_services_to_enable}")
-    enable_services(system_services_to_enable, use_chroot=True)
+    # manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
+    # # === Proc services
+    # system_services_to_enable = get_services_to_enable(ctx, conf)
+    # print(f"Services to enable: {system_services_to_enable}")
+    # enable_services(system_services_to_enable, use_chroot=True)
 
-    # === Proc users
-    print("\n====== Creating users ======")
-    proc_users(ctx, conf)
+    # # === Proc users
+    # print("\n====== Creating users ======")
+    # proc_users(ctx, conf)
 
-    # print("==== Deploying generation ====")
-    store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
-    dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
+    # # print("==== Deploying generation ====")
+    # store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
+    # dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
 
-    exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
+    # exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
 
-    print("Done")
-    print("=-=-=-=-=-=-=-=-=-=-")
-    report_problems()
-    print("-=-=-=-=-=-=-=-=-=-=")
-    exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
-    exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
-    exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
+    # print("Done")
+    # print("=-=-=-=-=-=-=-=-=-=-")
+    # report_problems()
+    # print("-=-=-=-=-=-=-=-=-=-=")
+    # exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
+    # exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
+    # exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy
     print(" Done installing KodOS")
 
 

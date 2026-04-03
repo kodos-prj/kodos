@@ -2,3 +2,6 @@ mnt/
 .venv/
 __pycache__
 .DS_Store
+
+kod.dist 
+kod.build

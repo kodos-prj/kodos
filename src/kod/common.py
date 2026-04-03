@@ -17,6 +17,7 @@ from chorut import ChrootManager
 
 use_debug: bool = True
 use_verbose: bool = False
+use_dry_run: bool = False
 problems: list[dict] = []
 
 # Set up logging
@@ -94,16 +95,22 @@ def set_verbose(val: bool = True) -> None:
     use_verbose = val
 
 
+def set_dry_run(val: bool = True) -> None:
+    """Set the global dry run mode state.
+
+    Args:
+        val: Whether to enable dry run mode. Defaults to True.
+    """
+    global use_dry_run
+    use_dry_run = val
+
+
 def report_problems():
     for prob in problems:
         print("Problem:", prob)
 
 
-def exec(
-    cmd: str,
-    get_output: bool = False,
-    encoding: str = "utf-8",
-) -> str:
+def exec(cmd: str, get_output: bool = False, encoding: str = "utf-8", dry_run: bool = False) -> str:
     """Execute a shell command with comprehensive error handling.
 
     This is a critical function that handles command execution throughout KodOS.
@@ -124,11 +131,8 @@ def exec(
         UnsafeCommandError: If command contains unsafe patterns and allow_unsafe is False.
         OSError: For system-level execution errors.
     """
-    if use_debug or use_verbose:
+    if dry_run:
         print(">>", color.PURPLE + cmd + color.END)
-
-    # In debug mode, only print commands but don't execute
-    if use_debug:
         return ""
 
     try:
@@ -214,6 +218,9 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
     # chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
 
     # return exec(chroot_cmd, get_output=get_output, **kwargs)
+    if "dry_run" in kwargs and kwargs["dry_run"]:
+        logger.debug(f"Executing chroot command: {cmd} in {mount_point}")
+        return ""
     with ChrootManager(mount_point) as chroot:
         result = chroot.execute(cmd, capture_output=get_output)
         return result.stdout if get_output is not None else ""
@@ -238,6 +245,10 @@ def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
         RuntimeError: If command fails, wrapping the original exception
     """
     initial_problem_count = len(problems)
+    if "dry_run" in kwargs and kwargs["dry_run"]:
+        logger.debug(f"Executing critical command: {cmd}")
+        return ""
+
     result = exec(cmd, **kwargs)
 
     # Check if new problems were added (indicating command failure)
@@ -264,6 +275,10 @@ def exec_warn(cmd: str, warning_msg: str, **kwargs) -> Optional[str]:
         Command output on success, None on failure
     """
     initial_problem_count = len(problems)
+    if "dry_run" in kwargs and kwargs["dry_run"]:
+        logger.debug(f"Executing command with warning: {cmd}")
+        return ""
+
     result = exec(cmd, **kwargs)
 
     # Check if new problems were added (indicating command failure)
