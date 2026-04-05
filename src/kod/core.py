@@ -42,7 +42,7 @@ def set_base_distribution(base_dist: str) -> Any:
     """Set the base distribution and return the corresponding module.
 
     Args:
-        base_dist: The base distribution name ("debian" or "arch").
+        base_dist: The base distribution name ("debian", "arch", or "chisel").
 
     Returns:
         The distribution-specific module.
@@ -51,6 +51,10 @@ def set_base_distribution(base_dist: str) -> Any:
     base_distribution = base_dist
     if base_dist == "debian":
         import kod.debian as dist
+
+        return dist
+    elif base_dist == "chisel":
+        import kod.chisel as dist
 
         return dist
     import kod.arch as dist

@@ -7,7 +7,9 @@
 
 # Introduction
 
-KodOS is a tool for installing and managing packages in a Linux distribution. It uses [Lua](https://www.lua.org/) as a declarative language for configurations, enabling reproducibility. KodOS follows many concepts from [NixOS](https://nixos.org/). Rather than providing its own package ecosystem, KodOS leverages packages from other Linux distributions (currently Arch Linux), similar to [AshOS](https://github.com/ashos/ashos).
+KodOS is a tool for installing and managing packages in a Linux distribution. It uses [Lua](https://www.lua.org/) as a declarative language for configurations, enabling reproducibility. KodOS follows many concepts from [NixOS](https://nixos.org/). Rather than providing its own package ecosystem, KodOS leverages packages from other Linux distributions (currently Arch Linux and Debian), similar to [AshOS](https://github.com/ashos/ashos).
+
+KodOS also supports [Chisel](https://github.com/kodos-prj/chisel), a cross-distribution package manager that brings Arch Linux packages to any Linux distribution with complete dependency isolation. This enables reproducible system configurations across multiple Linux distributions.
 
 KodOS employs Btrfs snapshots to provide "generations," allowing users to boot into previous versions of the system. This feature enables efficient handling of system atomic rollbacks and upgrades.
 
@@ -17,13 +19,45 @@ KodOS is still a work-in-progress but supports system installation, generation m
 
 - **Generation support** via Btrfs snapshots.
 - **Declarative system configuration** using Lua.
+- **Multiple package managers** supported:
+  - **Pacman** for Arch Linux systems
+  - **Chisel** for cross-distribution deployments (Arch packages on any Linux distribution)
+  - **Apt** for Debian-based systems (planned)
 - **Multiple package sources** are supported, including Arch repositories (core, extra), AUR, and Flatpak. New sources can be added using Lua.
 - **Partial support for `kod shell`** (similar to `nix shell`).
-- **Extensible** to work with other distributions. (Currently, only Arch Linux is supported, with Debian planned for the future).
+- **Cross-distribution support** with Chisel, enabling reproducible configurations across multiple Linux distributions.
+- **Extensible** to work with other distributions and package managers.
 
 KodOS is still under development and not yet ready for production, although I personally use it on both my laptop and desktop. The currently implemented features are based on my personal requirements, but I'm open to adding new functionality. I will continue to work on it during my spare time, with plans to introduce more features and expand support for other distributions.
 
 If you're interested in trying it out, I recommend starting with a virtual machine to familiarize yourself with the system and its configuration file.
+
+## Package Managers
+
+### Pacman (Arch Linux)
+
+The default package manager for Arch Linux systems. KodOS uses `pacstrap` and `pacman` commands for installation and management.
+
+### Chisel (Cross-Distribution)
+
+[Chisel](https://github.com/kodos-prj/chisel) is a cross-distribution package manager that enables running Arch Linux packages on any Linux distribution with complete package isolation. This is useful for deploying identical system configurations across multiple Linux distributions.
+
+To use Chisel, add `base_distribution = "chisel"` to your configuration file:
+
+```lua
+return {
+    base_distribution = "chisel",  -- Use Chisel cross-distribution package manager
+    -- ... rest of your configuration
+}
+```
+
+**Key benefits of Chisel:**
+- Deploy the same Arch Linux packages on Ubuntu, Fedora, Debian, or any Linux distribution
+- Complete package isolation via `/kod/store/` directory structure
+- Automatic wrapper script generation for library isolation
+- Maintains 100% compatibility with Arch package ecosystem
+
+An example Chisel configuration can be found at [`example/testvm-chisel/configuration.lua`](./example/testvm-chisel/configuration.lua).
 
 
 # Installation and usage
