@@ -32,7 +32,7 @@ local function dconf(config)
         for root, key_vals in pairs(config) do
             local root_path = root:gsub('/', '.')
             for key, val in pairs(key_vals) do
-                key = key:gsub("_", "-")
+                key_ = key:gsub("_", "-")
                 if type(val) == "table" then
                     -- val could be:
                     --  - list of strings
@@ -47,7 +47,7 @@ local function dconf(config)
                                 val_list = val_list .. ","
                             end
                         end
-                        cmd = "gsettings set " .. root_path .. " " .. key .. " \"[" .. val_list .. "]\""
+                        cmd = "gsettings set " .. root_path .. " " .. key_ .. " \"[" .. val_list .. "]\""
                         exit_code = context:execute(cmd)
                         -- if exitcode ~= 0 then
                         --     print("Error: "..cmd)
@@ -57,7 +57,7 @@ local function dconf(config)
                         -- list of tables
                         for kname, elem in pairs(val) do
                             for k, v in pairs(elem) do
-                                cmd = "gsettings set " .. root_path .. "." .. key .. ":" .. kname .. " " ..
+                                cmd = "gsettings set " .. root_path .. "." .. key_ .. ":" .. kname .. " " ..
                                 k .. " '" .. v .. "'"
                                 exit_code = context:execute(cmd)
                                 -- if exit_code ~= 0 then
@@ -70,7 +70,7 @@ local function dconf(config)
                 else
                     if type(val) == "string" then val = "'" .. val .. "'" end
                     sval = string.format("%s", val)
-                    local cmd = "gsettings set " .. root_path .. " " .. key .. " " .. sval
+                    local cmd = "gsettings set " .. root_path .. " " .. key_ .. " " .. sval
                     exit_code = context:execute(cmd)
                     -- if exit_code ~= 0 then
                     --     print("Error: "..cmd)
