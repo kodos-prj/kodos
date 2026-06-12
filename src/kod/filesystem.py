@@ -87,13 +87,44 @@ _filesystem_type: Dict[str, Optional[str]] = {
 }
 
 _parted_fs_type: Dict[str, str] = {
-    "esp": "esp",
-    "btrfs": "linux",
-    "linux-swap": "swap",
+    "esp": "fat32",
+    "btrfs": "btrfs",
+    "linux-swap": "linux-swap",
 }
 
 
-# # fstab
+def _parse_size_to_mb(size_str: str) -> Optional[float]:
+    """Parse a size string like '1GB', '512MB' to MB.
+    
+    Args:
+        size_str: Size string (e.g., '1GB', '512MB', '100%')
+        
+    Returns:
+        Size in MB as float, or None if unparseable or '100%'
+    """
+    if size_str == "100%":
+        return None
+    
+    size_str = size_str.strip().upper()
+    multipliers = {
+        "KB": 0.001,
+        "MB": 1,
+        "GB": 1024,
+        "TB": 1024 * 1024,
+    }
+    
+    for unit, mult in multipliers.items():
+        if size_str.endswith(unit):
+            try:
+                value = float(size_str[:-len(unit)])
+                return value * mult
+            except ValueError:
+                return None
+    
+    return None
+
+
+
 # source          destination     type    options         dump    pass
 # /proc           /proc           none    rw,bind         0       0
 # /sys            /sys            none    rw,bind         0       0
@@ -385,12 +416,31 @@ def create_disk_partitions(
     if not partitions:
         return None, None, []
 
+    # Calculate partition positions before creating them
+    partition_info = []
+    current_pos_mb = 1  # Start at 1MiB to avoid GPT header area
+    
+    for part in partitions:
+        size_str = get_lua_attr(part, "size")
+        if size_str == "100%":
+            # Last partition uses remaining space
+            partition_info.append((part, f"{current_pos_mb}MiB", "100%"))
+        else:
+            size_mb = _parse_size_to_mb(size_str)
+            if size_mb is not None:
+                end_mb = current_pos_mb + size_mb
+                partition_info.append((part, f"{current_pos_mb}MiB", f"{end_mb}MiB"))
+                current_pos_mb = end_mb
+            else:
+                print(f"Warning: Could not parse partition size: {size_str}")
+                partition_info.append((part, f"{current_pos_mb}MiB", "100%"))
+
     delay_action = []
     boot_partition = None
     root_partition = None
     partitions_list = []
 
-    for pid, part in enumerate(partitions, 1):
+    for pid, (part, start_pos, end_pos) in enumerate(partition_info, 1):
         name = get_lua_attr(part, "name")
         size = get_lua_attr(part, "size")
         filesystem_type = get_lua_attr(part, "type")
@@ -405,13 +455,11 @@ def create_disk_partitions(
         elif name.lower() == "root":
             root_partition = blockdevice
 
-        # Calculate partition end
-        end = 0 if size == "100%" else f"+{size}"
         partition_type = _parted_fs_type.get(filesystem_type, "linux")
 
-        # Create partition
+        # Create partition with calculated positions
         execute(
-            f"parted -s {device} mkpart {name} {partition_type} 0 {end}",
+            f"parted -s {device} mkpart {name} {partition_type} {start_pos} {end_pos}",
             f"Failed to create partition {name} on {device}",
             dry_run=dry_run,
         )
