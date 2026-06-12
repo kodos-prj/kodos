@@ -27,6 +27,7 @@ return {
     --     aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
     --     flatpak = repos.flatpak_repo("flathub"),
     -- },
+    mirror = { "http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org" },
 
     system = {
         hostname = "testvm",
@@ -52,7 +53,7 @@ return {
             timezone = "America/Edmonton",
         },
         devices = {
-            disk0 = disk.disk_definition("/dev/vda", "3GB"),
+            disk0 = disk.disk_fs_hierarchy("/dev/vda", "3GB", false, false),
         },
         hardware = {
             sane = {

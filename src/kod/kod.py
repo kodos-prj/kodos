@@ -15,10 +15,9 @@ import click
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
-    exec,
+    execute,
     exec_critical,
     exec_warn,
-    report_problems,
     set_debug,
     set_verbose,
 )
@@ -149,7 +148,6 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     print("Done")
     print("=-=-=-=-=-=-=-=-=-=-")
-    report_problems()
     print("-=-=-=-=-=-=-=-=-=-=")
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
@@ -197,18 +195,18 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     boot_partition, root_partition = get_partition_devices(conf)
 
     next_state_path = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {next_state_path}")
+    execute(f"mkdir -p {next_state_path}")
 
     if new_generation:
         print("Creating a new generation")
-        exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+        execute(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
         # os._exit(0)
-        exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
-        exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
-        exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
+        execute("btrfs subvolume snapshot / /kod/current/old-rootfs")
+        execute(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
+        execute(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
         use_chroot = False
         new_root_path = "/"
         # exec("mount -o remount,rw /usr")
@@ -308,11 +306,11 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
     else:
         # Move current updated rootfs to a new generation
-        exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
+        execute(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
         # Moving the current rootfs copy to the current generation path
-        exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-        exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
-        exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
+        execute(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
+        execute(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
+        execute(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(
             partition_list,
             subvol=f"generations/{generation_id}",
@@ -326,7 +324,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         f.write(str(generation_id))
 
     if new_generation:
-        exec(f"umount -R {new_root_path}")
+        execute(f"umount -R {new_root_path}")
 
     # else:
     # exec("mount -o remount,ro /usr")
@@ -372,7 +370,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
 def shell(package: Optional[Tuple[str, ...]] = None) -> None:
     "Run shell"
 
-    local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
+    local_session = execute("schroot -c virtual_env -b", get_output=True).strip()
     print(f"{local_session=}")
 
     if package:
@@ -380,8 +378,8 @@ def shell(package: Optional[Tuple[str, ...]] = None) -> None:
         current_repos = load_repos()
         manage_packages_shell(current_repos, "install", package, chroot=local_session)
 
-    exec(f"schroot -r -c {local_session} -p")
-    exec(f"schroot -e -c {local_session}")
+    execute(f"schroot -r -c {local_session} -p")
+    execute(f"schroot -e -c {local_session}")
 
 
 # # TODO: Update rollbackboot loader

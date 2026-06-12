@@ -8,7 +8,7 @@ for detecting hardware-specific packages and managing Arch-specific tools.
 import json
 from typing import Any, Dict
 
-from kod.common import exec, exec_chroot
+from kod.common import execute, exec_chroot
 
 
 def prepare_for_installation() -> None:
@@ -89,7 +89,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str, dry_run: bool = F
     # print(f"Installing kernel packages: {kernel}")
     # print(f"Installing base packages: {base_pkgs['base']} {type(base_pkgs['base'])}")
     base = [pkg for pkg in base_pkgs["base"]]
-    exec(f"pacstrap -K {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
+    execute(f"pacstrap -K {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
 
 
 # Arch
@@ -137,13 +137,13 @@ def get_list_of_dependencies(pkg: str):
     """
     pkgs_list = [pkg]
     # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
+    pkgs_list = execute(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
     # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
     else:
         # check if it is a (meta-)package
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
+        depend_on = execute(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
         # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
@@ -202,7 +202,7 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         update_repos = True
 
     if update_repos:
-        exec(f"mkdir -p {mount_point}/var/kod")
+        execute(f"mkdir -p {mount_point}/var/kod")
         with open(f"{mount_point}/var/kod/repos.json", "w") as f:
             f.write(json.dumps(repos, indent=2))
 
@@ -225,7 +225,7 @@ def refresh_package_db(mount_point, new_generation):
     if new_generation:
         exec_chroot("pacman -Syy --noconfirm", mount_point=mount_point)
     else:
-        exec("pacman -Syy --noconfirm")
+        execute("pacman -Syy --noconfirm")
 
 
 # Arch

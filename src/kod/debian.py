@@ -6,13 +6,13 @@ of the Arch module but uses Debian/Ubuntu specific tools and package managers.
 """
 
 import re
-from kod.common import exec_chroot, exec
+from kod.common import exec_chroot, execute
 import json
 from typing import Dict, Any
 
 
 def prepare_for_installation() -> None:
-    exec("apt install -y gdisk btrfs-progs dosfstools")
+    execute("apt install -y gdisk btrfs-progs dosfstools")
 
 
 # Debian
@@ -88,8 +88,8 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
         mount_point (str): The mount point where the packages will be installed.
     """
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
-    exec("apt install -y debootstrap gdisk")
-    exec("debootstrap --merged-usr testing /mnt")
+    execute("apt install -y debootstrap gdisk")
+    execute("debootstrap --merged-usr testing /mnt")
     packages = " ".join([base_pkgs["kernel"]] + base_pkgs["base"])
     exec_chroot(
         f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {packages}'",
@@ -140,13 +140,13 @@ def get_list_of_dependencies(pkg: str):
     """
     pkgs_list = [pkg]
     # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
+    pkgs_list = execute(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
     # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
     else:
         # check if it is a (meta-)package
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
+        depend_on = execute(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
         # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
@@ -207,7 +207,7 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         update_repos = True
 
     if update_repos:
-        exec(f"mkdir -p {mount_point}/var/kod")
+        execute(f"mkdir -p {mount_point}/var/kod")
         with open(f"{mount_point}/var/kod/repos.json", "w") as f:
             f.write(json.dumps(repos, indent=2))
 
@@ -230,7 +230,7 @@ def refresh_package_db(mount_point, new_generation):
     if new_generation:
         exec_chroot("pacman -Syy --noconfirm", mount_point=mount_point)
     else:
-        exec("pacman -Syy --noconfirm")
+        execute("pacman -Syy --noconfirm")
 
 
 # Debian

@@ -15,10 +15,9 @@ import click
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
-    exec,
-    exec_critical,
-    exec_warn,
-    report_problems,
+    execute,
+    # exec_critical,
+    # exec_warn,
     set_debug,
     set_dry_run,
     set_verbose,
@@ -30,7 +29,6 @@ from kod.core import (
     configure_user_dotfiles,
     configure_user_scripts,
     create_boot_entry,
-    create_filesystem_hierarchy,
     create_kod_user,
     create_next_generation,
     disable_services,
@@ -51,7 +49,7 @@ from kod.core import (
     manage_packages_shell,
     proc_user_home,
     proc_users,
-    set_base_distribution,
+    # set_base_distribution,
     setup_bootloader,
     store_packages_services,
     update_all_packages,
@@ -60,6 +58,8 @@ from kod.core import (
     user_services,
 )
 from kod.filesystem import create_partitions, get_partition_devices
+
+import kod.chisel as dist
 
 # from kod.core import *
 
@@ -80,14 +80,19 @@ use_dry_run: bool = False
 #     use_dry_run = dry_run
 
 
-@click.group()
-def cli() -> None:
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("-d", "--debug", is_flag=True, help="Enable debug mode")
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+@click.option("--dry-run", is_flag=True, help="Simulate actions without making changes")
+def cli(debug: bool, verbose: bool, dry_run: bool) -> None:
     """KodOS CLI - A tool for managing KodOS system installation and configuration."""
-    pass
+    set_debug(debug)
+    set_verbose(verbose)
+    set_dry_run(dry_run)
 
 
 # pkgs_installed = []
-base_distribution = "arch"
+# base_distribution = "arch"
 
 ##############################################################################
 
@@ -117,57 +122,39 @@ def print_lua_table(table, indent=0):
 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
-@click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
-@click.option("--dry-run", is_flag=True, help="Simulate actions without making changes")
-def install(config: Optional[str], mount_point: str, dry_run: bool = False) -> None:
-    "Install KodOS based on the given configuration"
+@click.option("-m", "--mount_point", default="/mnt", help="Mount point used to install")
+def install(config: Optional[str], mount_point: str) -> None:
+    """Install KodOS based on the given configuration"""
+    from kod.common import use_dry_run
 
-    print("use_dry_run", use_dry_run)
-    ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
+    print("Starting KodOS installation")
+    print("========================================")
+    print(f"Mount point: {mount_point}")
+    print(f"Configuration file: {config if config else 'None'}")
+    print(f"Dry run mode: {'Enabled' if use_dry_run else 'Disabled'}")
+    print("========================================")
 
+    # ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
     conf = load_config(config)
 
+    print("Loaded configuration:")
     print_lua_table(conf)
 
-    base_distribution = conf.base_distribution
-    base_distribution = "arch" if base_distribution is None else base_distribution
-    print("Base distribution:", base_distribution)
-
-    dist = set_base_distribution(base_distribution)
-
-    print("========================================")
-    print(dist)
-
-    # if base_distribution == "debian":
-    #     from kod.debian import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-    #     exec("apt install -y gdisk")
-    # else:
-    #     from kod.arch import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-
+    print("Creating partitions and filesystem...")
     print("-------------------------------")
-    boot_partition, root_partition, partition_list = create_partitions(conf, dry_run=dry_run)
-
-    partition_list = create_filesystem_hierarchy(
-        boot_partition, root_partition, partition_list, mount_point, dry_run=dry_run
-    )
+    boot_partition, root_partition, partition_list = create_partitions(conf, dry_run=use_dry_run)
 
     # Install base packages and configure system
-    base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    base_packages = dist.get_base_packages(conf)
     print("Base packages:", base_packages)
 
-    dist.install_essentials_pkgs(base_packages, mount_point, dry_run=dry_run)  # TODO: this function requires a wrapper
-
-    configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=dry_run)
+    # Update mirrorlist and refresh package database
+    mirror = list(conf.mirror.values())[0] if conf.mirror else None
+    dist.refresh_package_db(mount_point, new_generation=False, mirror=mirror, dry_run=use_dry_run)  # TODO: this function requires a wrapper
+    # Installing base packages with chisel
+    dist.install_essentials_pkgs(base_packages, mount_point, dry_run=use_dry_run)
+    
+    # configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=use_dry_run)
     # setup_bootloader(conf, partition_list, base_distribution)
 
     # setup_bootloader(conf, partition_list, dist)
@@ -197,7 +184,6 @@ def install(config: Optional[str], mount_point: str, dry_run: bool = False) -> N
 
     # print("Done")
     # print("=-=-=-=-=-=-=-=-=-=-")
-    # report_problems()
     # print("-=-=-=-=-=-=-=-=-=-=")
     # exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     # exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
@@ -245,18 +231,18 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     boot_partition, root_partition = get_partition_devices(conf)
 
     next_state_path = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {next_state_path}")
+    execute(f"mkdir -p {next_state_path}")
 
     if new_generation:
         print("Creating a new generation")
-        exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+        execute(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
         use_chroot = True
         new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
     else:
         # os._exit(0)
-        exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
-        exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
-        exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
+        execute("btrfs subvolume snapshot / /kod/current/old-rootfs")
+        execute(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
+        execute(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
         use_chroot = False
         new_root_path = "/"
         # exec("mount -o remount,rw /usr")
@@ -356,11 +342,11 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
     else:
         # Move current updated rootfs to a new generation
-        exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
+        execute(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
         # Moving the current rootfs copy to the current generation path
-        exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-        exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
-        exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
+        execute(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
+        execute(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
+        execute(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
         updated_partition_list = change_subvol(
             partition_list,
             subvol=f"generations/{generation_id}",
@@ -374,7 +360,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         f.write(str(generation_id))
 
     if new_generation:
-        exec(f"umount -R {new_root_path}")
+        execute(f"umount -R {new_root_path}")
 
     # else:
     # exec("mount -o remount,ro /usr")
@@ -420,7 +406,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
 def shell(package: Optional[Tuple[str, ...]] = None) -> None:
     "Run shell"
 
-    local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
+    local_session = execute("schroot -c virtual_env -b", get_output=True).strip()
     print(f"{local_session=}")
 
     if package:
@@ -428,8 +414,8 @@ def shell(package: Optional[Tuple[str, ...]] = None) -> None:
         current_repos = load_repos()
         manage_packages_shell(current_repos, "install", package, chroot=local_session)
 
-    exec(f"schroot -r -c {local_session} -p")
-    exec(f"schroot -e -c {local_session}")
+    execute(f"schroot -r -c {local_session} -p")
+    execute(f"schroot -e -c {local_session}")
 
 
 # # TODO: Update rollbackboot loader

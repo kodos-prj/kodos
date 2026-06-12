@@ -7,9 +7,57 @@ and handles fstab entries for system mounting.
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from kod.common import exec, exec_critical, exec_warn
+from kod.common import execute #, exec_critical, exec_warn
 
 ########################################################################################
+
+def get_lua_attr(obj: Any, key: str, default: Any = None) -> Any:
+    """Safely get an attribute from either a dict or Lua table.
+    
+    Args:
+        obj: The object to access (dict or Lua table)
+        key: The key/attribute name to retrieve
+        default: Default value if key not found
+        
+    Returns:
+        The value at the key, or default if not found
+    """
+    try:
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        elif hasattr(obj, "__getitem__"):
+            return obj[key]
+        elif hasattr(obj, key):
+            return getattr(obj, key)
+    except (KeyError, TypeError, AttributeError):
+        pass
+    return default
+
+
+def has_lua_attr(obj: Any, key: str) -> bool:
+    """Check if a dict or Lua table has a key.
+    
+    Args:
+        obj: The object to check (dict or Lua table)
+        key: The key/attribute name to check
+        
+    Returns:
+        True if the key exists, False otherwise
+    """
+    try:
+        if isinstance(obj, dict):
+            return key in obj
+        elif hasattr(obj, "__contains__"):
+            return key in obj
+        elif hasattr(obj, "__getitem__"):
+            _ = obj[key]
+            return True
+        elif hasattr(obj, key):
+            return True
+    except (KeyError, TypeError):
+        pass
+    return False
+
 
 _filesystem_cmd: Dict[str, Optional[str]] = {
     "esp": "mkfs.vfat -F32",
@@ -133,7 +181,7 @@ class FsEntry:
             UUID=<uuid> format string if device has UUID, otherwise the original source.
         """
         if self.source[:5] == "/dev/":
-            uuid = exec(f"lsblk -o UUID {self.source} | tail -n 1", get_output=True)
+            uuid = execute(f"lsblk -o UUID {self.source} | tail -n 1", get_output=True)
             if uuid:
                 return f"UUID={uuid.strip()}"
         return self.source
@@ -143,59 +191,75 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: 
     """Create BTRFS filesystem with subvolumes and mount configuration.
 
     This function creates a BTRFS filesystem and sets up subvolumes according
-    to the partition configuration. It generates mount commands and fstab entries
-    for the subvolumes.
+    to the disk_fs_hierarchy partition configuration. It generates mount
+    commands and fstab entries for the subvolumes.
 
     Args:
         delay_action: List of delayed mount commands to execute later.
         part: Partition configuration containing subvolume information.
         blockdevice: Block device path for the BTRFS filesystem.
+        dry_run: If True, simulate actions without making changes.
 
     Returns:
         Updated delay_action list with mount commands for subvolumes.
     """
-    print("Cheking subvolumes")
+    print("Creating BTRFS subvolumes")
     fstab_desc = []
-    exec_critical(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt", dry_run=dry_run)
+    execute(f"mount {blockdevice} /mnt", f"Failed to mount {blockdevice} to /mnt", dry_run=dry_run)
 
+    # Create top-level directories
+    directories = get_lua_attr(part, "directories")
+    if directories:
+        for directory in directories.values():
+            execute(f"mkdir -p /mnt/{directory}", dry_run=dry_run)
+
+    # Add root filesystem entry
     fstab_desc.append(FsEntry(blockdevice, "/", "btrfs", "defaults", 0, 0))
-    print(fstab_desc[0])
-    print(fstab_desc[0].mount("/mnt"))
-    if not part.subvolumes:
-        return delay_action
-    for subvol_info in part["subvolumes"].values():
-        subvol = subvol_info["subvol"]
-        mountpoint = subvol_info["mountpoint"]
-        mount_options = subvol_info["mountOptions"]
 
-        create_svol = "/mnt" + subvol
-        # print(subvol, mountpoint, mount_options)
-        exec_critical(
-            f"btrfs subvolume create {create_svol}", f"Failed to create btrfs subvolume {create_svol}", dry_run=dry_run
+    # Process subvolumes from disk_fs_hierarchy format
+    subvolumes = get_lua_attr(part, "subvolumes")
+    if not subvolumes:
+        execute("umount -R /mnt", "Failed to unmount /mnt", dry_run=dry_run)
+        return delay_action
+
+    for mountpoint, subvol_info in subvolumes.items():
+        subvol = get_lua_attr(subvol_info, "name")
+        # mountpoint = mpoint #get_lua_attr(subvol_info, "mountpoint", "")
+        options = get_lua_attr(subvol_info, "options", "")
+
+        if not subvol or not mountpoint:
+            continue
+
+        create_svol = f"/mnt/{subvol}"
+        execute(
+            f"btrfs subvolume create {create_svol}",
+            f"Failed to create btrfs subvolume {create_svol}",
+            dry_run=dry_run,
         )
 
-        if mount_options:
-            mount_options = f"{mount_options},"
-        else:
-            mount_options = ""
+        # Format mount options
+        mount_options = options + "," if options else ""
 
-        install_mountpoint = "/mnt" + mountpoint
+        install_mountpoint = f"/mnt{mountpoint}"
+        mount_cmd = f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"
+
         if mountpoint == "/":
-            delay_action = [
-                f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}"
-            ] + delay_action
-            fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
+            # Root filesystem should be first in delay_action
+            delay_action = [mount_cmd] + delay_action
         else:
+            # Other mountpoints
             delay_action.append(f"mkdir -p {install_mountpoint}")
-            delay_action.append(f"mount -o {mount_options}subvol={subvol} {blockdevice} {install_mountpoint}")
-            fstab_desc.append(FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0))
-        # partition_list.append((blockdevice, subvol, mountpoint))
+            delay_action.append(mount_cmd)
 
-    exec_warn("umount -R /mnt", "Failed to unmount /mnt", dry_run=dry_run)
-    print(".......................")
+        # Add to fstab
+        fstab_entry = FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0)
+        fstab_desc.append(fstab_entry)
+
+    execute("umount -R /mnt", "Failed to unmount /mnt", dry_run=dry_run)
+    print("..................................")
     for f in fstab_desc:
         print(f)
-    print(".......................")
+    print("..................................")
     return delay_action
 
 
@@ -203,33 +267,67 @@ def create_partitions(conf: Any, dry_run: bool = False) -> Tuple[Optional[str], 
     """Create partitions for all configured devices.
 
     This function processes all devices in the configuration and creates
-    partitions for each device. It identifies boot and root partitions
-    and returns them along with a complete partition list.
+    partitions for each device according to disk_fs_hierarchy format. It identifies
+    boot and root partitions and returns them along with a complete partition list.
 
     Args:
-        conf: Configuration object containing device specifications.
+        conf: Configuration object containing device specifications in disk_fs_hierarchy format.
+        dry_run: If True, simulate actions without making changes.
 
     Returns:
         Tuple containing (boot_partition, root_partition, partition_list) where
         boot_partition and root_partition are device paths or None,
         and partition_list contains all created FsEntry objects.
     """
-    devices = conf.system.devices if hasattr(conf, "system") and hasattr(conf.system, "devices") else conf.devices
-    print(f"{devices=}")
+    print("Starting partition creation process")
+    print(f"Dry run mode: {'Enabled' if dry_run else 'Disabled'}")
+    # Get devices from configuration
+    devices = None
+    # if hasattr(conf, "devices") and conf.devices:
+    #     devices = conf.devices
+    if hasattr(conf, "system") and hasattr(conf.system, "devices"):
+        devices = conf.system.devices
+    
+    if not devices:
+        raise ValueError("No devices found in configuration. Expected conf.system.devices")
+    
+    # Convert Lua table to list of values if it's dict-like
+    if hasattr(devices, "values"):
+        device_list = list(devices.values())
+    # elif hasattr(devices, "__iter__"):
+    #     device_list = list(devices)
+    else:
+        device_list = [devices]
+    
+    # Create partitions for each device and identify boot/root partitions
+    print(f"Creating partitions for {len(device_list)} device(s) [{device_list}]")
 
-    print(f"{list(devices.keys())=}")
-    print("->>", devices.disk0)
     boot_partition = None
     root_partition = None
     partition_list = []
-    for d_id, disk in devices.items():
-        print(d_id)
+
+    # Process each device in order
+    for disk in device_list:
+        # Handle Lua table access - get device property safely
+        device_name = "unknown"
+        try:
+            # Try accessing as attribute first (works for Lua tables)
+            if hasattr(disk, "device"):
+                device_name = disk.device
+            # Try dictionary-style access
+            # elif hasattr(disk, "__getitem__"):
+            #     device_name = disk["device"]
+        except (TypeError, KeyError, AttributeError):
+            pass
+        
+        print(f"\nProcessing device: {device_name}")
         boot_part, root_part, part_list = create_disk_partitions(disk, dry_run=dry_run)
         partition_list += part_list
         if boot_part:
             boot_partition = boot_part
         if root_part:
             root_partition = root_part
+
     return boot_partition, root_partition, partition_list
 
 
@@ -239,12 +337,13 @@ def create_disk_partitions(
     """Create partitions on a single disk device.
 
     This function handles the creation of partitions on a single disk according
-    to the disk configuration. It wipes the existing partition table, creates
-    new partitions with specified filesystems, and sets up mount points.
+    to the disk_fs_hierarchy format. It wipes the existing partition table,
+    creates new partitions with specified filesystems, and sets up mount points
+    including BTRFS subvolumes.
 
     Args:
         disk_info: Dictionary containing device path and partition specifications.
-                  Expected keys: 'device', 'partitions'
+                  Format: {'device': str, 'partitions': [partition_definitions]}
 
     Returns:
         Tuple containing (boot_partition, root_partition, partitions_list) where
@@ -252,8 +351,13 @@ def create_disk_partitions(
         and partitions_list contains FsEntry objects for created partitions.
     """
     device = disk_info["device"]
-    # efi = disk_info['efi']
-    partitions = disk_info["partitions"]
+    print(f"Creating partitions for device: {device}")
+    print(f"Dry run mode: {'Enabled' if dry_run else 'Disabled'}")
+    conf_partitions = disk_info["partitions"]
+    wipe_disk = disk_info.wipe if disk_info.wipe is not None else True
+    
+    print(f"Creating partitions on device: {device}")
+    print(f"Device wipe: {'enabled' if wipe_disk else 'disabled'}")
 
     if "nvme" in device or "mmcblk" in device:
         device_sufix = "p"
@@ -261,12 +365,23 @@ def create_disk_partitions(
         device_sufix = ""
 
     # Delete partition table
-    exec_critical(f"wipefs -a {device}", f"Failed to wipe partition table on {device}", dry_run=dry_run)
-    exec_critical("sync", "Failed to sync after wiping partition table", dry_run=dry_run)
+    if wipe_disk:
+        print(f"Wiping existing partition table on {device}")
+        execute(f"wipefs -a {device}", f"Failed to wipe partition table on {device}", dry_run=dry_run)
+        execute("sync", "Failed to sync after wiping partition table", dry_run=dry_run)
 
-    exec_critical(f"parted -s {device} mklabel gpt", f"Failed to create GPT label on {device}", dry_run=dry_run)
+    # Convert Lua table partitions to a list if needed
+    # print(f"Partition definitions: {conf_partitions}")
+    partitions = list(conf_partitions.values())
+    print(f"Partitions to create: {partitions}")
 
-    print(f"{partitions=}")
+    if disk_info.type is not None and disk_info.type!="gpt":
+        raise ValueError(f"Unsupported partition table type: {disk_info.type}. Only 'gpt' is supported.")
+    
+    # Create GPT partition table
+    execute(f"parted -s {device} mklabel gpt", f"Failed to create GPT label on {device}", dry_run=dry_run)
+
+    print(f"Creating partitions on {device}")
     if not partitions:
         return None, None, []
 
@@ -274,22 +389,28 @@ def create_disk_partitions(
     boot_partition = None
     root_partition = None
     partitions_list = []
-    for pid, part in partitions.items():
-        name = part["name"]
-        size = part["size"]
-        filesystem_type = part["type"]
-        mountpoint = part["mountpoint"]
+
+    for pid, part in enumerate(partitions, 1):
+        name = get_lua_attr(part, "name")
+        size = get_lua_attr(part, "size")
+        filesystem_type = get_lua_attr(part, "type")
+        mountpoint = get_lua_attr(part, "mountpoint", "")
         blockdevice = f"{device}{device_sufix}{pid}"
 
+        print(f"Creating partition: {name} ({filesystem_type}) at {blockdevice}")
+
+        # Identify boot and root partitions
         if name.lower() == "boot":
             boot_partition = blockdevice
         elif name.lower() == "root":
             root_partition = blockdevice
 
+        # Calculate partition end
         end = 0 if size == "100%" else f"+{size}"
         partition_type = _parted_fs_type.get(filesystem_type, "linux")
 
-        exec_critical(
+        # Create partition
+        execute(
             f"parted -s {device} mkpart {name} {partition_type} 0 {end}",
             f"Failed to create partition {name} on {device}",
             dry_run=dry_run,
@@ -299,33 +420,38 @@ def create_disk_partitions(
         if filesystem_type in _filesystem_cmd.keys():
             cmd = _filesystem_cmd[filesystem_type]
             if cmd:
-                exec_critical(
-                    f"{cmd} {blockdevice}", f"Failed to format {blockdevice} as {filesystem_type}", dry_run=dry_run
+                execute(
+                    f"{cmd} {blockdevice}",
+                    f"Failed to format {blockdevice} as {filesystem_type}",
+                    dry_run=dry_run,
                 )
 
+        # Handle BTRFS with subvolumes
+        print(f"Configuring mount for partition {blockdevice} with filesystem {filesystem_type}")
         if filesystem_type == "btrfs":
             delay_action = create_btrfs(delay_action, part, blockdevice, dry_run=dry_run)
-
-        if mountpoint and mountpoint != "none":
-            install_mountpoint = "/mnt" + mountpoint
+        # Handle other filesystems
+        elif mountpoint and mountpoint != "none":
+            install_mountpoint = f"/mnt{mountpoint}"
             if mountpoint != "/":
                 print(f"[DELAY] mkdir -p {install_mountpoint}")
                 print(f"[DELAY] mount {blockdevice} {install_mountpoint}")
                 delay_action.append(f"mkdir -p {install_mountpoint}")
                 delay_action.append(f"mount {blockdevice} {install_mountpoint}")
-                partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
             else:
                 delay_action = [
                     f"mkdir -p {install_mountpoint}",
                     f"mount {blockdevice} {install_mountpoint}",
                 ] + delay_action
-                partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
-            print("====>", blockdevice, mountpoint)
+
+            partitions_list.append(FsEntry(blockdevice, mountpoint, filesystem_type, "defaults", 0, 0))
+            print(f"====> {blockdevice} -> {mountpoint}")
 
     print("=======================")
+    print(f"Executing {len(delay_action)} delayed mount commands...")
     if delay_action:
         for cmd_action in delay_action:
-            exec(cmd_action, dry_run=dry_run)
+            execute(cmd_action, dry_run=dry_run)
     print("=======================")
 
     return boot_partition, root_partition, partitions_list
@@ -334,31 +460,33 @@ def create_disk_partitions(
 def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
     """Get boot and root partition device paths from configuration.
 
-    This function scans the device configuration to identify which devices
-    correspond to boot and root partitions based on partition names.
+    This function scans the device configuration (disk_fs_hierarchy format)
+    to identify which devices correspond to boot and root partitions based
+    on partition names.
 
     Args:
-        conf: Configuration object containing device specifications.
+        conf: Configuration object containing device specifications in disk_fs_hierarchy format.
 
     Returns:
         Tuple containing (boot_partition, root_partition) device paths or None if not found.
     """
-    devices = conf.devices
+    devices = conf.devices if hasattr(conf, "devices") else conf.system.devices
 
     boot_partition = None
     root_partition = None
-    for d_id, disk in devices.items():
-        device = disk["device"]
-        partitions = disk["partitions"]
 
-        if "nvme" in device or "mmcblk" in device:
+    for device in devices:
+        dev_path = device["device"]
+        partitions = device["partitions"]
+
+        if "nvme" in dev_path or "mmcblk" in dev_path:
             device_sufix = "p"
         else:
             device_sufix = ""
 
-        for pid, part in partitions.items():
+        for pid, part in enumerate(partitions, 1):
             name = part["name"]
-            blockdevice = f"{device}{device_sufix}{pid}"
+            blockdevice = f"{dev_path}{device_sufix}{pid}"
 
             if name.lower() == "boot":
                 boot_partition = blockdevice

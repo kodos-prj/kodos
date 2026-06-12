@@ -11,13 +11,12 @@ import os
 import re
 from pathlib import Path
 from tarfile import DIRTYPE
-from this import d
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import lupa as lua
 
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
-from kod.common import exec, exec_chroot, exec_critical
+from kod.common import execute #, exec_chroot, exec_critical
 from kod.filesystem import FsEntry
 
 # from kod.arch import kernel_update_required
@@ -37,27 +36,27 @@ RELEASE_TYPE="expeirimental"
 #####################################################################################################
 
 
-base_distribution: str = "arch"
+# base_distribution: str = "arch"
 
 
-def set_base_distribution(base_dist: str) -> Any:
-    """Set the base distribution and return the corresponding module.
+# def set_base_distribution(base_dist: str) -> Any:
+#     """Set the base distribution and return the corresponding module.
 
-    Args:
-        base_dist: The base distribution name ("debian" or "arch").
+#     Args:
+#         base_dist: The base distribution name ("debian" or "arch").
 
-    Returns:
-        The distribution-specific module.
-    """
-    global base_distribution
-    base_distribution = base_dist
-    if base_dist == "debian":
-        import kod.debian as dist
+#     Returns:
+#         The distribution-specific module.
+#     """
+#     global base_distribution
+#     base_distribution = base_dist
+#     if base_dist == "debian":
+#         import kod.debian as dist
 
-        return dist
-    import kod.arch as dist
+#         return dist
+#     import kod.arch as dist
 
-    return dist
+#     return dist
 
 
 # ------------------
@@ -210,7 +209,7 @@ def generate_fstab(partiton_list: List, mount_point: str, dry_run: bool = False)
     with open(f"{mount_point}/etc/fstab", "w") as f:
         for part in partiton_list:
             if part.source[:5] == "/dev/":
-                uuid = exec(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
+                uuid = execute(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
                 if uuid:
                     part.source = f"UUID={uuid.strip()}"
             f.write(str(part) + "\n")
@@ -273,7 +272,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
 
     # hostname
     hostname = network_conf["hostname"]
-    exec(f"echo '{hostname}' > {mount_point}/etc/hostname", dry_run=dry_run)
+    execute(f"echo '{hostname}' > {mount_point}/etc/hostname", dry_run=dry_run)
     use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
     use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
     eth0_network = """[Match]
@@ -403,7 +402,7 @@ def create_boot_entry(
     if not kver:
         kver = get_kernel_version(mount_point)
 
-    today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
+    today = execute("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
     entry_conf = f"""
 title KodOS
 sort-key kodos
@@ -600,7 +599,7 @@ def set_ro_mount(mount_point: str) -> None:
     Args:
         mount_point (str): The mount point to set to read-only.
     """
-    exec(f"mount -o remount,ro,bind {mount_point}")
+    execute(f"mount -o remount,ro,bind {mount_point}")
 
 
 # Core
@@ -732,7 +731,7 @@ def manage_packages(
                     wrong_pkgs.extend(pkgs)
             else:
                 try:
-                    exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
+                    execute(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
                 except Exception as e:
                     print(f"Error: Package operation failed for {repo}: {e}")
                     print(f"Failed packages: {pkgs}")
@@ -751,7 +750,7 @@ def manage_packages(
             else:
                 for pkg in pkgs:
                     try:
-                        result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
+                        result = execute(f"{repos[repo][action]} {pkg}", get_output=True)
                         if re.match(r"^[Ee]rror", result):
                             wrong_pkgs.append(pkg)
                     except Exception as e:
@@ -1474,7 +1473,7 @@ class Context:
             print(f"##> {exec_prefix} {wrap(command)}")
             result = exec_chroot(f"{exec_prefix} {wrap(command)}", mount_point=self.mount_point, get_output=get_output)
         else:
-            result = exec(f"{exec_prefix} {wrap(command)}", get_output=get_output)
+            result = execute(f"{exec_prefix} {wrap(command)}", get_output=get_output)
 
         if get_output:
             return result
@@ -1581,7 +1580,7 @@ def enable_services(list_of_services: List[str], mount_point: str = "/mnt", use_
         if use_chroot:
             exec_chroot(f"systemctl enable {service}", mount_point=mount_point)
         else:
-            exec(f"systemctl enable --now {service}")
+            execute(f"systemctl enable --now {service}")
 
 
 # Core
@@ -1610,7 +1609,7 @@ def disable_services(list_of_services: List[str], mount_point: str = "/mnt", use
         if use_chroot:
             exec_chroot(f"systemctl disable {service}", mount_point=mount_point)
         else:
-            exec(f"systemctl disable --now {service}")
+            execute(f"systemctl disable --now {service}")
 
 
 # Core
@@ -1693,11 +1692,11 @@ def create_filesystem_hierarchy(
     # Initial generation
     generation = 0
     for dir in ["store", "generations", "current"]:
-        exec(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
+        execute(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
-        exec(f"mkdir -p {mount_point}/store/{dir}", dry_run=dry_run)
+        execute(f"mkdir -p {mount_point}/store/{dir}", dry_run=dry_run)
 
     # Create home as subvolume if no /home is specified in the config
     # (TODO: Add support for custom home)
@@ -1734,24 +1733,24 @@ def create_filesystem_hierarchy(
     ]
 
     for dir in subdirs + ["boot", "home", "kod"]:
-        exec(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
+        execute(f"mkdir -p {mount_point}/{dir}", dry_run=dry_run)
 
-    exec(f"mount {boot_part} {mount_point}/boot", dry_run=dry_run)
+    execute(f"mount {boot_part} {mount_point}/boot", dry_run=dry_run)
     boot_options = (
         "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
     )
     partition_list.append(FsEntry(boot_part, "/boot", "vfat", boot_options))
 
-    exec(f"mount {root_part} {mount_point}/kod", dry_run=dry_run)
+    execute(f"mount {root_part} {mount_point}/kod", dry_run=dry_run)
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
 
-    exec(f"mount -o subvol=store/home {root_part} {mount_point}/home", dry_run=dry_run)
+    execute(f"mount -o subvol=store/home {root_part} {mount_point}/home", dry_run=dry_run)
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
 
     for dir in subdirs:
-        exec(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}", dry_run=dry_run)
+        execute(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}", dry_run=dry_run)
         partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
 
     # Write generation number
@@ -1788,19 +1787,19 @@ def create_next_generation(boot_part: str, root_part: str, generation: int) -> s
     if next_current.is_mount():
         print("Reboot is required to update generation")
         os._exit(0)
-        exec(f"umount -R {next_current}")
-        exec(f"rm -rf {next_current}")
+        execute(f"umount -R {next_current}")
+        execute(f"rm -rf {next_current}")
 
-    exec(f"mkdir -p {next_current}")
+    execute(f"mkdir -p {next_current}")
 
-    exec(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
-    exec(f"mount {boot_part} {next_current}/boot")
-    exec(f"mount {root_part} {next_current}/kod")
-    exec(f"mount -o subvol=store/home {root_part} {next_current}/home")
+    execute(f"mount -o subvol=generations/{generation}/rootfs {root_part} {next_current}")
+    execute(f"mount {boot_part} {next_current}/boot")
+    execute(f"mount {root_part} {next_current}/kod")
+    execute(f"mount -o subvol=store/home {root_part} {next_current}/home")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
     for dir in subdirs:
-        exec(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
+        execute(f"mount --bind /kod/store/{dir} {next_current}/{dir}")
 
     partition_list = load_fstab()
     change_subvol(partition_list, subvol=f"generations/{generation}", mount_points=["/"])
@@ -1839,9 +1838,9 @@ def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str,
                     exec_chroot(f"{repo_desc['update']}", mount_point=mount_point)
             else:
                 if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
-                    exec(f"runuser -u kod -- {repo_desc['update']} --noconfirm")
+                    execute(f"runuser -u kod -- {repo_desc['update']} --noconfirm")
                 else:
-                    exec(f"{repo_desc['update']}")
+                    execute(f"{repo_desc['update']}")
 
 
 # Core
@@ -2111,6 +2110,6 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
             continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
             print(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
-            exec(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
+            execute(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
-            exec(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")
+            execute(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")

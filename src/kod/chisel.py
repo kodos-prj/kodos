@@ -8,7 +8,7 @@ for detecting hardware-specific packages and managing Arch-specific tools.
 import json
 from typing import Any, Dict
 
-from kod.common import exec, exec_chroot
+from kod.common import execute, exec_chroot
 
 
 def prepare_for_installation() -> None:
@@ -57,15 +57,12 @@ def get_base_packages(conf: Any) -> Dict[str, Any]:
             "bash-completion",
             "mlocate",
             "sudo",
-            "schroot",
             "whois",
             "dracut",
             "git",
         ],
     }
 
-    # TODO: remove this package dependency
-    packages["base"] += ["arch-install-scripts"]
     return packages
 
 
@@ -89,7 +86,8 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str, dry_run: bool = F
     # print(f"Installing kernel packages: {kernel}")
     # print(f"Installing base packages: {base_pkgs['base']} {type(base_pkgs['base'])}")
     base = [pkg for pkg in base_pkgs["base"]]
-    exec(f"pacstrap -K {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
+    # execute(f"pacstrap -K {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
+    execute(f"chisel --base-dir {mount_point}/kod install {' '.join(kernel + base)}", dry_run=dry_run)
 
 
 # Arch
@@ -137,13 +135,13 @@ def get_list_of_dependencies(pkg: str):
     """
     pkgs_list = [pkg]
     # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
+    pkgs_list = execute(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
     # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
     if len(pkgs_list) > 0:
         pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
     else:
         # check if it is a (meta-)package
-        depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
+        depend_on = execute(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
         # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
         pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
     return pkgs_list
@@ -202,15 +200,15 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         update_repos = True
 
     if update_repos:
-        exec(f"mkdir -p {mount_point}/var/kod")
+        execute(f"mkdir -p {mount_point}/var/kod")
         with open(f"{mount_point}/var/kod/repos.json", "w") as f:
             f.write(json.dumps(repos, indent=2))
 
     return repos, packages
 
 
-# Arch
-def refresh_package_db(mount_point, new_generation):
+# Chisel
+def refresh_package_db(mount_point, new_generation, mirror, dry_run=False):
     """
     Refresh the package database.
 
@@ -221,11 +219,15 @@ def refresh_package_db(mount_point, new_generation):
     Args:
         mount_point (str): The mount point of the chroot environment.
         new_generation (bool): If True, run pacman inside the chroot environment.
+        mirror (str): The mirror to use for the package database. Defaults to None.
     """
+
     if new_generation:
-        exec_chroot("pacman -Syy --noconfirm", mount_point=mount_point)
+        cmd = "chisel --base-dir /kod sync"
+        exec_chroot(cmd, mount_point=mount_point, dry_run=dry_run)
     else:
-        exec("pacman -Syy --noconfirm")
+        cmd = f"chisel --base-dir {mount_point}/kod --mirror {mirror} sync"
+        execute(cmd, dry_run=dry_run)
 
 
 # Arch
