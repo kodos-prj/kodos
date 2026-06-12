@@ -261,7 +261,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: 
         if not subvol or not mountpoint:
             continue
 
-        create_svol = f"/mnt/{subvol}"
+        create_svol = f"/mnt/kod/{subvol}"
         execute(
             f"btrfs subvolume create {create_svol}",
             f"Failed to create btrfs subvolume {create_svol}",
