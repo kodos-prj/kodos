@@ -31,8 +31,8 @@ local function dconf(config)
     local command = function(context, config)
         for root, key_vals in pairs(config) do
             local root_path = root:gsub('/', '.')
-            for key, val in pairs(key_vals) do
-                key = key:gsub("_", "-")
+            for keyid, val in pairs(key_vals) do
+                key = keyid:gsub("_", "-")
                 if type(val) == "table" then
                     -- val could be:
                     --  - list of strings
