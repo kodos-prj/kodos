@@ -145,11 +145,11 @@ function disk_fs_hierarchy(device, swap_size, keep_home, keep_root)
       },
       -- Directory hierarchy for non-subvolume mounts
       directories = {
-         "persistent",
-         "store",
-         "generations",
-         "current",
          "kod",
+         "kod/persistent",
+         "kod/store",
+         "kod/generations",
+         "kod/current",
       }
    }
 
