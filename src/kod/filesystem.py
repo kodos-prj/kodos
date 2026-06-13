@@ -256,9 +256,9 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: 
         return delay_action
 
 
-    kod_path = "/mnt/kod"
-    old_dir = Path.cwd()
-    os.chdir(kod_path)
+    # kod_path = "/mnt/kod"
+    # old_dir = Path.cwd()
+    # os.chdir(kod_path)
     for mountpoint, subvol_info in subvolumes.items():
         subvol = get_lua_attr(subvol_info, "name")
         # mountpoint = mpoint #get_lua_attr(subvol_info, "mountpoint", "")
@@ -267,8 +267,9 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: 
         if not subvol or not mountpoint:
             continue
 
-        # create_svol = f"/mnt/kod/{subvol}"
-        create_svol = subvol
+        subvol = f"kod/{subvol}"
+        create_svol = f"/mnt/{subvol}"
+        # create_svol = subvol
         execute(
             f"btrfs subvolume create {create_svol}",
             f"Failed to create btrfs subvolume {create_svol}",
@@ -293,7 +294,7 @@ def create_btrfs(delay_action: List[str], part: Any, blockdevice: str, dry_run: 
         fstab_entry = FsEntry(blockdevice, mountpoint, "btrfs", f"{mount_options}subvol={subvol}", 0, 0)
         fstab_desc.append(fstab_entry)
 
-    os.chdir(old_dir)
+    # os.chdir(old_dir)
     execute("umount -R /mnt", "Failed to unmount /mnt", dry_run=dry_run)
     print("..................................")
     for f in fstab_desc:
