@@ -148,7 +148,7 @@ function disk_fs_hierarchy(device, swap_size, keep_home, keep_root)
          -- "kod",
          "kod/persistent/var",
          "kod/store",
-         "kod/generations",
+         "kod/generations/0",
          -- "kod/current",
       }
    }
