@@ -87,7 +87,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str, dry_run: bool = F
     # print(f"Installing base packages: {base_pkgs['base']} {type(base_pkgs['base'])}")
     base = [pkg for pkg in base_pkgs["base"]]
     # execute(f"pacstrap -K {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
-    execute(f"chisel --base-dir {mount_point}/kod --symlink-prefix {mount_point} install {' '.join(kernel + base)}", dry_run=dry_run)
+    execute(f"chisel --base-dir {mount_point}/kod install --symlink-prefix={mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
 
 
 # Arch
