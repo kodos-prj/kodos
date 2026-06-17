@@ -256,6 +256,8 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
     else:
         locale_gen_path = Path(mount_point) / "etc" / "locale.gen"
         locale_gen_path.parent.mkdir(parents=True, exist_ok=True)
+        if locale_gen_path.is_symlink():
+            locale_gen_path.unlink()
         locale_gen_path.write_text(locale_to_generate + "\n")
     exec_chroot("locale-gen", dry_run=dry_run)
 
