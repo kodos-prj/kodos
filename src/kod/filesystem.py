@@ -513,7 +513,34 @@ def create_disk_partitions(
 
     return boot_partition, root_partition, partitions_list
 
+def create_root_filesystem(mount_point: str, dry_run: bool = False) -> None:
+    """Create root filesystem on the mounted root partition.
 
+    This function is responsible for creating the root filesystem on the mounted
+    root partition. It can be extended to support different filesystem types and
+    configurations as needed.
+
+    Args:
+        mount_point: The mount point where the root partition is mounted.
+        dry_run: If True, simulate actions without making changes.
+    """
+    print(f"Creating root filesystem on {mount_point}")
+    # Create necessary directories for chroot environment
+    Path(mount_point/"dev").mkdir(parents=True, exist_ok=True)
+    Path(mount_point/"proc").mkdir(parents=True, exist_ok=True)
+    Path(mount_point/"sys").mkdir(parents=True, exist_ok=True)
+    Path(mount_point/"tmp").mkdir(parents=True, exist_ok=True)
+    Path(mount_point/"run").mkdir(parents=True, exist_ok=True)
+
+    # Link /bin, /sbin, /lib, /lib64 to /usr counterparts for modern Linux systems
+    for dir in ["bin", "sbin", "lib", "lib64"]:
+        target = mount_point/f"usr/{dir}"
+        link = mount_point/dir
+        if not link.exists():
+            print(f"Creating symlink: {link} -> {target}")
+            if not dry_run:
+                link.symlink_to(target)
+    
 def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
     """Get boot and root partition device paths from configuration.
 

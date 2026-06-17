@@ -16,7 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import lupa as lua
 
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
-from kod.common import execute #, exec_chroot, exec_critical
+from kod.common import execute, exec_chroot #, exec_critical
 from kod.filesystem import FsEntry
 
 # from kod.arch import kernel_update_required
@@ -1705,20 +1705,20 @@ def create_filesystem_hierarchy(
     )
 
     # First generation
-    exec_critical(
+    execute(
         f"mkdir -p {mount_point}/generations/{generation}",
         f"Generation setup failed - directory creation",
         dry_run=dry_run,
     )
-    exec_critical(
+    execute(
         f"btrfs subvolume create {mount_point}/generations/{generation}/rootfs",
         f"Generation setup failed - subvolume creation",
         dry_run=dry_run,
     )
 
     # Mounting first generation
-    exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount", dry_run=dry_run)
-    exec_critical(
+    execute(f"umount -R {mount_point}", f"Generation mount failed - unmount", dry_run=dry_run)
+    execute(
         f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}",
         f"Generation mount failed - mount",
         dry_run=dry_run,

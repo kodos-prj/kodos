@@ -57,7 +57,7 @@ from kod.core import (
     user_dotfile_manager,
     user_services,
 )
-from kod.filesystem import create_partitions, get_partition_devices
+from kod.filesystem import create_partitions, get_partition_devices, create_root_filesystem
 
 import kod.chisel as dist
 
@@ -150,11 +150,14 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     # Update mirrorlist and refresh package database
     mirror = list(conf.mirror.values())[0] if conf.mirror else None
-    dist.refresh_package_db(mount_point, new_generation=False, mirror=mirror, dry_run=use_dry_run)  # TODO: this function requires a wrapper
+    dist.refresh_package_db(
+        mount_point, new_generation=False, mirror=mirror, dry_run=use_dry_run
+    )  # TODO: this function requires a wrapper
     # Installing base packages with chisel
     dist.install_essentials_pkgs(base_packages, mount_point, dry_run=use_dry_run)
-    
-    # configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=use_dry_run)
+    create_root_filesystem(mount_point, dry_run=use_dry_run)
+
+    configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=use_dry_run)
     # setup_bootloader(conf, partition_list, base_distribution)
 
     # setup_bootloader(conf, partition_list, dist)
