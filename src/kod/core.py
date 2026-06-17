@@ -207,6 +207,7 @@ def generate_fstab(partiton_list: List, mount_point: str, dry_run: bool = False)
             print(str(part))
         return
     fstab_path = Path(mount_point) / "etc" / "fstab"
+    fstab_path.parent.mkdir(parents=True, exist_ok=True)
     fstab_content = ""
     for part in partiton_list:
         if part.source[:5] == "/dev/":
@@ -254,6 +255,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
         print(locale_to_generate)
     else:
         locale_gen_path = Path(mount_point) / "etc" / "locale.gen"
+        locale_gen_path.parent.mkdir(parents=True, exist_ok=True)
         locale_gen_path.write_text(locale_to_generate + "\n")
     exec_chroot("locale-gen", dry_run=dry_run)
 
@@ -267,6 +269,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
         print(locale_extra)
     else:
         locale_conf_path = Path(mount_point) / "etc" / "locale.conf"
+        locale_conf_path.parent.mkdir(parents=True, exist_ok=True)
         locale_conf_path.write_text(f"LANG={locale_extra}\n")
 
     # Network
@@ -303,6 +306,7 @@ Name=*
         print(os_release)
     else:
         os_release_path = Path(mount_point) / "etc" / "os-release"
+        os_release_path.parent.mkdir(parents=True, exist_ok=True)
         os_release_path.write_text(os_release)
 
 
@@ -427,6 +431,7 @@ timeout 10
 console-mode keep
 """
     loader_path = Path(mount_point) / "boot" / "loader" / "loader.conf"
+    loader_path.parent.mkdir(parents=True, exist_ok=True)
     loader_path.write_text(loader_conf_systemd)
 
 
@@ -677,6 +682,7 @@ def create_kod_user(mount_point: str) -> None:
     """
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
     sudoers_path = Path(mount_point) / "etc" / "sudoers.d" / "kod"
+    sudoers_path.parent.mkdir(parents=True, exist_ok=True)
     sudoers_path.write_text("kod ALL=(ALL) NOPASSWD: ALL")
 
 

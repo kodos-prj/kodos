@@ -527,11 +527,12 @@ def create_root_filesystem(mount_point: str, dry_run: bool = False) -> None:
     print(f"Creating root filesystem on {mount_point}")
     # Create necessary directories for chroot environment
     mount_point_path = Path(mount_point)
-    (mount_point_path / "dev").mkdir(parents=True, exist_ok=True)
-    (mount_point_path / "proc").mkdir(parents=True, exist_ok=True)
-    (mount_point_path / "sys").mkdir(parents=True, exist_ok=True)
-    (mount_point_path / "tmp").mkdir(parents=True, exist_ok=True)
-    (mount_point_path / "run").mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        (mount_point_path / "dev").mkdir(parents=True, exist_ok=True)
+        (mount_point_path / "proc").mkdir(parents=True, exist_ok=True)
+        (mount_point_path / "sys").mkdir(parents=True, exist_ok=True)
+        (mount_point_path / "tmp").mkdir(parents=True, exist_ok=True)
+        (mount_point_path / "run").mkdir(parents=True, exist_ok=True)
 
     # Link /bin, /sbin, /lib, /lib64 to /usr counterparts for modern Linux systems
     for target_dir, links in {"/usr/bin": ["bin", "sbin"], "/usr/lib": ["lib", "lib64"]}.items():
