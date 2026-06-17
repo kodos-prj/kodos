@@ -526,20 +526,22 @@ def create_root_filesystem(mount_point: str, dry_run: bool = False) -> None:
     """
     print(f"Creating root filesystem on {mount_point}")
     # Create necessary directories for chroot environment
-    Path(mount_point/"dev").mkdir(parents=True, exist_ok=True)
-    Path(mount_point/"proc").mkdir(parents=True, exist_ok=True)
-    Path(mount_point/"sys").mkdir(parents=True, exist_ok=True)
-    Path(mount_point/"tmp").mkdir(parents=True, exist_ok=True)
-    Path(mount_point/"run").mkdir(parents=True, exist_ok=True)
+    mount_point_path = Path(mount_point)
+    (mount_point_path / "dev").mkdir(parents=True, exist_ok=True)
+    (mount_point_path / "proc").mkdir(parents=True, exist_ok=True)
+    (mount_point_path / "sys").mkdir(parents=True, exist_ok=True)
+    (mount_point_path / "tmp").mkdir(parents=True, exist_ok=True)
+    (mount_point_path / "run").mkdir(parents=True, exist_ok=True)
 
     # Link /bin, /sbin, /lib, /lib64 to /usr counterparts for modern Linux systems
-    for dir in ["bin", "sbin", "lib", "lib64"]:
-        target = mount_point/f"usr/{dir}"
-        link = mount_point/dir
-        if not link.exists():
-            print(f"Creating symlink: {link} -> {target}")
-            if not dry_run:
-                link.symlink_to(target)
+    for target_dir, links in {"/usr/bin": ["bin", "sbin"], "/usr/lib": ["lib", "lib64"]}.items():
+        target = mount_point_path / target_dir
+        for link_name in links:
+            link = mount_point_path / link_name
+            if not link.exists():
+                print(f"Creating symlink: {link} -> {target}")
+                if not dry_run:
+                    link.symlink_to(target)
     
 def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
     """Get boot and root partition device paths from configuration.
