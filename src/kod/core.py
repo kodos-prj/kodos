@@ -206,13 +206,15 @@ def generate_fstab(partiton_list: List, mount_point: str, dry_run: bool = False)
         for part in partiton_list:
             print(str(part))
         return
-    with open(f"{mount_point}/etc/fstab", "w") as f:
-        for part in partiton_list:
-            if part.source[:5] == "/dev/":
-                uuid = execute(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
-                if uuid:
-                    part.source = f"UUID={uuid.strip()}"
-            f.write(str(part) + "\n")
+    fstab_path = Path(mount_point) / "etc" / "fstab"
+    fstab_content = ""
+    for part in partiton_list:
+        if part.source[:5] == "/dev/":
+            uuid = execute(f"lsblk -o UUID {part.source} | tail -n 1", get_output=True)
+            if uuid:
+                part.source = f"UUID={uuid.strip()}"
+        fstab_content += str(part) + "\n"
+    fstab_path.write_text(fstab_content)
 
 
 # Core?
@@ -251,8 +253,8 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
         print(f"Dry run enabled: '{mount_point}/etc/locale.gen' content:")
         print(locale_to_generate)
     else:
-        with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
-            locale_file.write(locale_to_generate + "\n")
+        locale_gen_path = Path(mount_point) / "etc" / "locale.gen"
+        locale_gen_path.write_text(locale_to_generate + "\n")
     exec_chroot("locale-gen", dry_run=dry_run)
 
     locale_name = locale_default.split()[0]
@@ -264,8 +266,8 @@ def configure_system(conf: Any, partition_list: List, mount_point: str, dry_run:
         print(f"Dry run enabled: '{mount_point}/etc/locale.conf' content:")
         print(locale_extra)
     else:
-        with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
-            locale_file.write(f"LANG={locale_extra}\n")
+        locale_conf_path = Path(mount_point) / "etc" / "locale.conf"
+        locale_conf_path.write_text(f"LANG={locale_extra}\n")
 
     # Network
     network_conf = conf.network
@@ -287,8 +289,9 @@ Name=*
         print(f"Dry run enabled: '{mount_point}/etc/systemd/network/10-eth0.network' content:")
         print(eth0_network)
     else:
-        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-            f.write(eth0_network)
+        eth0_path = Path(mount_point) / "etc" / "systemd" / "network" / "10-eth0.network"
+        eth0_path.parent.mkdir(parents=True, exist_ok=True)
+        eth0_path.write_text(eth0_network)
 
     # hosts
     exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts", dry_run=dry_run)
@@ -299,8 +302,8 @@ Name=*
         print(f"Dry run enabled: '{mount_point}/etc/os-release' content:")
         print(os_release)
     else:
-        with open(f"{mount_point}/etc/os-release", "w") as f:
-            f.write(os_release)
+        os_release_path = Path(mount_point) / "etc" / "os-release"
+        os_release_path.write_text(os_release)
 
 
 #     # Configure schroot
@@ -414,8 +417,8 @@ options root={root_device} rw {options}
     entries_path = Path(f"{mount_point}/boot/loader/entries/")
     if not entries_path.is_dir():
         entries_path.mkdir(parents=True, exist_ok=True)
-    with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
-        f.write(entry_conf)
+    entry_path = Path(mount_point) / "boot" / "loader" / "entries" / f"{entry_name}.conf"
+    entry_path.write_text(entry_conf)
 
     # Update loader.conf
     loader_conf_systemd = f"""
@@ -423,8 +426,8 @@ default {entry_name}.conf
 timeout 10
 console-mode keep
 """
-    with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
-        f.write(loader_conf_systemd)
+    loader_path = Path(mount_point) / "boot" / "loader" / "loader.conf"
+    loader_path.write_text(loader_conf_systemd)
 
 
 # Core
@@ -673,8 +676,8 @@ def create_kod_user(mount_point: str) -> None:
             performed.
     """
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
-    with open(f"{mount_point}/etc/sudoers.d/kod", "w") as f:
-        f.write("kod ALL=(ALL) NOPASSWD: ALL")
+    sudoers_path = Path(mount_point) / "etc" / "sudoers.d" / "kod"
+    sudoers_path.write_text("kod ALL=(ALL) NOPASSWD: ALL")
 
 
 # Core
