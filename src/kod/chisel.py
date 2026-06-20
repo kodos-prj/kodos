@@ -84,7 +84,7 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str, dry_run: bool = F
     """
     kernel = [pkg.name for pkg in base_pkgs["kernel"].packages]
     base = [pkg for pkg in base_pkgs["base"]]
-    execute(f"chisel --base-dir {mount_point}/kod install --symlink-prefix {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
+    execute(f"chisel install --chroot {mount_point} {' '.join(kernel + base)}", dry_run=dry_run)
 
 
 # Arch
