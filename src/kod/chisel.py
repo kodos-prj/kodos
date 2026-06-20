@@ -204,6 +204,25 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     return repos, packages
 
 
+def init_package_db(mount_point, mirror: str | None = None, dry_run: bool = False):
+    """
+    Refresh the package database.
+
+    This function runs pacman -Syy --noconfirm to refresh the package database.
+    If new_generation is True, it runs pacman inside the chroot environment.
+    Otherwise it runs pacman outside the chroot environment.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+        new_generation (bool): If True, run pacman inside the chroot environment.
+        mirror (str): The mirror to use for the package database. Defaults to None.
+    """
+    if mirror is None:
+        mirror = "https://mirrors.kernel.org/archlinux/"
+    cmd = f"chisel --base-dir {mount_point}/kod --mirror {mirror} sync"
+    execute(cmd, dry_run=dry_run)
+
+
 # Chisel
 def refresh_package_db(mount_point, new_generation, mirror, dry_run=False):
     """
@@ -220,7 +239,7 @@ def refresh_package_db(mount_point, new_generation, mirror, dry_run=False):
     """
 
     if new_generation:
-        cmd = "chisel --base-dir /kod sync"
+        cmd = "chisel sync"
         exec_chroot(cmd, mount_point=mount_point, dry_run=dry_run)
     else:
         cmd = f"chisel --base-dir {mount_point}/kod --mirror {mirror} sync"

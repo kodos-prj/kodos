@@ -150,9 +150,7 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     # Update mirrorlist and refresh package database
     mirror = list(conf.mirror.values())[0] if conf.mirror else None
-    dist.refresh_package_db(
-        mount_point, new_generation=False, mirror=mirror, dry_run=use_dry_run
-    )  # TODO: this function requires a wrapper
+    dist.init_package_db(mount_point, mirror=mirror, dry_run=use_dry_run)
     # Installing base packages with chisel
     dist.install_essentials_pkgs(base_packages, mount_point, dry_run=use_dry_run)
     create_root_filesystem(mount_point, dry_run=use_dry_run)
