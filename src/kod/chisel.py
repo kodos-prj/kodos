@@ -237,6 +237,20 @@ def run_install_scripts(mount_point, dry_run: bool = False):
     exec_chroot(cmd, mount_point=mount_point, dry_run=dry_run)
 
 
+def copy_chisel(mount_point, dry_run: bool = False):
+    """
+    Copy the chisel binary to the specified mount point.
+
+    This function copies the chisel binary to the /kod directory inside the
+    specified mount point. It uses the chisel tool to manage the copying process.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+        dry_run (bool): If True, simulate actions without making changes.
+    """
+    cmd = f"cp `which chisel` {mount_point}/usr/bin"
+    execute(cmd, dry_run=dry_run)
+
 # Chisel
 def refresh_package_db(mount_point, new_generation, mirror, dry_run=False):
     """
