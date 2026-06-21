@@ -154,6 +154,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     # Installing base packages with chisel
     dist.install_essentials_pkgs(base_packages, mount_point, dry_run=use_dry_run)
     create_root_filesystem(mount_point, dry_run=use_dry_run)
+    dist.run_install_scripts(mount_point, dry_run=use_dry_run)
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point, dry_run=use_dry_run)
     # setup_bootloader(conf, partition_list, base_distribution)

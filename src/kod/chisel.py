@@ -222,6 +222,20 @@ def init_package_db(mount_point, mirror: str | None = None, dry_run: bool = Fals
     cmd = f"chisel --base-dir {mount_point}/kod --mirror {mirror} sync"
     execute(cmd, dry_run=dry_run)
 
+def run_install_scripts(mount_point, dry_run: bool = False):
+    """
+    Run installation scripts.
+
+    This function runs installation scripts inside the chroot environment.
+    It uses the chisel tool to manage the installation process.
+
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+        dry_run (bool): If True, simulate actions without making changes.
+    """
+    cmd = "chisel install-scripts"
+    exec_chroot(cmd, mount_point=mount_point, dry_run=dry_run)
+
 
 # Chisel
 def refresh_package_db(mount_point, new_generation, mirror, dry_run=False):
