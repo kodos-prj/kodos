@@ -14,10 +14,13 @@ local use_cosmic = true
 local use_pantheon = false
 
 return {
+    base_distribution = "pistacho",
+
     repos = {
         -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
-        aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
+        -- pith resolves AUR packages natively
+        aur = repos.aur_repo("pith"),
         flatpak = repos.flatpak_repo("flathub"),
     },
 

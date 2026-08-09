@@ -39,6 +39,14 @@ pacman -Syy
 pacman -S git uv
 ```
 
+Download the Pistacho (pith) binary used as the package manager:
+
+```bash
+curl -L -o /usr/local/bin/pith \
+    https://github.com/kodos-prj/pistacho/releases/latest/download/pith-v0.4.3-linux-amd64
+chmod +x /usr/local/bin/pith
+```
+
 ### 2. Install KodOS (`kod` CLI tool)
 
 Clone the repository:
@@ -152,11 +160,12 @@ dotmgr = require("dotfile_manager")
 configs = require("configs")
 
 return {
+    base_distribution = "pistacho",
     repos = {
-        -- The following package sources are defined by script functions freom repo 
+        -- The following package sources are defined by script functions from repo
         arch = repos.arch_repo("https://mirror.rackspace.com/archlinux");
-        -- Uses yay as package manager for AUR
-        aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git");
+        -- pith resolves AUR packages natively
+        aur = repos.aur_repo("pith");
         flatpak = repos.flatpak_repo("flathub");
     },
 

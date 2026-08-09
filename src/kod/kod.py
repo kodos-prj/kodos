@@ -74,7 +74,7 @@ def cli(debug: bool, verbose: bool) -> None:
 
 
 # pkgs_installed = []
-base_distribution = "arch"
+base_distribution = "pistacho"
 
 ##############################################################################
 
@@ -89,7 +89,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     conf = load_config(config)
 
     base_distribution = conf.base_distribution
-    base_distribution = "arch" if base_distribution is None else base_distribution
+    base_distribution = "pistacho" if base_distribution is None else base_distribution
     print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
@@ -133,6 +133,11 @@ def install(config: Optional[str], mount_point: str) -> None:
     print("packages\n", packages_to_install)
 
     manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
+
+    # === Proc package install scripts (pith-based backend)
+    if hasattr(dist, "run_install_scripts"):
+        dist.run_install_scripts(mount_point)
+
     # === Proc services
     system_services_to_enable = get_services_to_enable(ctx, conf)
     print(f"Services to enable: {system_services_to_enable}")
@@ -168,7 +173,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     # stage = "rebuild"
     conf = load_config(config)
     base_distribution = conf.base_distribution
-    base_distribution = "arch" if base_distribution is None else base_distribution
+    base_distribution = "pistacho" if base_distribution is None else base_distribution
     print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)

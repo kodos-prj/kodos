@@ -2,10 +2,12 @@
 
 echo "Installing required packages"
 pacman -Syy
-pacman -S git uv whois --noconfirm
+pacman -S git uv --noconfirm
 
-echo "Update mirrorlist"
-curl 'https://archlinux.org/mirrorlist/?country=CA&protocol=http&protocol=https&ip_version=4' -o /etc/pacman.d/mirrorlist
+echo "Installing pith binary"
+curl -L -o /usr/local/bin/pith \
+    https://github.com/kodos-prj/pistacho/releases/latest/download/pith-v0.4.3-linux-amd64
+chmod +x /usr/local/bin/pith
 
 echo "Cloning kodos repo"
 git clone https://github.com/kodos-prj/kodos

@@ -14,7 +14,7 @@ from typing import List, Dict, Optional, Any, Tuple, Callable
 
 import lupa as lua
 
-from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
+from kod.pith import get_base_packages, get_kernel_file, get_list_of_dependencies
 from kod.common import exec, exec_chroot, exec_critical
 from kod.filesystem import FsEntry
 
@@ -35,14 +35,14 @@ RELEASE_TYPE="expeirimental"
 #####################################################################################################
 
 
-base_distribution: str = "arch"
+base_distribution: str = "pistacho"
 
 
 def set_base_distribution(base_dist: str) -> Any:
     """Set the base distribution and return the corresponding module.
 
     Args:
-        base_dist: The base distribution name ("debian" or "arch").
+        base_dist: The base distribution name ("debian" or "pistacho").
 
     Returns:
         The distribution-specific module.
@@ -53,7 +53,7 @@ def set_base_distribution(base_dist: str) -> Any:
         import kod.debian as dist
 
         return dist
-    import kod.arch as dist
+    import kod.pith as dist
 
     return dist
 

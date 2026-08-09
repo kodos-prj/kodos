@@ -1,18 +1,18 @@
 -- Repository functions
 
 local function arch_repo(mirrors)
-    -- Creates the repo entry for official arch repos
+    -- Creates the repo entry for the official Arch repos installed through pith
     --  - mirrors: is list of url mirror in case a particular set of mirror is required
     return {
-        type = "arch",
+        type = "pistacho",
         mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
         -- arch = "x86_64",
         repo = { "core", "extra" },
         commands = {
-            install = "pacman -S --noconfirm --needed",
-            update = "pacman -Syu --noconfirm  --needed",
-            remove = "pacman -Rscn --noconfirm",
-            update_db = "pacman -Syy --noconfirm",
+            install = "pith install --chroot /",
+            update = "pith upgrade",
+            remove = "pith remove",
+            update_db = "pith sync",
         }
     }
 end
@@ -24,21 +24,17 @@ local function aur_repo(name, url, build_cmd, commands, run_as_root)
     --  - build_cmd: command to build the AUR helper
     --  - commands: list of commands to interact with the AUR helper (install, update, remove, update_db)
     --  - run_as_root: boolean to indicate if the commands should be run as root
+    -- pith resolves and installs AUR packages natively, so all commands target the pith binary.
     local default_commands = {
-        install = name .. " -S --noconfirm",
-        update = name .. " -Syu --noconfirm",
-        remove = name .. " -R --noconfirm",
-        update_db = name .. " -Sy --noconfirm",
-        run_as_root = run_as_root or false,
+        install = "pith install --chroot /",
+        update = "pith upgrade",
+        remove = "pith remove",
+        update_db = "pith sync",
+        run_as_root = true,
     }
 
     local aur = {
         type = "aur",
-        build = {
-            name = name,
-            url = url,
-            build_cmd = build_cmd or "makepkg -si --noconfirm",
-        },
     }
     aur.commands = commands or default_commands
     return aur
