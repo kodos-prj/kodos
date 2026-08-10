@@ -149,6 +149,10 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
 
     pkgs = " ".join([base_pkgs["kernel"]] + base_pkgs["base"])
     print(f"Installing base packages with pith (kernel={base_pkgs['kernel']})")
+    # Install but not create symlimks
+    no_symlink_pkgs = "filesystem"
+    exec(f"{pith} --base-dir {store} install --chroot {mount_point} --no-symlink {no_symlink_pkgs}")
+    # Install the selected packages
     exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
 
     create_merged_usr_symlinks(mount_point)
