@@ -166,6 +166,20 @@ def generate_fstab(partiton_list: List, mount_point: str) -> None:
             f.write(str(part) + "\n")
 
 
+def replace_file_content(file_path: str, new_content: str) -> None:
+    """
+    Replace the content of a file with new content.
+
+    Args:
+        file_path (str): The path to the file to be modified.
+        new_content (str): The new content to write to the file.
+    """
+    path = Path(file_path)
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    with open(file_path, "w") as f:
+        f.write(new_content)
+
 # Core?
 def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # fstab
@@ -200,14 +214,8 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     if "extra_generate" in locale_spec and locale_spec.extra_generate:
         locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
     
-    # Remove previous existing file
-    etc_locale_gen = Path(f"{mount_point}/etc/locale.gen")
-    if etc_locale_gen.is_symlink():
-        etc_locale_gen.unlink()
-    
     # Create the locale.gen file with the specified locales to generate
-    with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
-        locale_file.write(locale_to_generate + "\n")
+    replace_file_content(f"{mount_point}/etc/locale.gen", locale_to_generate + "\n")
     exec_chroot("locale-gen")
 
     locale_name = locale_default.split()[0]
@@ -215,8 +223,9 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     if "extra_settings" in locale_spec and locale_spec.extra_settings:
         for k, v in locale_spec.extra_settings.items():
             locale_extra += f"{k}={v}\n"
-    with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
-        locale_file.write(f"LANG={locale_extra}\n")
+  
+    replace_file_content(f"{mount_point}/etc/locale.conf", f"LANG={locale_extra}\n")
+
 
     # Network
     network_conf = conf.network
@@ -234,69 +243,64 @@ Name=*
         eth0_network += "DHCP=ipv4\n"
     if use_ipv6:
         eth0_network += "DHCP=ipv6\n"
-    with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-        f.write(eth0_network)
 
+    replace_file_content(f"{mount_point}/etc/systemd/network/10-eth0.network", eth0_network)
+  
     # hosts
     exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot("echo '::1 localhost' >> /etc/hosts")
 
     # Replace default os-release
-    with open(f"{mount_point}/etc/os-release", "w") as f:
-        f.write(os_release)
+    replace_file_content(f"{mount_point}/etc/os-release", os_release)
 
-    # Configure schroot
-    system_schroot = """[system]
-type=directory
-description=KodOS
-directory=/
-groups=users,root
-root-groups=root,wheel
-profile=kodos
-personality=linux
-"""
-    with open(f"{mount_point}/etc/schroot/chroot.d/system.conf", "w") as f:
-        f.write(system_schroot)
+#     # Configure schroot
+#     system_schroot = """[system]
+# type=directory
+# description=KodOS
+# directory=/
+# groups=users,root
+# root-groups=root,wheel
+# profile=kodos
+# personality=linux
+# """
+#     replace_file_content(f"{mount_point}/etc/schroot/chroot.d/system.conf", system_schroot)
 
-    venv_schroot = """[virtual_env]
-type=directory
-description=KodOS
-directory=/
-union-type=overlay
-groups=users,root
-root-groups=root,wheel
-profile=kodos
-personality=linux
-aliases=user_env
-"""
-    with open(f"{mount_point}/etc/schroot/chroot.d/virtual_env.conf", "w") as f:
-        f.write(venv_schroot)
+#     venv_schroot = """[virtual_env]
+# type=directory
+# description=KodOS
+# directory=/
+# union-type=overlay
+# groups=users,root
+# root-groups=root,wheel
+# profile=kodos
+# personality=linux
+# aliases=user_env
+# """
+#     replace_file_content(f"{mount_point}/etc/schroot/chroot.d/virtual_env.conf", venv_schroot)
 
-    # Setting profile
-    os.system(f"mkdir -p {mount_point}/etc/schroot/kodos")
-    os.system(f"touch {mount_point}/etc/schroot/kodos/copyfiles")
-    os.system(f"touch {mount_point}/etc/schroot/kodos/nssdatabases")
+#     # Setting profile
+#     os.system(f"mkdir -p {mount_point}/etc/schroot/kodos")
+#     os.system(f"touch {mount_point}/etc/schroot/kodos/copyfiles")
+#     os.system(f"touch {mount_point}/etc/schroot/kodos/nssdatabases")
 
-    venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
-    for mpoint in [
-        "/proc",
-        "/sys",
-        "/dev",
-        "/dev/pts",
-        "/home",
-        "/root",
-        "/tmp",
-        "/run",
-        "/var/cache",
-        "/var/log",
-        "/var/tmp",
-        "/var/kod",
-    ]:
-        venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
+#     venv_fstab = "# <file system> <mount point>   <type>  <options>       <dump>  <pass>"
+#     for mpoint in [
+#         "/proc",
+#         "/sys",
+#         "/dev",
+#         "/dev/pts",
+#         "/home",
+#         "/root",
+#         "/tmp",
+#         "/run",
+#         "/var/cache",
+#         "/var/log",
+#         "/var/tmp",
+#         "/var/kod",
+#     ]:
+#         venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
 
-    with open(f"{mount_point}/etc/schroot/kodos/fstab", "w") as f:
-        f.write(venv_fstab)
-
+    # replace_file_content(f"{mount_point}/etc/schroot/kodos/fstab", venv_fstab)
 
 # Core
 def get_kernel_version(mount_point: str) -> str:
