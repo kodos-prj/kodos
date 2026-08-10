@@ -215,6 +215,7 @@ def create_merged_usr_symlinks(mount_point: str) -> None:
     # Missing directories normally created by the filesystem package
     dirs = [
         "dev",
+        "opt",
         "proc",
         "run",
         "sys",
