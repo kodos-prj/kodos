@@ -1651,6 +1651,7 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
     res = exec("ls -l /mnt", True)
     print(res)
 
+    # mount_point references generation/0/rootfs
     print(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
     exec_critical(
         f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
@@ -1663,25 +1664,28 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
             f"rw,relatime,ssd,space_cache=v2,subvol=generations/{generation}/rootfs",
         )
     ]
-    return
 
+    # Create basic directories inside the <rootfs>
     for dir in subdirs + ["boot", "home", "kod"]:
         exec(f"mkdir -p {mount_point}/{dir}")
 
+    # Mount boot partition in <rootfs>/boot
     exec(f"mount {boot_part} {mount_point}/boot")
     boot_options = (
         "rw,relatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro"
     )
     partition_list.append(FsEntry(boot_part, "/boot", "vfat", boot_options))
 
+    # Mount the root partition in <rootfs>/kod
     exec(f"mount {root_part} {mount_point}/kod")
     partition_list.append(FsEntry(root_part, "/kod", "btrfs", "rw,relatime,ssd,space_cache=v2"))
 
+    # Mount home subvolume in <rootfs>/home
     btrfs_options = "rw,relatime,ssd,space_cache=v2"
-
     exec(f"mount -o subvol=store/home {root_part} {mount_point}/home")
     partition_list.append(FsEntry(root_part, "/home", "btrfs", btrfs_options + ",subvol=store/home"))
 
+    # Mount the rest of directories from store to <rootfs>/
     for dir in subdirs:
         exec(f"mount --bind {mount_point}/kod/store/{dir} {mount_point}/{dir}")
         partition_list.append(FsEntry(f"/kod/store/{dir}", f"/{dir}", "none", "rw,bind"))
