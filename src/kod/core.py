@@ -1650,7 +1650,8 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
 
     res = exec("ls -l /mnt", True)
     print(res)
-    return
+
+    print(f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}")
     exec_critical(
         f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
     )
@@ -1662,6 +1663,7 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
             f"rw,relatime,ssd,space_cache=v2,subvol=generations/{generation}/rootfs",
         )
     ]
+    return
 
     for dir in subdirs + ["boot", "home", "kod"]:
         exec(f"mkdir -p {mount_point}/{dir}")
