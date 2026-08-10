@@ -88,8 +88,7 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     conf = load_config(config)
 
-    base_distribution = conf.base_distribution
-    base_distribution = "pistacho" if base_distribution is None else base_distribution
+    base_distribution = "pistacho"
     print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
@@ -102,6 +101,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     boot_partition, root_partition, partition_list = create_partitions(conf)
 
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
+    return
 
     # Install base packages and configure system
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper

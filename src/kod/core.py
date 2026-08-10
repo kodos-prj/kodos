@@ -1623,7 +1623,7 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
     print("== Creating filesystem hierarchy ==")
     # Initial generation
     generation = 0
-    for dir in ["store", "generations", "current"]:
+    for dir in ["store", "generations"]:
         exec(f"mkdir -p {mount_point}/{dir}")
 
     subdirs = ["root", "var/log", "var/tmp", "var/cache", "var/kod"]
