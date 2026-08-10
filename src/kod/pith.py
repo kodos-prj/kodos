@@ -202,7 +202,7 @@ def create_merged_usr_symlinks(mount_point: str) -> None:
         "bin": "usr/bin",
         "lib": "usr/lib",
         "lib64": "usr/lib",
-        "sbin": "usr/sbin",
+        "sbin": "usr/bin",
     }
 
 

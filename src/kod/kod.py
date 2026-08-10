@@ -109,10 +109,10 @@ def install(config: Optional[str], mount_point: str) -> None:
     print(f"{base_packages = }")
 
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
-    return
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
     # setup_bootloader(conf, partition_list, base_distribution)
+    return
 
     setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
