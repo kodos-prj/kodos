@@ -42,17 +42,13 @@ def set_base_distribution(base_dist: str) -> Any:
     """Set the base distribution and return the corresponding module.
 
     Args:
-        base_dist: The base distribution name ("debian" or "pistacho").
+        base_dist: The base distribution name.
 
     Returns:
-        The distribution-specific module.
+        The distribution-specific module (always pith).
     """
     global base_distribution
     base_distribution = base_dist
-    if base_dist == "debian":
-        import kod.debian as dist
-
-        return dist
     import kod.pith as dist
 
     return dist

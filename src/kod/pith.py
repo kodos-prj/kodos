@@ -74,15 +74,55 @@ def get_base_packages(conf: Any) -> dict[str, Any]:
     packages = {
         "kernel": kernel_package,
         "base": [
-            "base",
-            "base-devel",
-            microcode,
+            # base + base-devel dependencies (filesystem and pacman excluded)
+            "archlinux-keyring",
+            "autoconf",
+            "automake",
+            "bash",
+            "binutils",
+            "bison",
             "btrfs-progs",
-            "linux-firmware",
-            "sudo",
-            "whois",
+            "bzip2",
+            "coreutils",
+            "debugedit",
             "dracut",
+            "fakeroot",
+            "file",
+            "findutils",
+            "flex",
+            "gawk",
+            "gcc",
+            "gcc-libs",
+            "gettext",
             "git",
+            "glibc",
+            "grep",
+            "groff",
+            "gzip",
+            microcode,
+            "iproute2",
+            "iputils",
+            "libtool",
+            "licenses",
+            "linux-firmware",
+            "m4",
+            "make",
+            "pciutils",
+            "patch",
+            "pkgconf",
+            "procps-ng",
+            "psmisc",
+            "sed",
+            "shadow",
+            "sudo",
+            "systemd",
+            "systemd-sysvcompat",
+            "tar",
+            "texinfo",
+            "util-linux",
+            "which",
+            "whois",
+            "xz",
         ],
     }
     return packages
@@ -111,6 +151,7 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
     print(f"Installing base packages with pith (kernel={base_pkgs['kernel']})")
     exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
 
+    create_merged_usr_symlinks(mount_point)
     write_pith_config(mount_point)
     copy_pith_to_rootfs(mount_point)
 
@@ -143,6 +184,35 @@ def copy_pith_to_rootfs(mount_point: str) -> None:
     exec(f"cp {pith} {dst}")
     exec(f"chmod +x {dst}")
     print(f"Copied pith binary to {dst}")
+
+
+
+def create_merged_usr_symlinks(mount_point: str) -> None:
+    """Create merged-usr symlinks that filesystem package normally provides.
+
+    The filesystem package creates /bin -> usr/bin, /lib -> usr/lib,
+    /lib64 -> usr/lib, /sbin -> usr/sbin. When filesystem is not installed,
+    we must create these manually since the mount point is relative to
+    the --chroot path during installation.
+
+    Args:
+        mount_point: The mount point of the rootfs being installed.
+    """
+    symlinks = {
+        "bin": "usr/bin",
+        "lib": "usr/lib",
+        "lib64": "usr/lib",
+        "sbin": "usr/sbin",
+    }
+    for name, target in symlinks.items():
+        link_path = f"{mount_point}/{name}"
+        target_path = f"{mount_point}/{target}"
+        if os.path.islink(link_path) or os.path.exists(link_path):
+            print(f"Symlink {name} already exists, skipping")
+            continue
+        os.makedirs(os.path.dirname(link_path), exist_ok=True)
+        os.symlink(target, link_path)
+        print(f"Created symlink {name} -> {target}")
 
 
 def run_install_scripts(mount_point: str) -> None:

@@ -94,19 +94,7 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     dist = set_base_distribution(base_distribution)
 
-    # if base_distribution == "debian":
-    #     from kod.debian import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-    #     exec("apt install -y gdisk")
-    # else:
-    #     from kod.arch import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
+    # Legacy debian branch removed (debian.py deleted)
     #         proc_repos,
     #     )
 
