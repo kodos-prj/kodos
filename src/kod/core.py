@@ -198,6 +198,13 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     locale_to_generate = locale_default + "\n"
     if "extra_generate" in locale_spec and locale_spec.extra_generate:
         locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
+    
+    # Remove previous existing file
+    etc_locale_gen = Path(f"{mount_point}/etc/locale.gen")
+    if etc_locale_gen.exists():
+        etc_locale_gen.unlink()
+    
+    # Create the locale.gen file with the specified locales to generate
     with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
         locale_file.write(locale_to_generate + "\n")
     exec_chroot("locale-gen")
