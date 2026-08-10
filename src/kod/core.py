@@ -177,6 +177,8 @@ def replace_file_content(file_path: str, new_content: str) -> None:
     path = Path(file_path)
     if path.is_symlink() or path.is_file():
         path.unlink()
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
     with open(file_path, "w") as f:
         f.write(new_content)
 

@@ -116,6 +116,7 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     setup_bootloader(conf, partition_list, dist)
     create_kod_user(mount_point)
+    
 
     # === Proc packages
     repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
