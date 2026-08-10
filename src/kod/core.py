@@ -182,6 +182,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
         mount_point (str): The mount point where the system will be configured.
     """
     generate_fstab(partition_list, mount_point)
+    print(f"Generated fstab at {mount_point}/etc/fstab")
 
     # Locale
     locale_conf = conf.locale
@@ -201,7 +202,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     
     # Remove previous existing file
     etc_locale_gen = Path(f"{mount_point}/etc/locale.gen")
-    if etc_locale_gen.exists():
+    if etc_locale_gen.is_symlink():
         etc_locale_gen.unlink()
     
     # Create the locale.gen file with the specified locales to generate
