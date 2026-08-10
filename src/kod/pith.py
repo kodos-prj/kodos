@@ -204,11 +204,13 @@ def create_merged_usr_symlinks(mount_point: str) -> None:
         "lib64": "usr/lib",
         "sbin": "usr/sbin",
     }
+
+
     for name, target in symlinks.items():
         link_path = f"{mount_point}/{name}"
         if os.path.islink(link_path) or os.path.exists(link_path):
             print(f"Symlink {name} already exists, skipping")
-            continue
+            os.remove(link_path)
         os.symlink(target, link_path)
         print(f"Created symlink {name} -> {target}")
 

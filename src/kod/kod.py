@@ -60,6 +60,7 @@ from kod.core import (
 )
 from kod.core import set_base_distribution
 from kod.filesystem import create_partitions, get_partition_devices
+import kod.pith as dist
 
 # from kod.core import *
 
@@ -74,7 +75,7 @@ def cli(debug: bool, verbose: bool) -> None:
 
 
 # pkgs_installed = []
-base_distribution = "pistacho"
+# base_distribution = "pistacho"
 
 ##############################################################################
 
@@ -88,10 +89,10 @@ def install(config: Optional[str], mount_point: str) -> None:
 
     conf = load_config(config)
 
-    base_distribution = "pistacho"
-    print("Base distribution:", base_distribution)
+    # base_distribution = "pistacho"
+    # print("Base distribution:", base_distribution)
 
-    dist = set_base_distribution(base_distribution)
+    # dist = set_base_distribution(base_distribution)
 
     # Legacy debian branch removed (debian.py deleted)
     #         proc_repos,
