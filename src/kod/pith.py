@@ -188,16 +188,16 @@ def copy_pith_to_rootfs(mount_point: str) -> None:
 
 
 def create_merged_usr_symlinks(mount_point: str) -> None:
-    """Create merged-usr symlinks that filesystem package normally provides.
+    """Create merged-usr symlinks and missing directories that the filesystem package normally provides.
 
-    The filesystem package creates /bin -> usr/bin, /lib -> usr/lib,
-    /lib64 -> usr/lib, /sbin -> usr/sbin. When filesystem is not installed,
-    we must create these manually since the mount point is relative to
-    the --chroot path during installation.
+    Creates relative symlinks (/bin -> usr/bin, not /bin -> /usr/bin) and
+    directories (/dev, /proc, /run, /sys, /tmp) that would otherwise be
+    provided by the filesystem package.
 
     Args:
         mount_point: The mount point of the rootfs being installed.
     """
+    # Relative symlinks (no leading /)
     symlinks = {
         "bin": "usr/bin",
         "lib": "usr/lib",
@@ -206,13 +206,25 @@ def create_merged_usr_symlinks(mount_point: str) -> None:
     }
     for name, target in symlinks.items():
         link_path = f"{mount_point}/{name}"
-        target_path = f"{mount_point}/{target}"
         if os.path.islink(link_path) or os.path.exists(link_path):
             print(f"Symlink {name} already exists, skipping")
             continue
-        os.makedirs(os.path.dirname(link_path), exist_ok=True)
         os.symlink(target, link_path)
         print(f"Created symlink {name} -> {target}")
+
+    # Missing directories normally created by the filesystem package
+    dirs = [
+        "dev",
+        "proc",
+        "run",
+        "sys",
+        "tmp",
+    ]
+    for d in dirs:
+        dir_path = f"{mount_point}/{d}"
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+            print(f"Created directory {d}")
 
 
 def run_install_scripts(mount_point: str) -> None:
