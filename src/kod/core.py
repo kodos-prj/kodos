@@ -1645,10 +1645,12 @@ def create_filesystem_hierarchy(boot_part: Any, root_part: Any, partition_list: 
         f"Generation setup failed - subvolume creation",
     )
 
-    return
-
     # Mounting first generation
     exec_critical(f"umount -R {mount_point}", f"Generation mount failed - unmount")
+
+    res = exec("ls -l /mnt", True)
+    print(res)
+    return
     exec_critical(
         f"mount -o subvol=generations/{generation}/rootfs {root_part} {mount_point}", f"Generation mount failed - mount"
     )
