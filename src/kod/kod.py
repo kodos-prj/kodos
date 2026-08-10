@@ -101,10 +101,10 @@ def install(config: Optional[str], mount_point: str) -> None:
     boot_partition, root_partition, partition_list = create_partitions(conf)
 
     partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
-    return
 
     # Install base packages and configure system
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
+    return
 
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
 
