@@ -106,9 +106,9 @@ def install(config: Optional[str], mount_point: str) -> None:
     base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
 
     print(f"{base_packages = }")
-    return
 
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
+    return
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
     # setup_bootloader(conf, partition_list, base_distribution)
