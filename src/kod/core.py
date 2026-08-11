@@ -621,8 +621,7 @@ def create_kod_user(mount_point: str) -> None:
             performed.
     """
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
-    with open(f"{mount_point}/etc/sudoers.d/kod", "w") as f:
-        f.write("kod ALL=(ALL) NOPASSWD: ALL")
+    replace_file_content(f"{mount_point}/etc/sudoers.d/kod", "kod ALL=(ALL) NOPASSWD: ALL")
 
 
 # Core
