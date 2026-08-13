@@ -178,6 +178,8 @@ def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None
 
     pkgs = " ".join(list_of_packages)
     print(f"Installing selected packages with pith")
+    print(list_of_packages)
+    print("-" * 40)
     # Install the selected packages
     exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
 

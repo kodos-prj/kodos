@@ -111,7 +111,7 @@ def install(config: str | None, mount_point: str) -> None:
     print("packages\n", packages_to_install)
 
     # manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
-    dist.install_selected_pkgs(pending_to_install)
+    dist.install_selected_pkgs(pending_to_install, mount_point)
 
     # === Proc package install scripts (pith-based backend)
     if hasattr(dist, "run_install_scripts"):
