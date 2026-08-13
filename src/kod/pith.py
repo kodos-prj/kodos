@@ -160,7 +160,7 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
     copy_pith_to_rootfs(mount_point)
 
 
-def install_selected_pkgs(list_of_packages: list[str]) -> None:
+def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None:
     """Install essential packages onto the specified mount point.
 
     This replaces the Arch ``pacstrap`` flow. ``pith`` is used to sync the
