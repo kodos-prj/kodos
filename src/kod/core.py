@@ -10,13 +10,13 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import lupa as lua
 
-from kod.pith import get_base_packages, get_kernel_file, get_list_of_dependencies
 from kod.common import exec, exec_chroot, exec_critical
 from kod.filesystem import FsEntry
+from kod.pith import get_base_packages, get_kernel_file, get_list_of_dependencies
 
 # from kod.arch import kernel_update_required
 
@@ -182,6 +182,7 @@ def replace_file_content(file_path: str, new_content: str) -> None:
     with open(file_path, "w") as f:
         f.write(new_content)
 
+
 # Core?
 def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # fstab
@@ -215,7 +216,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     locale_to_generate = locale_default + "\n"
     if "extra_generate" in locale_spec and locale_spec.extra_generate:
         locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
-    
+
     # Create the locale.gen file with the specified locales to generate
     replace_file_content(f"{mount_point}/etc/locale.gen", locale_to_generate + "\n")
     exec_chroot("locale-gen")
@@ -225,9 +226,8 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     if "extra_settings" in locale_spec and locale_spec.extra_settings:
         for k, v in locale_spec.extra_settings.items():
             locale_extra += f"{k}={v}\n"
-  
-    replace_file_content(f"{mount_point}/etc/locale.conf", f"LANG={locale_extra}\n")
 
+    replace_file_content(f"{mount_point}/etc/locale.conf", f"LANG={locale_extra}\n")
 
     # Network
     network_conf = conf.network
@@ -247,13 +247,14 @@ Name=*
         eth0_network += "DHCP=ipv6\n"
 
     replace_file_content(f"{mount_point}/etc/systemd/network/10-eth0.network", eth0_network)
-  
+
     # hosts
     exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts")
     exec_chroot("echo '::1 localhost' >> /etc/hosts")
 
     # Replace default os-release
     replace_file_content(f"{mount_point}/etc/os-release", os_release)
+
 
 #     # Configure schroot
 #     system_schroot = """[system]
@@ -302,7 +303,8 @@ Name=*
 #     ]:
 #         venv_fstab += f"{mpoint}\t{mpoint}\tnone\trw,bind\t0\t0\n"
 
-    # replace_file_content(f"{mount_point}/etc/schroot/kodos/fstab", venv_fstab)
+# replace_file_content(f"{mount_point}/etc/schroot/kodos/fstab", venv_fstab)
+
 
 # Core
 def get_kernel_version(mount_point: str) -> str:
@@ -627,8 +629,8 @@ def create_kod_user(mount_point: str) -> None:
 # Core
 # TODO: Replace official with check of default repo flag
 def manage_packages(
-    root_path: str, repos: Dict[str, Any], action: str, list_of_packages: List[str], chroot: bool = False
-) -> List[str]:
+    root_path: str, repos: dict[str, Any], action: str, list_of_packages: list[str], chroot: bool = False
+) -> list[str]:
     """
     Manage package installation, update, or removal based on the provided repository configuration.
 
@@ -651,7 +653,7 @@ def manage_packages(
     """
     packages_installed = []
     pkgs_per_repo = {"official": []}
-    wrong_pkgs: List[str] = []  # Initialize outside the loop
+    wrong_pkgs: list[str] = []  # Initialize outside the loop
 
     for pkg in list_of_packages:
         if ":" in pkg:

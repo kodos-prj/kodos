@@ -134,8 +134,10 @@ def exec(
     try:
         if get_output:
             # Use subprocess for better control and error handling
-            # result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, encoding=encoding)
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding=encoding)
+            # subprocess.run with capture_output and encoding
+            result = subprocess.run(
+                cmd, shell=True, capture_output=True, text=True, encoding=encoding
+            )
 
             # if check_return_code and result.returncode != 0:
             if result.returncode != 0:

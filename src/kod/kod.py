@@ -8,20 +8,20 @@ with KodOS functionality including installation, configuration, and system manag
 """
 
 import os
-import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 import click
+
+import kod.pith as dist
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
     exec,
+    exec_critical,
+    exec_warn,
+    report_problems,
     set_debug,
     set_verbose,
-    report_problems,
-    exec_warn,
-    exec_critical,
 )
 from kod.core import (
     Context,
@@ -42,6 +42,7 @@ from kod.core import (
     get_packages_updates,
     get_pending_packages,
     get_services_to_enable,
+    # install_selected_packages,
     load_config,
     load_fstab,
     load_package_lock,
@@ -51,6 +52,7 @@ from kod.core import (
     manage_packages_shell,
     proc_user_home,
     proc_users,
+    set_base_distribution,
     setup_bootloader,
     store_packages_services,
     update_all_packages,
@@ -58,9 +60,7 @@ from kod.core import (
     user_dotfile_manager,
     user_services,
 )
-from kod.core import set_base_distribution
 from kod.filesystem import create_partitions, get_partition_devices
-import kod.pith as dist
 
 # from kod.core import *
 
@@ -74,29 +74,17 @@ def cli(debug: bool, verbose: bool) -> None:
     set_verbose(verbose)
 
 
-# pkgs_installed = []
-# base_distribution = "pistacho"
-
 ##############################################################################
 
 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
-def install(config: Optional[str], mount_point: str) -> None:
+def install(config: str | None, mount_point: str) -> None:
     "Install KodOS based on the given configuration"
     ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
 
     conf = load_config(config)
-
-    # base_distribution = "pistacho"
-    # print("Base distribution:", base_distribution)
-
-    # dist = set_base_distribution(base_distribution)
-
-    # Legacy debian branch removed (debian.py deleted)
-    #         proc_repos,
-    #     )
 
     print("-------------------------------")
     boot_partition, root_partition, partition_list = create_partitions(conf)
@@ -111,12 +99,10 @@ def install(config: Optional[str], mount_point: str) -> None:
     dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    # setup_bootloader(conf, partition_list, base_distribution)
-    return
 
     setup_bootloader(conf, partition_list, dist)
+
     create_kod_user(mount_point)
-    
 
     # === Proc packages
     repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
@@ -124,7 +110,8 @@ def install(config: Optional[str], mount_point: str) -> None:
     pending_to_install = get_pending_packages(packages_to_install)
     print("packages\n", packages_to_install)
 
-    manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
+    # manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
+    dist.install_selected_pkgs(pending_to_install)
 
     # === Proc package install scripts (pith-based backend)
     if hasattr(dist, "run_install_scripts"):
@@ -159,7 +146,7 @@ def install(config: Optional[str], mount_point: str) -> None:
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
-def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False) -> None:
+def rebuild(config: str | None, new_generation: bool = False, update: bool = False) -> None:
     "Rebuild KodOS system installation"
 
     # stage = "rebuild"
@@ -335,7 +322,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
-def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
+def rebuild_user(config: str | None, user: str = os.environ["USER"]) -> None:
     "Rebuild user configuration"
     # stage = "rebuild-user"
     ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
@@ -367,7 +354,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
 
 @cli.command()
 @click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
-def shell(package: Optional[Tuple[str, ...]] = None) -> None:
+def shell(package: tuple[str, ...] | None = None) -> None:
     "Run shell"
 
     local_session = exec("schroot -c virtual_env -b", get_output=True).strip()

@@ -160,6 +160,28 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
     copy_pith_to_rootfs(mount_point)
 
 
+def install_selected_pkgs(list_of_packages: list[str]) -> None:
+    """Install essential packages onto the specified mount point.
+
+    This replaces the Arch ``pacstrap`` flow. ``pith`` is used to sync the
+    package databases and to install the base packages (including the
+    kernel) directly into the given mount point. The shared pith store is
+    expected to live at ``<mount_point>/kod``.
+
+    Args:
+        base_pkgs: A dictionary with the ''kernel'' and ''base'' keys.
+        mount_point: The mount point where the packages will be installed.
+    """
+    # prepare_for_installation()
+    pith = pith_bin()
+    store = _store_path(mount_point)
+
+    pkgs = " ".join(list_of_packages)
+    print(f"Installing selected packages with pith")
+    # Install the selected packages
+    exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
+
+
 def write_pith_config(mount_point: str) -> None:
     """Write the pith config file inside the rootfs.
 
@@ -190,7 +212,6 @@ def copy_pith_to_rootfs(mount_point: str) -> None:
     print(f"Copied pith binary to {dst}")
 
 
-
 def create_merged_usr_symlinks(mount_point: str) -> None:
     """Create merged-usr symlinks and missing directories that the filesystem package normally provides.
 
@@ -208,7 +229,6 @@ def create_merged_usr_symlinks(mount_point: str) -> None:
         "lib64": "usr/lib",
         "sbin": "usr/bin",
     }
-
 
     for name, target in symlinks.items():
         link_path = f"{mount_point}/{name}"
@@ -298,9 +318,7 @@ def get_list_of_dependencies(pkg: str) -> list[str]:
     return [pkg]
 
 
-def proc_repos(
-    conf, current_repos=None, update=False, mount_point="/mnt"
-) -> tuple[dict[str, Any], list[str]]:
+def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt") -> tuple[dict[str, Any], list[str]]:
     """Process the repository configuration from the configuration.
 
     This writes the configured repositories and their pith command strings
