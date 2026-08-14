@@ -174,14 +174,15 @@ return {
                     "gnome-tweaks",
                     -- "gnome-extra",
                     -- "gnome-themes-extra",
+                    -- AUR
                     "gnome-shell-extension-appindicator",
-                    "aur:gnome-shell-extension-dash-to-dock",
-                    "aur:gnome-shell-extension-blur-my-shell",
-                    "aur:gnome-shell-extension-arc-menu-git",
-                    "aur:gnome-shell-extension-gsconnect",
-                    "aur:nordic-theme",
+                    "gnome-shell-extension-dash-to-dock",
+                    "gnome-shell-extension-blur-my-shell",
+                    "gnome-shell-extension-arc-menu-git",
+                    "gnome-shell-extension-gsconnect",
+                    "nordic-theme",
                     -- "aur:whitesur-gtk-theme-git",
-                    "aur:whitesur-icon-theme-git",
+                    "whitesur-icon-theme-git",
                     "flatpak:com.mattjakeman.ExtensionManager"
                 },
             },
@@ -280,7 +281,7 @@ return {
 
         cups = {
             enable = true,
-            extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
+            extra_packages = { "gutenprint", "brother-dcp-l2550dw" }, -- AUR
         },
 
         -- https://wiki.archlinux.org/title/Bluetooth
