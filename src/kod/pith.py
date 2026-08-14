@@ -19,7 +19,7 @@ from typing import Any
 
 from kod.common import exec, exec_chroot
 
-PITH_VERSION = "0.4.3"
+PITH_VERSION = "0.4.5"
 PITH_BINARY_NAME = f"pith-v{PITH_VERSION}-linux-amd64"
 PITH_DOWNLOAD_URL = f"https://github.com/kodos-prj/pistacho/releases/latest/download/{PITH_BINARY_NAME}"
 
