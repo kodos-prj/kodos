@@ -180,7 +180,7 @@ return {
                     "gnome-shell-extension-blur-my-shell",
                     "gnome-shell-extension-arc-menu",
                     "gnome-shell-extension-gsconnect",
-                    "nordic-theme",
+                    -- "nordic-theme",
                     -- "aur:whitesur-gtk-themes-git",
                     "whitesur-icon-theme",
                     "flatpak:com.mattjakeman.ExtensionManager"
