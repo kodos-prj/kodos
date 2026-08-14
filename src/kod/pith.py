@@ -181,17 +181,16 @@ def _bind_mount_host_resolv_conf(mount_point: str) -> None:
         print(f"Host /etc/resolv.conf not found at {host_resolv}, skipping")
         return
 
-    # Resolve symlinks on both sides (e.g. /etc/resolv.conf -> run/systemd/.../resolv.conf)
+    # Resolve symlinks on the host side (e.g. /etc/resolv.conf -> run/systemd/.../stub-resolv.conf)
     host_resolved = os.path.realpath(host_resolv)
-    target_resolved = os.path.realpath(target_resolv) if os.path.lexists(target_resolv) else target_resolv
 
-    # If they already point to the same file, nothing to do.
-    if host_resolved == os.path.realpath(target_resolved) and os.path.lexists(target_resolved):
-        return
+    # Ensure the target path exists (touch it if missing; bind mounts need the target to exist)
+    os.makedirs(os.path.dirname(target_resolv), exist_ok=True)
+    if not os.path.lexists(target_resolv):
+        Path(target_resolv).touch()
 
-    os.makedirs(os.path.dirname(target_resolved), exist_ok=True)
-    exec(f"mount --bind {host_resolved} {target_resolved}")
-    print(f"Bind-mounted host {host_resolved} -> {target_resolved}")
+    exec(f"mount --bind {host_resolved} {target_resolv}")
+    print(f"Bind-mounted host {host_resolved} -> {target_resolv}")
 
 
 def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None:
