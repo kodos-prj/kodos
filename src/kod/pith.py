@@ -160,6 +160,40 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
     copy_pith_to_rootfs(mount_point)
 
 
+def _bind_mount_host_resolv_conf(mount_point: str) -> None:
+    """Bind-mount the host's working /etc/resolv.conf into the target.
+
+    After the ``filesystem`` package installs, the target's ``/etc/resolv.conf``
+    is replaced with Arch's default pointing to ``nameserver ::1``. The pith
+    binary (when run with ``--chroot``) resolves the mirror URL against the
+    target's resolver, so subsequent downloads fail. This mirrors what
+    ``arch-chroot``'s ``chroot_add_resolv_conf`` does.
+
+    Args:
+        mount_point: The mount point of the target rootfs.
+    """
+    import os
+
+    host_resolv = "/etc/resolv.conf"
+    target_resolv = f"{mount_point}/etc/resolv.conf"
+
+    if not os.path.exists(host_resolv):
+        print(f"Host /etc/resolv.conf not found at {host_resolv}, skipping")
+        return
+
+    # Resolve symlinks on both sides (e.g. /etc/resolv.conf -> run/systemd/.../resolv.conf)
+    host_resolved = os.path.realpath(host_resolv)
+    target_resolved = os.path.realpath(target_resolv) if os.path.lexists(target_resolv) else target_resolv
+
+    # If they already point to the same file, nothing to do.
+    if host_resolved == os.path.realpath(target_resolved) and os.path.lexists(target_resolved):
+        return
+
+    os.makedirs(os.path.dirname(target_resolved), exist_ok=True)
+    exec(f"mount --bind {host_resolved} {target_resolved}")
+    print(f"Bind-mounted host {host_resolved} -> {target_resolved}")
+
+
 def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None:
     """Install essential packages onto the specified mount point.
 
@@ -172,6 +206,8 @@ def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None
         base_pkgs: A dictionary with the ''kernel'' and ''base'' keys.
         mount_point: The mount point where the packages will be installed.
     """
+    _bind_mount_host_resolv_conf(mount_point)
+
     # prepare_for_installation()
     pith = pith_bin()
     store = _store_path(mount_point)
