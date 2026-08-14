@@ -138,7 +138,7 @@ def install(config: str | None, mount_point: str) -> None:
     print("-=-=-=-=-=-=-=-=-=-=")
     exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
     exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
-    exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
+    # exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
     print(" Done installing KodOS")
 
 
