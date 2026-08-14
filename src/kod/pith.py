@@ -261,14 +261,15 @@ def run_install_scripts(mount_point: str) -> None:
 
     ``pith`` does not run post_install/post_upgrade scripts during a
     ``--chroot`` install, so they must be executed explicitly after all
-    packages are in place.
+    packages are in place. ``pith`` is run inside the chroot so the scripts
+    execute in the correct environment; the pith config written to
+    ``/etc/pith/config.json`` points ``base_dir`` at the bind-mounted store
+    at ``/kod``.
 
     Args:
         mount_point: The mount point of the rootfs container.
     """
-    pith = pith_bin()
-    store = _store_path(mount_point)
-    exec(f"{pith} --base-dir {store} install-scripts --chroot {mount_point}")
+    exec_chroot("pith install-scripts", mount_point=mount_point)
 
 
 def get_kernel_file(mount_point: str, package: str = "linux") -> tuple[str, str]:
