@@ -15,6 +15,7 @@ packages are extracted directly into the generation's rootfs.
 import glob
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 from kod.common import exec, exec_chroot
