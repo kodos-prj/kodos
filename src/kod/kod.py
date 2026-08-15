@@ -96,7 +96,7 @@ def install(config: str | None, mount_point: str) -> None:
 
     print(f"{base_packages = }")
 
-    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
+    dist.install_essentials_pkgs(base_packages, mount_point, conf)  # TODO: this function requires a wrapper
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
 

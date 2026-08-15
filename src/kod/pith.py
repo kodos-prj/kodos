@@ -129,7 +129,33 @@ def get_base_packages(conf: Any) -> dict[str, Any]:
     return packages
 
 
-def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
+def _extract_mirror_from_conf(conf: Any) -> str | None:
+    """Extract the first mirror URL from the configuration's repos.
+
+    Scans ``conf.repos`` for entries (e.g. those created by
+    ``repos.arch_repo(mirror)``) that carry a ``mirrors`` field. Since pith
+    supports only a single ``mirror_url``, the first available mirror is
+    returned.
+
+    Args:
+        conf: The configuration object (Lua table converted to Python).
+
+    Returns:
+        A mirror URL string, or ``None`` if no mirror is found.
+    """
+    repos = getattr(conf, "repos", {}) or {}
+    for repo_conf in repos.values():
+        if not isinstance(repo_conf, dict):
+            continue
+        mirrors = repo_conf.get("mirrors")
+        if isinstance(mirrors, str):
+            return mirrors
+        if isinstance(mirrors, (list, tuple)) and mirrors:
+            return mirrors[0]
+    return None
+
+
+def install_essentials_pkgs(base_pkgs: dict, mount_point: str, conf: Any = None) -> None:
     """Install essential packages onto the specified mount point.
 
     This replaces the Arch ``pacstrap`` flow. ``pith`` is used to sync the
@@ -157,7 +183,8 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str) -> None:
     exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
 
     create_merged_usr_symlinks(mount_point)
-    write_pith_config(mount_point)
+    mirror_url = _extract_mirror_from_conf(conf) if conf else None
+    write_pith_config(mount_point, mirror_url)
     copy_pith_to_rootfs(mount_point)
 
 
@@ -220,7 +247,7 @@ def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None
     exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
 
 
-def write_pith_config(mount_point: str) -> None:
+def write_pith_config(mount_point: str, mirror_url: str | None = None) -> None:
     """Write the pith config file inside the rootfs.
 
     The runtime config points pith at the shared store mounted at ``/kod``
@@ -228,12 +255,14 @@ def write_pith_config(mount_point: str) -> None:
 
     Args:
         mount_point: The mount point of the rootfs being installed.
+        mirror_url: The Arch mirror URL to use. Falls back to the hardcoded
+            default if not provided.
     """
     config_path = f"{mount_point}/etc/pith/config.json"
     exec(f"mkdir -p {os.path.dirname(config_path)}")
     config = {
         "base_dir": "/kod",
-        "mirror_url": "https://mirror.rackspace.com/archlinux",
+        "mirror_url": mirror_url or "https://mirror.rackspace.com/archlinux",
     }
     with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
