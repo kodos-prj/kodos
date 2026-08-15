@@ -10,17 +10,17 @@ local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = true
+local use_cosmic = false
 local use_pantheon = false
 
 return {
-    base_distribution = "pistacho",
+    -- base_distribution = "pistacho", 
 
     repos = {
         -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
         -- pith resolves AUR packages natively
-        aur = repos.aur_repo("pith"),
+        -- aur = repos.aur_repo("pith"),
         flatpak = repos.flatpak_repo("flathub"),
     },
 
@@ -146,7 +146,7 @@ return {
 
             services = {
                 syncthing = {
-                    enable = true,
+                    enable = false,
                     config = configs.syncthing({
                         service_name = "syncthing",
                         options =
@@ -211,11 +211,12 @@ return {
         font_dir = true,
         packages = {
             "ttf-firacode-nerd",
-            "ttf-nerd-fonts-symbols",
-            "ttf-nerd-fonts-symbols-common",
-            "ttf-sourcecodepro-nerd",
-            "ttf-fira-sans",
-            "ttf-fira-code",
+            -- "ttf-nerd-fonts-symbols",
+            -- "ttf-nerd-fonts-symbols-common",
+            -- "ttf-sourcecodepro-nerd",
+            -- "ttf-fira-sans",
+            -- "ttf-fira-code",
+            -- 
             -- "ttf-liberation",
             -- "noto-fonts-emoji",
             -- "adobe-source-serif-fonts",
@@ -280,7 +281,7 @@ return {
         },
 
         cups = {
-            enable = true,
+            enable = false,
             extra_packages = { "gutenprint", "brother-dcp-l2550dw" }, -- AUR
         },
 
