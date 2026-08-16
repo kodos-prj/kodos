@@ -133,10 +133,10 @@ return {
                 -- },
 
                 -- Gnome dconf configuration
-                dconf = {
-                    enable = use_gnome,
-                    config = configs.dconf(require("gnome")),
-                },
+                -- dconf = {
+                --     enable = use_gnome,
+                --     config = configs.dconf(require("gnome")),
+                -- },
             },
 
             deploy_configs = {
