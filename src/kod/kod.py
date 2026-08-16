@@ -111,7 +111,7 @@ def install(config: str | None, mount_point: str) -> None:
     print("packages\n", packages_to_install)
 
     # manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
-    dist.install_selected_pkgs(pending_to_install, mount_point)
+    dist.install_selected_pkgs(pending_to_install, mount_point, conf)
 
     # === Proc package install scripts (pith-based backend)
     if hasattr(dist, "run_install_scripts"):
@@ -212,7 +212,7 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
 
     if update:
         print("Updating packages")
-        dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
+        dist.refresh_package_db(new_root_path, new_generation, conf)  # TODO: this function requires a wrapper
         update_all_packages(new_root_path, new_generation, repos)
 
     # === Proc packages

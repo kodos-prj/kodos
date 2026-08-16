@@ -143,11 +143,14 @@ def _extract_mirror_from_conf(conf: Any) -> str | None:
     Returns:
         A mirror URL string, or ``None`` if no mirror is found.
     """
-    repos = getattr(conf, "repos", {}) or {}
-    for repo_conf in repos.values():
-        if not isinstance(repo_conf, dict):
+    repos = getattr(conf, "repos", None)
+    if repos is None:
+        return None
+    for _, repo_conf in repos.items():
+        try:
+            mirrors = repo_conf["mirrors"]
+        except (KeyError, IndexError, TypeError):
             continue
-        mirrors = repo_conf.get("mirrors")
         if isinstance(mirrors, str):
             return mirrors
         if isinstance(mirrors, (list, tuple)) and mirrors:
@@ -170,20 +173,21 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str, conf: Any = None)
     prepare_for_installation()
     pith = pith_bin()
     store = _store_path(mount_point)
+    mirror_url = _extract_mirror_from_conf(conf) if conf else None
+    mirror_flag = f" --mirror {mirror_url}" if mirror_url else ""
 
     print("Syncing pith package databases...")
-    exec(f"{pith} --base-dir {store} sync")
+    exec(f"{pith} --base-dir {store}{mirror_flag} sync")
 
     pkgs = " ".join([base_pkgs["kernel"]] + base_pkgs["base"])
     print(f"Installing base packages with pith (kernel={base_pkgs['kernel']})")
     # Install but not create symlimks
     no_symlink_pkgs = "filesystem"
-    exec(f"{pith} --base-dir {store} install --chroot {mount_point} --no-symlink {no_symlink_pkgs}")
+    exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} --no-symlink {no_symlink_pkgs}")
     # Install the selected packages
-    exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
+    exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} {pkgs}")
 
     create_merged_usr_symlinks(mount_point)
-    mirror_url = _extract_mirror_from_conf(conf) if conf else None
     write_pith_config(mount_point, mirror_url)
     copy_pith_to_rootfs(mount_point)
 
@@ -221,7 +225,7 @@ def _bind_mount_host_resolv_conf(mount_point: str) -> None:
     print(f"Bind-mounted host {host_resolved} -> {target_resolv}")
 
 
-def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None:
+def install_selected_pkgs(list_of_packages: list[str], mount_point: str, conf: Any = None) -> None:
     """Install essential packages onto the specified mount point.
 
     This replaces the Arch ``pacstrap`` flow. ``pith`` is used to sync the
@@ -230,21 +234,24 @@ def install_selected_pkgs(list_of_packages: list[str], mount_point: str) -> None
     expected to live at ``<mount_point>/kod``.
 
     Args:
-        base_pkgs: A dictionary with the ''kernel'' and ''base'' keys.
+        list_of_packages: The packages to install.
         mount_point: The mount point where the packages will be installed.
+        conf: The configuration object, used to resolve the mirror URL.
     """
     _bind_mount_host_resolv_conf(mount_point)
 
     # prepare_for_installation()
     pith = pith_bin()
     store = _store_path(mount_point)
+    mirror_url = _extract_mirror_from_conf(conf) if conf else None
+    mirror_flag = f" --mirror {mirror_url}" if mirror_url else ""
 
     pkgs = " ".join(list_of_packages)
     print(f"Installing selected packages with pith")
     print(list_of_packages)
     print("-" * 40)
     # Install the selected packages
-    exec(f"{pith} --base-dir {store} install --chroot {mount_point} {pkgs}")
+    exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} {pkgs}")
 
 
 def write_pith_config(mount_point: str, mirror_url: str | None = None) -> None:
@@ -431,17 +438,20 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt") -> tu
     return repos, packages
 
 
-def refresh_package_db(mount_point, new_generation) -> None:
+def refresh_package_db(mount_point, new_generation, conf: Any = None) -> None:
     """Refresh the pith package database.
 
     Args:
         mount_point: The mount point of the chroot environment.
         new_generation: If True, run inside the chroot (unsupported by pith
             from the host; sync always targets the shared store).
+        conf: The configuration object, used to resolve the mirror URL.
     """
     pith = pith_bin()
     store = _store_path(mount_point)
-    exec(f"{pith} --base-dir {store} sync")
+    mirror_url = _extract_mirror_from_conf(conf) if conf else None
+    mirror_flag = f" --mirror {mirror_url}" if mirror_url else ""
+    exec(f"{pith} --base-dir {store}{mirror_flag} sync")
 
 
 def kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point) -> bool:
