@@ -184,10 +184,14 @@ def install_essentials_pkgs(base_pkgs: dict, mount_point: str, conf: Any = None)
     # Install but not create symlimks
     no_symlink_pkgs = "filesystem"
     exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} --no-symlink {no_symlink_pkgs}")
+    # The filesystem package installs a default /etc/resolv.conf pointing to ::1;
+    # bind the host resolver in place before any further chroot downloads.
+    _bind_mount_host_resolv_conf(mount_point)
     # Install the selected packages
     exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} {pkgs}")
 
     create_merged_usr_symlinks(mount_point)
+    create_base_etc_files(mount_point)
     write_pith_config(mount_point, mirror_url)
     copy_pith_to_rootfs(mount_point)
 
@@ -213,8 +217,18 @@ def _bind_mount_host_resolv_conf(mount_point: str) -> None:
         print(f"Host /etc/resolv.conf not found at {host_resolv}, skipping")
         return
 
-    # Resolve symlinks on the host side (e.g. /etc/resolv.conf -> run/systemd/.../stub-resolv.conf)
+    # Already bound (idempotent) or simply alive, nothing to do
+    if os.path.ismount(target_resolv):
+        print(f"resolv.conf already a mount at {target_resolv}, skipping")
+        return
+
+    # Resolve symlinks on the host side (e.g. /etc/resolv.conf -> systemd-resolved stub)
     host_resolved = os.path.realpath(host_resolv)
+
+    # The target may be a symlink (Arch default: -> ../run/systemd/resolve/stub-resolv.conf);
+    # replace it with a regular file so the bind mount survives.
+    if os.path.islink(target_resolv):
+        os.unlink(target_resolv)
 
     # Ensure the target path exists (touch it if missing; bind mounts need the target to exist)
     os.makedirs(os.path.dirname(target_resolv), exist_ok=True)
@@ -252,6 +266,45 @@ def install_selected_pkgs(list_of_packages: list[str], mount_point: str, conf: A
     print("-" * 40)
     # Install the selected packages
     exec(f"{pith} --base-dir {store}{mirror_flag} install --chroot {mount_point} {pkgs}")
+
+
+def create_base_etc_files(mount_point: str) -> None:
+    """Create minimal /etc/passwd, /etc/group and /etc/shadow.
+
+    The Arch ``filesystem`` package normally provides these files; since it is
+    excluded from the base install, they are created here so that commands such
+    as ``useradd`` and package post-install scripts (e.g. pam, systemd) work
+    inside the chroot.
+
+    Args:
+        mount_point: The mount point of the rootfs being installed.
+    """
+    etc = f"{mount_point}/etc"
+    os.makedirs(etc, exist_ok=True)
+
+    passwd_path = f"{etc}/passwd"
+    if not os.path.isfile(passwd_path):
+        with open(passwd_path, "w") as f:
+            f.write("root:x:0:0:root:/root:/usr/bin/bash\n")
+
+    group_path = f"{etc}/group"
+    if not os.path.isfile(group_path):
+        with open(group_path, "w") as f:
+            f.write("root:x:0:root:\n")
+            f.write("users:x:100:\n")
+            f.write("wheel:x:10:root\n")
+
+    shadow_path = f"{etc}/shadow"
+    if not os.path.isfile(shadow_path):
+        with open(shadow_path, "w") as f:
+            f.write("root::14871::::::\n")
+
+    # systemd and dracut expect a machine-id; a transient empty one suffices at
+    # build time (systemd will generate a real one on first boot).
+    machine_id_path = f"{etc}/machine-id"
+    if not os.path.isfile(machine_id_path):
+        with open(machine_id_path, "w") as f:
+            f.write("00000000000000000000000000000000\n")
 
 
 def write_pith_config(mount_point: str, mirror_url: str | None = None) -> None:
@@ -375,6 +428,31 @@ def setup_linux(kernel_package) -> str:
     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
     exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}", mount_point="/mnt")
     return kver
+
+
+def copy_ucode_to_boot(mount_point: str, package: str = "amd-ucode") -> None:
+    """Copy the CPU microcode image into the boot partition.
+
+    The boot partition is FAT (esp), which does not support symlinks, so the
+    microcode image provided by the ``amd-ucode``/``intel-ucode`` packages must
+    be copied (not symlinked) into ``/boot``. systemd-boot then loads it as an
+    additional ``initrd`` before the kernel initramfs.
+
+    Args:
+        mount_point: The mount point of the rootfs container.
+        package: The microcode package name (``amd-ucode`` or ``intel-ucode``).
+    """
+    pool_root = f"{_store_path(mount_point)}/pool/{package}/current"
+    candidates = glob.glob(f"{pool_root}/boot/*ucode.img")
+    if not candidates:
+        print(f"Microcode image not found for {package} in {pool_root}, skipping")
+        return
+    src = candidates[0]
+    dst_name = os.path.basename(src)
+    # Path as seen from inside the chroot (resolves through the /kod bind mount).
+    chroot_src = src.replace(mount_point, "", 1)
+    exec_chroot(f"cp {chroot_src} /boot/{dst_name}", mount_point=mount_point)
+    print(f"Copied microcode {package} -> /boot/{dst_name}")
 
 
 def get_list_of_dependencies(pkg: str) -> list[str]:

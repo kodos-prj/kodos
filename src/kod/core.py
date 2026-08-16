@@ -353,12 +353,16 @@ def create_boot_entry(
         kver = get_kernel_version(mount_point)
 
     today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
+    microcode_initrd = ""
+    for ucode in ("/boot/amd-ucode.img", "/boot/intel-ucode.img"):
+        if Path(f"{mount_point}{ucode}").exists():
+            microcode_initrd += f"initrd {ucode}\n"
     entry_conf = f"""
 title KodOS
 sort-key kodos
 version Generation {generation} KodOS (build {today} - {kver})
 linux /vmlinuz-{kver}
-initrd /initramfs-linux-{kver}.img
+{microcode_initrd}initrd /initramfs-linux-{kver}.img
 options root={root_device} rw {options}
     """
     entries_path = Path(f"{mount_point}/boot/loader/entries/")
@@ -405,6 +409,11 @@ def setup_bootloader(conf: Any, partition_list: List, dist: Any) -> None:
     if boot_type == "systemd-boot":
         print("==== Setting up systemd-boot ====")
         kver = dist.setup_linux(kernel_package)
+        # The boot partition is FAT (esp); copy the microcode image so
+        # systemd-boot can load it as an early initrd.
+        if hasattr(dist, "copy_ucode_to_boot"):
+            dist.copy_ucode_to_boot(mount_point="/mnt", package="amd-ucode")
+            dist.copy_ucode_to_boot(mount_point="/mnt", package="intel-ucode")
         # if base_distribution == "arch":
         #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
         #     exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
@@ -616,13 +625,18 @@ def create_kod_user(mount_point: str) -> None:
     Create the 'kod' user and give it NOPASSWD access in the sudoers file.
 
     This function creates a user named 'kod' with a home directory in
-    /var/kod/.home and adds it to the wheel group. It also creates a sudoers
-    file for the user which allows it to run any command with NOPASSWD.
+    /var/kod/.home and adds it to the wheel group. The filesystem package is
+    excluded from the base install, so the standard groups it would normally
+    provide (users, wheel, etc.) are created here explicitly before
+    useradd.
 
     Args:
         mount_point (str): The mount point where the installation is being
             performed.
     """
+    exec_chroot("grep -q '^users:' /etc/group 2>/dev/null || groupadd users")
+    exec_chroot("grep -q '^wheel:' /etc/group 2>/dev/null || groupadd wheel")
+    exec_chroot("grep -q '^kod:' /etc/group 2>/dev/null || groupadd kod")
     exec_chroot("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod")
     replace_file_content(f"{mount_point}/etc/sudoers.d/kod", "kod ALL=(ALL) NOPASSWD: ALL")
 
@@ -730,9 +744,11 @@ def proc_desktop(conf: Any) -> Tuple[List[str], List[str]]:
     """
     packages_to_install = []
     packages_to_remove = []
-    desktop = conf.desktop
+    desktop = getattr(conf, "desktop", None)
+    if desktop is None:
+        return packages_to_install, packages_to_remove
 
-    display_manager = desktop.display_manager
+    display_manager = getattr(desktop, "display_manager", None)
     if display_manager:
         print(f"Installing {display_manager}")
         packages_to_install += [display_manager]

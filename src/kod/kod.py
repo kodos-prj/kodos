@@ -100,6 +100,11 @@ def install(config: str | None, mount_point: str) -> None:
 
     configure_system(conf, partition_list=partition_list, mount_point=mount_point)
 
+    # Run post-install scripts for the base packages before generating the
+    # initramfs; dracut needs systemd units, /etc/machine-id etc. to be present.
+    if hasattr(dist, "run_install_scripts"):
+        dist.run_install_scripts(mount_point)
+
     setup_bootloader(conf, partition_list, dist)
 
     create_kod_user(mount_point)
@@ -114,6 +119,7 @@ def install(config: str | None, mount_point: str) -> None:
     dist.install_selected_pkgs(pending_to_install, mount_point, conf)
 
     # === Proc package install scripts (pith-based backend)
+    # Base package scripts already ran before initramfs generation.
     if hasattr(dist, "run_install_scripts"):
         dist.run_install_scripts(mount_point)
 
