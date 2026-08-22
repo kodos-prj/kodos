@@ -874,7 +874,8 @@ def proc_system_packages(conf: Any) -> List[str]:
     """
 
     print("- processing packages -----------")
-    sys_packages = list(conf.packages.values())
+    packages = getattr(conf, "packages", None)
+    sys_packages = list(packages.values()) if packages else []
     return sys_packages
 
 
