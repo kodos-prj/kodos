@@ -35,6 +35,9 @@ def _proc_desktop(conf: Any) -> Tuple[List[str], List[str]]:
     packages_to_remove = []
     desktop = conf.desktop
 
+    if desktop is None:
+        return packages_to_install, packages_to_remove
+
     display_manager = desktop.display_manager
     if display_manager:
         print(f"Installing {display_manager}")
