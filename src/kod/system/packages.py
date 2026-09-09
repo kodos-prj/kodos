@@ -507,8 +507,10 @@ def get_packages_updates(
     packages_to_remove = []
     packages_to_update = []
     hooks_to_run = []
-    current_kernel = current_packages["kernel"]
-    next_kernel = next_packages["kernel"]
+
+    current_kernel = current_packages.get("kernel", "linux")
+    next_kernel = next_packages.get("kernel", "linux")
+
     if dist.kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point):
         packages_to_install += [next_kernel]
         hooks_to_run += [
@@ -516,14 +518,20 @@ def get_packages_updates(
             update_initramfs_hook(next_kernel, mount_point),
         ]
 
-    remove_pkg = (set(current_packages["packages"]) - set(next_packages["packages"])) | set(remove_packages)
+    current_pkgs = current_packages.get("packages", [])
+    next_pkgs = next_packages.get("packages", [])
+
+    remove_pkg = (set(current_pkgs) - set(next_pkgs)) | set(remove_packages)
     packages_to_remove += list(remove_pkg)
 
-    added_pkgs = set(next_packages["packages"]) - set(current_packages["packages"])
+    added_pkgs = set(next_pkgs) - set(current_pkgs)
     packages_to_install += list(added_pkgs)
 
-    update_pkg = set(current_packages) & set(next_packages)
-    packages_to_update += list(update_pkg)
+    # Find packages that exist in both current and next (potential updates)
+    # This is currently an intersection of package names (not dict keys)
+    if current_pkgs and next_pkgs:
+        update_pkg = set(current_pkgs) & set(next_pkgs)
+        packages_to_update += list(update_pkg)
 
     return packages_to_install, packages_to_remove, packages_to_update, hooks_to_run
 
