@@ -603,8 +603,198 @@ Everything is integrated and ready for real installations!
 
 ---
 
+## Programs with Services
+
+KodOS supports a unified model where **programs can include services** as part of their configuration. This eliminates duplication and provides a single source of truth for managing applications that have both configuration and system services.
+
+### Three Patterns
+
+#### Pattern 1: Service-Only (Legacy)
+
+Services configured directly without programs:
+
+```lua
+services = {
+    openssh = {
+        enable = true,
+        service_name = "sshd",
+        settings = {
+            PermitRootLogin = false,
+            PasswordAuthentication = true,
+        }
+    }
+}
+```
+
+**Use when:** Simple services without complex configuration.
+
+#### Pattern 2: Program-Only (Recommended)
+
+Programs that manage their own services internally:
+
+```lua
+programs = {
+    openssh = {
+        enable = true,
+        settings = {
+            PermitRootLogin = false,
+            PasswordAuthentication = true,
+        }
+    }
+}
+```
+
+**Use when:** Programs provide both configuration and service management.
+
+#### Pattern 3: Program + Service Field
+
+Programs that include an optional `service` field to declare their service requirements:
+
+```lua
+programs = {
+    openssh = {
+        enable = true,
+        service = {
+            enable = true,           -- Enable/disable the service
+            service_name = "sshd"    -- systemd service name
+        },
+        settings = {
+            PermitRootLogin = false
+        }
+    }
+}
+```
+
+**Use when:** You need explicit control over service enablement separate from program configuration.
+
+### Real-World Examples
+
+#### Example 1: OpenSSH System-Level Service
+
+Configure OpenSSH as a system service:
+
+```lua
+return {
+    programs = {
+        openssh = {
+            enable = true,
+            service = {
+                enable = true,
+                service_name = "sshd"
+            },
+            settings = {
+                Port = 2222,
+                PermitRootLogin = false,
+                PasswordAuthentication = false,
+                PubkeyAuthentication = true,
+            }
+        }
+    }
+}
+```
+
+Validates with: `kod config validate configuration.lua`
+
+#### Example 2: CUPS Print Server
+
+System-wide print services:
+
+```lua
+return {
+    programs = {
+        cups = {
+            enable = true,
+            service = {
+                enable = true,
+                service_name = "cupsd"
+            },
+            extra_packages = {
+                "gutenprint",
+                "foomatic-db"
+            }
+        }
+    }
+}
+```
+
+#### Example 3: Syncthing with User Services
+
+User-level file synchronization:
+
+```lua
+users = {
+    alice = {
+        programs = {
+            syncthing = {
+                enable = true,
+                service = {
+                    enable = true,
+                    service_name = "syncthing@alice"
+                },
+                listen_address = "127.0.0.1:8384",
+                auto_start = true
+            }
+        }
+    }
+}
+```
+
+### Service Field Reference
+
+When including a `service` field in a program:
+
+```lua
+service = {
+    enable = boolean,              -- Enable/disable the service
+    service_name = string,         -- systemd service name (e.g., "sshd", "cupsd")
+    -- Additional service options may be program-specific
+}
+```
+
+**Important:** The `service` field is optional. Programs can manage services without explicit declaration.
+
+### Benefits of Programs-Only Architecture
+
+| Benefit | Description |
+|---------|-------------|
+| **Single Source of Truth** | Program and its service configured in one place |
+| **Clear Dependencies** | Service requirements are explicit in program definition |
+| **Reduced Duplication** | No need to configure service in separate `services` section |
+| **Better Validation** | KodOS validates program-service relationship at compile time |
+| **Easier Maintenance** | Updates to a program automatically include service changes |
+
+### Migration from Services to Programs
+
+If your existing config uses the legacy `services` section:
+
+```lua
+-- OLD: services section
+services = {
+    openssh = {
+        enable = true,
+        service_name = "sshd"
+    }
+}
+
+-- NEW: programs section with service field
+programs = {
+    openssh = {
+        enable = true,
+        service = {
+            enable = true,
+            service_name = "sshd"
+        }
+    }
+}
+```
+
+See [`docs/MIGRATION_GUIDE.md`](MIGRATION_GUIDE.md) for step-by-step migration instructions.
+
+---
+
 ## Questions or Issues?
 
 - Check program schemas: `kod registry info <program_name>`
 - Validate config first: `kod config validate path/to/configuration.lua`
 - See extending guide for custom programs: `docs/extending.md`
+- See migration guide: `docs/MIGRATION_GUIDE.md`

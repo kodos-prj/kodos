@@ -43,16 +43,102 @@ def _type_ok(value, expected) -> bool:
     return int_keys if expected is list else not int_keys
 
 
-def _validate_programs_section(programs: dict) -> List[ValidationError]:
+def _validate_program_service(program, location: str) -> Optional[ValidationError]:
+    """Validate service configuration for a program at given location.
+    
+    Service validation rules:
+    - Service field only valid at system level (not user.*)
+    - Service requires service_name (non-empty string)
+    - Service requires enable (boolean)
+    - Program scope must be "system" or "both" to have service
+    
+    Args:
+        program: Program object with get_service() method
+        location: "system" or "user.alice" etc.
+        
+    Returns:
+        ValidationError if service is invalid, None if valid
+    """
+    service = program.get_service()
+    if not service:
+        return None  # No service field, that's valid
+    
+    # Service only allowed at system level (not user level)
+    if location.startswith("user."):
+        location_suffix = f"{location}.programs.{program.name}"
+        return ValidationError(
+            f"Service configuration for '{program.name}' not allowed at user level. "
+            f"Remove service field or move to top-level 'programs' section.",
+            location=location_suffix,
+        )
+    
+    # Service only allowed for programs with system/both scope
+    scope = program.get_scope()
+    if scope not in ["system", "both"]:
+        # At system level, just use "programs.{name}"
+        if location == "system":
+            location_suffix = f"programs.{program.name}"
+        else:
+            location_suffix = f"{location}.programs.{program.name}"
+        return ValidationError(
+            f"Program '{program.name}' has service definition but scope='{scope}'. "
+            f"Service only allowed with scope='system' or scope='both'. "
+            f"Either remove service field or change scope.",
+            location=location_suffix,
+        )
+    
+    # Validate required service fields
+    required_fields = ["service_name", "enable"]
+    for field in required_fields:
+        if field not in service:
+            if location == "system":
+                location_suffix = f"programs.{program.name}"
+            else:
+                location_suffix = f"{location}.programs.{program.name}"
+            return ValidationError(
+                f"Program '{program.name}' service missing required field '{field}'.",
+                location=location_suffix,
+            )
+    
+    # service_name must be non-empty string
+    service_name = service.get("service_name")
+    if not isinstance(service_name, str) or not service_name:
+        if location == "system":
+            location_suffix = f"programs.{program.name}.service.service_name"
+        else:
+            location_suffix = f"{location}.programs.{program.name}.service.service_name"
+        return ValidationError(
+            f"Program '{program.name}' service.service_name must be a non-empty string.",
+            location=location_suffix,
+        )
+    
+    # enable must be boolean
+    enable = service.get("enable")
+    if not isinstance(enable, bool):
+        if location == "system":
+            location_suffix = f"programs.{program.name}.service.enable"
+        else:
+            location_suffix = f"{location}.programs.{program.name}.service.enable"
+        return ValidationError(
+            f"Program '{program.name}' service.enable must be boolean.",
+            location=location_suffix,
+        )
+    
+    return None
+
+
+def _validate_programs_section(programs: dict, location: str = "system") -> List[ValidationError]:
     """Validate the 'programs' section in config.
     
     For each program name in the section:
     1. Load the program via PluginLoader
     2. Validate the program options against its schema
-    3. Collect all errors together
+    3. Validate service configuration (if present)
+    4. Collect all errors together
     
     Args:
         programs: The programs dict from config
+        location: "system" or "user.alice" etc. (default: "system")
         
     Returns:
         List of ValidationError objects (may be empty)
@@ -64,6 +150,12 @@ def _validate_programs_section(programs: dict) -> List[ValidationError]:
     from kod.registry.programs import ProgramNotFound, ConfigValidationError, ProgramError
     
     loader = PluginLoader()
+    
+    # Determine location suffix for error messages
+    if location == "system":
+        loc_prefix = "programs"
+    else:
+        loc_prefix = f"{location}.programs"
     
     for program_name, program_options in programs.items():
         try:
@@ -77,9 +169,15 @@ def _validate_programs_section(programs: dict) -> List[ValidationError]:
                 errors.append(
                     ValidationError(
                         str(e),
-                        location=f"programs.{program_name}",
+                        location=f"{loc_prefix}.{program_name}",
                     )
                 )
+            
+            # Validate service configuration (NEW)
+            service_error = _validate_program_service(program, location)
+            if service_error:
+                errors.append(service_error)
+                
         except ProgramNotFound as e:
             # Build helpful error message with available programs
             available = loader.list_programs()
@@ -87,14 +185,14 @@ def _validate_programs_section(programs: dict) -> List[ValidationError]:
             errors.append(
                 ValidationError(
                     f"Unknown program '{program_name}'. Available: {available_str}",
-                    location=f"programs.{program_name}",
+                    location=f"{loc_prefix}.{program_name}",
                 )
             )
         except ProgramError as e:
             errors.append(
                 ValidationError(
                     f"Program '{program_name}': {str(e)}",
-                    location=f"programs.{program_name}",
+                    location=f"{loc_prefix}.{program_name}",
                 )
             )
     

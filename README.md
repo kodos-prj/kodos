@@ -146,6 +146,8 @@ KodOS includes a **Program Registry** system that allows you to define custom pr
 
 Programs can be configured at **system level** (globally) and/or **user level** (per-user), depending on their scope. This enables flexible deployment: shared system defaults with per-user customization.
 
+**New:** Programs can now include **optional service fields** to declare and manage their associated systemd services, providing a unified model where program configuration and service management coexist. This creates a single source of truth for applications.
+
 ### System vs User Level
 
 Each program declares a **scope**:
@@ -157,11 +159,15 @@ Each program declares a **scope**:
 System-level programs provide defaults that user-level programs can override:
 
 ```lua
--- System: default syncthing config
+-- System: default syncthing config with service
 programs = {
     syncthing = {
         auto_start = true,
-        listen_address = "127.0.0.1:8384"
+        listen_address = "127.0.0.1:8384",
+        service = {
+            enable = true,
+            service_name = "syncthing"
+        }
     }
 }
 
@@ -170,22 +176,57 @@ users = {
         programs = {
             -- User: override listen_address, inherit auto_start
             syncthing = {
-                listen_address = "0.0.0.0:8384"  -- Overrides system setting
+                listen_address = "0.0.0.0:8384",  -- Overrides system setting
+                service = {
+                    enable = true,
+                    service_name = "syncthing@alice"  -- User-scoped service
+                }
             }
         }
     }
 }
 ```
 
-See [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md#program-scope-system-vs-user-level) for detailed examples.
+See [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md#program-scope-system-vs-user-level) and [`docs/INSTALLATION_GUIDE.md#programs-with-services`](docs/INSTALLATION_GUIDE.md#programs-with-services) for detailed examples.
+
+### Programs with Services
+
+Programs can now include optional **service fields** to manage their systemd services:
+
+```lua
+programs = {
+    openssh = {
+        enable = true,
+        service = {
+            enable = true,
+            service_name = "sshd"
+        },
+        settings = {
+            PermitRootLogin = false,
+            PasswordAuthentication = false
+        }
+    }
+}
+```
+
+Benefits:
+- **Single source of truth** — Program and its service in one place
+- **Clear dependencies** — Service requirements are explicit
+- **No duplication** — No separate `services` section needed
+- **Better validation** — Program-service relationships validated at compile time
+
+See [`docs/extending.md#service-field-documentation`](docs/extending.md#service-field-documentation) for how to add service support to your programs.
+
+For migration guidance from the legacy services-only approach, see [`docs/MIGRATION_GUIDE.md`](docs/MIGRATION_GUIDE.md).
 
 ### Builtin Programs
 
 KodOS comes with builtin programs for common use cases:
 - **git** - Version control system
 - **neovim** - Text editor
-- **syncthing** - File synchronization
-- **zsh** - Shell configuration
+- **syncthing** - File synchronization (with optional service)
+- **openssh** - SSH server (with service)
+- **cups** - Print server (with service)
 - And more...
 
 ### Creating Custom Programs
@@ -196,14 +237,23 @@ Users can create custom programs by adding Lua files to `~/.kod/plugins/programs
 -- ~/.kod/plugins/programs/my_app.lua
 return {
     name = "my_app",
+    scope = "user",  -- or "system" or "both"
     schema = {
         enable = { type = "boolean", default = false },
         version = { type = "string", default = "latest" },
         config = { type = "table", default = {} },
     },
-    install = function(config)
+    
+    -- Optional: declare service requirements
+    service = {
+        enable = boolean,
+        service_name = string,
+    },
+    
+    install = function(config, exec_fn)
         -- Installation logic here
     end,
+    
     validate = function(config)
         -- Validation logic here
     end,
@@ -225,6 +275,10 @@ programs = {
 For a complete example, see [`docs/examples/custom_program.lua`](docs/examples/custom_program.lua).
 
 For comprehensive guidance on extending KodOS, read [`docs/extending.md`](docs/extending.md).
+
+For system services as programs, see [`docs/examples/system_services_as_programs.lua`](docs/examples/system_services_as_programs.lua).
+
+For service inheritance patterns, see [`docs/examples/service_inheritance.lua`](docs/examples/service_inheritance.lua).
 
 ----
 

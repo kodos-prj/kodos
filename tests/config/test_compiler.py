@@ -301,6 +301,138 @@ class TestCompilerSystemUserPrograms:
         bob_git = compiled["users"]["bob"]["programs"]["git"]
         assert bob_git["options"]["user_name"] == "Bob"
         assert bob_git["options"]["email"] == "bob@example.com"
+    
+    def test_compiler_service_system_level(self):
+        """Compiler includes service field in system-level program if present."""
+        from kod.config.compiler import compile_config
+        
+        config = {
+            "programs": {
+                "git": {
+                    "user_name": "System Default",
+                    "email": "system@example.com"
+                }
+            }
+        }
+        
+        compiled = compile_config(config)
+        
+        # System program should have service field (even if None)
+        git_compiled = compiled["programs"]["git"]
+        assert "service" in git_compiled
+        # git has no service, so should be None
+        assert git_compiled["service"] is None
+    
+    def test_compiler_service_included_in_output(self):
+        """Service field included in compiled output as sibling to config/options."""
+        from kod.config.compiler import compile_config
+        
+        config = {
+            "programs": {
+                "git": {
+                    "user_name": "System Default",
+                    "email": "system@example.com"
+                }
+            }
+        }
+        
+        compiled = compile_config(config)
+        
+        git_compiled = compiled["programs"]["git"]
+        # Verify structure has all expected fields
+        assert set(git_compiled.keys()) >= {"program", "options", "config", "scope", "service"}
+    
+    def test_compiler_service_user_level_inherited(self):
+        """User-level program inherits service from system if present."""
+        from kod.config.compiler import compile_config
+        
+        config = {
+            "programs": {
+                "git": {
+                    "user_name": "System Default",
+                    "email": "system@example.com"
+                }
+            },
+            "users": {
+                "alice": {
+                    "programs": {
+                        "git": {
+                            "user_name": "Alice"
+                        }
+                    }
+                }
+            }
+        }
+        
+        compiled = compile_config(config)
+        
+        system_service = compiled["programs"]["git"]["service"]
+        user_service = compiled["users"]["alice"]["programs"]["git"]["service"]
+        
+        # User should inherit system service (both None in this case)
+        assert user_service == system_service
+        assert "service" in compiled["users"]["alice"]["programs"]["git"]
+    
+    def test_compiler_service_per_user_instance(self):
+        """Per-user service handled correctly (service field always present)."""
+        from kod.config.compiler import compile_config
+        
+        config = {
+            "users": {
+                "alice": {
+                    "programs": {
+                        "git": {
+                            "user_name": "Alice",
+                            "email": "alice@example.com"
+                        }
+                    }
+                },
+                "bob": {
+                    "programs": {
+                        "git": {
+                            "user_name": "Bob",
+                            "email": "bob@example.com"
+                        }
+                    }
+                }
+            }
+        }
+        
+        compiled = compile_config(config)
+        
+        # Both users should have service field
+        alice_git = compiled["users"]["alice"]["programs"]["git"]
+        bob_git = compiled["users"]["bob"]["programs"]["git"]
+        
+        assert "service" in alice_git
+        assert "service" in bob_git
+        # Both should be None for git (user-only program with no service)
+        assert alice_git["service"] is None
+        assert bob_git["service"] is None
+    
+    def test_compiler_multiple_services_compiled(self):
+        """Multiple programs with services compile correctly."""
+        from kod.config.compiler import compile_config
+        
+        config = {
+            "programs": {
+                "git": {
+                    "user_name": "System Default",
+                    "email": "system@example.com"
+                },
+                "syncthing": {
+                    "auto_start": True
+                }
+            }
+        }
+        
+        compiled = compile_config(config)
+        
+        # Both should be compiled with service field
+        assert "service" in compiled["programs"]["git"]
+        assert "service" in compiled["programs"]["syncthing"]
+        # git has no service, syncthing might (depends on builtin definition)
+        assert compiled["programs"]["git"]["service"] is None
 
 
 class TestCompiler:

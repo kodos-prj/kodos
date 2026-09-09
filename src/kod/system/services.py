@@ -4,7 +4,7 @@ Handles systemd service enablement, user services, and service configuration.
 Implementations moved from kod.core into this module during Phase 2b.
 """
 
-from typing import Any, List
+from typing import Any, List, Dict, Optional
 
 from kod.common import exec, exec_chroot
 
@@ -212,3 +212,47 @@ def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
             print("Running: ", f"systemctl --user enable --now {service}")
             ctx.execute(f"systemctl --user enable --now {service}")
         print("Done - services enabled")
+
+
+def enable_services_from_programs(
+    compiled: Dict[str, Any],
+    mount_point: str = "/mnt",
+    use_chroot: bool = False
+) -> None:
+    """Enable services from compiled program definitions.
+    
+    Extracts services that have enable=true from the compiled programs section
+    and enables them via systemctl. This is called during installation after
+    packages are installed.
+    
+    Args:
+        compiled: Compiled config with programs section
+        mount_point: Path for chroot operations (default: "/mnt")
+        use_chroot: Whether to use chroot for service enablement (default: False)
+    
+    Example:
+        >>> compiled = {
+        ...     "programs": {
+        ...         "openssh": {
+        ...             "service": {"enable": True, "service_name": "sshd"}
+        ...         }
+        ...     }
+        ... }
+        >>> enable_services_from_programs(compiled)
+    """
+    if "programs" not in compiled:
+        return
+    
+    services_to_enable = []
+    
+    for program_name, program_data in compiled["programs"].items():
+        service = program_data.get("service")
+        if service and service.get("enable"):
+            service_name = service.get("service_name")
+            if service_name:
+                services_to_enable.append(service_name)
+    
+    # Use existing enable_services() function
+    if services_to_enable:
+        enable_services(services_to_enable, mount_point=mount_point, use_chroot=use_chroot)
+

@@ -564,9 +564,313 @@ KodOS automatically discovers and loads plugins from the following locations:
 4. Invalid plugins generate warnings but don't block initialization
 5. Name conflicts (plugin vs. builtin) favor builtins (override-safe)
 
-## Best Practices
+## Service Field Documentation
 
-### 1. Error Handling
+Programs can optionally include a `service` field to declare system service requirements. This provides a unified interface where program configuration and service management coexist.
+
+### When to Include the Service Field
+
+Include a `service` field when:
+- Your program manages a system or user service
+- The service should be enabled/disabled alongside the program
+- You want to declare the `service_name` (systemd service identifier)
+- Service configuration is tightly coupled with program configuration
+
+Do **not** include a service field when:
+- The program has no associated service
+- Service is managed separately (legacy approach)
+- Program is purely configuration-based (git, neovim)
+
+### Service Field Structure
+
+```lua
+return {
+    name = "myapp",
+    scope = "both",  -- System and/or user level
+    schema = {
+        enable = { type = "boolean", default = false },
+        -- ... other config fields ...
+    },
+    
+    -- Optional service field
+    service = {
+        enable = boolean,              -- Enable/disable service
+        service_name = string,         -- systemd service name
+        -- Additional service-specific options (program-dependent)
+    },
+    
+    install = function(config, exec_fn)
+        -- Installation logic
+        -- Service is managed automatically based on config.service.enable
+    end
+}
+```
+
+### Service Field Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enable` | boolean | Yes | Enable/disable the service |
+| `service_name` | string | Yes | systemd service name (e.g., `sshd`, `cupsd`, `syncthing@user`) |
+
+### Example: Program with Service
+
+#### OpenSSH Program
+
+```lua
+return {
+    name = "openssh",
+    scope = "system",  -- System-wide service
+    description = "OpenSSH - Secure Shell Server",
+    
+    schema = {
+        enable = {
+            type = "boolean",
+            default = false,
+            description = "Enable OpenSSH server"
+        },
+        settings = {
+            type = "table",
+            default = {},
+            description = "SSH configuration options"
+        },
+    },
+    
+    install = function(config, exec_fn)
+        if not config.enable then
+            return
+        end
+        
+        exec_fn("pacman -S --noconfirm openssh")
+        
+        -- Service is enabled/started automatically if config.service.enable = true
+        if config.service and config.service.enable then
+            exec_fn("systemctl enable " .. config.service.service_name)
+            exec_fn("systemctl start " .. config.service.service_name)
+        end
+    end,
+    
+    validate = function(config)
+        if config.enable and config.service then
+            if not config.service.service_name then
+                return false, "service.service_name is required when service is enabled"
+            end
+        end
+        return true
+    end
+}
+```
+
+**Usage:**
+
+```lua
+programs = {
+    openssh = {
+        enable = true,
+        service = {
+            enable = true,
+            service_name = "sshd"
+        },
+        settings = {
+            Port = 22,
+            PermitRootLogin = false,
+        }
+    }
+}
+```
+
+#### CUPS Print Server
+
+```lua
+return {
+    name = "cups",
+    scope = "system",
+    description = "CUPS - Common Unix Printing System",
+    
+    schema = {
+        enable = {
+            type = "boolean",
+            default = false
+        },
+        extra_packages = {
+            type = "array",
+            default = {}
+        },
+    },
+    
+    install = function(config, exec_fn)
+        if not config.enable then
+            return
+        end
+        
+        exec_fn("pacman -S --noconfirm cups")
+        
+        if config.extra_packages then
+            for _, pkg in ipairs(config.extra_packages) do
+                exec_fn("pacman -S --noconfirm " .. pkg)
+            end
+        end
+        
+        if config.service and config.service.enable then
+            exec_fn("systemctl enable " .. config.service.service_name)
+            exec_fn("systemctl start " .. config.service.service_name)
+        end
+    end
+}
+```
+
+**Usage:**
+
+```lua
+programs = {
+    cups = {
+        enable = true,
+        service = {
+            enable = true,
+            service_name = "cupsd"
+        },
+        extra_packages = {
+            "gutenprint",
+            "foomatic-db"
+        }
+    }
+}
+```
+
+#### Syncthing with User Services
+
+```lua
+return {
+    name = "syncthing",
+    scope = "both",  -- Works at system and user level
+    description = "Syncthing - Decentralized file synchronization",
+    
+    schema = {
+        enable = {
+            type = "boolean",
+            default = false
+        },
+        listen_address = {
+            type = "string",
+            default = "127.0.0.1:8384"
+        },
+    },
+    
+    install = function(config, exec_fn)
+        if not config.enable then
+            return
+        end
+        
+        exec_fn("pacman -S --noconfirm syncthing")
+        
+        -- For user-level, service name might be syncthing@username
+        if config.service and config.service.enable then
+            exec_fn("systemctl --user enable " .. config.service.service_name)
+            exec_fn("systemctl --user start " .. config.service.service_name)
+        end
+    end
+}
+```
+
+**System-level usage:**
+
+```lua
+programs = {
+    syncthing = {
+        enable = true,
+        service = {
+            enable = true,
+            service_name = "syncthing"
+        },
+        listen_address = "0.0.0.0:8384"
+    }
+}
+```
+
+**User-level usage:**
+
+```lua
+users = {
+    alice = {
+        programs = {
+            syncthing = {
+                enable = true,
+                service = {
+                    enable = true,
+                    service_name = "syncthing@alice"
+                },
+                listen_address = "127.0.0.1:8384"
+            }
+        }
+    }
+}
+```
+
+### Example: Program without Service
+
+Programs that don't manage services omit the `service` field:
+
+```lua
+return {
+    name = "git",
+    scope = "user",
+    description = "Git - Version control system",
+    
+    schema = {
+        enable = { type = "boolean", default = false },
+        user_name = { type = "string" },
+        email = { type = "string" },
+    },
+    
+    install = function(config, exec_fn)
+        if not config.enable then
+            return
+        end
+        
+        -- Git is just configuration, no service involved
+        exec_fn("git config --global user.name '" .. config.user_name .. "'")
+        exec_fn("git config --global user.email '" .. config.email .. "'")
+    end
+}
+```
+
+**Usage:**
+
+```lua
+users = {
+    alice = {
+        programs = {
+            git = {
+                enable = true,
+                user_name = "Alice Developer",
+                email = "alice@example.com"
+                -- No service field needed
+            }
+        }
+    }
+}
+```
+
+### Validation Behavior
+
+KodOS validates the `service` field:
+
+1. **If program has no `service` field:** Service configuration is not required
+2. **If program has `service` field:** All required fields must be present
+3. **Scope compatibility:** User-level programs should use user services (e.g., `syncthing@username`)
+4. **Service name validation:** Must be a valid systemd service name
+
+### Benefits of Service Field
+
+| Benefit | Description |
+|---------|-------------|
+| **Explicit Declaration** | Service requirements are clear in the program definition |
+| **Validation** | KodOS ensures service_name is provided when needed |
+| **Single Source** | Program and service config in one place |
+| **Automatic Enablement** | Service is managed consistently with program |
+| **Clear Dependencies** | Users understand what services a program requires |
+
+---
 
 Always validate inputs and handle errors gracefully:
 
@@ -706,12 +1010,16 @@ return {
 ## Examples
 
 For complete working examples, see:
-- [`docs/examples/custom_program.lua`](examples/custom_program.lua) - Simple program definition
+- [`docs/examples/custom_program.lua`](examples/custom_program.lua) - Simple program definition with optional service field
+- [`docs/examples/system_services_as_programs.lua`](examples/system_services_as_programs.lua) - System-level services as programs
+- [`docs/examples/service_inheritance.lua`](examples/service_inheritance.lua) - Service inheritance patterns (system + user level)
 - [`example/testvm/configuration.lua`](../example/testvm/configuration.lua) - Configuration using builtin and custom programs
 - [`src/kod/registry/programs.py`](../src/kod/registry/programs.py) - Builtin program definitions (reference)
 
 ## See Also
 
+- [Installation Guide](INSTALLATION_GUIDE.md) - How to use programs in your configuration
+- [Migration Guide](MIGRATION_GUIDE.md) - Migrating from services to programs-only architecture
 - [KodOS Architecture Overview](../ARCHITECTURE_OVERVIEW.txt)
 - [Program Registry Design](phase3-plugins.md)
 - [Configuration System Documentation](cli-architecture.md)

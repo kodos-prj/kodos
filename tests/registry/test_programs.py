@@ -732,3 +732,406 @@ def test_program_get_program_info_scope_both():
     info = registry.get_program_info("syncthing")
     
     assert info["scope"] == "both"
+
+
+# ===== Test Service Field =====
+
+
+def test_program_service_extract_openssh():
+    """Program should extract service field for openssh (scope=system)."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "sshd",
+            "socket_activation": False,
+            "restart_policy": "always",
+        }
+    }
+    prog = Program("openssh", lua_def)
+    
+    service = prog.get_service()
+    
+    assert service is not None
+    assert service["service_name"] == "sshd"
+    assert service["enable"] is True
+
+
+def test_program_service_extract_syncthing():
+    """Program should extract service field for syncthing (scope=both)."""
+    lua_def = {
+        "name": "syncthing",
+        "scope": "both",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "syncthing",
+            "socket_activation": True,
+            "user_service": True,
+            "restart_policy": "always",
+        }
+    }
+    prog = Program("syncthing", lua_def)
+    
+    service = prog.get_service()
+    
+    assert service is not None
+    assert service["service_name"] == "syncthing"
+    assert service["socket_activation"] is True
+    assert service["user_service"] is True
+
+
+def test_program_service_no_service_git():
+    """Program without service field should return None from get_service()."""
+    lua_def = {
+        "name": "git",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("git", lua_def)
+    
+    service = prog.get_service()
+    
+    assert service is None
+
+
+def test_program_service_no_service_neovim():
+    """Program without service field should return None from get_service()."""
+    lua_def = {
+        "name": "neovim",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("neovim", lua_def)
+    
+    service = prog.get_service()
+    
+    assert service is None
+
+
+def test_program_service_user_scope_invalid():
+    """Program with service + scope='user' should raise SchemaError."""
+    lua_def = {
+        "name": "git",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "git",
+        }
+    }
+    
+    with pytest.raises(SchemaError, match="Service not allowed with scope='user'"):
+        Program("git", lua_def)
+
+
+def test_program_service_missing_service_name():
+    """Program with service missing service_name should raise SchemaError."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            # Missing service_name
+        }
+    }
+    
+    with pytest.raises(SchemaError, match="service_name"):
+        Program("openssh", lua_def)
+
+
+def test_program_service_missing_enable():
+    """Program with service missing enable should raise SchemaError."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "service_name": "sshd",
+            # Missing enable
+        }
+    }
+    
+    with pytest.raises(SchemaError, match="enable"):
+        Program("openssh", lua_def)
+
+
+def test_program_service_empty_service_name():
+    """Program with empty service_name should raise SchemaError."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "",  # Empty string
+        }
+    }
+    
+    with pytest.raises(SchemaError, match="service_name"):
+        Program("openssh", lua_def)
+
+
+def test_program_service_defaults_filled_in():
+    """Program service should have defaults filled in for optional fields."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "sshd",
+            # No optional fields - should get defaults
+        }
+    }
+    prog = Program("openssh", lua_def)
+    
+    service = prog.get_service()
+    
+    assert service["socket_activation"] is False
+    assert service["user_service"] is False
+    assert service["restart_policy"] == "always"
+    assert service["per_user"] is False
+    assert service.get("after") is None or service.get("after") == []
+    assert service.get("wanted_by") is None or service.get("wanted_by") == []
+
+
+def test_program_service_get_program_info_includes_service():
+    """Program.get_program_info() should include service field."""
+    lua_def = {
+        "name": "openssh",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+        "service": {
+            "enable": True,
+            "service_name": "sshd",
+        }
+    }
+    prog = Program("openssh", lua_def)
+    
+    registry = ProgramRegistry()
+    registry._builtin_cache["openssh"] = prog
+    
+    info = registry.get_program_info("openssh")
+    
+    assert "service" in info
+    assert info["service"] is not None
+    assert info["service"]["service_name"] == "sshd"
+
+
+def test_program_service_get_program_info_no_service():
+    """Program.get_program_info() should include service=None when no service."""
+    lua_def = {
+        "name": "git",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("git", lua_def)
+    
+    registry = ProgramRegistry()
+    registry._user_cache["git"] = prog
+    
+    info = registry.get_program_info("git")
+    
+    assert "service" in info
+    assert info["service"] is None
+
+
+# ===== Test Builtin Service Programs (Task 5) =====
+
+# Import PluginLoader for loading builtin programs
+from kod.registry.loader import PluginLoader
+
+
+def test_builtin_openssh_loads():
+    """openssh.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("openssh")
+    
+    assert prog is not None
+    assert prog.name == "openssh"
+
+
+def test_builtin_openssh_has_service():
+    """openssh.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("openssh")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "sshd"
+    assert service["enable"] is True
+
+
+def test_builtin_openssh_scope_system():
+    """openssh.lua should have scope='system'."""
+    loader = PluginLoader()
+    prog = loader.load_program("openssh")
+    
+    assert prog.scope == "system"
+
+
+def test_builtin_syncthing_loads():
+    """syncthing.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("syncthing")
+    
+    assert prog is not None
+    assert prog.name == "syncthing"
+
+
+def test_builtin_syncthing_has_service():
+    """syncthing.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("syncthing")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "syncthing"
+    assert service["socket_activation"] is True
+    assert service["user_service"] is True
+
+
+def test_builtin_syncthing_scope_both():
+    """syncthing.lua should have scope='both'."""
+    loader = PluginLoader()
+    prog = loader.load_program("syncthing")
+    
+    assert prog.scope == "both"
+
+
+def test_builtin_networkmanager_loads():
+    """networkmanager.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("networkmanager")
+    
+    assert prog is not None
+    assert prog.name == "networkmanager"
+
+
+def test_builtin_networkmanager_has_service():
+    """networkmanager.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("networkmanager")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "NetworkManager"
+    assert service["enable"] is True
+
+
+def test_builtin_networkmanager_scope_system():
+    """networkmanager.lua should have scope='system'."""
+    loader = PluginLoader()
+    prog = loader.load_program("networkmanager")
+    
+    assert prog.scope == "system"
+
+
+def test_builtin_cups_loads():
+    """cups.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("cups")
+    
+    assert prog is not None
+    assert prog.name == "cups"
+
+
+def test_builtin_cups_has_service():
+    """cups.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("cups")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "cupsd"
+    assert service["enable"] is True
+
+
+def test_builtin_cups_scope_system():
+    """cups.lua should have scope='system'."""
+    loader = PluginLoader()
+    prog = loader.load_program("cups")
+    
+    assert prog.scope == "system"
+
+
+def test_builtin_bluetooth_loads():
+    """bluetooth.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("bluetooth")
+    
+    assert prog is not None
+    assert prog.name == "bluetooth"
+
+
+def test_builtin_bluetooth_has_service():
+    """bluetooth.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("bluetooth")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "bluetooth"
+    assert service["enable"] is True
+
+
+def test_builtin_bluetooth_scope_system():
+    """bluetooth.lua should have scope='system'."""
+    loader = PluginLoader()
+    prog = loader.load_program("bluetooth")
+    
+    assert prog.scope == "system"
+
+
+def test_builtin_fwupd_loads():
+    """fwupd.lua should load without error."""
+    loader = PluginLoader()
+    prog = loader.load_program("fwupd")
+    
+    assert prog is not None
+    assert prog.name == "fwupd"
+
+
+def test_builtin_fwupd_has_service():
+    """fwupd.lua should have service field."""
+    loader = PluginLoader()
+    prog = loader.load_program("fwupd")
+    
+    service = prog.get_service()
+    assert service is not None
+    assert service["service_name"] == "fwupd"
+    assert service["enable"] is True
+
+
+def test_builtin_fwupd_scope_system():
+    """fwupd.lua should have scope='system'."""
+    loader = PluginLoader()
+    prog = loader.load_program("fwupd")
+    
+    assert prog.scope == "system"

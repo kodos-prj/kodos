@@ -76,6 +76,14 @@ return {
         },
     },
     
+    -- Optional: Service field
+    -- When present, declares that this program has an associated service
+    -- This is optional - programs can exist without services
+    service = {
+        enable = "boolean",           -- Enable/disable the service
+        service_name = "string",      -- systemd service name (e.g., "redis", "redis@username")
+    },
+    
     -- Installation function
     -- Called with validated configuration and execution function
     install = function(config, exec_fn)
@@ -134,9 +142,11 @@ return {
         exec_fn("chown redis:redis " .. redis_conf)
         exec_fn("chmod 640 " .. redis_conf)
         
-        -- Enable and start the service
-        exec_fn("systemctl enable redis")
-        exec_fn("systemctl restart redis")
+        -- Manage service if config.service is present
+        if config.service and config.service.enable then
+            exec_fn("systemctl enable " .. config.service.service_name)
+            exec_fn("systemctl restart " .. config.service.service_name)
+        end
         
         -- Verify installation
         exec_fn("systemctl status redis")
@@ -148,6 +158,13 @@ return {
         -- Only validate if enabled
         if not config.enable then
             return true
+        end
+        
+        -- Validate service field if present
+        if config.service and config.service.enable then
+            if not config.service.service_name then
+                return false, "service.service_name is required when service is enabled"
+            end
         end
         
         -- Validate port number
@@ -215,7 +232,8 @@ return {
 -- Usage Example in KodOS Configuration
 -- ============================================================================
 --
--- In your ~/.kod/configuration.lua or similar:
+-- Example 1: Basic Redis without service management
+-- ============================================================================
 --
 -- return {
 --     users = {
@@ -240,7 +258,51 @@ return {
 --     }
 -- }
 --
--- Command to verify: redis-cli ping
--- Should return: PONG
+-- ============================================================================
+-- Example 2: Redis with service management (optional)
+-- ============================================================================
+--
+-- return {
+--     users = {
+--         myuser = {
+--             programs = {
+--                 redis = {
+--                     enable = true,
+--                     version = "latest",
+--                     port = 6379,
+--                     bind_address = "127.0.0.1",
+--                     max_memory = "256mb",
+--                     eviction_policy = "allkeys-lru",
+--                     persistence = {
+--                         enabled = true
+--                     },
+--                     extra_packages = {
+--                         "redis-cli",
+--                     },
+--                     
+--                     -- Optional: declare service configuration
+--                     service = {
+--                         enable = true,
+--                         service_name = "redis"  -- systemd service name
+--                     }
+--                 }
+--             }
+--         }
+--     }
+-- }
+--
+-- ============================================================================
+-- Verification
+-- ============================================================================
+--
+-- After installation, verify Redis is running:
+--   redis-cli ping
+--   # Should return: PONG
+--
+-- Check service status:
+--   systemctl status redis
+--
+-- View logs:
+--   journalctl -u redis -n 50
 --
 -- ============================================================================

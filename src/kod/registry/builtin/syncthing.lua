@@ -1,6 +1,17 @@
 return {
     name = "syncthing",
     scope = "both",  -- Can be system-level (global service) or user-level (per-user sync)
+    package = "syncthing",
+    
+    service = {
+        enable = true,
+        service_name = "syncthing",
+        socket_activation = true,
+        user_service = true,
+        restart_policy = "always",
+        after = {"network.target"},
+        wanted_by = {"multi-user.target"}
+    },
     
     schema = {
         auto_start = {

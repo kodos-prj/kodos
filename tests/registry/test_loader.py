@@ -319,8 +319,9 @@ def test_loader_list_programs_empty():
         loader = PluginLoader(config_home=tmpdir)
         result = loader.list_programs()
         
-        # Should include the three builtin programs (no user plugins in tmpdir)
-        assert set(result) == {"git", "neovim", "syncthing"}
+        # Should include all builtin programs (no user plugins in tmpdir)
+        # Builtins: git, neovim, syncthing, openssh, networkmanager, cups, bluetooth, fwupd
+        assert set(result) == {"git", "neovim", "syncthing", "openssh", "networkmanager", "cups", "bluetooth", "fwupd"}
 
 
 def test_loader_list_programs_mixed():

@@ -69,8 +69,24 @@ class Program:
     - Schema: JSON schema describing valid config options
     - Default config: template values
     - generate_config(): function to generate shell commands from user options
+    - Optional service: systemd service definition (only for system/both scope)
     - Optional hooks: validate, post_install, pre_uninstall
     - Optional inheritance: extends another program via _extends field
+    
+    Service Field (optional):
+    - service_name (required): name of systemd service
+    - enable (required): boolean to enable service
+    - socket_activation (optional, default false): use socket activation
+    - user_service (optional, default false): service can run per-user
+    - restart_policy (optional, default "always"): systemd restart policy
+    - after (optional): list of services to start after
+    - wanted_by (optional): list of systemd targets
+    - per_user (optional, default false): each user gets own service instance
+    
+    Service scope compatibility:
+    - scope="user": service NOT allowed (user programs don't have services)
+    - scope="system": service optional
+    - scope="both": service optional (can have per-user service)
     """
 
     def __init__(self, name: str, lua_def: Dict[str, Any], parent: Optional["Program"] = None):
@@ -83,7 +99,7 @@ class Program:
             
         Raises:
             ProgramLoadError: If lua_def missing required fields
-            SchemaError: If scope field is invalid
+            SchemaError: If scope field is invalid or service field invalid
         """
         self.name = name
         self.lua_def = lua_def
@@ -111,6 +127,9 @@ class Program:
             )
         self.scope = scope
         
+        # Extract and validate service field (NEW)
+        self.service = self._extract_service(lua_def)
+        
         # Store Lua methods
         self._lua_generate_config = lua_def.get("generate_config")
         self._lua_validate = lua_def.get("validate")
@@ -124,6 +143,80 @@ class Program:
             One of "system", "user", or "both"
         """
         return self.scope
+    
+    def get_service(self) -> Optional[Dict[str, Any]]:
+        """Return service definition if present.
+        
+        Service field is optional and only valid when:
+        - scope is "system" or "both"
+        - service_name and enable are specified
+        
+        Returns:
+            Service dict or None if not present
+        """
+        return self.service
+    
+    def _extract_service(self, lua_def: Dict[str, Any], scope: str) -> Optional[Dict[str, Any]]:
+        """Extract and validate service field from Lua definition.
+        
+        Service field rules:
+        - Only allowed if scope is "system" or "both"
+        - Must contain service_name (non-empty string)
+        - Must contain enable (boolean)
+        - Other fields are optional: socket_activation, user_service, restart_policy, etc.
+        
+        Args:
+            lua_def: Lua definition dict
+            scope: Program scope ("system", "user", or "both")
+            
+        Returns:
+            Service dict or None
+            
+        Raises:
+            SchemaError: If service field is invalid
+        """
+        service_def = lua_def.get("service")
+        if not service_def:
+            return None
+        
+        # Service not allowed with user-only scope
+        if scope == "user":
+            raise SchemaError(
+                f"Program '{lua_def.get('name', 'unknown')}' has service definition "
+                f"but scope='user'. Service only allowed with scope='system' or 'both'."
+            )
+        
+        # Convert lupa table to dict if needed
+        service_dict = self._lua_to_dict(service_def) if not isinstance(service_def, dict) else service_def
+        
+        # Validate required fields
+        if "service_name" not in service_dict:
+            raise SchemaError(
+                f"Program '{lua_def.get('name', 'unknown')}' service missing 'service_name' field"
+            )
+        
+        if "enable" not in service_dict:
+            raise SchemaError(
+                f"Program '{lua_def.get('name', 'unknown')}' service missing 'enable' field"
+            )
+        
+        # Validate service_name is non-empty string
+        service_name = service_dict.get("service_name")
+        if not isinstance(service_name, str) or not service_name:
+            raise SchemaError(
+                f"Program '{lua_def.get('name', 'unknown')}' service.service_name "
+                f"must be non-empty string, got {type(service_name).__name__}"
+            )
+        
+        # Validate enable is boolean
+        enable = service_dict.get("enable")
+        if not isinstance(enable, bool):
+            raise SchemaError(
+                f"Program '{lua_def.get('name', 'unknown')}' service.enable "
+                f"must be boolean, got {type(enable).__name__}"
+            )
+        
+        return service_dict
 
     def get_schema(self) -> Dict[str, Any]:
         """Return merged JSON schema (builtin + user extensions).
@@ -398,6 +491,105 @@ class Program:
         """
         return self.get_schema()
 
+    def _extract_service(self, lua_def: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract and validate service definition from Lua definition.
+        
+        Service field is optional. If present, validates:
+        - service_name: required, non-empty string
+        - enable: required, boolean
+        - socket_activation: optional boolean (default false)
+        - user_service: optional boolean (default false)
+        - restart_policy: optional string (default "always")
+        - after: optional list of strings
+        - wanted_by: optional list of strings
+        - per_user: optional boolean (default false)
+        
+        Scope compatibility:
+        - scope="user": service NOT allowed
+        - scope="system": service optional
+        - scope="both": service optional
+        
+        Args:
+            lua_def: Lua definition dict
+            
+        Returns:
+            Service dict with defaults filled in, or None if no service
+            
+        Raises:
+            SchemaError: If service definition is invalid
+        """
+        service = lua_def.get("service")
+        
+        # No service field - that's valid
+        if service is None:
+            return None
+        
+        # Service not allowed with user-only scope
+        if self.scope == "user":
+            raise SchemaError(
+                f"Service not allowed with scope='user'. "
+                f"Services can only be defined for scope='system' or scope='both'."
+            )
+        
+        # Convert Lua table to dict if needed
+        service = Program._lua_to_dict(service)
+        
+        # Validate service dict
+        if not isinstance(service, dict):
+            raise SchemaError(
+                f"Program '{self.name}' service must be a dict"
+            )
+        
+        # Required fields
+        if "service_name" not in service:
+            raise SchemaError(
+                f"Program '{self.name}' service missing required field 'service_name'"
+            )
+        
+        service_name = service.get("service_name")
+        if not service_name or not isinstance(service_name, str):
+            raise SchemaError(
+                f"Program '{self.name}' service_name must be a non-empty string, got {repr(service_name)}"
+            )
+        
+        if "enable" not in service:
+            raise SchemaError(
+                f"Program '{self.name}' service missing required field 'enable'"
+            )
+        
+        enable = service.get("enable")
+        if not isinstance(enable, bool):
+            raise SchemaError(
+                f"Program '{self.name}' service.enable must be boolean, got {type(enable).__name__}"
+            )
+        
+        # Build service dict with defaults
+        extracted_service = {
+            "enable": enable,
+            "service_name": service_name,
+            "socket_activation": service.get("socket_activation", False),
+            "user_service": service.get("user_service", False),
+            "restart_policy": service.get("restart_policy", "always"),
+            "per_user": service.get("per_user", False),
+        }
+        
+        # Optional list fields
+        if "after" in service:
+            extracted_service["after"] = service.get("after")
+        
+        if "wanted_by" in service:
+            extracted_service["wanted_by"] = service.get("wanted_by")
+        
+        return extracted_service
+
+    def get_service(self) -> Optional[Dict[str, Any]]:
+        """Get service definition for this program.
+        
+        Returns:
+            Service dict if program has a service, None otherwise
+        """
+        return self.service
+
 
 # ===== ProgramRegistry Class =====
 
@@ -535,6 +727,7 @@ class ProgramRegistry:
             - source: "builtin" | "user" | "merged"
             - schema: program schema dict
             - default_config: default config dict
+            - service: service definition dict or None
             - extends: parent program name if inherited, else None
             
         Raises:
@@ -556,5 +749,6 @@ class ProgramRegistry:
             "source": source,
             "schema": program.get_schema(),
             "default_config": program.lua_def.get("default_config", {}),
+            "service": program.get_service(),
             "extends": program.lua_def.get("_extends") if program.parent else None,
         }

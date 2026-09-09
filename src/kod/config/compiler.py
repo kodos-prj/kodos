@@ -177,12 +177,16 @@ def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
             # Generate config from options
             generated_config = program.generate_config(program_options)
             
+            # Extract service definition (if present)
+            service = program.get_service()
+            
             # Store in compiled format
             system_programs[program_name] = {
                 "program": program,
                 "options": program_options,
                 "config": generated_config,
-                "scope": "system"
+                "scope": "system",
+                "service": service
             }
     
     # Replace programs section with compiled version
@@ -201,15 +205,22 @@ def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
                     # Check if same program exists at system level
                     merged_options = program_options
                     overrides_system = False
+                    inherited_service = None
                     
                     if program_name in system_programs:
                         # Merge: user options override system options
                         base_options = system_programs[program_name]["options"]
                         merged_options = {**base_options, **program_options}
                         overrides_system = True
+                        # Inherit service from system (user cannot override service)
+                        inherited_service = system_programs[program_name].get("service")
                     
                     # Generate config from merged options
                     generated_config = program.generate_config(merged_options)
+                    
+                    # For user-level programs, use inherited service from system if available,
+                    # otherwise use program's own service (though user-scope programs shouldn't have one)
+                    service = inherited_service if inherited_service is not None else program.get_service()
                     
                     # Store in compiled format
                     user_programs[program_name] = {
@@ -217,7 +228,8 @@ def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
                         "options": merged_options,
                         "config": generated_config,
                         "scope": "user",
-                        "overrides_system": overrides_system
+                        "overrides_system": overrides_system,
+                        "service": service
                     }
                 
                 # Replace user's programs section with compiled version
