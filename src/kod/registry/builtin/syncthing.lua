@@ -1,0 +1,31 @@
+return {
+    name = "syncthing",
+    
+    schema = {
+        auto_start = {
+            type = "boolean",
+            default = true,
+            description = "Auto-start syncthing service"
+        },
+        listen_address = {
+            type = "string",
+            default = "127.0.0.1:8384",
+            description = "Listen address"
+        }
+    },
+    
+    default_config = {
+        auto_start = true,
+        listen_address = "127.0.0.1:8384"
+    },
+    
+    generate_config = function(self, options)
+        local config = "systemctl enable syncthing"
+        
+        if options.auto_start then
+            config = config .. "\nsystemctl start syncthing"
+        end
+        
+        return config
+    end
+}

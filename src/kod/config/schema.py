@@ -16,4 +16,5 @@ SCHEMA = {
     "fonts": dict,
     "packages": list,
     "services": dict,
+    "programs": dict,  # Phase 3: Program registry section (optional)
 }

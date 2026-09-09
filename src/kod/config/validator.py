@@ -1,7 +1,12 @@
-"""Configuration validation (Phase 1).
+"""Configuration validation (Phase 1 + Phase 3).
 
 Validates a loaded Kodos configuration against the schema.
 Returns a list of ValidationError objects; empty list means valid.
+
+Phase 3 additions:
+- Validates 'programs' section if present
+- Loads each program and validates its options
+- Collects all errors before reporting
 """
 
 from difflib import get_close_matches
@@ -38,6 +43,65 @@ def _type_ok(value, expected) -> bool:
     return int_keys if expected is list else not int_keys
 
 
+def _validate_programs_section(programs: dict) -> List[ValidationError]:
+    """Validate the 'programs' section in config.
+    
+    For each program name in the section:
+    1. Load the program via PluginLoader
+    2. Validate the program options against its schema
+    3. Collect all errors together
+    
+    Args:
+        programs: The programs dict from config
+        
+    Returns:
+        List of ValidationError objects (may be empty)
+    """
+    errors: List[ValidationError] = []
+    
+    # Import here to avoid circular imports
+    from kod.registry.loader import PluginLoader
+    from kod.registry.programs import ProgramNotFound, ConfigValidationError, ProgramError
+    
+    loader = PluginLoader()
+    
+    for program_name, program_options in programs.items():
+        try:
+            # Try to load the program
+            program = loader.load_program(program_name)
+            
+            # Validate program options against its schema
+            try:
+                program.validate_config(program_options)
+            except ConfigValidationError as e:
+                errors.append(
+                    ValidationError(
+                        str(e),
+                        location=f"programs.{program_name}",
+                    )
+                )
+        except ProgramNotFound as e:
+            # Build helpful error message with available programs
+            available = loader.list_programs()
+            available_str = ", ".join(available) if available else "(none)"
+            errors.append(
+                ValidationError(
+                    f"Unknown program '{program_name}'. Available: {available_str}",
+                    location=f"programs.{program_name}",
+                )
+            )
+        except ProgramError as e:
+            errors.append(
+                ValidationError(
+                    f"Program '{program_name}': {str(e)}",
+                    location=f"programs.{program_name}",
+                )
+            )
+    
+    return errors
+
+
+
 def validate_config(config: dict) -> List[ValidationError]:
     errors: List[ValidationError] = []
     for key, value in config.items():
@@ -58,4 +122,16 @@ def validate_config(config: dict) -> List[ValidationError]:
                     location=key,
                 )
             )
+    
+    # Phase 3: Validate programs section if present
+    # Use try/except to handle lupa LuaTable which may not support 'in' operator
+    try:
+        has_programs = "programs" in config
+    except TypeError:
+        # LuaTable or similar object without __contains__
+        has_programs = False
+    
+    if has_programs:
+        errors.extend(_validate_programs_section(config["programs"]))
+    
     return errors

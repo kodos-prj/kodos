@@ -140,9 +140,58 @@ All tests should pass for a healthy codebase.
 
 ----
 
-## [Configuration file](#configuration)
+## Program Registry
 
-The configuration file is written in Lua and defines various sections for configuring the system. Here’s a basic example of a configuration file:
+KodOS includes a **Program Registry** system that allows you to define custom programs and services without modifying the core codebase. Programs are Lua-based modules that declare their configuration schema, validation rules, and installation procedures.
+
+### Builtin Programs
+
+KodOS comes with builtin programs for common use cases:
+- **git** - Version control system
+- **neovim** - Text editor
+- **syncthing** - File synchronization
+- **zsh** - Shell configuration
+- And more...
+
+### Creating Custom Programs
+
+Users can create custom programs by adding Lua files to `~/.kod/plugins/programs/`. For example:
+
+```lua
+-- ~/.kod/plugins/programs/my_app.lua
+return {
+    name = "my_app",
+    schema = {
+        enable = { type = "boolean", default = false },
+        version = { type = "string", default = "latest" },
+        config = { type = "table", default = {} },
+    },
+    install = function(config)
+        -- Installation logic here
+    end,
+    validate = function(config)
+        -- Validation logic here
+    end,
+}
+```
+
+Then use it in your configuration:
+
+```lua
+programs = {
+    my_app = {
+        enable = true,
+        version = "1.0.0",
+        config = { ... }
+    }
+}
+```
+
+For a complete example, see [`docs/examples/custom_program.lua`](docs/examples/custom_program.lua).
+
+For comprehensive guidance on extending KodOS, read [`docs/extending.md`](docs/extending.md).
+
+----
 
 ```lua
 -- Helper scripts 

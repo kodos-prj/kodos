@@ -64,6 +64,7 @@ from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
 from kod.config.schema import SCHEMA
 from kod.filesystem import create_partitions, get_partition_devices
+from kod.cli import registry_group
 
 # from kod.core import *
 
@@ -119,6 +120,9 @@ def config_schema() -> None:
     for key in sorted(SCHEMA.keys()):
         print(f"  {key}: {SCHEMA[key].__name__ if hasattr(SCHEMA[key], '__name__') else SCHEMA[key]}")
 
+
+# Register registry commands
+cli.add_command(registry_group)
 
 
 # pkgs_installed = []

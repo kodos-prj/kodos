@@ -1,21 +1,531 @@
-"""Builtin program definitions (Phase 3).
+"""Program registry and loader (Phase 3).
 
-Defines standard programs with their configurations and schemas.
-
-Programs include: git, neovim, syncthing, ssh, etc.
+Implements Lua-based program definitions with schema validation and inheritance.
 
 Key components:
-- ProgramRegistry: Main registry
-- Program: Program definition class
-- get_program(): Lookup a program
+- Error hierarchy (ProgramError, ProgramNotFound, etc.)
+- Program class: wraps Lua definitions with Python interface
+- ProgramRegistry: manages loaded programs with caching
 
 Example:
     >>> registry = ProgramRegistry()
     >>> git_prog = registry.get_program("git")
-    >>> config = git_prog.generate_config({"user_name": "Alice"})
+    >>> git_prog.validate_config({"user_name": "Alice", "email": "alice@example.com"})
+    >>> config = git_prog.generate_config({"user_name": "Alice", "email": "alice@example.com"})
 """
 
-# TODO (Phase 3): Define builtin programs
-#   - Create Program class with schema
-#   - Implement config generator for each program
-#   - Document program options
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+import lupa
+
+
+# ===== Error Hierarchy =====
+
+
+class ProgramError(Exception):
+    """Base exception for program registry errors."""
+
+    pass
+
+
+class ProgramNotFound(ProgramError):
+    """Program name not found in registry."""
+
+    pass
+
+
+class ProgramLoadError(ProgramError):
+    """Failed to load program (Lua syntax error, missing fields, etc.)."""
+
+    pass
+
+
+class CircularExtendError(ProgramLoadError):
+    """Program extends itself (directly or indirectly)."""
+
+    pass
+
+
+class ConfigValidationError(ProgramError):
+    """User config doesn't match program schema."""
+
+    pass
+
+
+class SchemaError(ProgramError):
+    """Program schema is malformed."""
+
+    pass
+
+
+# ===== Program Class =====
+
+
+class Program:
+    """Wraps a Lua program definition with Python interface.
+    
+    A Program represents a configurable application with:
+    - Schema: JSON schema describing valid config options
+    - Default config: template values
+    - generate_config(): function to generate shell commands from user options
+    - Optional hooks: validate, post_install, pre_uninstall
+    - Optional inheritance: extends another program via _extends field
+    """
+
+    def __init__(self, name: str, lua_def: Dict[str, Any], parent: Optional["Program"] = None):
+        """Initialize Program from Lua definition.
+        
+        Args:
+            name: Program name (e.g., "git")
+            lua_def: Lua return value (dict from loaded .lua file)
+            parent: Parent Program if this extends another
+            
+        Raises:
+            ProgramLoadError: If lua_def missing required fields
+        """
+        self.name = name
+        self.lua_def = lua_def
+        self.parent = parent
+        
+        # Validate required fields
+        # If extending another program, name/schema/default_config/generate_config can come from parent
+        required_fields = {"schema", "default_config", "generate_config"}
+        if not parent:
+            # Top-level program must have name
+            required_fields.add("name")
+        
+        missing = required_fields - set(lua_def.keys())
+        if missing:
+            raise ProgramLoadError(
+                f"Program '{name}' missing required fields: {missing}"
+            )
+        
+        # Store Lua methods
+        self._lua_generate_config = lua_def.get("generate_config")
+        self._lua_validate = lua_def.get("validate")
+        self._lua_post_install = lua_def.get("post_install")
+        self._lua_pre_uninstall = lua_def.get("pre_uninstall")
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Return merged JSON schema (builtin + user extensions).
+        
+        If this program extends another:
+            {"allOf": [parent_schema, user_schema]}
+        Otherwise:
+            Raw schema from definition
+            
+        Returns:
+            JSON schema dict
+        """
+        user_schema = self.lua_def.get("schema", {})
+        
+        if not self.parent:
+            return user_schema
+        
+        # Merge with parent schema using allOf
+        parent_schema = self.parent.get_schema()
+        return {
+            "allOf": [parent_schema, user_schema]
+        }
+
+    def validate_config(self, options: Dict[str, Any]) -> None:
+        """Validate options against schema.
+        
+        Performs basic schema validation:
+        1. Check required fields are present
+        2. Check field types match schema
+        3. Call optional Lua validate hook if present
+        
+        Args:
+            options: User-provided config options
+            
+        Raises:
+            ConfigValidationError: If options don't match schema
+        """
+        schema = self.get_schema()
+        
+        # Basic schema validation
+        errors = self._validate_against_schema(options, schema)
+        if errors:
+            error_msg = f"Program '{self.name}': " + "; ".join(errors)
+            raise ConfigValidationError(error_msg)
+        
+        # Use lupa to execute Lua validation hook if present
+        if self._lua_validate:
+            try:
+                # Call Lua validate function with self as first arg
+                self._lua_validate(self, options)
+            except Exception as e:
+                raise ConfigValidationError(
+                    f"Program '{self.name}' validation failed: {str(e)}"
+                )
+    
+    def _validate_against_schema(self, options: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
+        """Validate options against schema.
+        
+        Basic validation:
+        - Check required fields
+        - Check field types
+        
+        Handles Lua tables and converts them to dicts for comparison.
+        
+        Args:
+            options: User-provided options
+            schema: Schema dict from program
+            
+        Returns:
+            List of error messages (empty if valid)
+        """
+        errors = []
+        
+        # Convert lupa tables to dicts
+        schema = self._lua_to_dict(schema)
+        options = self._lua_to_dict(options)
+        
+        # Handle allOf (merged schema from inheritance)
+        if isinstance(schema, dict) and "allOf" in schema:
+            # Collect all schemas and validate against all
+            for sub_schema in schema["allOf"]:
+                errors.extend(self._validate_against_schema(options, sub_schema))
+            return errors
+        
+        # Normal schema validation
+        # Schema can be either {"properties": {...}} or directly {field: {...}}
+        if isinstance(schema, dict):
+            properties = schema.get("properties", schema)
+        else:
+            return errors
+        
+        for field_name, field_schema in properties.items():
+            # Skip internal fields like "allOf"
+            if field_name.startswith("$") or field_name in ("properties", "allOf", "type"):
+                continue
+            
+            # Skip non-dict field schemas
+            if not isinstance(field_schema, dict):
+                continue
+            
+            is_required = field_schema.get("required", False)
+            
+            if field_name in options:
+                # Field present - check type if needed
+                value = options[field_name]
+                expected_type = field_schema.get("type")
+                
+                if expected_type and not self._check_type(value, expected_type):
+                    errors.append(f"Field '{field_name}' must be {expected_type}, got {type(value).__name__}")
+            elif is_required:
+                # Field missing but required
+                errors.append(f"Missing required field '{field_name}'")
+        
+        return errors
+    
+    @staticmethod
+    def _lua_to_dict(obj: Any) -> Any:
+        """Convert lupa Lua objects to Python dicts/lists.
+        
+        Args:
+            obj: Object potentially from Lua
+            
+        Returns:
+            Python dict/list/value
+        """
+        # Handle lupa LuaTable
+        if hasattr(obj, "items") and not isinstance(obj, dict):
+            try:
+                return {k: Program._lua_to_dict(v) for k, v in obj.items()}
+            except (AttributeError, TypeError):
+                return obj
+        
+        # Handle regular dict
+        if isinstance(obj, dict):
+            return {k: Program._lua_to_dict(v) for k, v in obj.items()}
+        
+        # Handle lists/tuples
+        if isinstance(obj, (list, tuple)):
+            return [Program._lua_to_dict(v) for v in obj]
+        
+        # Return as-is for scalars
+        return obj
+    
+    @staticmethod
+    def _check_type(value: Any, expected_type: str) -> bool:
+        """Check if value matches expected type.
+        
+        Args:
+            value: Value to check
+            expected_type: Expected type string (e.g., "string", "boolean", "integer")
+            
+        Returns:
+            True if type matches
+        """
+        type_map = {
+            "string": str,
+            "integer": int,
+            "number": (int, float),
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+        }
+        
+        expected = type_map.get(expected_type)
+        if expected is None:
+            return True  # Unknown type, assume valid
+        
+        return isinstance(value, expected)
+
+    def generate_config(self, options: Dict[str, Any]) -> str:
+        """Generate shell commands or config content.
+        
+        Calls the Lua generate_config function with self as first argument.
+        Lua code can call self:_parent_method() to access parent's methods.
+        
+        Args:
+            options: User-provided config options
+            
+        Returns:
+            Shell commands (string) or config file content
+            
+        Raises:
+            ProgramLoadError: If generate_config fails
+        """
+        if not self._lua_generate_config:
+            raise ProgramLoadError(
+                f"Program '{self.name}' missing generate_config method"
+            )
+        
+        try:
+            # Call Lua function with self as first argument
+            result = self._lua_generate_config(self, options)
+            return result if result else ""
+        except Exception as e:
+            raise ProgramLoadError(
+                f"Program '{self.name}' generate_config failed: {str(e)}"
+            )
+
+    def run_hook(self, hook_name: str, *args: Any) -> Any:
+        """Run a lifecycle hook (validate, post_install, pre_uninstall).
+        
+        Args:
+            hook_name: "validate", "post_install", "pre_uninstall"
+            *args: Arguments to pass to hook
+            
+        Returns:
+            Hook result (typically None or error)
+            
+        Raises:
+            ProgramLoadError: If hook fails
+        """
+        hook_map = {
+            "validate": self._lua_validate,
+            "post_install": self._lua_post_install,
+            "pre_uninstall": self._lua_pre_uninstall,
+        }
+        
+        hook_func = hook_map.get(hook_name)
+        if not hook_func:
+            return None
+        
+        try:
+            return hook_func(self, *args)
+        except Exception as e:
+            raise ProgramLoadError(
+                f"Program '{self.name}' hook '{hook_name}' failed: {str(e)}"
+            )
+
+    def _parent_method(self, method_name: str, *args: Any) -> Any:
+        """Call parent's method (used by Lua code).
+        
+        Allows Lua code to call self:_parent_method("generate_config", options)
+        to get the parent program's implementation.
+        
+        Args:
+            method_name: Name of method to call ("generate_config", etc.)
+            *args: Arguments to pass to method
+            
+        Returns:
+            Result from parent method
+            
+        Raises:
+            ProgramLoadError: If no parent or method doesn't exist
+        """
+        if not self.parent:
+            raise ProgramLoadError(
+                f"Program '{self.name}' has no parent to call {method_name}"
+            )
+        
+        if method_name == "generate_config":
+            return self.parent.generate_config(*args)
+        elif method_name == "validate":
+            return self.parent.run_hook("validate", *args)
+        else:
+            raise ProgramLoadError(
+                f"Unknown parent method: {method_name}"
+            )
+
+    def _get_parent(self) -> Optional["Program"]:
+        """Get parent program (used by Lua code).
+        
+        Returns:
+            Parent Program object or None
+        """
+        return self.parent
+
+    def _get_merged_schema(self) -> Dict[str, Any]:
+        """Get merged schema (used by Lua code).
+        
+        Returns:
+            Merged JSON schema dict
+        """
+        return self.get_schema()
+
+
+# ===== ProgramRegistry Class =====
+
+
+class ProgramRegistry:
+    """Manages loading and caching of programs from Lua definitions.
+    
+    Handles:
+    - Loading .lua files using lupa
+    - Caching programs to avoid reloading
+    - Merging user programs with builtins via _extends
+    - Validating program structure
+    """
+
+    def __init__(self):
+        """Initialize empty registry with caches."""
+        self._builtin_cache: Dict[str, Program] = {}  # name -> Program
+        self._user_cache: Dict[str, Program] = {}      # name -> Program
+        self._merged_cache: Dict[str, Program] = {}    # name -> Program (builtin + user)
+
+    def _load_lua_def(self, file_path: Path) -> Dict[str, Any]:
+        """Parse and load Lua file, return dict.
+        
+        Executes Lua code: `return {...}`
+        Returns the dict value.
+        
+        Args:
+            file_path: Path to .lua file
+            
+        Returns:
+            Dict from Lua return statement
+            
+        Raises:
+            ProgramLoadError: If Lua syntax error or return not a dict
+        """
+        try:
+            with open(file_path, "r") as f:
+                lua_code = f.read()
+        except OSError as e:
+            raise ProgramLoadError(
+                f"Failed to read program file {file_path}: {e}"
+            )
+        
+        try:
+            lua = lupa.LuaRuntime()
+            result = lua.execute(lua_code)
+            
+            # Lua return statement should return a dict/table
+            if result is None:
+                raise ProgramLoadError(
+                    f"Program file {file_path} must return a dict (got None)"
+                )
+            
+            # Convert lupa LuaTable to dict if needed
+            if isinstance(result, dict):
+                return result
+            
+            # Try to convert lupa LuaTable to dict
+            try:
+                return dict(result.items())
+            except (AttributeError, TypeError):
+                raise ProgramLoadError(
+                    f"Program file {file_path} must return a dict (got {type(result).__name__})"
+                )
+        except lupa.LuaError as e:
+            raise ProgramLoadError(
+                f"Lua syntax error in {file_path}: {e}"
+            )
+        except ProgramLoadError:
+            raise
+        except Exception as e:
+            raise ProgramLoadError(
+                f"Failed to load program from {file_path}: {e}"
+            )
+
+    def get_program(self, name: str) -> Program:
+        """Load a program by name.
+        
+        Priority:
+        1. Check merged cache
+        2. Check builtin cache, load if needed
+        3. Check user cache, load if needed
+        4. Merge if both exist (user extends builtin)
+        5. Return merged or individual program
+        
+        Args:
+            name: Program name (e.g., "git", "neovim")
+            
+        Returns:
+            Program object with full interface
+            
+        Raises:
+            ProgramNotFound: If neither builtin nor user plugin exists
+            ProgramLoadError: If Lua parsing/loading fails
+            CircularExtendError: If circular inheritance detected
+        """
+        # Check merged cache first
+        if name in self._merged_cache:
+            return self._merged_cache[name]
+        
+        # This is a placeholder implementation - full discovery would require
+        # scanning the filesystem for builtin and user programs.
+        # For Task 1, we focus on the Program and Registry classes themselves.
+        # The PluginLoader (Task 2) will handle filesystem discovery.
+        
+        raise ProgramNotFound(f"Program '{name}' not found")
+
+    def list_programs(self) -> List[str]:
+        """Return all available program names (builtin + user).
+        
+        Returns:
+            Sorted list of program names
+        """
+        all_names = set(self._builtin_cache.keys()) | set(self._user_cache.keys())
+        return sorted(all_names)
+
+    def get_program_info(self, name: str) -> Dict[str, Any]:
+        """Get metadata about a program.
+        
+        Args:
+            name: Program name
+            
+        Returns:
+            Dict with keys:
+            - name: program name
+            - source: "builtin" | "user" | "merged"
+            - schema: program schema dict
+            - default_config: default config dict
+            - extends: parent program name if inherited, else None
+            
+        Raises:
+            ProgramNotFound: If program not found
+        """
+        program = self.get_program(name)
+        
+        # Determine source
+        if name in self._merged_cache:
+            source = "merged"
+        elif name in self._builtin_cache:
+            source = "builtin"
+        else:
+            source = "user"
+        
+        return {
+            "name": program.name,
+            "source": source,
+            "schema": program.get_schema(),
+            "default_config": program.lua_def.get("default_config", {}),
+            "extends": program.lua_def.get("_extends") if program.parent else None,
+        }

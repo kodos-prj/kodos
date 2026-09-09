@@ -119,14 +119,17 @@ src/kod/
 - ✅ Full backward compatibility: both old `from kod.core import X` and new `from kod.system.X import Y` work
 
 ### Phase 3: Program Registry (Week 6)
-- [ ] Implement `kod/registry/programs.py` — Builtin programs (git, neovim, syncthing, etc.)
-- [ ] Implement `kod/registry/loader.py` — Plugin discovery & loading
-- [ ] Write plugin loading tests
-- [ ] CLI: `kod registry list`, `kod registry info <name>`
+- [x] Implement `kod/registry/programs.py` — Builtin programs (git, neovim, syncthing, etc.)
+- [x] Implement `kod/registry/loader.py` — Plugin discovery & loading
+- [x] Write plugin loading tests
+- [x] CLI: `kod registry list`, `kod registry info <name>`
 
-**Success Criteria:**
-- Users can define custom programs in `~/.kod/plugins/programs/`
-- Builtin programs have schemas and config generators
+**Success Criteria (COMPLETE):**
+- ✅ Users can define custom programs in `~/.kod/plugins/programs/`
+- ✅ Builtin programs have schemas and config generators
+- ✅ Comprehensive extending guide at `docs/extending.md`
+- ✅ Example custom program at `docs/examples/custom_program.lua`
+- ✅ Program Registry section added to README.md
 
 ### Phase 4: Polish & Docs (Week 7)
 - [ ] Update README with new examples

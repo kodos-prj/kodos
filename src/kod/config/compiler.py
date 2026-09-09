@@ -1,34 +1,45 @@
-"""Configuration compilation and dependency resolution (Phase 1).
+"""Configuration compilation and dependency resolution (Phase 1 + Phase 3).
 
 Takes a validated config and compiles it into an executable plan.
 Resolves dependencies (e.g., GNOME -> gdm, services -> packages).
 
+Phase 3 additions:
+- Compiles programs section into intermediate format
+- Loads and validates programs
+- Stores Program objects for install workflow
+
 Key components:
 - compile_config(): Main entry point
 - resolve_dependencies(): Resolve implied dependencies
+- _compile_programs(): Phase 3 program compilation
 
 Example:
     >>> from kod.config.compiler import compile_config
     >>> compiled = compile_config(config)
-    >>> # compiled has all implicit dependencies resolved
+    >>> # compiled has all implicit dependencies resolved + programs compiled
 """
 
 from typing import Any, Dict
 
 
 def compile_config(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Compile config by resolving all dependencies.
+    """Compile config by resolving all dependencies and compiling programs.
     
     This handles implicit dependencies:
     - GNOME enabled → display_manager = gdm
     - Plasma enabled → display_manager = sddm
     - etc.
     
+    Phase 3 additions:
+    - Compiles programs section into intermediate format
+    - Loads and validates each program
+    - Stores Program objects in compiled.programs dict
+    
     Args:
         config: Loaded and validated config dict
     
     Returns:
-        Compiled config with all dependencies resolved
+        Compiled config with all dependencies resolved and programs compiled
     
     ponytail: simple recursive walk + pattern matching.
               Add more rules as new dependency patterns emerge.
@@ -38,6 +49,10 @@ def compile_config(config: Dict[str, Any]) -> Dict[str, Any]:
     
     # Apply dependency rules
     result = _apply_desktop_manager_dependencies(result)
+    
+    # Phase 3: Compile programs section if present
+    if "programs" in result:
+        result = _compile_programs(result)
     
     return result
 
@@ -89,3 +104,57 @@ def _apply_desktop_manager_dependencies(config: Dict[str, Any]) -> Dict[str, Any
                 pantheon["display_manager"] = "lightdm"
     
     return config
+
+
+def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Compile programs section into intermediate format for install workflow.
+    
+    For each program in the programs section:
+    1. Load the program via PluginLoader
+    2. Validate options against program schema
+    3. Generate config via program.generate_config()
+    4. Store Program object and generated config
+    
+    Result structure:
+    {
+        "programs": {
+            "git": {
+                "program": <Program object>,
+                "options": {"user_name": "Alice", ...},
+                "config": "git config --global user.name 'Alice'...",
+            },
+            ...
+        },
+        ...
+    }
+    
+    Args:
+        config: Config with programs section
+        
+    Returns:
+        Compiled config with programs dict containing Program objects and generated configs
+    """
+    from kod.registry.loader import PluginLoader
+    
+    loader = PluginLoader()
+    compiled_programs = {}
+    
+    for program_name, program_options in config["programs"].items():
+        # Load program (should already be validated by validator)
+        program = loader.load_program(program_name)
+        
+        # Generate config from options
+        generated_config = program.generate_config(program_options)
+        
+        # Store in compiled format
+        compiled_programs[program_name] = {
+            "program": program,
+            "options": program_options,
+            "config": generated_config,
+        }
+    
+    # Replace programs section with compiled version
+    config["programs"] = compiled_programs
+    
+    return config
+
