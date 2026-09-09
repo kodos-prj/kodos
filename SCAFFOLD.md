@@ -4,6 +4,33 @@ This directory contains the refactored codebase for the Kodos architecture redes
 
 See `docs/superpowers/specs/2026-09-09-architecture-redesign.md` for the full specification.
 
+## Review & Design Documents
+
+Before implementing, read these materials:
+
+- **`REVIEW.md`** — Comprehensive review of spec and scaffold
+  - Architecture coherence assessment
+  - Missing pieces and how to fix them
+  - Implementation readiness (B grade: ready with pre-work)
+  - Critical issues to resolve before Phase 2
+
+- **`docs/cli-architecture.md`** — CLI design and command structure
+  - Recommended: subcommand groups (config, install, registry, package)
+  - Framework options (Click or Argparse)
+  - Phase 1 deliverable
+
+- **`docs/phase3-plugins.md`** — Plugin loading and validation
+  - Error scenarios (syntax, conflicts, cycles)
+  - Plugin schema definition
+  - Logging and user-facing error messages
+  - Testing strategy
+
+- **`docs/phase5-security.md`** — Custom package security model
+  - Threat model (upstream compromise, trojanized templates)
+  - MVP approach: source hash verification + user approval
+  - Audit logging and cache integrity
+  - User workflows and best practices
+
 ## Directory Structure
 
 ```
@@ -126,11 +153,15 @@ src/kod/
 | `system/packages.py` | ✅ Created | To be implemented |
 | `system/services.py` | ✅ Created | To be implemented |
 | `system/boot.py` | ✅ Created | To be implemented |
+| `system/users.py` | ✅ Created | To be implemented |
+| `system/filesystem.py` | ✅ Created | To be implemented |
 | `system/packages_custom.py` | ✅ Created | To be implemented (Phase 5) |
 | `registry/__init__.py` | ✅ Created | Phase 3 placeholder |
 | `registry/programs.py` | ✅ Created | To be implemented |
 | `registry/loader.py` | ✅ Created | To be implemented |
 | `registry/build_templates.py` | ✅ Created | To be implemented (Phase 5) |
+| `exceptions.py` | ✅ Created | Exception hierarchy (Phases 1-5) |
+| `distributions/base.py` | ✅ Created | Base class for distro implementations |
 | `core.py` | ⏳ Existing | Gradual refactoring → new modules |
 | `arch.py` | ⏳ Existing | To be updated for new structure |
 | `debian.py` | ⏳ Existing | To be updated for new structure |
