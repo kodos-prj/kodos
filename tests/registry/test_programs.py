@@ -569,3 +569,166 @@ def test_registry_get_program_info_not_found():
     
     with pytest.raises(ProgramNotFound):
         registry.get_program_info("nonexistent")
+
+
+# ===== Test Program Scope (Task 1) =====
+
+
+def test_program_scope_user():
+    """Program should accept and store scope='user'."""
+    lua_def = {
+        "name": "git",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("git", lua_def)
+    
+    assert prog.scope == "user"
+    assert prog.get_scope() == "user"
+
+
+def test_program_scope_system():
+    """Program should accept and store scope='system'."""
+    lua_def = {
+        "name": "firewall",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("firewall", lua_def)
+    
+    assert prog.scope == "system"
+    assert prog.get_scope() == "system"
+
+
+def test_program_scope_both():
+    """Program should accept and store scope='both'."""
+    lua_def = {
+        "name": "syncthing",
+        "scope": "both",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("syncthing", lua_def)
+    
+    assert prog.scope == "both"
+    assert prog.get_scope() == "both"
+
+
+def test_program_scope_default_user():
+    """Program should default to scope='user' if not specified."""
+    lua_def = {
+        "name": "git",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("git", lua_def)
+    
+    assert prog.scope == "user"
+    assert prog.get_scope() == "user"
+
+
+def test_program_scope_invalid():
+    """Program should raise SchemaError for invalid scope value."""
+    lua_def = {
+        "name": "test",
+        "scope": "invalid",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    
+    with pytest.raises(SchemaError, match="Invalid scope"):
+        Program("test", lua_def)
+
+
+def test_program_scope_invalid_empty_string():
+    """Program should raise SchemaError for empty scope string."""
+    lua_def = {
+        "name": "test",
+        "scope": "",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    
+    with pytest.raises(SchemaError, match="Invalid scope"):
+        Program("test", lua_def)
+
+
+def test_program_scope_invalid_number():
+    """Program should raise SchemaError for numeric scope value."""
+    lua_def = {
+        "name": "test",
+        "scope": 123,
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    
+    with pytest.raises(SchemaError):
+        Program("test", lua_def)
+
+
+def test_program_get_program_info_includes_scope():
+    """ProgramRegistry.get_program_info() should include scope in returned dict."""
+    lua_def = {
+        "name": "git",
+        "scope": "user",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("git", lua_def)
+    
+    # Manually create registry and add program to cache for testing
+    registry = ProgramRegistry()
+    registry._user_cache["git"] = prog
+    
+    info = registry.get_program_info("git")
+    
+    assert "scope" in info
+    assert info["scope"] == "user"
+
+
+def test_program_get_program_info_scope_system():
+    """get_program_info() should include scope='system' for system programs."""
+    lua_def = {
+        "name": "firewall",
+        "scope": "system",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("firewall", lua_def)
+    
+    registry = ProgramRegistry()
+    registry._builtin_cache["firewall"] = prog
+    
+    info = registry.get_program_info("firewall")
+    
+    assert info["scope"] == "system"
+
+
+def test_program_get_program_info_scope_both():
+    """get_program_info() should include scope='both' for bidirectional programs."""
+    lua_def = {
+        "name": "syncthing",
+        "scope": "both",
+        "schema": {},
+        "default_config": {},
+        "generate_config": lambda self, options: "",
+    }
+    prog = Program("syncthing", lua_def)
+    
+    registry = ProgramRegistry()
+    registry._user_cache["syncthing"] = prog
+    
+    info = registry.get_program_info("syncthing")
+    
+    assert info["scope"] == "both"

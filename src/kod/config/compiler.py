@@ -31,7 +31,9 @@ def compile_config(config: Dict[str, Any]) -> Dict[str, Any]:
     - etc.
     
     Phase 3 additions:
-    - Compiles programs section into intermediate format
+    - Compiles programs section into intermediate format (system-level)
+    - Compiles user-level programs for each user
+    - Merges system and user programs (user overrides system)
     - Loads and validates each program
     - Stores Program objects in compiled.programs dict
     
@@ -50,9 +52,8 @@ def compile_config(config: Dict[str, Any]) -> Dict[str, Any]:
     # Apply dependency rules
     result = _apply_desktop_manager_dependencies(result)
     
-    # Phase 3: Compile programs section if present
-    if "programs" in result:
-        result = _compile_programs(result)
+    # Phase 3: Compile programs section (system-level + user-level)
+    result = _compile_programs(result)
     
     return result
 
@@ -109,52 +110,118 @@ def _apply_desktop_manager_dependencies(config: Dict[str, Any]) -> Dict[str, Any
 def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
     """Compile programs section into intermediate format for install workflow.
     
-    For each program in the programs section:
-    1. Load the program via PluginLoader
-    2. Validate options against program schema
-    3. Generate config via program.generate_config()
-    4. Store Program object and generated config
+    Handles both system-level and user-level programs with proper merging:
+    
+    1. System-level programs (top-level 'programs' section):
+       - Loaded and compiled
+       - Stored with scope="system"
+    
+    2. User-level programs (inside 'users.alice.programs' sections):
+       - Loaded and compiled
+       - If same program exists at system level, merge with user overriding
+       - Stored with scope="user" and overrides_system flag
+    
+    Compilation order matters:
+    - System-level first (provides defaults)
+    - User-level second (can override system)
     
     Result structure:
     {
         "programs": {
             "git": {
                 "program": <Program object>,
-                "options": {"user_name": "Alice", ...},
-                "config": "git config --global user.name 'Alice'...",
+                "options": {"user_name": "System Default", ...},
+                "config": "git config --global...",
+                "scope": "system"
             },
             ...
         },
-        ...
+        "users": {
+            "alice": {
+                "programs": {
+                    "git": {
+                        "program": <Program object>,
+                        "options": {merged: system + user override},
+                        "config": "git config --global...",
+                        "scope": "user",
+                        "overrides_system": True
+                    },
+                    ...
+                },
+                ...
+            }
+        }
     }
     
     Args:
-        config: Config with programs section
+        config: Config with optional programs section and users section
         
     Returns:
-        Compiled config with programs dict containing Program objects and generated configs
+        Compiled config with programs compiled at system and user levels
     """
     from kod.registry.loader import PluginLoader
     
     loader = PluginLoader()
-    compiled_programs = {}
     
-    for program_name, program_options in config["programs"].items():
-        # Load program (should already be validated by validator)
-        program = loader.load_program(program_name)
-        
-        # Generate config from options
-        generated_config = program.generate_config(program_options)
-        
-        # Store in compiled format
-        compiled_programs[program_name] = {
-            "program": program,
-            "options": program_options,
-            "config": generated_config,
-        }
+    # Initialize compiled structure
+    if "programs" not in config:
+        config["programs"] = {}
+    
+    # Step 1: Compile system-level programs
+    system_programs = {}
+    if "programs" in config and config["programs"]:
+        for program_name, program_options in config["programs"].items():
+            # Load program
+            program = loader.load_program(program_name)
+            
+            # Generate config from options
+            generated_config = program.generate_config(program_options)
+            
+            # Store in compiled format
+            system_programs[program_name] = {
+                "program": program,
+                "options": program_options,
+                "config": generated_config,
+                "scope": "system"
+            }
     
     # Replace programs section with compiled version
-    config["programs"] = compiled_programs
+    config["programs"] = system_programs
+    
+    # Step 2: Compile user-level programs (if users section exists)
+    if "users" in config:
+        for user_name, user_config in config["users"].items():
+            if "programs" in user_config and user_config["programs"]:
+                user_programs = {}
+                
+                for program_name, program_options in user_config["programs"].items():
+                    # Load program
+                    program = loader.load_program(program_name)
+                    
+                    # Check if same program exists at system level
+                    merged_options = program_options
+                    overrides_system = False
+                    
+                    if program_name in system_programs:
+                        # Merge: user options override system options
+                        base_options = system_programs[program_name]["options"]
+                        merged_options = {**base_options, **program_options}
+                        overrides_system = True
+                    
+                    # Generate config from merged options
+                    generated_config = program.generate_config(merged_options)
+                    
+                    # Store in compiled format
+                    user_programs[program_name] = {
+                        "program": program,
+                        "options": merged_options,
+                        "config": generated_config,
+                        "scope": "user",
+                        "overrides_system": overrides_system
+                    }
+                
+                # Replace user's programs section with compiled version
+                config["users"][user_name]["programs"] = user_programs
     
     return config
 

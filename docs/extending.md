@@ -5,13 +5,14 @@ This guide covers how to extend KodOS with custom programs, package sources, and
 ## Table of Contents
 
 1. [Creating Custom Programs](#creating-custom-programs)
-2. [Program Schema and Validation](#program-schema-and-validation)
-3. [Program Installation Functions](#program-installation-functions)
-4. [Using Custom Programs](#using-custom-programs)
-5. [Creating Configuration Helpers](#creating-configuration-helpers)
-6. [Plugin Discovery](#plugin-discovery)
-7. [Best Practices](#best-practices)
-8. [Troubleshooting](#troubleshooting)
+2. [Program Scope](#program-scope)
+3. [Program Schema and Validation](#program-schema-and-validation)
+4. [Program Installation Functions](#program-installation-functions)
+5. [Using Custom Programs](#using-custom-programs)
+6. [Creating Configuration Helpers](#creating-configuration-helpers)
+7. [Plugin Discovery](#plugin-discovery)
+8. [Best Practices](#best-practices)
+9. [Troubleshooting](#troubleshooting)
 
 ## Creating Custom Programs
 
@@ -65,6 +66,197 @@ return {
         return true
     end,
 }
+```
+
+### Program Scope
+
+Each program declares a **scope** that determines where it can be used in the configuration. The `scope` field is **required** and tells KodOS whether the program can be used at the system level, user level, or both.
+
+#### Valid Scope Values
+
+| Scope | Location | Use Case |
+|-------|----------|----------|
+| `"user"` | User-level only | Per-user configuration (git, neovim) |
+| `"system"` | System-level only | System-wide services or policies |
+| `"both"` | Either level or both | Works at system and/or user level |
+
+#### How to Choose a Scope
+
+Choose `"user"` if:
+- The program configures per-user settings (user identity, preferences)
+- Each user needs separate configuration (git email, neovim settings)
+- The program doesn't make sense globally
+
+Choose `"system"` if:
+- The program manages system-wide resources (firewall, kernel settings)
+- The program is a system service that shouldn't be per-user
+- One configuration should apply to all users
+
+Choose `"both"` if:
+- The program works at either level independently
+- The program can have system defaults that users can override
+- Users might want their own version (syncthing has global and per-user use cases)
+
+#### Examples by Scope
+
+**User-only Program** (e.g., per-user configuration tool):
+```lua
+return {
+    name = "my_config",
+    scope = "user",  -- Only available at user level
+    description = "My per-user configuration tool",
+    schema = {
+        config_dir = {
+            type = "string",
+            description = "User configuration directory"
+        }
+    },
+    install = function(config, exec_fn)
+        -- Runs for each user separately
+        exec_fn("mkdir -p " .. config.config_dir)
+    end
+}
+```
+
+Usage:
+```lua
+users = {
+    alice = {
+        programs = {
+            my_config = { config_dir = "~/.config/myapp" }  -- ✓ Valid
+        }
+    }
+}
+-- programs = { my_config = {...} }  -- ✗ Error: scope is "user" only
+```
+
+**System-only Program** (e.g., firewall rules):
+```lua
+return {
+    name = "my_firewall",
+    scope = "system",  -- Only available at system level
+    description = "System firewall configuration",
+    schema = {
+        enabled = {
+            type = "boolean",
+            default = true
+        }
+    },
+    install = function(config, exec_fn)
+        -- Runs once for the system
+        if config.enabled then
+            exec_fn("systemctl enable my-firewall")
+        end
+    end
+}
+```
+
+Usage:
+```lua
+programs = {
+    my_firewall = { enabled = true }  -- ✓ Valid
+}
+-- users = { alice = { programs = { my_firewall = {...} } } }  -- ✗ Error: scope is "system" only
+```
+
+**Both-level Program** (e.g., syncthing, file sync):
+```lua
+return {
+    name = "my_sync",
+    scope = "both",  -- Available at system and/or user level
+    description = "File synchronization service",
+    schema = {
+        auto_start = {
+            type = "boolean",
+            default = true
+        }
+    },
+    install = function(config, exec_fn)
+        -- Can run at system or user level
+        if config.auto_start then
+            exec_fn("systemctl enable my_sync")
+        end
+    end
+}
+```
+
+Usage:
+```lua
+programs = {
+    my_sync = { auto_start = true }  -- ✓ Valid (system level)
+}
+
+users = {
+    alice = {
+        programs = {
+            my_sync = { auto_start = false }  -- ✓ Valid (user level, overrides system)
+        }
+    }
+}
+```
+
+#### How Merging Works
+
+When a program has scope `"both"`:
+
+1. **System-level config** is applied first (provides defaults)
+2. **User-level config** is applied second (can override system options)
+3. User options override system options (user has priority)
+
+Example:
+```lua
+-- System provides defaults
+programs = {
+    my_sync = {
+        auto_start = true,
+        listen_address = "127.0.0.1:8080"
+    }
+}
+
+users = {
+    alice = {
+        programs = {
+            -- Alice overrides listen_address, keeps auto_start from system
+            my_sync = {
+                listen_address = "0.0.0.0:8080"  -- Overrides system
+                -- auto_start inherited from system: true
+            }
+        }
+    }
+}
+```
+
+Result for Alice:
+- `auto_start = true` (from system)
+- `listen_address = "0.0.0.0:8080"` (from user override)
+
+#### Validation Behavior
+
+KodOS validates programs against their scope:
+
+```
+✗ Validation Error
+Program 'git' (scope: user) cannot be used at system level.
+Fix: Move 'programs.git' to 'users.alice.programs.git'
+
+Available system-level programs: syncthing
+```
+
+The validator checks:
+- System-level usage: requires scope in `["system", "both"]`
+- User-level usage: requires scope in `["user", "both"]`
+- Clear error messages show which scope is allowed
+
+#### CLI: Checking Program Scope
+
+You can check a program's scope using the registry:
+
+```bash
+kod registry info git
+# Shows: scope: "user", schema, description
+
+kod registry info syncthing  
+# Shows: scope: "both", schema, description
 ```
 
 ## Program Schema and Validation

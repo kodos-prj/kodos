@@ -312,6 +312,7 @@ class PluginLoader:
         Returns:
             Dict with keys:
             - name: program name
+            - scope: program scope ("system", "user", or "both")
             - source: "builtin" | "user" | "merged"
             - schema: program schema dict
             - default_config: default config dict
@@ -332,6 +333,7 @@ class PluginLoader:
         
         return {
             "name": program.name,
+            "scope": program.get_scope(),
             "source": source,
             "schema": program.get_schema(),
             "default_config": program.lua_def.get("default_config", {}),

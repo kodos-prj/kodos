@@ -65,6 +65,7 @@ class Program:
     """Wraps a Lua program definition with Python interface.
     
     A Program represents a configurable application with:
+    - Scope: where the program can be configured ("system", "user", or "both")
     - Schema: JSON schema describing valid config options
     - Default config: template values
     - generate_config(): function to generate shell commands from user options
@@ -82,6 +83,7 @@ class Program:
             
         Raises:
             ProgramLoadError: If lua_def missing required fields
+            SchemaError: If scope field is invalid
         """
         self.name = name
         self.lua_def = lua_def
@@ -100,11 +102,28 @@ class Program:
                 f"Program '{name}' missing required fields: {missing}"
             )
         
+        # Extract and validate scope field
+        scope = lua_def.get("scope", "user")
+        valid_scopes = {"system", "user", "both"}
+        if scope not in valid_scopes:
+            raise SchemaError(
+                f"Invalid scope '{scope}'. Must be 'system', 'user', or 'both'"
+            )
+        self.scope = scope
+        
         # Store Lua methods
         self._lua_generate_config = lua_def.get("generate_config")
         self._lua_validate = lua_def.get("validate")
         self._lua_post_install = lua_def.get("post_install")
         self._lua_pre_uninstall = lua_def.get("pre_uninstall")
+
+    def get_scope(self) -> str:
+        """Return the scope of this program.
+        
+        Returns:
+            One of "system", "user", or "both"
+        """
+        return self.scope
 
     def get_schema(self) -> Dict[str, Any]:
         """Return merged JSON schema (builtin + user extensions).
@@ -479,6 +498,14 @@ class ProgramRegistry:
         if name in self._merged_cache:
             return self._merged_cache[name]
         
+        # Check builtin cache
+        if name in self._builtin_cache:
+            return self._builtin_cache[name]
+        
+        # Check user cache
+        if name in self._user_cache:
+            return self._user_cache[name]
+        
         # This is a placeholder implementation - full discovery would require
         # scanning the filesystem for builtin and user programs.
         # For Task 1, we focus on the Program and Registry classes themselves.
@@ -504,6 +531,7 @@ class ProgramRegistry:
         Returns:
             Dict with keys:
             - name: program name
+            - scope: "system", "user", or "both"
             - source: "builtin" | "user" | "merged"
             - schema: program schema dict
             - default_config: default config dict
@@ -524,6 +552,7 @@ class ProgramRegistry:
         
         return {
             "name": program.name,
+            "scope": program.get_scope(),
             "source": source,
             "schema": program.get_schema(),
             "default_config": program.lua_def.get("default_config", {}),

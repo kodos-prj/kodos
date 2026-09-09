@@ -1,5 +1,6 @@
 return {
     name = "git",
+    scope = "user",  -- Each user has their own git identity (email, name, signing key)
     
     schema = {
         user_name = {

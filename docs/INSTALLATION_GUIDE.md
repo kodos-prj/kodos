@@ -151,6 +151,133 @@ programs = {
 
 ---
 
+## Program Scope: System vs User Level
+
+Each program declares a **scope** that determines where it can be configured:
+
+| Scope | Location | Use Case |
+|-------|----------|----------|
+| `"user"` | User-level only (`users.alice.programs`) | Per-user configuration (git, neovim) |
+| `"system"` | System-level only (top-level `programs`) | System-wide services or defaults |
+| `"both"` | Either or both levels | Works at system or user level (syncthing) |
+
+### What's the Difference?
+
+**User-Level Programs** (scope: `"user"`):
+- Configured for each user separately
+- Each user can have different settings
+- Examples: git (user name/email), neovim (user preferences)
+- Location: Inside `users.<username>.programs`
+
+```lua
+users = {
+    alice = {
+        programs = {
+            git = {
+                user_name = "Alice",
+                email = "alice@example.com"
+            }
+        }
+    },
+    bob = {
+        programs = {
+            git = {
+                user_name = "Bob",
+                email = "bob@example.com"  -- Different identity
+            }
+        }
+    }
+}
+```
+
+**System-Level Programs** (scope: `"system"`):
+- Configured once for the entire system
+- Applied globally to all users
+- Examples: firewall rules, system services
+- Location: Top-level `programs` section
+
+```lua
+-- System-level configuration
+programs = {
+    firewall = {
+        enabled = true,
+        rules = {...}
+    }
+}
+```
+
+**Both-Level Programs** (scope: `"both"`):
+- Can be configured at system level AND/OR user level
+- System config provides defaults
+- User config can override system defaults
+- Example: syncthing can be a system service (global) or per-user (user-specific folders)
+
+### Example: Git at Both Levels
+
+Git is a "user" scope program, but you can see how Syncthing (scope: "both") works:
+
+```lua
+-- Syncthing: System level (global defaults)
+programs = {
+    syncthing = {
+        auto_start = true,
+        listen_address = "127.0.0.1:8384"
+    }
+}
+
+users = {
+    alice = {
+        programs = {
+            -- Alice overrides system defaults for her user
+            syncthing = {
+                listen_address = "0.0.0.0:8384"  -- Overrides system setting
+            }
+            -- auto_start inherited from system config: true
+        }
+    },
+    bob = {
+        programs = {
+            -- Bob uses system defaults (no override needed)
+            -- He gets: auto_start=true, listen_address=127.0.0.1:8384
+        }
+    }
+}
+```
+
+In this example:
+- System sets syncthing defaults for all users
+- Alice overrides `listen_address` for her user (system setting ignored)
+- Bob uses the system defaults unchanged
+
+### Builtin Programs and Their Scopes
+
+| Program | Scope | Location | Notes |
+|---------|-------|----------|-------|
+| **git** | `"user"` | Users only | Each user has own identity |
+| **neovim** | `"user"` | Users only | Each user has own config |
+| **syncthing** | `"both"` | System + Users | Global service or per-user sync |
+
+### Validation Errors
+
+If you try to use a program at the wrong scope level, KodOS will show a clear error:
+
+```
+✗ Validation Error
+Program 'git' (scope: user) cannot be used at system level.
+Fix: Move 'programs.git' to 'users.alice.programs.git'
+
+Available system-level programs: syncthing
+```
+
+To check a program's scope, use:
+```bash
+kod registry info git
+```
+
+This will show the program's scope and schema.
+
+---
+
 ## Configuration Location
 
 Where to add the `programs` section in your `configuration.lua`:

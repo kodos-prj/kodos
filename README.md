@@ -144,6 +144,41 @@ All tests should pass for a healthy codebase.
 
 KodOS includes a **Program Registry** system that allows you to define custom programs and services without modifying the core codebase. Programs are Lua-based modules that declare their configuration schema, validation rules, and installation procedures.
 
+Programs can be configured at **system level** (globally) and/or **user level** (per-user), depending on their scope. This enables flexible deployment: shared system defaults with per-user customization.
+
+### System vs User Level
+
+Each program declares a **scope**:
+
+- **`"user"`** — Per-user configuration (e.g., git with unique identity per user)
+- **`"system"`** — System-wide configuration (e.g., firewall rules)
+- **`"both"`** — Works at either level (e.g., syncthing as global service or per-user sync)
+
+System-level programs provide defaults that user-level programs can override:
+
+```lua
+-- System: default syncthing config
+programs = {
+    syncthing = {
+        auto_start = true,
+        listen_address = "127.0.0.1:8384"
+    }
+}
+
+users = {
+    alice = {
+        programs = {
+            -- User: override listen_address, inherit auto_start
+            syncthing = {
+                listen_address = "0.0.0.0:8384"  -- Overrides system setting
+            }
+        }
+    }
+}
+```
+
+See [`docs/INSTALLATION_GUIDE.md`](docs/INSTALLATION_GUIDE.md#program-scope-system-vs-user-level) for detailed examples.
+
 ### Builtin Programs
 
 KodOS comes with builtin programs for common use cases:

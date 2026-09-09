@@ -1,5 +1,6 @@
 return {
     name = "syncthing",
+    scope = "both",  -- Can be system-level (global service) or user-level (per-user sync)
     
     schema = {
         auto_start = {

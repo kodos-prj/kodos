@@ -1,5 +1,6 @@
 return {
     name = "neovim",
+    scope = "user",  -- Neovim installation is per-user with user-specific providers
     
     schema = {
         python_provider = {

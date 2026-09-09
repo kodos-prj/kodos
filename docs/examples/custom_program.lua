@@ -10,6 +10,10 @@ return {
     -- Unique identifier for this program
     name = "redis",
     
+    -- Scope: where this program can be used
+    -- Options: "system" (top-level only), "user" (user-level only), or "both" (either level)
+    scope = "user",  -- Redis typically configured per-user, so use "user" scope
+    
     -- Human-readable description
     description = "Redis - In-memory data structure store",
     
