@@ -65,6 +65,10 @@ def proc_services(conf: Any) -> List[str]:
     packages_to_install = []
     print("- processing services -----------")
     services = conf.services
+
+    if services is None:
+        return packages_to_install
+
     for name, service in services.items():
         print(name, service.enable)
         if service.enable:

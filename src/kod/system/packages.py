@@ -88,6 +88,10 @@ def _proc_hardware(conf: Any) -> List[str]:
     packages = []
     print("- processing hardware -----------")
     hardware = conf.hardware
+
+    if hardware is None:
+        return packages
+
     for name, hw in hardware.items():
         print(name, hw.enable)
         pkgs = []
@@ -122,8 +126,12 @@ def _proc_system_packages(conf: Any) -> List[str]:
     """
 
     print("- processing packages -----------")
-    sys_packages = list(conf.packages.values())
-    return sys_packages
+    sys_packages = conf.packages
+
+    if sys_packages is None:
+        return []
+
+    return list(sys_packages.values())
 
 
 def _proc_user_programs(conf: Any) -> List[str]:
@@ -144,6 +152,9 @@ def _proc_user_programs(conf: Any) -> List[str]:
 
     print("- processing user programs -----------")
     users = conf.users
+
+    if users is None:
+        return packages
 
     for user, info in users.items():
         if info.programs:
