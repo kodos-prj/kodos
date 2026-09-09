@@ -1,3 +1,9 @@
-"""Distributions module."""
+"""Distribution-specific implementations (Phase 2).
 
-__all__ = ["Distribution", "ArchDistribution", "DebianDistribution"]
+Provides abstract Distribution base class and concrete implementations
+for Arch, Debian, etc.
+"""
+
+from kod.distributions.base import Distribution
+
+__all__ = ["Distribution"]

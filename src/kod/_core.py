@@ -2035,4 +2035,20 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
             print(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
             exec(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
         else:
-            exec(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")
+             exec(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")
+
+# ============================================================================
+# PHASE 2 BACKWARD COMPATIBILITY ALIASES
+# ============================================================================
+# New modules import and wrap functions from here. This section provides
+# import aliases so existing code (kod.py, tests) continues to work.
+# Once Phase 2 refactoring is complete, these can be deprecated.
+
+# Workflow entry points (to be moved to kod/core/{install,rebuild,user_config}.py)
+# Currently imported from this module, will re-export from new modules
+
+# System operations (to be moved to kod/system/{packages,services,boot,filesystem,users}.py)
+# Currently imported from this module, will re-export from new modules
+
+# This section should remain minimal - only add aliases for functions that
+# are actually imported by kod.py or tests.

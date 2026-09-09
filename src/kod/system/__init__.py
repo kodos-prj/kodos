@@ -1,11 +1,12 @@
-"""Kodos system-level operations.
+"""Kodos system operations (Phase 2).
 
-Low-level system operations used by workflows:
-- Package management (Phase 2)
-- Service management (Phase 2)
-- Boot configuration (Phase 2)
-- Filesystem setup (Phase 2)
-- Custom packages (Phase 5)
-
-See docs/superpowers/specs/2026-09-09-architecture-redesign.md for details.
+This module provides atomic system-level operations:
+- packages: Package management (install, update, cache)
+- services: Service enablement/disablement
+- boot: Bootloader and kernel management
+- filesystem: Partitions, mounts, fstab
+- users: User and group management
 """
+
+# Import and re-export operation interfaces
+# (to be added as modules are implemented)
