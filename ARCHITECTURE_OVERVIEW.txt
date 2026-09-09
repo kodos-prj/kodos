@@ -1,0 +1,316 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                  KODOS ARCHITECTURE REDESIGN OVERVIEW                          ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+PROBLEM ANALYSIS
+════════════════════════════════════════════════════════════════════════════════
+
+Priority 1: PYTHON STRUCTURE
+  Current:  core.py (2,038 lines) handles install, rebuild, users, packages, boot
+  Issue:    No clear boundaries; hard to test; hard to understand
+  Solution: Split by responsibility → 6-8 focused modules (~200-400 lines each)
+
+Priority 2: RUNTIME PERFORMANCE
+  Current:  Install errors caught 4 hours in (config validation during execution)
+  Issue:    Wasted time debugging "what went wrong?"
+  Solution: Compilation phase → validate config upfront (seconds, not hours)
+
+Priority 3: CONFIG COMPLEXITY
+  Current:  One configuration.lua (~300 lines); program configs as Lua functions
+  Issue:    No module system; no schema; hard to extend
+  Solution: NixOS-style modular imports, schema, plugin-based program registry
+
+
+PROPOSED ARCHITECTURE
+════════════════════════════════════════════════════════════════════════════════
+
+┌─ LAYER STRUCTURE ──────────────────────────────────────────────────────────┐
+│                                                                              │
+│  CLI (kod.py)                                                                │
+│    ↓                                                                          │
+│  ORCHESTRATION (core/)                                                       │
+│    ├─ install.py      (install workflow)                                     │
+│    ├─ rebuild.py      (rebuild workflow)                                     │
+│    └─ user_config.py  (user dotfiles/services)                               │
+│    ↓                                                                          │
+│  SYSTEM OPERATIONS (system/)                                                 │
+│    ├─ packages.py     (install/remove/update)                                │
+│    ├─ services.py     (enable/disable/status)                                │
+│    ├─ users.py        (create/configure)                                     │
+│    ├─ boot.py         (bootloader, kernel)                                   │
+│    └─ filesystem.py   (partitions, mounts)                                   │
+│    ↓                                                                          │
+│  DISTRIBUTIONS (distributions/)                                              │
+│    ├─ base.py         (abstract interface)                                   │
+│    ├─ arch.py         (Arch Linux specific)                                  │
+│    └─ debian.py       (Debian specific)                                      │
+│    ↓                                                                          │
+│  CONFIG SYSTEM (config/)                                                     │
+│    ├─ schema.py       (option definitions, types, defaults)                  │
+│    ├─ loader.py       (parse Lua, resolve imports)                           │
+│    ├─ compiler.py     (flatten, resolve dependencies)                        │
+│    └─ validator.py    (type-check against schema)                            │
+│    ↓                                                                          │
+│  PROGRAM REGISTRY (registry/)                                                │
+│    ├─ programs.py     (builtin program definitions)                          │
+│    └─ loader.py       (plugin discovery)                                     │
+│    ↓                                                                          │
+│  COMMON (common.py)                                                          │
+│    └─ exec, logging, error handling                                          │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+CONFIGURATION SYSTEM
+════════════════════════════════════════════════════════════════════════════════
+
+BEFORE (Current):
+  ┌─ configuration.lua (300 lines in one file)
+  └─ All options flat, no module system
+
+AFTER (Proposed):
+  ┌─ configuration.lua (entry point, ~50 lines)
+  │   ├─ imports = ["modules/base", "modules/desktop", "modules/users"]
+  │   └─ config = { hostname = "myvm", ... }
+  │
+  ├─ modules/base/default.lua
+  │   └─ config = { boot.kernel = "linux-lts", ... }
+  │
+  ├─ modules/desktop/gnome.lua
+  │   └─ config = { desktop.gnome.enable = true, ... }
+  │
+  └─ modules/users/demo/default.lua
+      └─ config = { users.demo = { name = "Demo", ... } }
+
+COMPILE PHASE:
+  1. Load    → Parse Lua, resolve imports
+  2. Compile → Flatten structure, auto-enable dependencies (GNOME→gdm)
+  3. Validate→ Type-check against schema
+  ✓ Ready to install (or errors caught in seconds)
+
+
+PYTHON REFACTORING
+════════════════════════════════════════════════════════════════════════════════
+
+BEFORE: 
+  core.py (2,038 lines)
+  ├─ Install logic
+  ├─ Rebuild logic
+  ├─ User config logic
+  ├─ Package management
+  ├─ Service management
+  ├─ User creation
+  ├─ Boot setup
+  └─ Filesystem setup
+  
+  → Hard to find code, hard to test, high cognitive load
+
+AFTER:
+  kod/
+  ├─ core/
+  │   ├─ install.py      (~150 lines) ← Install workflow
+  │   ├─ rebuild.py      (~150 lines) ← Rebuild workflow
+  │   └─ user_config.py  (~100 lines) ← User config workflow
+  │
+  ├─ system/
+  │   ├─ packages.py     (~100 lines) ← Package operations
+  │   ├─ services.py     (~80 lines)  ← Service operations
+  │   ├─ users.py        (~120 lines) ← User operations
+  │   ├─ boot.py         (~150 lines) ← Boot operations
+  │   └─ filesystem.py   (existing, moved)
+  │
+  └─ distributions/
+      ├─ base.py         (~50 lines)  ← Abstract interface
+      ├─ arch.py         (refactored) ← Arch implementation
+      └─ debian.py       (refactored) ← Debian implementation
+
+  → Each file ~100-200 lines, one responsibility, testable in isolation
+
+
+PROGRAM REGISTRY
+════════════════════════════════════════════════════════════════════════════════
+
+BEFORE:
+  config.git() → Lua helper function (users must know it exists)
+
+AFTER:
+  kod/registry/programs.py
+  ├─ "git"      → { packages, options, config_generator }
+  ├─ "neovim"   → { packages, options, config_generator }
+  ├─ "syncthing"→ { packages, options, config_generator }
+  └─ ... more
+
+  Plugin System:
+  ~/.kod/plugins/programs/myapp.py
+  └─ PROGRAM_DEFINITION = { "myapp" → { packages, options, config_generator } }
+     (Auto-discovered, merged into registry)
+
+  Usage:
+  programs = {
+    git = { enable = true, user_name = "...", user_email = "..." },
+    myapp = { enable = true, custom_option = "value" },
+  }
+
+
+ERROR HANDLING
+════════════════════════════════════════════════════════════════════════════════
+
+BEFORE:
+  Global `problems` list (fragile, hidden errors)
+  Dead exception classes (never raised)
+
+AFTER:
+  KodError (base)
+  ├─ ConfigError     → Config parsing/validation failed
+  ├─ CommandError    → System command failed
+  └─ DistributionError → Distribution-specific operation failed
+
+  Errors are traceable, testable, recoverable
+
+
+IMPLEMENTATION PHASES
+════════════════════════════════════════════════════════════════════════════════
+
+Phase 1: Config System (Weeks 1-2)
+  ✓ schema.py, loader.py, compiler.py, validator.py
+  ✓ CLI: kod config validate -c example/testvm
+  ✓ Unit tests
+  → Config errors caught in seconds
+
+Phase 2: Python Refactoring (Weeks 3-5)
+  ✓ Split core.py into focused modules
+  ✓ Refactor error handling
+  ✓ Unit + integration tests
+  → Clear, testable code
+
+Phase 3: Program Registry (Week 6)
+  ✓ Builtin program definitions
+  ✓ Plugin loader
+  ✓ Unit tests
+  → Users can extend without modifying source
+
+Phase 4: Polish (Week 7)
+  ✓ Documentation
+  ✓ Cleanup, final tests
+  ✓ No regressions
+  → Production ready
+
+TOTAL: ~7 weeks, full redesign complete, backward compatible
+
+
+DATA FLOW
+════════════════════════════════════════════════════════════════════════════════
+
+Install Workflow:
+
+  1. User runs: kod install -c example/testvm
+
+  2. Load Phase (config/loader.py)
+     config.lua → Lua parser → raw config dict
+
+  3. Compile Phase (config/compiler.py)
+     raw config → resolve imports → flatten structure → auto-enable deps
+
+  4. Validate Phase (config/validator.py)
+     compiled config → check types, enums, constraints → validated config
+     
+     ⚡ Errors caught HERE (before touching system)
+
+  5. Execute Phase (core/install.py)
+     validated config → get distribution → setup filesystems → install packages
+                    → configure boot, services, users → store generation
+
+  6. Done
+     System installed, generation metadata stored
+
+
+SUCCESS CRITERIA
+════════════════════════════════════════════════════════════════════════════════
+
+Phase 1:
+  ✓ kod config validate -c example/testvm shows errors upfront
+  ✓ Modular imports work (config splits into modules/)
+  ✓ Compiler resolves dependencies (GNOME → gdm auto-set)
+  ✓ Tests cover schema, validator, loader, compiler
+
+Phase 2:
+  ✓ core.py is split; each module < 400 lines
+  ✓ kod install and kod rebuild work end-to-end
+  ✓ Unit tests for each module pass
+  ✓ Integration tests for workflows pass
+
+Phase 3:
+  ✓ Users can define custom programs in ~/.kod/plugins/
+  ✓ Builtin programs (git, neovim, syncthing) have schemas
+  ✓ Program options validated upfront
+
+Phase 4:
+  ✓ All tests pass (unit + integration)
+  ✓ README updated with new examples
+  ✓ No regressions; old configs still work
+  ✓ Documentation complete
+
+
+RISK ANALYSIS
+════════════════════════════════════════════════════════════════════════════════
+
+Risk                         Impact      Mitigation
+─────────────────────────    ──────      ──────────────────────────────
+Lua compilation overhead     Performance Profile before/after (should be <1s)
+Breaking existing configs    User pain   Maintain backward compatibility
+Scope creep in refactoring   Time slips  Strict phase gates; merge after each
+Plugin system unused         Wasted      Defer if time-constrained; add later
+Schema too strict            Frustration Make helpful, clear error messages
+
+
+NEXT STEPS
+════════════════════════════════════════════════════════════════════════════════
+
+For You:
+  1. Review docs/superpowers/specs/2026-09-09-architecture-redesign.md
+  2. Request changes if needed
+  3. Approve to proceed
+
+Then:
+  Start Phase 1: Configuration system
+  ├─ kod/config/schema.py
+  ├─ kod/config/loader.py
+  ├─ kod/config/compiler.py
+  ├─ kod/config/validator.py
+  ├─ Unit tests
+  └─ CLI: kod config validate
+
+
+FILES CREATED
+════════════════════════════════════════════════════════════════════════════════
+
+docs/superpowers/specs/2026-09-09-architecture-redesign.md
+  ↓
+  Comprehensive 1,375-line specification covering:
+  - Problem analysis
+  - Layered architecture
+  - Config system design
+  - Python refactoring
+  - Program registry
+  - Error handling
+  - Testing strategy
+  - 4 implementation phases
+  - Backward compatibility
+  - Risk analysis
+
+ARCHITECTURE_REDESIGN_PLAN.md
+  ↓
+  Quick reference: timeline, next steps, key decisions
+
+BRAINSTORMING_SUMMARY.md
+  ↓
+  Session overview: what was discussed, why, what comes next
+
+Branch: feat/architecture-redesign
+  ↓
+  Development branch ready for implementation
+
+
+════════════════════════════════════════════════════════════════════════════════
+STATUS: Specification approved and committed. Ready for implementation phase 1.
+════════════════════════════════════════════════════════════════════════════════
