@@ -331,6 +331,10 @@ def manage_packages(
     for repo, pkgs in pkgs_per_repo.items():
         if len(pkgs) == 0:
             continue
+        if repo not in repos:
+            print(f"Warning: Repository '{repo}' not found in repos.json, skipping {len(pkgs)} packages")
+            wrong_pkgs.extend(pkgs)
+            continue
         if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
             if chroot:
                 try:
