@@ -51,48 +51,66 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # Locale
     locale_conf = conf.locale
     if locale_conf:
-        time_zone = locale_conf["timezone"]
+        time_zone = locale_conf.get("timezone", "UTC")
     else:
-        time_zone = "GMT"
+        time_zone = "UTC"
     exec_chroot(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
     exec_chroot("hwclock --systohc")
 
     # Localization
-    locale_spec = locale_conf.locale
-    locale_default = locale_spec.default
-    locale_to_generate = locale_default + "\n"
-    if "extra_generate" in locale_spec and locale_spec.extra_generate:
-        locale_to_generate += "\n".join(list(locale_spec.extra_generate.values()))
-    with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
-        locale_file.write(locale_to_generate + "\n")
-    exec_chroot("locale-gen")
+    if locale_conf and "locale" in locale_conf:
+        locale_spec = locale_conf["locale"]
+        locale_default = locale_spec.get("default", "en_US.UTF-8 UTF-8")
+        locale_to_generate = locale_default + "\n"
+        if "extra_generate" in locale_spec and locale_spec.get("extra_generate"):
+            locale_to_generate += "\n".join(list(locale_spec["extra_generate"].values()))
+        with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
+            locale_file.write(locale_to_generate + "\n")
+        exec_chroot("locale-gen")
 
-    locale_name = locale_default.split()[0]
-    locale_extra = locale_name + "\n"
-    if "extra_settings" in locale_spec and locale_spec.extra_settings:
-        for k, v in locale_spec.extra_settings.items():
-            locale_extra += f"{k}={v}\n"
-    with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
-        locale_file.write(f"LANG={locale_extra}\n")
+        locale_name = locale_default.split()[0]
+        locale_extra = locale_name + "\n"
+        if "extra_settings" in locale_spec and locale_spec.get("extra_settings"):
+            for k, v in locale_spec["extra_settings"].items():
+                locale_extra += f"{k}={v}\n"
+        with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
+            locale_file.write(f"LANG={locale_extra}\n")
+    else:
+        # Default locale configuration
+        exec_chroot("echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen")
+        exec_chroot("locale-gen")
+        exec_chroot("echo 'LANG=en_US.UTF-8' > /etc/locale.conf")
 
     # Network
     network_conf = conf.network
 
-    # hostname
-    hostname = network_conf["hostname"]
-    exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
-    use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
-    use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
-    eth0_network = """[Match]
+    if network_conf is not None:
+        # hostname
+        hostname = network_conf.get("hostname", "localhost")
+        exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
+        use_ipv4 = network_conf.get("ipv4", True)
+        use_ipv6 = network_conf.get("ipv6", True)
+        eth0_network = """[Match]
 Name=*
 [Network]
 """
-    if use_ipv4:
-        eth0_network += "DHCP=ipv4\n"
-    if use_ipv6:
-        eth0_network += "DHCP=ipv6\n"
-    with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-        f.write(eth0_network)
+        if use_ipv4:
+            eth0_network += "DHCP=ipv4\n"
+        if use_ipv6:
+            eth0_network += "DHCP=ipv6\n"
+        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
+            f.write(eth0_network)
+    else:
+        # Default network configuration
+        exec(f"echo 'localhost' > {mount_point}/etc/hostname")
+        eth0_network = """[Match]
+Name=*
+[Network]
+DHCP=ipv4
+DHCP=ipv6
+"""
+        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
+            f.write(eth0_network)
 
     # hosts
     exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts")

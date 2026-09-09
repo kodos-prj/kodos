@@ -126,6 +126,10 @@ def proc_users(ctx: Any, conf: Any) -> None:
     )
 
     users = conf.users
+
+    if users is None:
+        return
+
     # For each user: create user, configure dotfile manager, configure user programs
     for user, info in users.items():
         create_user(ctx, user, info)
