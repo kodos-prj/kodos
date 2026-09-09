@@ -767,6 +767,15 @@ def __getattr__(name: str):
     This allows kod.py to continue importing from kod.core while the actual
     implementations have been moved to respective system modules.
     """
+    # Rebuild workflow functions (moved to kod.core.rebuild)
+    if name in {
+        'get_generation',
+        'get_max_generation',
+        'create_next_generation',
+    }:
+        from kod.core import rebuild as rebuild_module
+        return getattr(rebuild_module, name)
+    
     # Package management functions (moved to kod.system.packages)
     if name in {
         'get_packages_to_install',
