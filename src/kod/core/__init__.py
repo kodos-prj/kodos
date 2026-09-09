@@ -18,11 +18,16 @@ from kod.core.rebuild import (
     get_generation,
     get_max_generation,
 )
+from kod.core.user_config import (
+    configure_user_dotfiles,
+    configure_user_scripts,
+)
 
 __all__ = [
     "configure_system",
     "create_next_generation",
     "get_generation",
     "get_max_generation",
-    # Add user_config workflow as implemented
+    "configure_user_dotfiles",
+    "configure_user_scripts",
 ]
