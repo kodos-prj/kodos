@@ -1,19 +1,28 @@
 """Core functionality and configuration management for KodOS.
 
-This module contains the main functionality for KodOS including Lua configuration
-processing, package management, user configuration, and system setup. It serves
-as the central orchestrator for the installation and configuration process.
+This module serves as the backward-compatibility layer for KodOS. All implementations 
+have been moved to kod.system.* and kod.core.* modules. New code should import directly 
+from those modules. Existing code importing from kod.core continues to work via 
+re-exports and __getattr__ below.
 """
 
+# =============================================================================
+# STANDARD LIBRARY IMPORTS
+# =============================================================================
 import glob
 import json
 import os
-import re
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Callable
+from typing import List, Dict, Optional, Any, Tuple
 
+# =============================================================================
+# THIRD-PARTY IMPORTS
+# =============================================================================
 import lupa as lua
 
+# =============================================================================
+# INTERNAL MODULE DEPENDENCIES
+# =============================================================================
 from kod.arch import get_base_packages, get_kernel_file, get_list_of_dependencies
 from kod.common import exec, exec_chroot, exec_critical
 from kod.filesystem import FsEntry
@@ -34,9 +43,9 @@ from kod.system.users import (
     create_kod_user,
 )
 
-# from kod.arch import kernel_update_required
-
-#####################################################################################################
+# =============================================================================
+# BACKWARD-COMPATIBILITY CONSTANTS
+# =============================================================================
 os_release = """NAME="KodOS Linux"
 VERSION="1.0"
 PRETTY_NAME="KodOS Linux"
@@ -48,11 +57,13 @@ SUPPORT_URL="https://github.com/kodos-prj/kodos/"
 BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
 RELEASE_TYPE="expeirimental"
 """
-#####################################################################################################
-
 
 base_distribution: str = "arch"
 
+
+# =============================================================================
+# UTILITY FUNCTIONS FOR BASE DISTRIBUTION SETUP
+# =============================================================================
 
 def set_base_distribution(base_dist: str) -> Any:
     """Set the base distribution and return the corresponding module.
@@ -74,41 +85,46 @@ def set_base_distribution(base_dist: str) -> Any:
     return dist
 
 
-# ------------------
+# =============================================================================
+# HELPER PATH FUNCTIONS (used by load_config to provide to Lua)
+# =============================================================================
+
 def is_dir(path: str) -> bool:
+    """Check if path is a directory."""
     return Path(path).is_dir()
 
 
-def home_dir() -> str:
-    return Path().home()
-
-
-def absolute(path: str) -> str:
-    return str(Path(path).absolute())
-
-
-def resolve(path: str) -> str:
-    return str(Path(path).resolve())
-
-
-def expanduser(path: str) -> str:
-    return str(Path(path).expanduser())
-
-
-def exists(path: str) -> bool:
-    return Path(path).exists()
-
-
 def is_file(path: str) -> bool:
+    """Check if path is a file."""
     return Path(path).is_file()
 
 
-# ------------------
+def home_dir() -> str:
+    """Get the home directory."""
+    return Path().home()
 
 
-# Core
+def exists(path: str) -> bool:
+    """Check if path exists."""
+    return Path(path).exists()
+
+
+def absolute(path: str) -> str:
+    """Get absolute path."""
+    return str(Path(path).absolute())
+
+
+def expanduser(path: str) -> str:
+    """Expand user home directory in path."""
+    return str(Path(path).expanduser())
+
+
+# =============================================================================
+# CORE CONFIGURATION LOADING
+# =============================================================================
+
 def load_config(config_filename: Optional[str]) -> Any:
-    """Load configuration from a file and return it as a table.
+    """Load configuration from a Lua file and return it as a table.
 
     The configuration file is a Lua file that contains different sections to configure
     the different aspects of the system.
@@ -137,9 +153,6 @@ def load_config(config_filename: Optional[str]) -> Any:
     luart.execute("print(package.path)")
     print("Loading default libraries")
 
-    # # Load the Lua runtime and add path functionality
-    # luart.globals()["is_dir"] = is_dir
-    # luart.globals()["home_dir"] = home_dir
     path_module = luart.table_from(
         {
             "is_dir": is_dir,
@@ -167,42 +180,15 @@ IfElse = require("utils").if_else
     return conf
 
 
+# =============================================================================
+# USER CONFIGURATION PROCESSING
+# =============================================================================
 
-
-# Core
-def get_max_generation() -> int:
-    """
-    Retrieve the highest numbered generation directory in /kod/generations.
-
-    If no generation directories exist, return 0.
-
-    Returns:
-        int: The highest numbered generation directory.
-    """
-    generations = glob.glob("/kod/generations/*")
-    generations = [p.split("/")[-1] for p in generations]
-    generations = [int(p) for p in generations if p != "current"]
-    print(f"{generations=}")
-    if generations:
-        generation = max(generations)
-    else:
-        generation = 0
-    print(f"{generation=}")
-    return generation
-
-
-# Core
-
-
-# Core
 def proc_user_dotfile_manager(conf: Any) -> Dict[str, Any]:
-    """
-    Process the user dotfile manager configuration and generate a dictionary of
-    user and their dotfile manager information.
+    """Process the user dotfile manager configuration.
 
     Args:
-        conf (dict): The configuration dictionary containing the user
-                     information.
+        conf (dict): The configuration dictionary containing user information.
 
     Returns:
         dict: A dictionary of user name and their dotfile manager information.
@@ -218,18 +204,14 @@ def proc_user_dotfile_manager(conf: Any) -> Dict[str, Any]:
     return dotfile_mngs
 
 
-# Core
 def user_dotfile_manager(info: Any) -> Optional[Dict[str, Any]]:
-    """
-    Process the user dotfile manager configuration and generate a dictionary of
-    user and their dotfile manager information.
+    """Process the user dotfile manager configuration for a single user.
 
     Args:
-        info (dict): The user information dictionary containing the dotfile
-                     manager information.
+        info (dict): The user information dictionary containing the dotfile manager information.
 
     Returns:
-        dict: A dictionary of user name and their dotfile manager information.
+        dict: The dotfile manager configuration or None.
     """
     print("- processing user dotfile manager -----------")
     dotfile_mngs = None
@@ -240,22 +222,14 @@ def user_dotfile_manager(info: Any) -> Optional[Dict[str, Any]]:
     return dotfile_mngs
 
 
-# Core
 def proc_user_configs(conf: Any) -> Dict[str, Any]:
-    """
-    Process user configurations to determine deployable configs and commands.
-
-    This function processes the configuration for each user, extracting programs
-    and services to identify which configurations need to be deployed and which
-    commands need to be run.
+    """Process user configurations to determine deployable configs and commands.
 
     Args:
-        conf (dict): A configuration dictionary containing users and their
-                     associated program and service information.
+        conf (dict): A configuration dictionary containing users and their associated config information.
 
     Returns:
-        dict: A dictionary mapping each user to their respective deployable
-              configurations and commands to run.
+        dict: A dictionary mapping each user to their respective deployable configurations and commands.
     """
     configs_to_deploy = {}
 
@@ -271,17 +245,13 @@ def proc_user_configs(conf: Any) -> Dict[str, Any]:
                 print(name, prog.enable)
                 if prog.enable:
                     if prog.deploy_config:
-                        # Program requires deploy config
                         deploy_configs.append(name)
 
-                    # Configure based on the specified parameters
                     if "config" in prog and prog.config:
                         prog_conf = prog.config
                         if "command" in prog_conf:
-                            # command = prog_conf.command.format(**prog_conf.config)
                             commands_to_run.append(prog_conf)
 
-        # Add extra deploy configs
         if info.deploy_configs:
             print(f"Processing deploy configs for {user}")
             configs = info.deploy_configs.values()
@@ -294,7 +264,6 @@ def proc_user_configs(conf: Any) -> Dict[str, Any]:
                     if desc.config:
                         serv_conf = desc.config
                         if "command" in serv_conf:
-                            # command = serv_conf.command.format(**serv_conf.config)
                             commands_to_run.append(serv_conf)
 
         configs_to_deploy[user] = {"configs": deploy_configs, "run": commands_to_run}
@@ -302,29 +271,16 @@ def proc_user_configs(conf: Any) -> Dict[str, Any]:
     return configs_to_deploy
 
 
-# Core
 def user_configs(user: str, info: Any) -> Dict[str, Any]:
-    """
-    Process the user configuration to determine deployable configs and commands.
-
-    This function iterates over the user's programs, services, and additional
-    configuration settings to identify which configurations need to be deployed
-    and which commands need to be executed.
+    """Process the user configuration to determine deployable configs and commands.
 
     Args:
         user (str): The user name for which configurations are being processed.
-        info (dict): A dictionary containing the user's configuration details,
-                     including programs, deploy_configs, and services.
+        info (dict): A dictionary containing the user's configuration details.
 
     Returns:
-        dict: A dictionary with two keys:
-            - "configs": A list of configuration names that need to be deployed.
-            - "run": A list of commands that need to be executed based on the
-              user's configuration.
+        dict: A dictionary with "configs" and "run" keys.
     """
-    configs_to_deploy = {}
-
-    print("- processing user programs -----------")
     deploy_configs = []
     commands_to_run = []
     if info.programs:
@@ -333,16 +289,13 @@ def user_configs(user: str, info: Any) -> Dict[str, Any]:
             print(name, prog.enable)
             if prog.enable:
                 if prog.deploy_config:
-                    # Program requires deploy config
                     deploy_configs.append(name)
 
-                # Configure based on the specified parameters
                 if "config" in prog and prog.config:
                     prog_conf = prog.config
                     if "command" in prog_conf:
                         commands_to_run.append(prog_conf)
 
-    # Add extra deploy configs
     if info.deploy_configs:
         print(f"Processing deploy configs for {user}")
         configs = info.deploy_configs.values()
@@ -357,26 +310,17 @@ def user_configs(user: str, info: Any) -> Dict[str, Any]:
                     if "command" in serv_conf:
                         commands_to_run.append(serv_conf)
 
-    configs_to_deploy = {"configs": deploy_configs, "run": commands_to_run}
-
-    return configs_to_deploy
+    return {"configs": deploy_configs, "run": commands_to_run}
 
 
-# Core
 def proc_user_services(conf: Any) -> Dict[str, Any]:
-    """
-    Process the user services configuration.
-
-    This function processes the user services configuration and generates a
-    dictionary mapping each user to their respective services to enable.
+    """Process the user services configuration.
 
     Args:
-        conf (dict): The configuration dictionary containing the user
-                     information.
+        conf (dict): The configuration dictionary containing the user information.
 
     Returns:
-        dict: A dictionary mapping each user to their respective services to
-              enable.
+        dict: A dictionary mapping each user to their respective services to enable.
     """
     services_to_enable_user = {}
     print("- processing user programs -----------")
@@ -396,19 +340,12 @@ def proc_user_services(conf: Any) -> Dict[str, Any]:
     return services_to_enable_user
 
 
-# Core
 def user_services(user: str, info: Any) -> List[str]:
-    """
-    Process the user services configuration to determine which services
-    should be enabled based on the provided configuration.
-
-    This function iterates over the user's services configuration and
-    returns a list of service names that need to be enabled.
+    """Process the user services configuration to determine which services should be enabled.
 
     Args:
         user (str): The user name for which services are being processed.
-        info (dict): A dictionary containing the user's configuration details,
-                     including services.
+        info (dict): A dictionary containing the user's configuration details.
 
     Returns:
         list: A list of service names that need to be enabled.
@@ -424,12 +361,12 @@ def user_services(user: str, info: Any) -> List[str]:
     return services
 
 
-# Core
+# =============================================================================
+# CONTEXT CLASS FOR COMMAND EXECUTION
+# =============================================================================
 
-# Core
 class Context:
-    """
-    Context class for executing commands.
+    """Context class for executing commands in a specific environment.
 
     This class represents the context in which commands are executed. It stores
     information about the user and mount point that are used to execute commands.
@@ -441,11 +378,7 @@ class Context:
     stage: str
 
     def __init__(self, user: str, mount_point: str = "/mnt", use_chroot: bool = True, stage: str = "install") -> None:
-        """
-        Initialize the Context object.
-
-        This object stores information about the user and mount point that are
-        used to execute commands.
+        """Initialize the Context object.
 
         Parameters
         ----------
@@ -465,14 +398,7 @@ class Context:
         self.stage = stage
 
     def execute(self, command: str, get_output: bool = False) -> str:
-        """
-        Execute a command in the specified context.
-
-        This method constructs and executes a command based on the current context,
-        which includes the user, mount point, and chroot settings. If the context
-        user is different from the current environment user, the command is wrapped
-        with 'su' for user substitution. If chroot execution is enabled, the command
-        is executed within the chroot environment at the specified mount point.
+        """Execute a command in the specified context.
 
         Args:
             command (str): The command to execute.
@@ -505,11 +431,32 @@ class Context:
             return ""
 
 
+# =============================================================================
+# GENERATION AND PACKAGE/SERVICE STATE MANAGEMENT
+# =============================================================================
 
-# Core
-def get_generation(mount_point: str) -> int:
+def get_max_generation() -> int:
+    """Retrieve the highest numbered generation directory in /kod/generations.
+
+    If no generation directories exist, return 0.
+
+    Returns:
+        int: The highest numbered generation directory.
     """
-    Retrieve the generation number from a specified mount point.
+    generations = glob.glob("/kod/generations/*")
+    generations = [p.split("/")[-1] for p in generations]
+    generations = [int(p) for p in generations if p != "current"]
+    print(f"{generations=}")
+    if generations:
+        generation = max(generations)
+    else:
+        generation = 0
+    print(f"{generation=}")
+    return generation
+
+
+def get_generation(mount_point: str) -> int:
+    """Retrieve the generation number from a specified mount point.
 
     Args:
         mount_point (str): The mount point to read the generation number from.
@@ -521,10 +468,8 @@ def get_generation(mount_point: str) -> int:
         return int(f.read().strip())
 
 
-# Core
 def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
-    """
-    Load the list of packages that are installed and the list of services that are enabled.
+    """Load the list of packages and services from state.
 
     Args:
         state_path (str): The path to the state directory where the package and service
@@ -533,8 +478,6 @@ def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str
     Returns:
         tuple: A tuple containing two elements:
             - packages (dict): A dictionary containing the packages to install.
-              The dictionary should have a single key: "packages", which is a list of
-              package names.
             - services (list): A list of system services that are enabled.
     """
     with open(f"{state_path}/installed_packages", "r") as f:
@@ -544,33 +487,22 @@ def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str
     return packages, services
 
 
-# ============================================================================
-# PHASE 2 BACKWARD COMPATIBILITY ALIASES
-# ============================================================================
-# New modules import and wrap functions from here. This section provides
-# import aliases so existing code (kod.py, tests) continues to work.
-# Once Phase 2 refactoring is complete, these can be deprecated.
-
-# Workflow entry points (to be moved to kod/core/{install,rebuild,user_config}.py)
-# Currently imported from this module, will re-export from new modules
-
-# System operations (to be moved to kod/system/{packages,services,boot,filesystem,users}.py)
-# Currently imported from this module, will re-export from new modules
-
-# This section should remain minimal - only add aliases for functions that
-# are actually imported by kod.py or tests.
+# =============================================================================
+# PHASE 2B BACKWARD-COMPATIBILITY RE-EXPORTS
+# =============================================================================
+# This __getattr__ function allows kod.py and tests to continue importing from
+# kod.core while actual implementations are in kod.system.* and kod.core.* modules.
+# Once Phase 2B refactoring is complete, these can be deprecated.
 
 
 def __getattr__(name: str):
-    """Lazy import of refactored functions from kod.system modules.
+    """Lazy import of refactored functions from kod.system and kod.core modules.
     
     This allows kod.py to continue importing from kod.core while the actual
-    implementations have been moved to respective system modules.
+    implementations have been moved to respective system and core modules.
     """
     # Rebuild workflow functions (moved to kod.core.rebuild)
     if name in {
-        'get_generation',
-        'get_max_generation',
         'create_next_generation',
     }:
         from kod.core import rebuild as rebuild_module
@@ -619,4 +551,13 @@ def __getattr__(name: str):
         from kod.core import install as install_module
         return getattr(install_module, name)
     
+    # Boot functions (moved to kod.system.boot)
+    if name in {
+        'create_boot_entry',
+        'setup_bootloader',
+    }:
+        from kod.system import boot as boot_module
+        return getattr(boot_module, name)
+    
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
