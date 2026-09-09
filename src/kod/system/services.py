@@ -28,6 +28,9 @@ def proc_desktop_services(conf: Any) -> List[str]:
     services_to_enable = []
     desktop = conf.desktop
 
+    if desktop is None:
+        return services_to_enable
+
     display_manager = desktop.display_manager
     selected_display_manager = False
     if display_manager:
@@ -105,6 +108,10 @@ def proc_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     services_to_enable = []
     print("- processing services -----------")
     services = conf.services
+
+    if services is None:
+        return services_to_enable
+
     for name, service in services.items():
         service_enable = service.enable or True
         print(name, service_enable)

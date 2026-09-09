@@ -333,6 +333,9 @@ def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
     """
     devices = conf.devices
 
+    if devices is None:
+        return None, None
+
     boot_partition = None
     root_partition = None
     for d_id, disk in devices.items():
