@@ -86,21 +86,29 @@ src/kod/
 - ✅ 21 tests passing (validator, loader, compiler, CLI)
 
 ### Phase 2: Python Refactoring (Weeks 3-5)
-- [ ] Create `kod/core/` module split
-- [ ] Implement `kod/core/install.py` — Installation orchestration
-- [ ] Implement `kod/core/rebuild.py` — Rebuild orchestration
-- [ ] Implement `kod/core/user_config.py` — User management
-- [ ] Create `kod/system/packages.py` — Package manager
-- [ ] Create `kod/system/services.py` — Service manager
-- [ ] Create `kod/system/boot.py` — Boot manager
+
+**Phase 2a (COMPLETE):** Module extraction with backward compatibility
+- [x] Create `kod/core/` module split
+- [x] Implement `kod/core/install.py` — Installation orchestration (wrapped)
+- [x] Implement `kod/core/rebuild.py` — Rebuild orchestration (wrapped)
+- [x] Implement `kod/core/user_config.py` — User management (wrapped)
+- [x] Create `kod/system/packages.py` — Package manager (wrapped)
+- [x] Create `kod/system/services.py` — Service manager (wrapped)
+- [x] Create `kod/system/boot.py` — Boot manager (wrapped)
+- [x] Create `kod/system/filesystem.py` — Filesystem manager (wrapped)
+- [x] Create `kod/system/users.py` — User manager (wrapped)
+
+**Phase 2b (TODO):** Refactor internals + comprehensive tests
 - [ ] Update `arch.py` and `debian.py` to use Distribution base class
 - [ ] Replace global error handling with structured exceptions
-- [ ] Write tests for each module
+- [ ] Write detailed unit tests for each module
 
-**Success Criteria:**
-- All existing functionality works (tests pass)
-- Code is clearer and more modular
-- Error handling uses exceptions (no global problems list)
+**Success Criteria (Phase 2a - ACHIEVED):**
+- ✅ New module structure in place (workflows + operations)
+- ✅ 8 new modules created with backward-compatible wrappers
+- ✅ All existing tests still pass (no regressions)
+- ✅ Import paths work for both old and new styles
+- ⏳ Phase 2b: Refactor internals, add real tests, implement Distribution interface
 
 ### Phase 3: Program Registry (Week 6)
 - [ ] Implement `kod/registry/programs.py` — Builtin programs (git, neovim, syncthing, etc.)
