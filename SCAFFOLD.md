@@ -71,12 +71,13 @@ src/kod/
 ## Implementation Phases
 
 ### Phase 1: Configuration System (Weeks 1-2)
-- [ ] Implement `kod/config/schema.py` — Schema definition
-- [ ] Implement `kod/config/validator.py` — Validation logic
+- [x] Implement `kod/config/schema.py` — Schema definition
+- [x] Implement `kod/config/validator.py` — Validation logic
 - [ ] Implement `kod/config/loader.py` — Lua config loading
 - [ ] Implement `kod/config/compiler.py` — Dependency resolution
-- [ ] Write tests for config system
-- [ ] CLI: `kod config --schema`, `kod config validate`, `kod config compile`
+- [x] Write tests for config system (validator + CLI)
+- [x] CLI: `kod config validate`
+- [ ] CLI: `kod config --schema`, `kod config compile`
 
 **Success Criteria:**
 - `kod config validate -c example/testvm` catches errors upfront
@@ -141,14 +142,11 @@ src/kod/
 | File | Status | Notes |
 |------|--------|-------|
 | `config/__init__.py` | ✅ Created | Phase 1 placeholder |
-| `config/schema.py` | ✅ Created | To be implemented |
-| `config/validator.py` | ✅ Created | To be implemented |
-| `config/loader.py` | ✅ Created | To be implemented |
-| `config/compiler.py` | ✅ Created | To be implemented |
-| `core/__init__.py` | ✅ Created | Phase 2 placeholder |
-| `core/install.py` | ✅ Created | To be implemented |
-| `core/rebuild.py` | ✅ Created | To be implemented |
-| `core/user_config.py` | ✅ Created | To be implemented |
+| `config/schema.py` | ✅ Implemented | Top-level option types (validated against real configs) |
+| `config/validator.py` | ✅ Implemented | Typo detection + type checks, handles lupa LuaTables |
+| `config/loader.py` | ✅ Created | To be implemented (module imports) |
+| `config/compiler.py` | ✅ Created | To be implemented (dependency resolution) |
+| ~~`core/` package~~ | ⚠️ Removed | Name collision: shadows old `core.py`. Recreate in Phase 2 when core.py is split |
 | `system/__init__.py` | ✅ Created | Phase 2 placeholder |
 | `system/packages.py` | ✅ Created | To be implemented |
 | `system/services.py` | ✅ Created | To be implemented |

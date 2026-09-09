@@ -1,52 +1,12 @@
-"""Tests for config schema (Phase 1).
+"""Placeholder tests for not-yet-implemented Phase 1 modules.
 
-These are placeholder tests showing the expected structure.
-Implement as you work on kod/config/schema.py.
+Implemented coverage lives in:
+- test_validator.py (schema + validator unit tests)
+- test_cli.py (kod config validate CLI)
+- test_example_config.py (end-to-end with real example config)
 """
 
 import pytest
-
-
-@pytest.mark.phase1
-class TestSchema:
-    """Test configuration schema."""
-
-    def test_schema_creation(self):
-        """Schema can be created and initialized."""
-        pytest.skip("Implement after schema.py is written")
-
-    def test_schema_option_types(self):
-        """Schema defines standard option types."""
-        pytest.skip("Implement after schema.py is written")
-
-    def test_schema_lookup(self):
-        """Can look up options in schema."""
-        pytest.skip("Implement after schema.py is written")
-
-    def test_schema_validation_error_messages(self):
-        """Validation errors have helpful messages."""
-        pytest.skip("Implement after schema.py is written")
-
-
-@pytest.mark.phase1
-class TestValidator:
-    """Test configuration validation."""
-
-    def test_validator_accepts_valid_config(self):
-        """Validator accepts valid configurations."""
-        pytest.skip("Implement after validator.py is written")
-
-    def test_validator_rejects_typos(self):
-        """Validator catches typos in option names."""
-        pytest.skip("Implement after validator.py is written")
-
-    def test_validator_checks_types(self):
-        """Validator checks option types."""
-        pytest.skip("Implement after validator.py is written")
-
-    def test_validator_checks_enums(self):
-        """Validator validates enum values."""
-        pytest.skip("Implement after validator.py is written")
 
 
 @pytest.mark.phase1

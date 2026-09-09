@@ -1,20 +1,19 @@
-"""Configuration schema definition and validation (Phase 1).
+"""Top-level configuration schema (Phase 1).
 
-Defines the structure of valid Kodos configurations using a schema system.
-Provides type checking, enum validation, and helpful error messages.
-
-Key components:
-- OptionType: Base class for configuration option types
-- Schema: Main schema registry
-- Validator: Validates config against schema
-
-Example:
-    >>> schema = Schema()
-    >>> schema.get("hostname")  # Returns type info
+Maps each valid top-level config option to its expected type.
 """
 
-# TODO (Phase 1): Implement schema system
-#   - Define core option types (string, enum, bool, list, dict)
-#   - Build schema registry for all config options
-#   - Add type checking and enum validation
-#   - Create validation error formatting
+SCHEMA = {
+    "base_distribution": str,
+    "repos": dict,
+    "devices": dict,
+    "boot": dict,
+    "hardware": dict,
+    "locale": dict,
+    "network": dict,
+    "users": dict,
+    "desktop": dict,
+    "fonts": dict,
+    "packages": list,
+    "services": dict,
+}

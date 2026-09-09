@@ -59,6 +59,7 @@ from kod.core import (
     user_services,
 )
 from kod.core import set_base_distribution
+from kod.config.validator import validate_config
 from kod.filesystem import create_partitions, get_partition_devices
 
 # from kod.core import *
@@ -71,6 +72,24 @@ from kod.filesystem import create_partitions, get_partition_devices
 def cli(debug: bool, verbose: bool) -> None:
     set_debug(debug)
     set_verbose(verbose)
+
+
+@cli.group()
+def config() -> None:
+    "Configuration management"
+
+
+@config.command(name="validate")
+@click.option("-c", "--config", default=None, help="System configuration file or directory")
+def config_validate(config: Optional[str]) -> None:
+    "Validate a configuration file before install/rebuild"
+    conf = load_config(config)
+    errors = validate_config(conf)
+    if errors:
+        for error in errors:
+            print(f"Error: {error}")
+        sys.exit(1)
+    print("Configuration is valid")
 
 
 # pkgs_installed = []
