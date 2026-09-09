@@ -24,7 +24,7 @@ from kod.core.user_config import (
 )
 
 # Re-export refactored functions from kod.system modules (Phase 2b)
-# These are now implemented in kod.system.services but re-exported for backward compat
+# These are now implemented in kod.system modules but re-exported for backward compat
 def __getattr__(name: str):
     """Lazy import of refactored functions from kod.system modules."""
     if name in {
@@ -35,9 +35,27 @@ def __getattr__(name: str):
         'proc_desktop_services',
         'proc_services',
         'proc_services_to_enable',
+        # Boot functions moved to kod.system.boot
+        'setup_bootloader',
+        'create_boot_entry',
+        'get_kernel_version',
+        'update_kernel_hook',
+        'update_initramfs_hook',
     }:
-        from kod.system import services as services_module
-        return getattr(services_module, name)
+        if name in {
+            'enable_services',
+            'disable_services',
+            'enable_user_services',
+            'get_services_to_enable',
+            'proc_desktop_services',
+            'proc_services',
+            'proc_services_to_enable',
+        }:
+            from kod.system import services as services_module
+            return getattr(services_module, name)
+        else:  # Boot functions
+            from kod.system import boot as boot_module
+            return getattr(boot_module, name)
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -55,4 +73,10 @@ __all__ = [
     "proc_desktop_services",
     "proc_services",
     "proc_services_to_enable",
+    # Phase 2b re-exports from kod.system.boot
+    "setup_bootloader",
+    "create_boot_entry",
+    "get_kernel_version",
+    "update_kernel_hook",
+    "update_initramfs_hook",
 ]
