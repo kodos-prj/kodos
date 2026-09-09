@@ -1181,6 +1181,130 @@ def test_install_flow(tmp_path, mocker):
 
 **Validation:** All tests pass; docs are clear; `kod install` and `kod rebuild` work as before
 
+### Phase 5: Custom Package Support (Weeks 8-9)
+
+**Goal:** Enable users to define and build custom packages declaratively in Lua, like NixOS.
+
+**Deliverables:**
+
+1. **Build templates** (`kod/registry/build_templates.py`)
+   - Define standard templates: autotools, cmake, make, python, cargo, meson
+   - Each template is a Lua function that knows the build sequence
+   - Template takes (source_url, options) and returns shell commands
+
+2. **Custom package schema** (extends `kod/config/schema.py`)
+   - Add `custom_packages` option type
+   - Schema for package definitions:
+     ```python
+     {
+       "name": "string",
+       "version": "string", 
+       "source": "string (URL)",
+       "template": "enum (autotools|cmake|make|python|cargo|meson)",
+       "build_flags": "list(string)",
+       "dependencies": "list(string)",
+       "description": "string",
+     }
+     ```
+   - Validate package definitions upfront
+
+3. **Package builder** (`kod/system/packages_custom.py`, ~300 lines)
+   - Fetch source from URL (with hash verification)
+   - Resolve dependencies (transitively)
+   - Execute build template
+   - Cache built binaries in `~/.kod/packages/`
+   - Install from cache
+   - Clean up build artifacts
+
+4. **Package cache management**
+   - Store in `~/.kod/packages/cache/`
+   - Metadata file per package (URL, hash, build flags, timestamp)
+   - Detect cache invalidation (source changed, dependencies updated)
+   - Garbage collection (optional)
+
+5. **Plugin system for custom templates** (`~/.kod/plugins/build_templates/`)
+   - Users drop `.lua` files defining custom build sequences
+   - Auto-discovered and loaded like program plugins
+   - Template signature: `function(src_dir, options) -> { commands... }`
+
+6. **CLI commands**
+   - `kod package build -n mypackage` — Build and cache package
+   - `kod package list` — Show all available (builtin + custom)
+   - `kod package info mypackage` — Show schema and metadata
+   - `kod package cache --clean` — Clear unused cached packages
+
+7. **Tests**
+   - Unit tests for fetch, build, cache logic
+   - Template execution tests (mock builds)
+   - Integration test: define, build, install custom package
+
+**Example usage in config:**
+
+```lua
+-- configuration.lua
+return {
+  imports = { "modules/base" },
+  
+  config = {
+    custom_packages = {
+      {
+        name = "hello",
+        version = "2.12",
+        source = "https://ftp.gnu.org/gnu/hello/hello-2.12.tar.gz",
+        template = "autotools",
+        build_flags = { "--prefix=/usr", "--enable-nls" },
+        dependencies = { "base-devel" },
+      },
+      {
+        name = "myapp",
+        version = "1.0",
+        source = "https://github.com/user/myapp/archive/v1.0.tar.gz",
+        template = "cmake",
+        build_flags = { "-DCMAKE_BUILD_TYPE=Release" },
+        dependencies = { "qt5-base", "openssl" },
+      },
+    },
+    
+    packages = {
+      "base", "git",
+      "custom:hello",      -- Install custom-built hello
+      "custom:myapp",      -- Install custom-built myapp
+    },
+  }
+}
+```
+
+**Integration points:**
+
+- Config compilation resolves custom packages → adds to dependency graph
+- Validator checks: all dependencies exist (builtin or custom)
+- Install phase: fetch custom packages first, then build, then install
+- Package manager groups: `custom:name` works like `aur:name`, `flatpak:name`
+
+**Success criteria:**
+
+- [ ] User can define custom packages in config
+- [ ] Upfront validation catches missing dependencies
+- [ ] Packages build successfully (tested with at least 2 templates)
+- [ ] Built packages cached and reused
+- [ ] Custom build templates loadable from `~/.kod/plugins/build_templates/`
+- [ ] CLI shows available packages and their schemas
+- [ ] Integration tests pass
+
+**Risks & mitigations:**
+
+| Risk | Mitigation |
+|------|-----------|
+| Untrusted build scripts | Sandbox with bubblewrap; clear warnings; user approval |
+| Build failures unclear | Detailed logging; keep build artifacts for inspection |
+| Binary cache incompatibilities | Store build metadata (gcc, libc versions); validate at use |
+| Dependency hell with repos | Prefix custom packages with `custom:`; fail if conflicts |
+| Slow first build | Parallel builds with jobserver; cached deps |
+
+**When to start:** After Phase 4 (Polish) is complete and all tests pass. Depends on refactored Python structure and improved error handling from earlier phases.
+
+**Effort:** 2-3 weeks, ~700-900 lines of Python + Lua; builds on redesigned architecture.
+
 ---
 
 ## Part 9: Backward Compatibility
@@ -1263,6 +1387,16 @@ return {
 - [ ] No regressions: old configs still work
 - [ ] Performance is unchanged or improved
 
+### Phase 5 (Custom Package Support)
+
+- [ ] User can define custom packages in config
+- [ ] Upfront validation catches missing dependencies
+- [ ] Packages build successfully (tested with at least 2 templates)
+- [ ] Built packages cached and reused
+- [ ] Custom build templates loadable from `~/.kod/plugins/build_templates/`
+- [ ] CLI shows available packages and their schemas
+- [ ] Integration tests pass
+
 ---
 
 ## Part 11: Risk Analysis
@@ -1276,6 +1410,8 @@ return {
 | Scope creep in refactoring | Project takes too long | Strict phase gates; merge and ship phase 1 before starting 2 |
 | Plugin system is unused | Wasted effort | Can be added later if demand emerges; defer if time-constrained |
 | Schema validation too strict | Users frustrated | Make it helpful, not pedantic; clear error messages |
+| Custom package builds fail | User frustration | Detailed logging; keep artifacts for inspection; clear error messages |
+| Build cache incompatibility | Corrupted installations | Store build metadata; validate before use |
 
 ---
 
@@ -1285,10 +1421,11 @@ return {
 
 - **Config documentation generator:** Auto-generate docs from schema
 - **Config GUI:** Web UI to build configuration interactively
-- **Incremental builds:** Only rebuild changed packages (big performance win)
+- **Incremental rebuilds:** Only rebuild changed packages (big performance win)
 - **Remote deployment:** Copy config to remote machines, rebuild there
 - **Version control:** Track config changes, branch/merge configs
-- **Binary caching:** Cache built generations, share across machines
+- **Distributed binary caching:** Share cached binaries across machines
+- **Package signing:** Sign and verify custom packages
 
 ---
 
@@ -1362,13 +1499,13 @@ return {
 
 - [x] Purpose and scope are clear
 - [x] Architecture diagram is understandable
-- [x] All four major components are specified (config, Python, program registry, error handling)
+- [x] All five phases are specified (config, Python refactor, program registry, polish, custom packages)
 - [x] Testing strategy is realistic
 - [x] Implementation phases are concrete and gated
 - [x] Backward compatibility path is clear
 - [x] Success criteria are measurable
 - [x] No contradictions between sections
-- [x] Scope is appropriate for ~7 weeks of work
+- [x] Scope is appropriate for ~9 weeks of work (Phases 1-5)
 
 ---
 
