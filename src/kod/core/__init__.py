@@ -13,8 +13,16 @@ from kod._core import *  # noqa: F401, F403
 
 # Import and re-export workflow entry points
 from kod.core.install import configure_system
+from kod.core.rebuild import (
+    create_next_generation,
+    get_generation,
+    get_max_generation,
+)
 
 __all__ = [
     "configure_system",
-    # Add rebuild and user_config workflows as implemented
+    "create_next_generation",
+    "get_generation",
+    "get_max_generation",
+    # Add user_config workflow as implemented
 ]
