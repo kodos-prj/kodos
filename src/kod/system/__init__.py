@@ -8,9 +8,10 @@ This module provides atomic system-level operations:
 - users: User and group management
 """
 
-from kod.system import packages
+from kod.system import packages, services
 
 __all__ = [
     "packages",
+    "services",
     # Add other modules as they're implemented
 ]
