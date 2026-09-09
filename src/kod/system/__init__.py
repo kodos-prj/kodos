@@ -8,12 +8,13 @@ This module provides atomic system-level operations:
 - users: User and group management
 """
 
-from kod.system import packages, services, boot, filesystem
+from kod.system import packages, services, boot, filesystem, users
 
 __all__ = [
     "packages",
     "services",
     "boot",
     "filesystem",
+    "users",
     # Add other modules as they're implemented
 ]

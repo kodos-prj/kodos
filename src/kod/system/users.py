@@ -1,27 +1,46 @@
-"""User account management (Phase 2).
+"""User and group management operations (Phase 2).
 
-Handles creation, modification, and configuration of user accounts.
-Low-level user operations: create users, set shells, manage groups.
-
-Note: Distinguished from kod/core/user_config.py which handles user-specific
-configuration generation (dotfiles, programs, services).
-
-Key components:
-- UserManager: Main class for user account operations
-- create_user(): Create a user account
-- configure_user(): Apply configuration to existing user
-- delete_user(): Remove user account
-
-Example:
-    >>> manager = UserManager(root_path="/mnt/newroot")
-    >>> manager.create_user("alice", shell="/bin/bash", groups=["wheel"])
-    >>> manager.configure_user("alice", home_dotfiles={...})
+Handles user creation, configuration, dotfile management, and services.
+Currently wraps functions from kod.core; internals will be refactored in Phase 2b.
 """
 
-# TODO (Phase 2): Implement user account management
-#   - Extract from core.py: create_user(), create_kod_user()
-#   - Create UserManager class
-#   - Support chroot operations
-#   - Handle group membership
-#   - Manage shell selection
-#   - Use structured exceptions
+from typing import Any, Dict
+
+from kod.core import (
+    proc_users as _proc_users,
+    create_user as _create_user,
+    proc_user_home as _proc_user_home,
+    create_kod_user as _create_kod_user,
+)
+
+
+def proc_users(ctx: Any, conf: Dict[str, Any]) -> None:
+    """Process users from config and create them.
+    
+    Wrapper for kod.core.proc_users().
+    """
+    return _proc_users(ctx, conf)
+
+
+def create_user(ctx: Any, user: str, info: Dict[str, Any]) -> None:
+    """Create a system user.
+    
+    Wrapper for kod.core.create_user().
+    """
+    return _create_user(ctx, user, info)
+
+
+def proc_user_home(ctx: Any, user: str, info: Dict[str, Any]) -> None:
+    """Configure user home directory.
+    
+    Wrapper for kod.core.proc_user_home().
+    """
+    return _proc_user_home(ctx, user, info)
+
+
+def create_kod_user(mount_point: str) -> None:
+    """Create the special 'kod' build user.
+    
+    Wrapper for kod.core.create_kod_user().
+    """
+    return _create_kod_user(mount_point)
