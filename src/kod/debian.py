@@ -177,11 +177,20 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     repos = {}
     packages = []
     update_repos = False
+
+    if repos_conf is None:
+        return repos, packages
+
     for repo, repo_desc in repos_conf.items():
         if current_repos and repo in current_repos and not update:
             repos[repo] = current_repos[repo]
             continue
         repos[repo] = {}
+
+        if "commands" not in repo_desc:
+            print(f"Warning: Repository '{repo}' missing 'commands' field, skipping")
+            continue
+
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
 
