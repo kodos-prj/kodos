@@ -206,6 +206,11 @@ def create_partitions(conf: Any) -> Tuple[Optional[str], Optional[str], List[FsE
         and partition_list contains all created FsEntry objects.
     """
     devices = conf.devices
+
+    if devices is None:
+        print("Warning: No devices configured, skipping partition creation")
+        return None, None, []
+
     print(f"{devices=}")
 
     print(f"{list(devices.keys())=}")
