@@ -27,6 +27,12 @@ from kod.system.filesystem import (
     change_ro_mount,
     create_next_generation,
 )
+from kod.system.users import (
+    proc_users,
+    create_user,
+    proc_user_home,
+    create_kod_user,
+)
 
 # from kod.arch import kernel_update_required
 
