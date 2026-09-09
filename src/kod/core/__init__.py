@@ -27,6 +27,22 @@ from kod.core.user_config import (
 # These are now implemented in kod.system modules but re-exported for backward compat
 def __getattr__(name: str):
     """Lazy import of refactored functions from kod.system modules."""
+    # Package management functions moved to kod.system.packages
+    if name in {
+        'get_packages_to_install',
+        'manage_packages',
+        'load_repos',
+        'load_package_lock',
+        'store_packages_services',
+        'get_packages_updates',
+        'update_all_packages',
+        'get_pending_packages',
+        'manage_packages_shell',
+    }:
+        from kod.system import packages as packages_module
+        return getattr(packages_module, name)
+    
+    # Service management functions moved to kod.system.services
     if name in {
         'enable_services',
         'disable_services',
@@ -35,27 +51,21 @@ def __getattr__(name: str):
         'proc_desktop_services',
         'proc_services',
         'proc_services_to_enable',
-        # Boot functions moved to kod.system.boot
+    }:
+        from kod.system import services as services_module
+        return getattr(services_module, name)
+    
+    # Boot functions moved to kod.system.boot
+    if name in {
         'setup_bootloader',
         'create_boot_entry',
         'get_kernel_version',
         'update_kernel_hook',
         'update_initramfs_hook',
     }:
-        if name in {
-            'enable_services',
-            'disable_services',
-            'enable_user_services',
-            'get_services_to_enable',
-            'proc_desktop_services',
-            'proc_services',
-            'proc_services_to_enable',
-        }:
-            from kod.system import services as services_module
-            return getattr(services_module, name)
-        else:  # Boot functions
-            from kod.system import boot as boot_module
-            return getattr(boot_module, name)
+        from kod.system import boot as boot_module
+        return getattr(boot_module, name)
+    
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 __all__ = [
@@ -65,6 +75,16 @@ __all__ = [
     "get_max_generation",
     "configure_user_dotfiles",
     "configure_user_scripts",
+    # Phase 2b re-exports from kod.system.packages
+    "get_packages_to_install",
+    "manage_packages",
+    "load_repos",
+    "load_package_lock",
+    "store_packages_services",
+    "get_packages_updates",
+    "update_all_packages",
+    "get_pending_packages",
+    "manage_packages_shell",
     # Phase 2b re-exports from kod.system.services
     "enable_services",
     "disable_services",

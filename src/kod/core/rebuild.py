@@ -12,12 +12,12 @@ Workflow flow:
 
 from typing import Any
 
-from kod.core import (
+from kod._core import (
     create_next_generation as _create_next_generation,
     get_generation as _get_generation,
     get_max_generation as _get_max_generation,
-    update_all_packages as _update_all_packages,
 )
+from kod.system.packages import update_all_packages as _update_all_packages
 
 
 def create_next_generation(boot_part: str, root_part: str, generation: int) -> str:
