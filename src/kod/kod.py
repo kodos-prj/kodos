@@ -42,7 +42,7 @@ from kod.core import (
     get_packages_updates,
     get_pending_packages,
     get_services_to_enable,
-    load_config,
+    load_config as load_config_lua_raw,
     load_fstab,
     load_package_lock,
     load_packages_services,
@@ -60,6 +60,9 @@ from kod.core import (
 )
 from kod.core import set_base_distribution
 from kod.config.validator import validate_config
+from kod.config.loader import load_config as load_config_dict
+from kod.config.compiler import compile_config
+from kod.config.schema import SCHEMA
 from kod.filesystem import create_partitions, get_partition_devices
 
 # from kod.core import *
@@ -83,7 +86,7 @@ def config() -> None:
 @click.option("-c", "--config", default=None, help="System configuration file or directory")
 def config_validate(config: Optional[str]) -> None:
     "Validate a configuration file before install/rebuild"
-    conf = load_config(config)
+    conf = load_config_lua_raw(config)
     errors = validate_config(conf)
     if errors:
         for error in errors:
@@ -92,8 +95,37 @@ def config_validate(config: Optional[str]) -> None:
     print("Configuration is valid")
 
 
+@config.command(name="compile")
+@click.option("-c", "--config", default=None, help="System configuration file or directory")
+def config_compile(config: Optional[str]) -> None:
+    "Compile configuration and resolve dependencies"
+    conf = load_config_dict(config)
+    errors = validate_config(conf)
+    if errors:
+        for error in errors:
+            print(f"Error: {error}")
+        sys.exit(1)
+    
+    compiled = compile_config(conf)
+    print("Configuration compiled successfully")
+    print(f"Compiled config has {len(compiled)} top-level options")
+
+
+@config.command(name="schema")
+def config_schema() -> None:
+    "Show configuration schema"
+    print("Available configuration options:")
+    print()
+    for key in sorted(SCHEMA.keys()):
+        print(f"  {key}: {SCHEMA[key].__name__ if hasattr(SCHEMA[key], '__name__') else SCHEMA[key]}")
+
+
+
 # pkgs_installed = []
 base_distribution = "arch"
+
+# Convenience alias: old code uses load_config() expecting LuaTable
+load_config = load_config_lua_raw
 
 ##############################################################################
 

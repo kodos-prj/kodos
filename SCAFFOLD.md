@@ -73,16 +73,17 @@ src/kod/
 ### Phase 1: Configuration System (Weeks 1-2)
 - [x] Implement `kod/config/schema.py` — Schema definition
 - [x] Implement `kod/config/validator.py` — Validation logic
-- [ ] Implement `kod/config/loader.py` — Lua config loading
-- [ ] Implement `kod/config/compiler.py` — Dependency resolution
-- [x] Write tests for config system (validator + CLI)
+- [x] Implement `kod/config/loader.py` — Lua config loading
+- [x] Implement `kod/config/compiler.py` — Dependency resolution
+- [x] Write tests for config system (validator + loader + compiler + CLI)
 - [x] CLI: `kod config validate`
-- [ ] CLI: `kod config --schema`, `kod config compile`
+- [x] CLI: `kod config --schema`, `kod config compile`
 
 **Success Criteria:**
-- `kod config validate -c example/testvm` catches errors upfront
-- Module imports work
-- Dependency implications resolved (GNOME → gdm)
+- ✅ `kod config validate -c example/testvm` catches errors upfront
+- ✅ `kod config compile -c example/testvm` resolves dependencies
+- ✅ `kod config --schema` shows available options
+- ✅ 21 tests passing (validator, loader, compiler, CLI)
 
 ### Phase 2: Python Refactoring (Weeks 3-5)
 - [ ] Create `kod/core/` module split
@@ -144,8 +145,8 @@ src/kod/
 | `config/__init__.py` | ✅ Created | Phase 1 placeholder |
 | `config/schema.py` | ✅ Implemented | Top-level option types (validated against real configs) |
 | `config/validator.py` | ✅ Implemented | Typo detection + type checks, handles lupa LuaTables |
-| `config/loader.py` | ✅ Created | To be implemented (module imports) |
-| `config/compiler.py` | ✅ Created | To be implemented (dependency resolution) |
+| `config/loader.py` | ✅ Implemented | Converts Lua tables to Python dicts, preserves arrays |
+| `config/compiler.py` | ✅ Implemented | Desktop manager → display manager dependencies |
 | ~~`core/` package~~ | ⚠️ Removed | Name collision: shadows old `core.py`. Recreate in Phase 2 when core.py is split |
 | `system/__init__.py` | ✅ Created | Phase 2 placeholder |
 | `system/packages.py` | ✅ Created | To be implemented |
