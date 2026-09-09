@@ -23,6 +23,23 @@ from kod.core.user_config import (
     configure_user_scripts,
 )
 
+# Re-export refactored functions from kod.system modules (Phase 2b)
+# These are now implemented in kod.system.services but re-exported for backward compat
+def __getattr__(name: str):
+    """Lazy import of refactored functions from kod.system modules."""
+    if name in {
+        'enable_services',
+        'disable_services',
+        'enable_user_services',
+        'get_services_to_enable',
+        'proc_desktop_services',
+        'proc_services',
+        'proc_services_to_enable',
+    }:
+        from kod.system import services as services_module
+        return getattr(services_module, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 __all__ = [
     "configure_system",
     "create_next_generation",
@@ -30,4 +47,12 @@ __all__ = [
     "get_max_generation",
     "configure_user_dotfiles",
     "configure_user_scripts",
+    # Phase 2b re-exports from kod.system.services
+    "enable_services",
+    "disable_services",
+    "enable_user_services",
+    "get_services_to_enable",
+    "proc_desktop_services",
+    "proc_services",
+    "proc_services_to_enable",
 ]

@@ -6,9 +6,13 @@ This module provides atomic system-level operations:
 - boot: Bootloader and kernel management
 - filesystem: Partitions, mounts, fstab
 - users: User and group management
-"""
 
-from kod.system import packages, services, boot, filesystem, users
+Note: Submodules are NOT imported here to avoid circular imports during
+kod.core initialization. Import them directly as needed:
+    from kod.system import packages
+    from kod.system import services
+    etc.
+"""
 
 __all__ = [
     "packages",
