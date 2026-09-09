@@ -55,7 +55,7 @@ HOME_URL="https://github.com/kodos-prj/kodos/"
 DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
 SUPPORT_URL="https://github.com/kodos-prj/kodos/"
 BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
-RELEASE_TYPE="expeirimental"
+RELEASE_TYPE="experimental"
 """
 
 base_distribution: str = "arch"
@@ -435,38 +435,8 @@ class Context:
 # GENERATION AND PACKAGE/SERVICE STATE MANAGEMENT
 # =============================================================================
 
-def get_max_generation() -> int:
-    """Retrieve the highest numbered generation directory in /kod/generations.
-
-    If no generation directories exist, return 0.
-
-    Returns:
-        int: The highest numbered generation directory.
-    """
-    generations = glob.glob("/kod/generations/*")
-    generations = [p.split("/")[-1] for p in generations]
-    generations = [int(p) for p in generations if p != "current"]
-    print(f"{generations=}")
-    if generations:
-        generation = max(generations)
-    else:
-        generation = 0
-    print(f"{generation=}")
-    return generation
-
-
-def get_generation(mount_point: str) -> int:
-    """Retrieve the generation number from a specified mount point.
-
-    Args:
-        mount_point (str): The mount point to read the generation number from.
-
-    Returns:
-        int: The generation number as an integer.
-    """
-    with open(f"{mount_point}/.generation", "r") as f:
-        return int(f.read().strip())
-
+# get_max_generation and get_generation are now in kod.core.rebuild
+# They are re-exported via __getattr__ below
 
 def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
     """Load the list of packages and services from state.
@@ -555,9 +525,35 @@ def __getattr__(name: str):
     if name in {
         'create_boot_entry',
         'setup_bootloader',
+        'get_kernel_version',
+        'update_kernel_hook',
+        'update_initramfs_hook',
     }:
         from kod.system import boot as boot_module
         return getattr(boot_module, name)
+    
+    # Rebuild functions (moved to kod.core.rebuild)
+    if name in {
+        'get_max_generation',
+        'get_generation',
+    }:
+        from kod.core import rebuild as rebuild_module
+        return getattr(rebuild_module, name)
+    
+    # User/filesystem functions (moved to respective modules)
+    if name in {
+        'generate_fstab',
+        'load_fstab',
+        'update_fstab',
+        'proc_users',
+        'create_user',
+        'proc_user_home',
+        'create_kod_user',
+    }:
+        from kod.system import filesystem, users
+        modules = {'generate_fstab': filesystem, 'load_fstab': filesystem, 'update_fstab': filesystem,
+                   'proc_users': users, 'create_user': users, 'proc_user_home': users, 'create_kod_user': users}
+        return getattr(modules[name], name)
     
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
