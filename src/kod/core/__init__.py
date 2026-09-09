@@ -12,4 +12,9 @@ For backward compatibility, all old core.py functions are re-exported here.
 from kod._core import *  # noqa: F401, F403
 
 # Import and re-export workflow entry points
-# (to be added as modules are implemented)
+from kod.core.install import configure_system
+
+__all__ = [
+    "configure_system",
+    # Add rebuild and user_config workflows as implemented
+]
