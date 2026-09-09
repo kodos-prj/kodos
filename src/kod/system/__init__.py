@@ -8,5 +8,9 @@ This module provides atomic system-level operations:
 - users: User and group management
 """
 
-# Import and re-export operation interfaces
-# (to be added as modules are implemented)
+from kod.system import packages
+
+__all__ = [
+    "packages",
+    # Add other modules as they're implemented
+]
