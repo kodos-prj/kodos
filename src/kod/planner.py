@@ -149,3 +149,42 @@ def plan_install(conf: Any) -> List[Step]:
                         steps.append(Step("service", sname,
                                           meta={"action": "enable", "user": user}))
     return steps
+
+
+def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services: List[str],
+                 current_installed_packages: Optional[dict] = None, update: bool = False,
+                 new_generation: bool = False, mount_point: str = "/") -> List[Step]:
+    """Rebuild preview over the current generation. Read-only.
+
+    Reuses get_packages_updates so the package diff cannot drift from what
+    rebuild actually runs (spec: one planner, two baselines).
+    """
+    from kod._core import Context
+    from kod.system.packages import get_packages_to_install, get_packages_updates
+    from kod.system.services import get_services_to_enable
+
+    steps: List[Step] = []
+    if update:
+        steps.append(Step("system", "update-packages"))
+
+    next_packages, remove_packages = get_packages_to_install(conf)
+    to_install, to_remove, _to_update, hooks = get_packages_updates(
+        dist, current_packages, next_packages, remove_packages,
+        current_installed_packages or {}, mount_point)
+
+    ctx = Context(user="root", stage="rebuild")
+    next_services = get_services_to_enable(ctx, conf)
+
+    if not new_generation:
+        for svc in sorted(set(current_services) - set(next_services)):
+            steps.append(Step("service", svc, meta={"action": "disable"}))
+    for pkg in sorted(to_remove):
+        steps.append(Step("package", pkg, meta={"action": "remove"}, on_error="warn"))
+    for pkg in sorted(to_install):
+        steps.append(Step("package", pkg, meta={"action": "install"}))
+    if hooks:
+        steps.append(Step("program", f"kernel-update:{next_packages.get('kernel', 'linux')}",
+                          meta={"hooks": len(hooks)}))
+    for svc in sorted(set(next_services) - set(current_services)):
+        steps.append(Step("service", svc, meta={"action": "enable"}))
+    return steps

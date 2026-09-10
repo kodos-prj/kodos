@@ -181,3 +181,62 @@ class TestPlanInstall:
         progs = [(s.name, s.meta) for s in steps if s.kind == "program"]
         assert users == ["bob"]
         assert progs == [("bob/vim", {"deploy_config": True, "run_script": False})]
+
+
+def make_dist(kernel_update=False):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(kernel_update_required=lambda *a, **k: kernel_update)
+
+
+class TestPlanRebuild:
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_diff_mapping(self, _mock):
+        from kod.planner import plan_rebuild
+
+        conf = make_conf(packages=["keep", "new"])
+        current_packages = {"packages": ["keep", "gone"], "kernel": "linux"}
+        steps = plan_rebuild(conf, make_dist(), current_packages, [], {})
+        acts = {s.name: s.meta["action"] for s in steps if s.kind == "package"}
+        assert acts == {"gone": "remove", "new": "install"}  # "keep" satisfied -> no step
+        removed = next(s for s in steps if s.name == "gone")
+        assert removed.on_error == "warn"
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_service_diff_and_order(self, _mock):
+        from kod.planner import plan_rebuild
+
+        conf = make_conf(services={"newsvc": {}})
+        current_packages = {"packages": [], "kernel": "linux"}
+        steps = plan_rebuild(conf, make_dist(), current_packages, ["oldsvc"], {})
+        names = [s.name for s in steps if s.kind == "service"]
+        assert names == ["oldsvc", "newsvc"]  # disable before enable (kod.py:365-391)
+        acts = {s.name: s.meta["action"] for s in steps if s.kind == "service"}
+        assert acts == {"oldsvc": "disable", "newsvc": "enable"}
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_new_generation_skips_disable(self, _mock):
+        from kod.planner import plan_rebuild
+
+        conf = make_conf(services={})
+        steps = plan_rebuild(conf, make_dist(), {"packages": []}, ["oldsvc"], {},
+                             new_generation=True)
+        assert not [s for s in steps if s.kind == "service"]
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_kernel_hook_step(self, _mock):
+        from kod.planner import plan_rebuild
+
+        conf = make_conf(boot={"kernel": {"package": "linux-lts"}})
+        current_packages = {"packages": [], "kernel": "linux"}
+        steps = plan_rebuild(conf, make_dist(kernel_update=True), current_packages, [], {})
+        hooks = [s for s in steps if s.kind == "program"]
+        assert [(s.name, s.meta) for s in hooks] == [("kernel-update:linux-lts", {"hooks": 2})]
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_update_flag(self, _mock):
+        from kod.planner import Step, plan_rebuild
+
+        conf = make_conf()
+        steps = plan_rebuild(conf, make_dist(), {"packages": []}, [], {}, update=True)
+        assert steps[0] == Step("system", "update-packages")
