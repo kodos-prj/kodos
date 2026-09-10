@@ -87,13 +87,25 @@ def config() -> None:
 @click.option("-c", "--config", default=None, help="System configuration file or directory")
 def config_validate(config: Optional[str]) -> None:
     "Validate a configuration file before install/rebuild"
-    conf = load_config_lua_raw(config)
+    try:
+        conf = load_config_lua_raw(config)
+    except Exception as e:
+        print(f"❌ Failed to load configuration: {e}", file=sys.stderr)
+        sys.exit(1)
+    
     errors = validate_config(conf)
     if errors:
-        for error in errors:
-            print(f"Error: {error}")
+        print(f"❌ Configuration validation failed with {len(errors)} error(s):\n")
+        for i, error in enumerate(errors, 1):
+            print(f"  {i}. {error}")
+        print()
         sys.exit(1)
-    print("Configuration is valid")
+    
+    # Print summary
+    print("✅ Configuration is valid")
+    if conf:
+        sections = ", ".join(sorted(conf.keys()))
+        print(f"   Sections: {sections}")
 
 
 @config.command(name="compile")
