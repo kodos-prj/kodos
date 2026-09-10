@@ -255,3 +255,40 @@ class TestBuildPlan:
         current = build_plan(conf, make_dist(), baseline="current",
                              current_packages={"packages": []}, current_services=[])
         assert not [s for s in current if s.name == "base-packages"]
+
+
+class TestPlanCli:
+    @patch("kod.kod._load_current_state",
+           return_value=("/kod/generations/1", {"packages": []}, [], {}))
+    @patch("kod.kod.load_config")
+    def test_plan_current_baseline(self, mock_load, _mock_state):
+        from click.testing import CliRunner
+        from kod.kod import cli
+
+        mock_load.return_value = make_conf(packages=["git"])
+        with patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS):
+            result = CliRunner().invoke(cli, ["plan", "--baseline", "current"])
+        assert result.exit_code == 0, result.output
+        assert "# kod plan" in result.output
+        assert "baseline=current" in result.output
+
+    @patch("kod.kod.load_config")
+    def test_plan_empty_baseline_needs_no_state(self, mock_load):
+        from click.testing import CliRunner
+        from kod.kod import cli
+
+        mock_load.return_value = make_conf()
+        with patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS):
+            result = CliRunner().invoke(cli, ["plan", "--baseline", "empty"])
+        assert result.exit_code == 0, result.output
+        assert "baseline=empty" in result.output
+
+    @patch("kod.kod.load_config")
+    def test_plan_missing_generation_hints_empty(self, mock_load):
+        from click.testing import CliRunner
+        from kod.kod import cli
+
+        mock_load.return_value = make_conf()
+        result = CliRunner().invoke(cli, ["plan"])  # default baseline=current
+        assert result.exit_code != 0
+        assert "--baseline empty" in result.output

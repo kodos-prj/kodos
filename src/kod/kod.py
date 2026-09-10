@@ -262,6 +262,47 @@ def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
         print(f"⚠️  Warning: Failed to fully clean up generation {generation_id}: {e}")
 
 
+def _load_current_state() -> Tuple[str, dict, list, dict]:
+    """Resolve current generation state read-only. Raises ClickException with hint."""
+    try:
+        with open("/.generation") as f:
+            gen = int(f.readline().strip())
+        state_path = f"/kod/generations/{gen}"
+        if not Path(f"{state_path}/installed_packages").is_file():
+            raise FileNotFoundError(state_path)
+        current_packages, current_services = load_packages_services(state_path)
+        installed_lock = (load_package_lock(state_path)
+                          if Path(f"{state_path}/packages.lock").is_file() else {})
+        return state_path, current_packages, current_services, installed_lock
+    except (FileNotFoundError, OSError):
+        raise click.ClickException(
+            "No KodOS generation found on this system. "
+            "Use --baseline empty for install previews."
+        )
+
+
+@cli.command()
+@click.option("-c", "--config", default=None, help="System configuration file")
+@click.option("--baseline", type=click.Choice(["empty", "current"]), default="current",
+              help="State to diff against (default: current)")
+def plan(config: Optional[str], baseline: str) -> None:
+    "Print the execution plan; never executes"
+    from kod.planner import build_plan, render_plan
+
+    conf = load_config(config)
+    base_distribution = conf.base_distribution
+    base_distribution = "arch" if base_distribution is None else base_distribution
+    dist = set_base_distribution(base_distribution)
+
+    kwargs: dict = {}
+    if baseline == "current":
+        _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
+        kwargs = {"current_packages": cur_pkgs, "current_services": cur_svcs,
+                  "current_installed_packages": cur_lock}
+    steps = build_plan(conf, dist, baseline=baseline, **kwargs)
+    print(render_plan(steps, baseline, config))
+
+
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
