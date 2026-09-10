@@ -112,8 +112,27 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     kernel_file_depend = exec_chroot(
         f"apt-cache depends {package} | grep Depends", mount_point=mount_point, get_output=True
     )
+    
+    # Validate output before parsing
+    if not kernel_file_depend or not kernel_file_depend.strip():
+        raise RuntimeError(f"No dependencies found for package '{package}'. Output: {kernel_file_depend}")
+    
+    # Validate format has colon separator
+    if ":" not in kernel_file_depend:
+        raise RuntimeError(f"Invalid dependency format (missing colon): {kernel_file_depend}")
+    
     kernel_file = kernel_file_depend.split(":")[1].strip()
+    
+    # Validate kernel file exists
+    if not kernel_file or kernel_file.isspace():
+        raise RuntimeError(f"Could not extract kernel file from dependencies: {kernel_file_depend}")
+    
     kver = kernel_file.split("-", 2)[-1]
+    
+    # Validate kernel version exists
+    if not kver or kver.isspace():
+        raise RuntimeError(f"Could not extract kernel version from package name: {kernel_file}")
+    
     return kernel_file, kver
 
 
@@ -206,6 +225,17 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
                 f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
                 mount_point=mount_point,
             )
+            
+            # Verify the build was successful by checking if binary exists
+            result = exec_chroot(
+                f"which {name}",
+                mount_point=mount_point,
+                get_output=True
+            )
+            if not result or "not found" in result.lower():
+                raise RuntimeError(f"AUR helper '{name}' not found after build. Build output: {result}")
+            
+            print(f"✅ AUR helper '{name}' built successfully")
 
         # if "package" in repo_desc:
         #     exec_chroot(

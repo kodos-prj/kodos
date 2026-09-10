@@ -342,23 +342,29 @@ def manage_packages(
         
         if not should_run_as_root:
             # Run as regular "kod" user (for tools like yay that handle privilege internally)
+            # Use per-package installation for error isolation (one failure doesn't break all)
             if chroot:
-                try:
-                    exec_chroot(
-                        f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}",
-                        mount_point=root_path,
-                    )
-                except Exception as e:
-                    print(f"Error: Package operation failed in chroot for {repo}: {e}")
-                    print(f"Failed packages: {pkgs}")
-                    wrong_pkgs.extend(pkgs)
+                for pkg in pkgs:
+                    try:
+                        result = exec_chroot(
+                            f"runuser -u kod -- {repos[repo][action]} {pkg}",
+                            mount_point=root_path,
+                            get_output=True
+                        )
+                        if result and re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg} in chroot: {e}")
+                        wrong_pkgs.append(pkg)
             else:
-                try:
-                    exec(f"runuser -u kod -- {repos[repo][action]} {' '.join(pkgs)}")
-                except Exception as e:
-                    print(f"Error: Package operation failed for {repo}: {e}")
-                    print(f"Failed packages: {pkgs}")
-                    wrong_pkgs.extend(pkgs)
+                for pkg in pkgs:
+                    try:
+                        result = exec(f"runuser -u kod -- {repos[repo][action]} {pkg}", get_output=True)
+                        if result and re.match(r"^[Ee]rror", result):
+                            wrong_pkgs.append(pkg)
+                    except Exception as e:
+                        print(f"Error: Package operation failed for {pkg}: {e}")
+                        wrong_pkgs.append(pkg)
         else:
             # Run as root (standard for pacman, flatpak, etc.)
             if chroot:

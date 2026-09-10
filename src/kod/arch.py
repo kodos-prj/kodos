@@ -103,8 +103,23 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
         f"bash -c 'pacman -Ql {package} | grep vmlinuz'", mount_point=mount_point, get_output=True
     )
     print(f"pacman -Ql {package} | grep vmlinuz")
+    
+    # Validate output before parsing
+    if not kernel_file or not kernel_file.strip():
+        raise RuntimeError(f"No kernel file found for package '{package}'. Output: {kernel_file}")
+    
     kernel_file = kernel_file.split(" ")[-1].strip()
+    
+    # Validate kernel path format
+    if not kernel_file or "/" not in kernel_file:
+        raise RuntimeError(f"Invalid kernel file path: {kernel_file}")
+    
     kver = kernel_file.split("/")[-2]
+    
+    # Validate kernel version exists
+    if not kver or kver.isspace():
+        raise RuntimeError(f"Could not extract kernel version from path: {kernel_file}")
+    
     return kernel_file, kver
 
 
@@ -186,7 +201,34 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
 
-        # Handle AUR helper build
+        # Install base package if specified (e.g., flatpak, yay, etc.)
+        # MUST happen before AUR build, since build needs git, gcc, etc.
+        if "package" in repo_desc:
+            pkg_name = repo_desc['package']
+            print(f"Installing base package for '{repo}': {pkg_name}")
+            try:
+                exec_chroot(
+                    f"pacman -S --needed --noconfirm {pkg_name}",
+                    mount_point=mount_point,
+                )
+                packages += [pkg_name]
+                print(f"✅ Base package '{pkg_name}' installed")
+            except Exception as e:
+                print(f"❌ Failed to install base package '{pkg_name}': {e}")
+                raise
+
+        # Handle Flatpak remote initialization
+        if repo == "flatpak" and "init" in repo_desc:
+            init_cmd = repo_desc["init"]
+            print(f"Initializing Flatpak: {init_cmd}")
+            try:
+                exec_chroot(f"{init_cmd}", mount_point=mount_point)
+                print(f"✅ Flatpak remote initialized")
+            except Exception as e:
+                print(f"⚠️  Warning: Flatpak remote initialization failed: {e}")
+                # Don't fail completely, just warn
+
+        # Handle AUR helper build (after base packages installed)
         if "build" in repo_desc:
             build_info = repo_desc["build"]
             url = build_info["url"]
@@ -213,32 +255,6 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
                 print(f"✅ AUR helper '{name}' built successfully")
             except Exception as e:
                 print(f"❌ Failed to build AUR helper '{name}': {e}")
-                raise
-
-        # Handle Flatpak remote initialization
-        if repo == "flatpak" and "init" in repo_desc:
-            init_cmd = repo_desc["init"]
-            print(f"Initializing Flatpak: {init_cmd}")
-            try:
-                exec_chroot(f"{init_cmd}", mount_point=mount_point)
-                print(f"✅ Flatpak remote initialized")
-            except Exception as e:
-                print(f"⚠️  Warning: Flatpak remote initialization failed: {e}")
-                # Don't fail completely, just warn
-
-        # Install base package if specified (e.g., flatpak, yay, etc.)
-        if "package" in repo_desc:
-            pkg_name = repo_desc['package']
-            print(f"Installing base package for '{repo}': {pkg_name}")
-            try:
-                exec_chroot(
-                    f"pacman -S --needed --noconfirm {pkg_name}",
-                    mount_point=mount_point,
-                )
-                packages += [pkg_name]
-                print(f"✅ Base package '{pkg_name}' installed")
-            except Exception as e:
-                print(f"❌ Failed to install base package '{pkg_name}': {e}")
                 raise
         update_repos = True
 
