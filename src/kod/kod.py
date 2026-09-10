@@ -225,6 +225,43 @@ def install(config: Optional[str], mount_point: str) -> None:
     print(" Done installing KodOS")
 
 
+def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
+    """Clean up a failed generation snapshot and metadata.
+    
+    Args:
+        generation_id: The generation number to clean up
+        new_root_path: The mount point of the new root (to unmount if needed)
+    """
+    try:
+        # Unmount if still mounted
+        if new_root_path != "/":
+            try:
+                exec_warn(f"umount -R {new_root_path}")
+            except Exception:
+                pass
+        
+        # Remove the generation directory and its snapshots
+        generation_path = f"/kod/generations/{generation_id}"
+        try:
+            exec_warn(f"btrfs subvolume delete {generation_path}/rootfs")
+        except Exception:
+            pass
+        
+        try:
+            exec_warn(f"btrfs subvolume delete {generation_path}/boot")
+        except Exception:
+            pass
+        
+        try:
+            exec_warn(f"rm -rf {generation_path}")
+        except Exception:
+            pass
+        
+        print(f"⚠️  Cleaned up failed generation {generation_id}")
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to fully clean up generation {generation_id}: {e}")
+
+
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
@@ -265,141 +302,151 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     boot_partition, root_partition = get_partition_devices(conf)
 
     next_state_path = f"/kod/generations/{generation_id}"
-    exec(f"mkdir -p {next_state_path}")
+    new_root_path = None
+    use_chroot = False
+    
+    try:
+        exec(f"mkdir -p {next_state_path}")
 
-    if new_generation:
-        print("Creating a new generation")
-        exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
-        use_chroot = True
-        new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
-    else:
-        # os._exit(0)
-        exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
-        exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
-        exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
-        use_chroot = False
-        new_root_path = "/"
-        # exec("mount -o remount,rw /usr")
+        if new_generation:
+            print("Creating a new generation")
+            exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+            use_chroot = True
+            new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
+        else:
+            # os._exit(0)
+            exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
+            exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
+            exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
+            use_chroot = False
+            new_root_path = "/"
+            # exec("mount -o remount,rw /usr")
 
-    ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
+        ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
 
-    print("==========================================")
-    print("==== Processing packages and services ====")
+        print("==========================================")
+        print("==== Processing packages and services ====")
 
-    current_repos = load_repos()
-    repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
-    print("repo_packages\n", repo_packages)
-    if repos is None:
-        print("Missing repos information")
-        return
+        current_repos = load_repos()
+        repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
+        print("repo_packages\n", repo_packages)
+        if repos is None:
+            print("Missing repos information")
+            raise ValueError("Failed to process repositories")
 
-    if update:
-        print("Updating packages")
-        dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
-        update_all_packages(new_root_path, new_generation, repos)
+        if update:
+            print("Updating packages")
+            dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
+            update_all_packages(new_root_path, new_generation, repos)
 
-    # === Proc packages
-    packages_to_install, packages_to_remove = get_packages_to_install(conf)
-    print("packages\n", packages_to_install)
-    kernel_package = packages_to_install["kernel"] or "linux"
+        # === Proc packages
+        packages_to_install, packages_to_remove = get_packages_to_install(conf)
+        print("packages\n", packages_to_install)
+        kernel_package = packages_to_install["kernel"] or "linux"
 
-    # Package filtering
-    current_installed_packages = load_package_lock(current_state_path)
-    new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
-        dist,
-        current_packages,
-        packages_to_install,
-        packages_to_remove,
-        current_installed_packages,
-        new_root_path,
-    )
-
-    # === Proc services
-    next_services = get_services_to_enable(ctx, conf)
-
-    # Services filtering
-    services_to_disable = list(set(current_services) - set(next_services))
-    new_service_to_enable = list(set(next_services) - set(current_services))
-
-    if not new_generation and services_to_disable:
-        disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
-
-    # ======
-
-    # try:
-    if packages_to_remove:
-        print("Packages to remove:", packages_to_remove)
-        for pkg in packages_to_remove:
-            try:
-                manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
-            except Exception:
-                # Silently ignore package removal failures as they may not be critical
-                pass
-
-    if new_packages_to_install:
-        print("Packages to install:", new_packages_to_install)
-        manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
-
-    print("Running hooks")
-    for hook in hooks_to_run:
-        print(f"Running {hook}")
-        hook()
-
-    # System services
-    print(f"Services to enable: {new_service_to_enable}")
-    enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
-
-    # # === Proc users
-    # print("\n====== Processing users ======")
-    # # TODO: Check if repo is already cloned
-    # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-    # user_configs = proc_user_configs(conf)
-    # configure_users(c, user_dotfile_mngrs, user_configs)
-
-    # user_services_to_enable = proc_user_services(conf)
-    # print(f"User services to enable: {user_services_to_enable}")
-    # enable_user_services(c, user_services_to_enable, use_chroot=True)
-
-    # Storing list of installed packages and enabled services
-    # Create a list of installed packages
-    store_packages_services(next_state_path, packages_to_install, next_services)
-    dist.generale_package_lock(new_root_path, next_state_path)
-
-    partition_list = load_fstab("/")
-
-    _kernel_file, kver = dist.get_kernel_file(
-        new_root_path, package=kernel_package
-    )  # TODO: this function requires a wrapper
-
-    print("==== Deploying new generation ====")
-    if new_generation:
-        create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
-    else:
-        # Move current updated rootfs to a new generation
-        exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
-        # Moving the current rootfs copy to the current generation path
-        exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-        exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
-        exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
-        updated_partition_list = change_subvol(
-            partition_list,
-            subvol=f"generations/{generation_id}",
-            mount_points=["/"],
+        # Package filtering
+        current_installed_packages = load_package_lock(current_state_path)
+        new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
+            dist,
+            current_packages,
+            packages_to_install,
+            packages_to_remove,
+            current_installed_packages,
+            new_root_path,
         )
-        generate_fstab(updated_partition_list, new_root_path)
-        create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
 
-    # Write generation number
-    with open(f"{next_state_path}/rootfs/.generation", "w") as f:
-        f.write(str(generation_id))
+        # === Proc services
+        next_services = get_services_to_enable(ctx, conf)
 
-    if new_generation:
-        exec(f"umount -R {new_root_path}")
+        # Services filtering
+        services_to_disable = list(set(current_services) - set(next_services))
+        new_service_to_enable = list(set(next_services) - set(current_services))
 
-    # else:
-    # exec("mount -o remount,ro /usr")
+        if not new_generation and services_to_disable:
+            disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
 
-    print(f"Done. Generation {generation_id} created")
+        # ======
+
+        # try:
+        if packages_to_remove:
+            print("Packages to remove:", packages_to_remove)
+            for pkg in packages_to_remove:
+                try:
+                    manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
+                except Exception:
+                    # Silently ignore package removal failures as they may not be critical
+                    pass
+
+        if new_packages_to_install:
+            print("Packages to install:", new_packages_to_install)
+            manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
+
+        print("Running hooks")
+        for hook in hooks_to_run:
+            print(f"Running {hook}")
+            hook()
+
+        # System services
+        print(f"Services to enable: {new_service_to_enable}")
+        enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
+
+        # # === Proc users
+        # print("\n====== Processing users ======")
+        # # TODO: Check if repo is already cloned
+        # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
+        # user_configs = proc_user_configs(conf)
+        # configure_users(c, user_dotfile_mngrs, user_configs)
+
+        # user_services_to_enable = proc_user_services(conf)
+        # print(f"User services to enable: {user_services_to_enable}")
+        # enable_user_services(c, user_services_to_enable, use_chroot=True)
+
+        # Storing list of installed packages and enabled services
+        # Create a list of installed packages
+        store_packages_services(next_state_path, packages_to_install, next_services)
+        dist.generale_package_lock(new_root_path, next_state_path)
+
+        partition_list = load_fstab("/")
+
+        _kernel_file, kver = dist.get_kernel_file(
+            new_root_path, package=kernel_package
+        )  # TODO: this function requires a wrapper
+
+        print("==== Deploying new generation ====")
+        if new_generation:
+            create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
+        else:
+            # Move current updated rootfs to a new generation
+            exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
+            # Moving the current rootfs copy to the current generation path
+            exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
+            exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
+            exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
+            updated_partition_list = change_subvol(
+                partition_list,
+                subvol=f"generations/{generation_id}",
+                mount_points=["/"],
+            )
+            generate_fstab(updated_partition_list, new_root_path)
+            create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
+
+        # Write generation number
+        with open(f"{next_state_path}/rootfs/.generation", "w") as f:
+            f.write(str(generation_id))
+
+        if new_generation:
+            exec(f"umount -R {new_root_path}")
+
+        # else:
+        # exec("mount -o remount,ro /usr")
+
+        print(f"✅ Done. Generation {generation_id} created")
+        
+    except Exception as e:
+        print(f"❌ Rebuild failed: {e}", file=sys.stderr)
+        print(f"❌ Rolling back generation {generation_id}...", file=sys.stderr)
+        _cleanup_failed_generation(generation_id, new_root_path if new_root_path else "/")
+        sys.exit(1)
 
 
 @cli.command()
