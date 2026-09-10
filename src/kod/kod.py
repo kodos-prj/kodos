@@ -307,7 +307,9 @@ def plan(config: Optional[str], baseline: str) -> None:
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
-def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False) -> None:
+@click.option("--dry-run", is_flag=True, help="Print the plan; do not execute")
+def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False,
+            dry_run: bool = False) -> None:
     "Rebuild KodOS system installation"
 
     # stage = "rebuild"
@@ -317,6 +319,16 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     print("Base distribution:", base_distribution)
 
     dist = set_base_distribution(base_distribution)
+
+    if dry_run:
+        from kod.planner import build_plan, render_plan
+
+        _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
+        steps = build_plan(conf, dist, baseline="current", current_packages=cur_pkgs,
+                           current_services=cur_svcs, current_installed_packages=cur_lock,
+                           update=update)
+        print(render_plan(steps, "current", config))
+        return
 
     print("========================================")
 

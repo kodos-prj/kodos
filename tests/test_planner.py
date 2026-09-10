@@ -292,3 +292,27 @@ class TestPlanCli:
         result = CliRunner().invoke(cli, ["plan"])  # default baseline=current
         assert result.exit_code != 0
         assert "--baseline empty" in result.output
+
+
+class TestRebuildDryRun:
+    @patch("kod.kod._load_current_state",
+           return_value=("/kod/generations/1", {"packages": []}, [], {}))
+    @patch("kod.kod.load_config")
+    def test_dry_run_prints_plan_and_executes_nothing(self, mock_load, _mock_state):
+        from click.testing import CliRunner
+        from kod.kod import cli
+
+        mock_load.return_value = make_conf()
+        with patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS), \
+             patch("kod.kod.exec") as mock_exec:
+            result = CliRunner().invoke(cli, ["rebuild", "--dry-run"])
+        assert result.exit_code == 0, result.output
+        assert "# kod plan" in result.output
+        mock_exec.assert_not_called()
+
+    def test_dry_run_flag_registered(self):
+        from click.testing import CliRunner
+        from kod.kod import cli
+
+        result = CliRunner().invoke(cli, ["rebuild", "--help"])
+        assert "--dry-run" in result.output
