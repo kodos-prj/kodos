@@ -257,9 +257,9 @@ def enable_services_from_programs(
     services_to_enable = []
     
     for program_name, program_data in compiled["programs"].items():
-        service = program_data.get("service")
-        if service and service.get("enable"):
-            service_name = service.get("service_name")
+        service = program_data["service"] if "service" in program_data else None
+        if service and ("enable" in service and service["enable"]):
+            service_name = service["service_name"] if "service_name" in service else None
             if service_name:
                 services_to_enable.append(service_name)
     
