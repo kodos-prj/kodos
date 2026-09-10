@@ -23,13 +23,13 @@ local function aur_repo(name, url, build_cmd, commands, run_as_root)
     --  - url: url for the AUR helper source code
     --  - build_cmd: command to build the AUR helper
     --  - commands: list of commands to interact with the AUR helper (install, update, remove, update_db)
-    --  - run_as_root: boolean to indicate if the commands should be run as root
+    --  - run_as_root: boolean to indicate if the commands should be run as root (default: true)
     local default_commands = {
         install = name .. " -S --noconfirm",
         update = name .. " -Syu --noconfirm",
         remove = name .. " -R --noconfirm",
         update_db = name .. " -Sy --noconfirm",
-        run_as_root = run_as_root or false,
+        run_as_root = run_as_root or true,  -- AUR helper needs root for package install
     }
 
     local aur = {
@@ -52,11 +52,13 @@ local function flatpak_repo(repo, run_as_root)
     return {
         type = "flatpak",
         package = "flatpak",
+        init = "flatpak remote-add --if-not-exists " .. repo .. " https://flathub.org/repo/flathub.flatpakrepo",
         commands = {
             install = "flatpak install -y " .. repo,
-            update = "flatpak upgrade -y ",
-            remove = "flatpak uninstall -y " .. repo,
-            -- run_as_root = run_as_root or true,
+            update = "flatpak update -y",
+            remove = "flatpak uninstall -y",
+            update_db = "flatpak update -y",
+            run_as_root = run_as_root or true,
         }
     }
 end

@@ -335,7 +335,13 @@ def manage_packages(
             print(f"Warning: Repository '{repo}' not found in repos.json, skipping {len(pkgs)} packages")
             wrong_pkgs.extend(pkgs)
             continue
-        if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
+        
+        # Check if run_as_root is explicitly set to False (run as regular user)
+        # Default is True (run as root) for most repos, False only if explicitly set
+        should_run_as_root = repos[repo].get("run_as_root", True)
+        
+        if not should_run_as_root:
+            # Run as regular "kod" user (for tools like yay that handle privilege internally)
             if chroot:
                 try:
                     exec_chroot(
@@ -354,6 +360,7 @@ def manage_packages(
                     print(f"Failed packages: {pkgs}")
                     wrong_pkgs.extend(pkgs)
         else:
+            # Run as root (standard for pacman, flatpak, etc.)
             if chroot:
                 for pkg in pkgs:
                     try:
@@ -363,7 +370,7 @@ def manage_packages(
                     except Exception as e:
                         print(f"Error: Package operation failed for {pkg} in chroot: {e}")
                         wrong_pkgs.append(pkg)
-                # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
+                    # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
             else:
                 for pkg in pkgs:
                     try:

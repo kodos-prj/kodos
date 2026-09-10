@@ -186,23 +186,60 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
 
+        # Handle AUR helper build
         if "build" in repo_desc:
             build_info = repo_desc["build"]
             url = build_info["url"]
             build_cmd = build_info["build_cmd"]
             name = build_info["name"]
 
-            exec_chroot(
-                f"runuser -u kod -- /bin/bash -c 'cd && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
-                mount_point=mount_point,
-            )
+            print(f"Building AUR helper: {name}")
+            try:
+                # Build AUR helper as kod user, install as root
+                exec_chroot(
+                    f"runuser -u kod -- /bin/bash -c 'cd && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
+                    mount_point=mount_point,
+                )
+                
+                # Verify the build was successful by checking if binary exists
+                result = exec_chroot(
+                    f"which {name}",
+                    mount_point=mount_point,
+                    get_output=True
+                )
+                if not result or "not found" in result.lower():
+                    raise RuntimeError(f"AUR helper '{name}' not found after build. Build output: {result}")
+                
+                print(f"✅ AUR helper '{name}' built successfully")
+            except Exception as e:
+                print(f"❌ Failed to build AUR helper '{name}': {e}")
+                raise
 
+        # Handle Flatpak remote initialization
+        if repo == "flatpak" and "init" in repo_desc:
+            init_cmd = repo_desc["init"]
+            print(f"Initializing Flatpak: {init_cmd}")
+            try:
+                exec_chroot(f"{init_cmd}", mount_point=mount_point)
+                print(f"✅ Flatpak remote initialized")
+            except Exception as e:
+                print(f"⚠️  Warning: Flatpak remote initialization failed: {e}")
+                # Don't fail completely, just warn
+
+        # Install base package if specified (e.g., flatpak, yay, etc.)
         if "package" in repo_desc:
-            exec_chroot(
-                f"pacman -S --needed --noconfirm {repo_desc['package']}",
-                mount_point=mount_point,
-            )
-            packages += [repo_desc["package"]]
+            pkg_name = repo_desc['package']
+            print(f"Installing base package for '{repo}': {pkg_name}")
+            try:
+                exec_chroot(
+                    f"pacman -S --needed --noconfirm {pkg_name}",
+                    mount_point=mount_point,
+                )
+                packages += [pkg_name]
+                print(f"✅ Base package '{pkg_name}' installed")
+            except Exception as e:
+                print(f"❌ Failed to install base package '{pkg_name}': {e}")
+                raise
         update_repos = True
 
     if update_repos:
