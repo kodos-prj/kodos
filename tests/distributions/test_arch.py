@@ -1,8 +1,8 @@
 """Tests for Arch Linux distribution (Phase 2)."""
 
 import pytest
-from unittest.mock import patch, MagicMock
-from src.kod.arch import kernel_update_required
+from unittest.mock import patch, MagicMock, Mock
+from src.kod.arch import kernel_update_required, get_list_of_dependencies, proc_repos
 
 
 class TestArchDistribution:
@@ -71,3 +71,23 @@ class TestKernelUpdateRequired:
             "/mnt/chroot"
         )
         assert result is True
+
+
+class TestGetListOfDependencies:
+    """Test get_list_of_dependencies function."""
+
+    @patch('src.kod.arch.exec')
+    def test_get_list_of_dependencies_uses_fallback_when_group_not_found(self, mock_exec):
+        """Fallback to -Si query should execute when -Sgq returns nothing."""
+        def mock_exec_side_effect(cmd, **kwargs):
+            if "-Sgq" in cmd:
+                return ""  # Not a group, empty result
+            elif "-Si" in cmd:
+                return "Depends On: dep1 dep2 dep3"
+            return ""
+        
+        mock_exec.side_effect = mock_exec_side_effect
+        result = get_list_of_dependencies("mypackage")
+        # Should get dependencies from fallback, not empty string
+        assert "dep1" in result
+        assert len(result) > 0  # Fallback should have executed

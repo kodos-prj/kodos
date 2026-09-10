@@ -145,18 +145,26 @@ def get_list_of_dependencies(pkg: str):
     Returns:
         list: A list of packages that the given package depends on.
     """
-    pkgs_list = [pkg]
-    # check if it is a group
-    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
-    # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
-    if len(pkgs_list) > 0:
-        pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
-    else:
-        # check if it is a (meta-)package
+    # Check if it is a group
+    group_output = exec(f"pacman -Sgq {pkg}", get_output=True).strip()
+    
+    # Only use group output if non-empty (filter out empty strings)
+    if group_output:
+        pkgs_list = group_output.split("\n")
+        pkgs_list = [p.strip() for p in pkgs_list if p.strip()]
+        if pkgs_list:
+            return pkgs_list + [pkg]
+    
+    # Fallback: check if it is a (meta-)package
+    try:
         depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
-        # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
-        pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
-    return pkgs_list
+        if len(depend_on) >= 2:
+            deps = [p.strip() for p in depend_on[1].strip().split() if p.strip()]
+            if deps:
+                return deps
+        return [pkg]
+    except Exception:
+        return [pkg]
 
 
 # Arch
