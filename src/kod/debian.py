@@ -86,15 +86,47 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
         base_pkgs (Dict): A dictionary containing the packages to install,
                           with 'kernel' and 'base' keys.
         mount_point (str): The mount point where the packages will be installed.
+    
+    Raises:
+        RuntimeError: If any package fails to install or cannot be verified.
     """
     # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
     exec("apt install -y debootstrap gdisk")
     exec("debootstrap --merged-usr testing /mnt")
-    packages = " ".join([base_pkgs["kernel"]] + base_pkgs["base"])
+    packages_to_install = [base_pkgs["kernel"]] + base_pkgs["base"]
+    packages = " ".join(packages_to_install)
     exec_chroot(
         f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {packages}'",
         mount_point=mount_point,
     )
+    
+    # Verify each package is actually installed
+    installed_output = exec_chroot(
+        "dpkg -l",
+        mount_point=mount_point,
+        get_output=True
+    )
+    
+    failed_packages = []
+    for pkg in packages_to_install:
+        # dpkg -l output has format: "ii  package-name  version  arch  description"
+        # We look for lines starting with "ii " (installed status)
+        found = False
+        for line in installed_output.split("\n"):
+            if line.startswith("ii "):
+                # Extract package name from dpkg output
+                parts = re.split(r"\s+", line.strip())
+                if len(parts) >= 2 and parts[1] == pkg:
+                    found = True
+                    break
+        if not found:
+            failed_packages.append(pkg)
+    
+    if failed_packages:
+        raise RuntimeError(
+            f"The following packages failed to install: {', '.join(failed_packages)}. "
+            f"Check package names and repository status."
+        )
 
 
 # Debian
