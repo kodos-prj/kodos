@@ -303,12 +303,30 @@ def kernel_update_required(current_kernel, next_kernel, current_installed_packag
 
     Returns:
         bool: True if a kernel update is required, False otherwise.
+    
+    Raises:
+        RuntimeError: If kernel version format is invalid.
     """
     if current_kernel != next_kernel:
         return True
     new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
     current_kernel_ver = current_installed_packages[current_kernel]
-    new_kernel_ver = new_kernel.strip().split(" ")[1]
+    
+    # Validate output format before splitting
+    split_output = new_kernel.strip().split(" ")
+    if len(split_output) < 2:
+        raise RuntimeError(f"Invalid kernel version output: {new_kernel}")
+    
+    new_kernel_ver = split_output[1]
+
+    # Validate kernel version format before parsing
+    if not new_kernel_ver or new_kernel_ver.isspace():
+        raise RuntimeError(f"Invalid kernel version: {new_kernel_ver}")
+    
+    split_kver = new_kernel_ver.split(".")
+    # Kernel versions should have at least a major.minor format (e.g., "6.1")
+    if len(split_kver) < 2 or not split_kver[0]:
+        raise RuntimeError(f"Could not parse kernel architecture from: {new_kernel_ver}")
 
     print(f"{current_kernel}={current_kernel_ver} {next_kernel}={new_kernel_ver} {new_kernel=}")
     if current_kernel_ver != new_kernel_ver:
