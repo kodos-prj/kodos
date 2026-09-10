@@ -55,3 +55,32 @@ Task 1.4: complete (commits 6ec46a5..28893d1, 342 tests passing, review clean)
 
 ### Workstream 2: Medium-Effort Fixes (IN PROGRESS)
 
+
+### Workstream 2: Medium-Effort Fixes (✅ COMPLETE)
+
+Task 2.1: complete (commits 28893d1..0272969, 350 tests passing, review clean)
+Task 2.2: complete (commits 0272969..4feb364, 369 tests passing, review clean)
+
+**Workstream 2 Summary:**
+- 2/2 tasks complete
+- 2 bugs fixed (Medium-priority #1, #2)
+- 27+ new tests added
+- 369 tests passing, 0 regressions
+- Duration: ~1.5 hours (as planned)
+
+### Workstream 3: Test Coverage (IN PROGRESS)
+
+
+### Workstream 3: Test Coverage (✅ COMPLETE)
+
+Task 3.1: complete (commits 4feb364..6a5c063, 422 tests passing, review clean)
+
+**Workstream 3 Summary:**
+- 1/1 tasks complete
+- Bug #7 fixed (insufficient test coverage)
+- 53 new comprehensive tests
+- 422 tests passing, 0 regressions
+- Duration: ~3 hours (as planned)
+
+### Workstream 4: Integration Testing & Documentation (IN PROGRESS)
+
