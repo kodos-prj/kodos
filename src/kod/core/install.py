@@ -51,7 +51,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # Locale
     locale_conf = conf.locale
     if locale_conf:
-        time_zone = locale_conf.get("timezone", "UTC")
+        time_zone = locale_conf["timezone"] if "timezone" in locale_conf else "UTC"
     else:
         time_zone = "UTC"
     exec_chroot(f"ln -sf /usr/share/zoneinfo/{time_zone} /etc/localtime")
@@ -60,9 +60,9 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # Localization
     if locale_conf and "locale" in locale_conf:
         locale_spec = locale_conf["locale"]
-        locale_default = locale_spec.get("default", "en_US.UTF-8 UTF-8")
+        locale_default = locale_spec["default"] if "default" in locale_spec else "en_US.UTF-8 UTF-8"
         locale_to_generate = locale_default + "\n"
-        if "extra_generate" in locale_spec and locale_spec.get("extra_generate"):
+        if "extra_generate" in locale_spec and locale_spec["extra_generate"]:
             locale_to_generate += "\n".join(list(locale_spec["extra_generate"].values()))
         with open(f"{mount_point}/etc/locale.gen", "w") as locale_file:
             locale_file.write(locale_to_generate + "\n")
@@ -70,7 +70,7 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
 
         locale_name = locale_default.split()[0]
         locale_extra = locale_name + "\n"
-        if "extra_settings" in locale_spec and locale_spec.get("extra_settings"):
+        if "extra_settings" in locale_spec and locale_spec["extra_settings"]:
             for k, v in locale_spec["extra_settings"].items():
                 locale_extra += f"{k}={v}\n"
         with open(f"{mount_point}/etc/locale.conf", "w") as locale_file:
@@ -86,10 +86,10 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
 
     if network_conf is not None:
         # hostname
-        hostname = network_conf.get("hostname", "localhost")
+        hostname = network_conf["hostname"] if "hostname" in network_conf else "localhost"
         exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
-        use_ipv4 = network_conf.get("ipv4", True)
-        use_ipv6 = network_conf.get("ipv6", True)
+        use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
+        use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
         eth0_network = """[Match]
 Name=*
 [Network]
