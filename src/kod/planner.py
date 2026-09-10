@@ -188,3 +188,16 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
     for svc in sorted(set(next_services) - set(current_services)):
         steps.append(Step("service", svc, meta={"action": "enable"}))
     return steps
+
+
+def build_plan(conf: Any, dist: Any = None, baseline: str = "current",
+               current_packages: Optional[dict] = None, current_services: Optional[List[str]] = None,
+               current_installed_packages: Optional[dict] = None, update: bool = False,
+               new_generation: bool = False) -> List[Step]:
+    if baseline == "empty":
+        return plan_install(conf)
+    if baseline != "current":
+        raise ValueError(f"unknown baseline: {baseline}")
+    return plan_rebuild(conf, dist, current_packages or {}, current_services or [],
+                        current_installed_packages, update=update,
+                        new_generation=new_generation)

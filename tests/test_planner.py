@@ -240,3 +240,18 @@ class TestPlanRebuild:
         conf = make_conf()
         steps = plan_rebuild(conf, make_dist(), {"packages": []}, [], {}, update=True)
         assert steps[0] == Step("system", "update-packages")
+
+
+class TestBuildPlan:
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_dispatch(self, _mock):
+        from kod.planner import build_plan
+
+        conf = make_conf(packages=["git"])
+        empty = build_plan(conf, baseline="empty")
+        # install plan starts with system phases; rebuild plan never has them
+        assert [s.name for s in empty if s.kind == "system"][:2] == ["base-packages", "repos"]
+
+        current = build_plan(conf, make_dist(), baseline="current",
+                             current_packages={"packages": []}, current_services=[])
+        assert not [s for s in current if s.name == "base-packages"]
