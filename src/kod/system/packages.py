@@ -15,6 +15,78 @@ from kod.system.services import proc_services
 
 
 # ============================================================================
+# PRIVILEGE LEVEL MANAGEMENT
+# ============================================================================
+
+
+def _get_privilege_level(repo: Dict[str, Any]) -> str:
+    """
+    Determine the privilege level for a repository.
+    
+    Checks for the new 'privilege_level' field first, then falls back to
+    the legacy 'run_as_root' boolean for backward compatibility.
+    
+    Args:
+        repo (dict): Repository configuration.
+        
+    Returns:
+        str: One of "user", "sudo", or "root".
+        
+    Raises:
+        ValueError: If privilege_level is invalid.
+    """
+    # New explicit privilege_level field
+    if "privilege_level" in repo:
+        level = repo["privilege_level"]
+        valid_levels = ["user", "sudo", "root"]
+        if level not in valid_levels:
+            raise ValueError(f"Invalid privilege_level '{level}'. Must be one of {valid_levels}")
+        return level
+    
+    # Legacy boolean field conversion
+    if "run_as_root" in repo:
+        # run_as_root=False → user level (runuser context)
+        # run_as_root=True → root level (full root)
+        # ponytail: mapping legacy bool to new levels; retire run_as_root when all repos updated
+        if repo["run_as_root"]:
+            return "root"
+        else:
+            return "user"
+    
+    # Default: assume root (for backward compatibility)
+    return "root"
+
+
+def _build_privilege_command(base_cmd: str, privilege_level: str) -> str:
+    """
+    Build the command with appropriate privilege escalation.
+    
+    Args:
+        base_cmd (str): The base command to execute.
+        privilege_level (str): One of "user", "sudo", "root".
+        
+    Returns:
+        str: The command with privilege escalation applied.
+        
+    Raises:
+        ValueError: If privilege_level is invalid.
+    """
+    valid_levels = ["user", "sudo", "root"]
+    if privilege_level not in valid_levels:
+        raise ValueError(f"Invalid privilege_level '{privilege_level}'. Must be one of {valid_levels}")
+    
+    if privilege_level == "user":
+        # Run as unprivileged 'kod' user
+        return f"runuser -u kod -- {base_cmd}"
+    elif privilege_level == "sudo":
+        # Run with sudo escalation
+        return f"sudo {base_cmd}"
+    else:  # root
+        # Run as full root (no prefix needed)
+        return base_cmd
+
+
+# ============================================================================
 # HELPER FUNCTIONS (internal to package management)
 # ============================================================================
 
@@ -336,57 +408,42 @@ def manage_packages(
             wrong_pkgs.extend(pkgs)
             continue
         
-        # Check if run_as_root is explicitly set to False (run as regular user)
-        # Default is True (run as root) for most repos, False only if explicitly set
-        should_run_as_root = repos[repo].get("run_as_root", True)
+        # Get privilege level for this repo (new system or legacy fallback)
+        try:
+            privilege_level = _get_privilege_level(repos[repo])
+        except ValueError as e:
+            print(f"Error: Invalid privilege level for repo '{repo}': {e}")
+            wrong_pkgs.extend(pkgs)
+            continue
         
-        if not should_run_as_root:
-            # Run as regular "kod" user (for tools like yay that handle privilege internally)
-            # Use per-package installation for error isolation (one failure doesn't break all)
-            if chroot:
-                for pkg in pkgs:
-                    try:
-                        result = exec_chroot(
-                            f"runuser -u kod -- {repos[repo][action]} {pkg}",
-                            mount_point=root_path,
-                            get_output=True
-                        )
-                        if result and re.match(r"^[Ee]rror", result):
-                            wrong_pkgs.append(pkg)
-                    except Exception as e:
-                        print(f"Error: Package operation failed for {pkg} in chroot: {e}")
+        # Execute with appropriate privilege escalation
+        if chroot:
+            for pkg in pkgs:
+                try:
+                    cmd = f"{repos[repo][action]} {pkg}"
+                    privileged_cmd = _build_privilege_command(cmd, privilege_level)
+                    result = exec_chroot(
+                        privileged_cmd,
+                        mount_point=root_path,
+                        get_output=True
+                    )
+                    if result and re.match(r"^[Ee]rror", result):
                         wrong_pkgs.append(pkg)
-            else:
-                for pkg in pkgs:
-                    try:
-                        result = exec(f"runuser -u kod -- {repos[repo][action]} {pkg}", get_output=True)
-                        if result and re.match(r"^[Ee]rror", result):
-                            wrong_pkgs.append(pkg)
-                    except Exception as e:
-                        print(f"Error: Package operation failed for {pkg}: {e}")
-                        wrong_pkgs.append(pkg)
+                except Exception as e:
+                    print(f"Error: Package operation failed for {pkg} in chroot ({privilege_level}): {e}")
+                    wrong_pkgs.append(pkg)
         else:
-            # Run as root (standard for pacman, flatpak, etc.)
-            if chroot:
-                for pkg in pkgs:
-                    try:
-                        result = exec_chroot(f"{repos[repo][action]} {pkg}", mount_point=root_path, get_output=True)
-                        if re.match(r"^[Ee]rror", result):
-                            wrong_pkgs.append(pkg)
-                    except Exception as e:
-                        print(f"Error: Package operation failed for {pkg} in chroot: {e}")
+            for pkg in pkgs:
+                try:
+                    cmd = f"{repos[repo][action]} {pkg}"
+                    privileged_cmd = _build_privilege_command(cmd, privilege_level)
+                    result = exec(privileged_cmd, get_output=True)
+                    if result and re.match(r"^[Ee]rror", result):
                         wrong_pkgs.append(pkg)
-                    # exec_chroot(f"{repos[repo][action]} {' '.join(pkgs)}", mount_point=root_path)
-            else:
-                for pkg in pkgs:
-                    try:
-                        result = exec(f"{repos[repo][action]} {pkg}", get_output=True)
-                        if re.match(r"^[Ee]rror", result):
-                            wrong_pkgs.append(pkg)
-                    except Exception as e:
-                        print(f"Error: Package operation failed for {pkg}: {e}")
-                        wrong_pkgs.append(pkg)
-                # exec(f"{repos[repo][action]} {' '.join(pkgs)}")
+                except Exception as e:
+                    print(f"Error: Package operation failed for {pkg} ({privilege_level}): {e}")
+                    wrong_pkgs.append(pkg)
+        
         packages_installed += pkgs
     print("Wrong packages:", wrong_pkgs)
     return packages_installed
@@ -405,19 +462,19 @@ def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str,
     for repo, repo_desc in repos.items():
         if "update" in repo_desc:
             print(f"Updating {repo}")
+            try:
+                privilege_level = _get_privilege_level(repo_desc)
+            except ValueError as e:
+                print(f"Error: Invalid privilege level for repo '{repo}': {e}")
+                continue
+            
+            cmd = repo_desc['update']
+            privileged_cmd = _build_privilege_command(cmd, privilege_level)
+            
             if new_generation:
-                if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
-                    exec_chroot(
-                        f"runuser -u kod -- {repo_desc['update']} --noconfirm",
-                        mount_point=mount_point,
-                    )
-                else:
-                    exec_chroot(f"{repo_desc['update']}", mount_point=mount_point)
+                exec_chroot(privileged_cmd, mount_point=mount_point)
             else:
-                if "run_as_root" in repo_desc and not repo_desc["run_as_root"]:
-                    exec(f"runuser -u kod -- {repo_desc['update']} --noconfirm")
-                else:
-                    exec(f"{repo_desc['update']}")
+                exec(privileged_cmd)
 
 
 def get_pending_packages(packages_to_install: Dict[str, List[str]]) -> List[str]:
@@ -573,8 +630,19 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
         print(repo, "->", pkgs)
         if len(pkgs) == 0:
             continue
-        if "run_as_root" in repos[repo] and not repos[repo]["run_as_root"]:
-            print(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
-            exec(f"schroot -r -c {chroot} -- {repos[repo][action]} {' '.join(pkgs)}")
+        
+        try:
+            privilege_level = _get_privilege_level(repos[repo])
+        except ValueError as e:
+            print(f"Error: Invalid privilege level for repo '{repo}': {e}")
+            continue
+        
+        cmd = f"{repos[repo][action]} {' '.join(pkgs)}"
+        privileged_cmd = _build_privilege_command(cmd, privilege_level)
+        
+        if privilege_level == "root":
+            # Use schroot with root
+            exec(f"schroot -r -c {chroot} -u root -- {privileged_cmd}")
         else:
-            exec(f"schroot -r -c {chroot} -u root -- {repos[repo][action]} {' '.join(pkgs)}")
+            # Use schroot without root escalation
+            exec(f"schroot -r -c {chroot} -- {privileged_cmd}")
