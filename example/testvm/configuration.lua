@@ -8,7 +8,7 @@ local configs = require("configs")
 local cli = require("cli")
 local development = require("development")
 
-local use_gnome = true
+local use_gnome = false
 local use_plasma = false
 local use_cosmic = true
 local use_pantheon = false
@@ -134,14 +134,12 @@ return {
                     enable = use_gnome,
                     config = configs.dconf(require("gnome")),
                 },
-            },
 
-            deploy_configs = {
-                "home", -- General config for home directory (face, background, etc.)
-                "gtk",  -- GTK themes
-            },
-
-            services = {
+                -- ================================================================
+                -- Syncthing: File Synchronization Service (User-Level)
+                -- ================================================================
+                -- Synchronize files across devices at the user level.
+                -- Runs as a per-user service under the abuss account.
                 syncthing = {
                     enable = true,
                     config = configs.syncthing({
@@ -150,7 +148,17 @@ return {
                         "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384' '--no-default-folder'",
                     }),
                     -- extra_packages = { "aur:syncthing-gtk" },
+                    service = {
+                        enable = true,
+                        service_name = "syncthing",
+                        per_user = true,  -- Run per-user service under abuss user
+                    }
                 }
+            },
+
+            deploy_configs = {
+                "home", -- General config for home directory (face, background, etc.)
+                "gtk",  -- GTK themes
             },
 
         },
@@ -257,38 +265,88 @@ return {
     -- ..
     -- development, -- Development tools
 
-    services = {
-        -- Firmware update
-        fwupd = { enable = true },
+    -- ============================================================================
+    -- SYSTEM-LEVEL SERVICES AS PROGRAMS
+    -- ============================================================================
+    -- These programs are configured at the system level (top-level 'programs'
+    -- section). Each service is configured once and applies to the entire system.
+    --
+    -- Key aspects:
+    -- 1. Located at top-level 'programs' section (not inside users)
+    -- 2. scope = "system" means they can only be used at system level
+    -- 3. service field declares the systemd service name
+    -- 4. Configuration and service management are unified
+    -- ============================================================================
 
-        -- TODO: Maybe move inside network
-        networkmanager = {
+    programs = {
+        -- ====================================================================
+        -- Firmware Updates
+        -- ====================================================================
+        fwupd = {
             enable = true,
-            service_name = "NetworkManager",
+            service = {
+                enable = true,
+                service_name = "fwupd",
+            }
         },
 
+        -- ====================================================================
+        -- Network Management
+        -- ====================================================================
+        networkmanager = {
+            enable = true,
+            service = {
+                enable = true,
+                service_name = "NetworkManager",
+            }
+        },
+
+        -- ====================================================================
+        -- OpenSSH: Secure Shell Server
+        -- ====================================================================
         openssh = {
             enable = true,
-            service_name = "sshd",
+            service = {
+                enable = true,
+                service_name = "sshd",
+            },
             settings = {
                 PermitRootLogin = false,
             }
         },
 
+        -- ====================================================================
+        -- CUPS: Common Unix Printing System
+        -- ====================================================================
         cups = {
             enable = true,
+            service = {
+                enable = true,
+                service_name = "cupsd",
+            },
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },
 
+        -- ====================================================================
+        -- Bluetooth
+        -- ====================================================================
         -- https://wiki.archlinux.org/title/Bluetooth
         bluetooth = {
             enable = true,
-            service_name = "bluetooth",
+            service = {
+                enable = true,
+                service_name = "bluetooth",
+            },
             package = "bluez",
         },
 
+        -- ====================================================================
+        -- Systemd Mount Points
+        -- ====================================================================
         systemd_mount = {
-            services = {
+            enable = true,
+            -- Note: Mount configurations defined below apply to system level
+            mounts = {
                 data = configs.mount({
                     enable = false,
                     name = "mnt-data",
@@ -319,5 +377,5 @@ return {
                 })
             }
         },
-    }
+    },
 }
