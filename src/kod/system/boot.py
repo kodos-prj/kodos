@@ -94,7 +94,7 @@ def setup_bootloader(conf: Any, partition_list: List, dist: Any) -> None:
         print("Warning: No boot configuration, skipping bootloader setup")
         return
 
-    loader_conf = boot_conf.get("loader", {})
+    loader_conf = boot_conf["loader"] if "loader" in boot_conf else {}
 
     if "kernel" in boot_conf and "package" in boot_conf["kernel"]:
         kernel_package = boot_conf["kernel"]["package"]
