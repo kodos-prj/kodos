@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, call
-from src.kod.debian import kernel_update_required, install_essentials_pkgs
+from src.kod.debian import kernel_update_required, install_essentials_pkgs, install_build_dependencies
 
 
 class TestInstallEssentialsPackagesVerification:
@@ -133,3 +133,107 @@ class TestKernelUpdateRequired:
             "/mnt/chroot"
         )
         assert result is True
+
+
+class TestInstallBuildDependencies:
+    """Test install_build_dependencies function for AUR builds."""
+
+    @patch('src.kod.debian.exec_chroot')
+    def test_install_build_dependencies_succeeds(self, mock_exec_chroot):
+        """Build dependencies should install successfully."""
+        def side_effect(cmd, **kwargs):
+            if "apt-get install" in cmd and "build-essential" in cmd:
+                return ""
+            elif "dpkg -l" in cmd:
+                # All build packages installed
+                return (
+                    "ii  build-essential  12.6  all  Informational list of build-essential packages\n"
+                    "ii  autoconf  2.71-2  all  automatic configure script builder\n"
+                    "ii  automake  1:1.16.5-1  all  A tool for generating GNU Standards-compliant Makefiles\n"
+                    "ii  pkg-config  0.29.2-1  amd64  manage compile and link flags for libraries\n"
+                    "ii  git  1:2.34.1-1  all  fast version control system"
+                )
+            return ""
+        
+        mock_exec_chroot.side_effect = side_effect
+        
+        result = install_build_dependencies(mount_point="/mnt")
+        assert result is True
+        
+        # Verify apt-get install was called
+        install_calls = [c for c in mock_exec_chroot.call_args_list if "apt-get install" in str(c)]
+        assert len(install_calls) > 0, "Should call apt-get install"
+        
+        # Verify dpkg -l was called to verify installation
+        dpkg_calls = [c for c in mock_exec_chroot.call_args_list if "dpkg -l" in str(c)]
+        assert len(dpkg_calls) > 0, "Should verify packages with dpkg -l after install"
+
+    @patch('src.kod.debian.exec_chroot')
+    def test_install_build_dependencies_detects_missing(self, mock_exec_chroot):
+        """Should detect if build dependencies fail to install."""
+        def side_effect(cmd, **kwargs):
+            if "apt-get install" in cmd:
+                return ""
+            elif "dpkg -l" in cmd:
+                # build-essential NOT actually installed!
+                return (
+                    "ii  autoconf  2.71-2  all  automatic configure script builder\n"
+                    "ii  automake  1:1.16.5-1  all  A tool for generating GNU Standards-compliant Makefiles\n"
+                    "ii  pkg-config  0.29.2-1  amd64  manage compile and link flags for libraries"
+                )
+            return ""
+        
+        mock_exec_chroot.side_effect = side_effect
+        
+        with pytest.raises(RuntimeError, match="build dependencies"):
+            install_build_dependencies(mount_point="/mnt")
+
+    @patch('src.kod.debian.exec_chroot')
+    def test_install_build_dependencies_detects_all_missing(self, mock_exec_chroot):
+        """Should detect when no build packages are installed."""
+        def side_effect(cmd, **kwargs):
+            if "apt-get install" in cmd:
+                return ""
+            elif "dpkg -l" in cmd:
+                # No build packages installed
+                return "ii  some-other-package  1.0  all  some package"
+            return ""
+        
+        mock_exec_chroot.side_effect = side_effect
+        
+        with pytest.raises(RuntimeError, match="build dependencies"):
+            install_build_dependencies(mount_point="/mnt")
+
+    @patch('src.kod.debian.exec_chroot')
+    def test_install_build_dependencies_install_failure_raises_error(self, mock_exec_chroot):
+        """Should raise error if apt-get install fails."""
+        def side_effect(cmd, **kwargs):
+            if "apt-get install" in cmd:
+                raise Exception("apt-get install failed: no internet")
+            return ""
+        
+        mock_exec_chroot.side_effect = side_effect
+        
+        with pytest.raises(RuntimeError, match="Failed to install build dependencies"):
+            install_build_dependencies(mount_point="/mnt")
+
+    @patch('src.kod.debian.exec_chroot')
+    def test_install_build_dependencies_partial_missing(self, mock_exec_chroot):
+        """Should detect if even one build package is missing."""
+        def side_effect(cmd, **kwargs):
+            if "apt-get install" in cmd:
+                return ""
+            elif "dpkg -l" in cmd:
+                # Only some packages installed (missing pkg-config)
+                return (
+                    "ii  build-essential  12.6  all  Informational list of build-essential packages\n"
+                    "ii  autoconf  2.71-2  all  automatic configure script builder\n"
+                    "ii  automake  1:1.16.5-1  all  A tool for generating GNU Standards-compliant Makefiles\n"
+                    "ii  git  1:2.34.1-1  all  fast version control system"
+                )
+            return ""
+        
+        mock_exec_chroot.side_effect = side_effect
+        
+        with pytest.raises(RuntimeError, match="build dependencies"):
+            install_build_dependencies(mount_point="/mnt")

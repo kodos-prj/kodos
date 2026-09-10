@@ -251,6 +251,9 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
             build_cmd = build_info["build_cmd"]
             name = build_info["name"]
 
+            # Install build dependencies first (needed for AUR builds on Debian)
+            install_build_dependencies(mount_point=mount_point)
+
             # TODO: Generalize this code to support other distros
             # exec_chroot("pacman -S --needed --noconfirm git base-devel")
             exec_chroot(
@@ -351,6 +354,67 @@ def kernel_update_required(current_kernel, next_kernel, current_installed_packag
     if current_kernel_ver != new_kernel_ver:
         return True
     return False
+
+
+# Debian
+def install_build_dependencies(mount_point="/mnt"):
+    """
+    Install packages required for building (gcc, make, autoconf, etc.).
+    
+    This function installs build-essential and related packages needed when
+    building packages from source (e.g., AUR helpers on Debian systems).
+    
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+    
+    Raises:
+        RuntimeError: If build dependencies fail to install or verification fails.
+    """
+    build_packages = [
+        "build-essential",      # gcc, make, basic build chain
+        "autoconf", "automake", # autotools
+        "pkg-config",           # build configuration
+        "git",                  # source control (often needed)
+    ]
+    
+    try:
+        exec_chroot(
+            f"apt-get install -y {' '.join(build_packages)}",
+            mount_point=mount_point,
+            run_as_root=True
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to install build dependencies: {e}")
+    
+    # Verify installation via dpkg
+    installed_output = exec_chroot(
+        "dpkg -l",
+        mount_point=mount_point,
+        get_output=True
+    )
+    
+    failed = []
+    for pkg in build_packages:
+        # dpkg -l output has format: "ii  package-name  version  arch  description"
+        # We look for lines starting with "ii " (installed status)
+        found = False
+        for line in installed_output.split("\n"):
+            if line.startswith("ii "):
+                # Extract package name from dpkg output
+                parts = re.split(r"\s+", line.strip())
+                if len(parts) >= 2 and parts[1] == pkg:
+                    found = True
+                    break
+        if not found:
+            failed.append(pkg)
+    
+    if failed:
+        raise RuntimeError(
+            f"Failed to install build dependencies: {', '.join(failed)}. "
+            f"System may not support package building."
+        )
+    
+    return True
 
 
 # Debian

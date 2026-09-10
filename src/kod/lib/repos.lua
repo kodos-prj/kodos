@@ -8,6 +8,7 @@ local function arch_repo(mirrors)
         mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
         -- arch = "x86_64",
         repo = { "core", "extra" },
+        privilege_level = "root",  -- Requires full root for pacman
         commands = {
             install = "pacman -S --noconfirm --needed",
             update = "pacman -Syu --noconfirm  --needed",
@@ -35,6 +36,7 @@ local function aur_repo(name, url, build_cmd, commands, run_as_root)
 
     local aur = {
         type = "aur",
+        privilege_level = "user",  -- AUR builds run as unprivileged user
         build = {
             name = name,
             url = url,
@@ -52,6 +54,7 @@ local function flatpak_repo(repo, run_as_root)
     repo = repo or "flathub"
     return {
         type = "flatpak",
+        privilege_level = "sudo",  -- Flatpak init needs elevation, but not full root
         package = "flatpak",
         init = "flatpak remote-add --if-not-exists " .. repo .. " https://flathub.org/repo/flathub.flatpakrepo",
         commands = {
@@ -69,6 +72,7 @@ local function deb_repo(mirrors)
     --  - mirrors: is list of url mirror in case a particular set of mirror is required
     return {
         type = "deb",
+        privilege_level = "sudo",  -- apt usually needs escalation, but not full root
         mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
         -- arch = "x86_64",
         repo = { "stable" },
