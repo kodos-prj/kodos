@@ -84,33 +84,53 @@ def configure_system(conf: Any, partition_list: List, mount_point: str) -> None:
     # Network
     network_conf = conf.network
 
+    # Check if NetworkManager will be used (to avoid conflicts)
+    # If NetworkManager is enabled, skip systemd-networkd config
+    use_networkmanager = False
+    if "programs" in conf:
+        programs = conf["programs"]
+        if "networkmanager" in programs:
+            nm_config = programs["networkmanager"]
+            if isinstance(nm_config, dict) and nm_config.get("enable"):
+                use_networkmanager = True
+
     if network_conf is not None:
         # hostname
         hostname = network_conf["hostname"] if "hostname" in network_conf else "localhost"
         exec(f"echo '{hostname}' > {mount_point}/etc/hostname")
-        use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
-        use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
-        eth0_network = """[Match]
+        
+        # Only create systemd-networkd config if NOT using NetworkManager
+        if not use_networkmanager:
+            use_ipv4 = network_conf["ipv4"] if "ipv4" in network_conf else True
+            use_ipv6 = network_conf["ipv6"] if "ipv6" in network_conf else True
+            eth0_network = """[Match]
 Name=*
 [Network]
 """
-        if use_ipv4:
-            eth0_network += "DHCP=ipv4\n"
-        if use_ipv6:
-            eth0_network += "DHCP=ipv6\n"
-        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-            f.write(eth0_network)
+            if use_ipv4:
+                eth0_network += "DHCP=ipv4\n"
+            if use_ipv6:
+                eth0_network += "DHCP=ipv6\n"
+            with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
+                f.write(eth0_network)
+            print("Network: Using systemd-networkd for DHCP")
+        else:
+            print("Network: NetworkManager detected, skipping systemd-networkd config")
     else:
-        # Default network configuration
+        # Default network configuration (only if NOT using NetworkManager)
         exec(f"echo 'localhost' > {mount_point}/etc/hostname")
-        eth0_network = """[Match]
+        if not use_networkmanager:
+            eth0_network = """[Match]
 Name=*
 [Network]
 DHCP=ipv4
 DHCP=ipv6
 """
-        with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
-            f.write(eth0_network)
+            with open(f"{mount_point}/etc/systemd/network/10-eth0.network", "w") as f:
+                f.write(eth0_network)
+            print("Network: Using systemd-networkd for DHCP (default)")
+        else:
+            print("Network: NetworkManager detected, skipping systemd-networkd config (default)")
 
     # hosts
     exec_chroot("echo '127.0.0.1 localhost' > /etc/hosts")
