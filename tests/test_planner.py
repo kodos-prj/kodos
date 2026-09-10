@@ -1,10 +1,14 @@
 """Tests for kod/planner.py (Plan A: read-only plan preview)."""
 
+import os
 from dataclasses import replace
+from pathlib import Path
 from unittest.mock import patch
 
 import lupa
 import pytest
+
+EXAMPLE = Path(__file__).parent.parent / "example" / "testvm"
 
 
 def _to_lua(lua, value):
@@ -316,3 +320,41 @@ class TestRebuildDryRun:
 
         result = CliRunner().invoke(cli, ["rebuild", "--help"])
         assert "--dry-run" in result.output
+
+
+GOLDEN = Path(__file__).parent / "golden" / "plan-testvm-empty.txt"
+
+
+class TestGolden:
+    @patch("kod.system.packages.get_base_packages", return_value={
+        "kernel": "linux-lts",
+        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
+                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
+                 "mlocate", "schroot", "sudo", "whois"],
+    })
+    def test_testvm_empty_baseline_golden(self, _mock):
+        from kod._core import load_config as load_lua
+        from kod.planner import plan_install, render_plan
+
+        conf = load_lua(str(EXAMPLE / "configuration.lua"))
+        out = render_plan(plan_install(conf), "empty", "example/testvm/configuration.lua")
+        if os.environ.get("KODOS_WRITE_GOLDEN"):
+            GOLDEN.parent.mkdir(exist_ok=True)
+            GOLDEN.write_text(out)
+            pytest.skip("golden written")
+        assert out == GOLDEN.read_text()
+
+    @patch("kod.system.packages.get_base_packages", return_value={
+        "kernel": "linux-lts",
+        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
+                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
+                 "mlocate", "schroot", "sudo", "whois"],
+    })
+    def test_testvm_preview_sanity(self, _mock):
+        from kod._core import load_config as load_lua
+        from kod.planner import plan_install
+
+        conf = load_lua(str(EXAMPLE / "configuration.lua"))
+        steps = plan_install(conf)
+        assert ("disk", "wipe:/dev/vda") in [(s.kind, s.name) for s in steps]
+        assert any(s.kind == "package" and s.meta["action"] == "install" for s in steps)
