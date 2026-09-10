@@ -110,7 +110,7 @@ return {
                 },
 
                 fish = {
-                    enable = true,
+                    enable = false,
                 },
 
                 neovim = {
@@ -119,7 +119,7 @@ return {
                 },
 
                 helix = {
-                    enable = false,
+                    enable = true,
                     deploy_config = true,
                 },
 
@@ -259,9 +259,9 @@ return {
             -- "aur:brave-bin",
             -- "vulkan-virtio",
             -- "zed",
-        }),
+        })
+        .. cli, -- CLI tools
         -- ..
-        -- cli, -- CLI tools
     -- ..
     -- development, -- Development tools
 
@@ -344,7 +344,7 @@ return {
         -- Systemd Mount Points
         -- ====================================================================
         systemd_mount = {
-            enable = true,
+            enable = false,
             -- Note: Mount configurations defined below apply to system level
             mounts = {
                 data = configs.mount({
