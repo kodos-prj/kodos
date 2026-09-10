@@ -7,9 +7,27 @@ import lupa
 import pytest
 
 
+def _to_lua(lua, value):
+    if isinstance(value, dict):
+        t = lua.table()
+        for k, v in value.items():
+            t[k] = _to_lua(lua, v)
+        return t
+    if isinstance(value, list):
+        t = lua.table()
+        for i, v in enumerate(value, 1):
+            t[i] = _to_lua(lua, v)
+        return t
+    return value
+
+
 def make_conf(**sections):
     """Build a LuaTable conf, same shape as production (nil for missing keys)."""
-    return lupa.LuaRuntime().table_from(sections)
+    lua = lupa.LuaRuntime()
+    t = lua.table()
+    for k, v in sections.items():
+        t[k] = _to_lua(lua, v)
+    return t
 
 
 class TestStepModel:
@@ -101,3 +119,65 @@ class TestDiskSteps:
         from kod.planner import plan_disk_steps
 
         assert plan_disk_steps(make_conf()) == []
+
+
+BASE_PKGS = {"kernel": "linux-lts",
+             "base": ["base", "base-devel", "intel-ucode"]}
+
+
+class TestPlanInstall:
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_full_order_and_content(self, _mock):
+        from kod.planner import plan_install
+
+        conf = make_conf(
+            devices={"disk0": {"device": "/dev/vda", "partitions": {
+                "1": {"name": "boot", "size": "512M", "type": "esp", "mountpoint": "/boot"}}}},
+            repos={"official": {}, "aur": {"package": "yay"}},
+            packages=["git"],
+            services={"sshd": {}},
+            users={"bob": {"programs": {"vim": {"enable": True, "deploy_config": True}}}},
+        )
+        steps = plan_install(conf)
+        kinds_names = [(s.kind, s.name) for s in steps]
+        assert kinds_names[0] == ("disk", "wipe:/dev/vda")
+        # system phase steps in install-flow order (kod.py:186-213)
+        phases = [n for k, n in kinds_names if k == "system"]
+        assert phases == ["base-packages", "repos", "configure-system", "bootloader", "kod-user"]
+        # packages: "git" from conf.packages; "vim" from bob's enabled program
+        # (_proc_user_programs adds program names as packages too)
+        pkgs = [s for s in steps if s.kind == "package"]
+        assert [p.name for p in pkgs] == ["git", "vim"]
+        assert pkgs[0].meta == {"action": "install", "repo": "official"}
+        base_step = next(s for s in steps if s.name == "base-packages")
+        assert base_step.meta == {"kernel": "linux-lts", "base": ["base", "base-devel", "intel-ucode"]}
+        repos_step = next(s for s in steps if s.name == "repos")
+        assert repos_step.meta == {"repos": ["aur", "official"], "base_packages": {"aur": "yay"}}
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_repo_prefix_parsing(self, _mock):
+        from kod.planner import plan_install
+
+        conf = make_conf(packages=["git", "aur:mylib"])
+        pkgs = [s for s in plan_install(conf) if s.kind == "package"]
+        assert {p.name: p.meta["repo"] for p in pkgs} == {"git": "official", "mylib": "aur"}
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_services_users_programs(self, _mock):
+        from kod.planner import plan_install
+
+        conf = make_conf(
+            services={"sshd": {}},
+            users={"bob": {
+                "programs": {"vim": {"enable": True, "deploy_config": True},
+                             "off": {"enable": False}},
+                "services": {"gpg": {"enable": True}}}},
+        )
+        steps = plan_install(conf)
+        svcs = [(s.name, s.meta) for s in steps if s.kind == "service"]
+        assert ("sshd", {"action": "enable"}) in svcs
+        assert ("gpg", {"action": "enable", "user": "bob"}) in svcs
+        users = [s.name for s in steps if s.kind == "user"]
+        progs = [(s.name, s.meta) for s in steps if s.kind == "program"]
+        assert users == ["bob"]
+        assert progs == [("bob/vim", {"deploy_config": True, "run_script": False})]

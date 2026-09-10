@@ -89,3 +89,63 @@ def plan_disk_steps(conf: Any) -> List[Step]:
                 steps.append(Step("disk", f"format:{name}", program=fmt, args=(blockdevice,),
                                   meta={"filesystem": fs}))
     return steps
+
+
+def plan_install(conf: Any) -> List[Step]:
+    """Full install preview over an empty baseline. Read-only."""
+    from kod._core import Context
+    from kod.system.packages import get_packages_to_install
+    from kod.system.services import get_services_to_enable
+
+    steps = plan_disk_steps(conf)
+
+    pkgs, _remove = get_packages_to_install(conf)
+    base_info = {k: v for k, v in pkgs.items() if k != "packages"}
+    steps.append(Step("system", "base-packages",
+                      meta={k: (sorted(v) if isinstance(v, list) else v)
+                            for k, v in base_info.items()}))
+
+    repo_meta: dict = {}
+    repos_conf = conf.repos
+    if repos_conf is not None:
+        repo_meta["repos"] = sorted(repos_conf.keys())
+        base_pkgs = {r: d["package"] for r, d in repos_conf.items() if "package" in d}
+        if base_pkgs:
+            repo_meta["base_packages"] = base_pkgs
+    steps.append(Step("system", "repos", meta=repo_meta))
+    steps.append(Step("system", "configure-system"))
+    steps.append(Step("system", "bootloader"))
+    steps.append(Step("system", "kod-user"))
+
+    for pkg in sorted(pkgs["packages"]):
+        if ":" in pkg:
+            repo, name = pkg.split(":", 1)
+        else:
+            repo, name = "official", pkg
+        steps.append(Step("package", name, meta={"action": "install", "repo": repo}))
+
+    ctx = Context(user="root", stage="install")
+    for svc in get_services_to_enable(ctx, conf):
+        steps.append(Step("service", svc, meta={"action": "enable"}))
+
+    users = conf.users
+    if users is not None:
+        for user in sorted(users.keys()):
+            info = users[user]
+            steps.append(Step("user", user))
+            programs = info.programs
+            if programs:
+                for pname in sorted(programs.keys()):
+                    prog = programs[pname]
+                    if prog.enable:
+                        steps.append(Step(
+                            "program", f"{user}/{pname}",
+                            meta={"deploy_config": bool(prog.deploy_config),
+                                  "run_script": bool(prog.config and "command" in prog.config)}))
+            services = info.services
+            if services:
+                for sname in sorted(services.keys()):
+                    if services[sname].enable:
+                        steps.append(Step("service", sname,
+                                          meta={"action": "enable", "user": user}))
+    return steps
