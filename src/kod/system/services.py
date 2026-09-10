@@ -26,25 +26,36 @@ def proc_desktop_services(conf: Any) -> List[str]:
         list: A list of service names that need to be enabled.
     """
     services_to_enable = []
+    
+    # Defensive: desktop might be None
+    if not hasattr(conf, 'desktop') or conf.desktop is None:
+        return services_to_enable
+    
     desktop = conf.desktop
 
-    if desktop is None:
-        return services_to_enable
-
-    display_manager = desktop.display_manager
+    # Defensive: display_manager field might be missing or None
+    display_manager = None
+    if "display_manager" in desktop:
+        display_manager = desktop["display_manager"]
+    
     selected_display_manager = False
     if display_manager:
-        print(f"Installing {display_manager}")
+        print(f"Enabling display manager service: {display_manager}")
         services_to_enable += [display_manager]
         selected_display_manager = True
 
-    desktop_manager = desktop.desktop_manager
+    # Fallback: check desktop_manager options for display_manager if top-level not set
+    desktop_manager = None
+    if "desktop_manager" in desktop:
+        desktop_manager = desktop["desktop_manager"]
+    
     if desktop_manager:
         for _, dm_conf in desktop_manager.items():
-            if dm_conf.enable:
+            if "enable" in dm_conf and dm_conf["enable"]:
                 if "display_manager" in dm_conf:
                     display_mngr = dm_conf["display_manager"]
-                    if not selected_display_manager:
+                    if display_mngr and not selected_display_manager:
+                        print(f"Enabling display manager service (fallback): {display_mngr}")
                         services_to_enable += [display_mngr]
                         selected_display_manager = True
 

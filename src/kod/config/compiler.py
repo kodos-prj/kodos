@@ -87,22 +87,43 @@ def _apply_desktop_manager_dependencies(config: Dict[str, Any]) -> Dict[str, Any
     if "gnome" in managers:
         gnome = managers["gnome"]
         if isinstance(gnome, dict) and gnome.get("enable"):
-            if "display_manager" not in gnome:
+            if "display_manager" not in gnome or not gnome["display_manager"]:
                 gnome["display_manager"] = "gdm"
     
     # Plasma → sddm
     if "plasma" in managers:
         plasma = managers["plasma"]
         if isinstance(plasma, dict) and plasma.get("enable"):
-            if "display_manager" not in plasma:
+            if "display_manager" not in plasma or not plasma["display_manager"]:
                 plasma["display_manager"] = "sddm"
     
     # Pantheon → lightdm
     if "pantheon" in managers:
         pantheon = managers["pantheon"]
         if isinstance(pantheon, dict) and pantheon.get("enable"):
-            if "display_manager" not in pantheon:
+            if "display_manager" not in pantheon or not pantheon["display_manager"]:
                 pantheon["display_manager"] = "lightdm"
+    
+    # Cosmic → cosmic-greeter
+    if "cosmic" in managers:
+        cosmic = managers["cosmic"]
+        if isinstance(cosmic, dict) and cosmic.get("enable"):
+            if "display_manager" not in cosmic or not cosmic["display_manager"]:
+                cosmic["display_manager"] = "cosmic-greeter"
+    
+    # Extract and set top-level display_manager from enabled desktop
+    # This is used by proc_desktop_services() to enable the service
+    selected_display_manager = None
+    for env_name in ["gnome", "plasma", "pantheon", "cosmic"]:
+        if env_name in managers:
+            env_conf = managers[env_name]
+            if isinstance(env_conf, dict) and env_conf.get("enable"):
+                if "display_manager" in env_conf and env_conf["display_manager"]:
+                    selected_display_manager = env_conf["display_manager"]
+                    break
+    
+    if selected_display_manager:
+        desktop["display_manager"] = selected_display_manager
     
     return config
 
