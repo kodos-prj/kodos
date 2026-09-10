@@ -91,3 +91,70 @@ class TestGetListOfDependencies:
         # Should get dependencies from fallback, not empty string
         assert "dep1" in result
         assert len(result) > 0  # Fallback should have executed
+
+
+class TestProcReposFlatpakHandling:
+    """Test Flatpak pre-check before initialization."""
+
+    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.arch.exec')
+    @patch('builtins.open', create=True)
+    def test_proc_repos_flatpak_not_installed_gives_clear_error(self, mock_open, mock_exec, mock_exec_chroot):
+        """If flatpak command not found, should raise clear error before attempting init."""
+        def mock_exec_chroot_side_effect(cmd, **kwargs):
+            # Simulate flatpak binary not found
+            if "which flatpak" in cmd:
+                raise RuntimeError("Command 'flatpak' not found")
+            return ""
+        
+        mock_exec_chroot.side_effect = mock_exec_chroot_side_effect
+        
+        # Config with flatpak repo that has init command
+        config = Mock()
+        config.repos = {
+            "flatpak": {
+                "commands": {"install": "flatpak install -y"},
+                "package": "flatpak",
+                "init": "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+            }
+        }
+        
+        # Should raise error about flatpak not found
+        with pytest.raises(RuntimeError, match="(?i)flatpak.*not found|not installed"):
+            proc_repos(config, None, False, "/mnt/root")
+
+    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.arch.exec')
+    @patch('builtins.open', create=True)
+    def test_proc_repos_flatpak_available_proceeds(self, mock_open, mock_exec, mock_exec_chroot):
+        """If flatpak is available, proceed normally with initialization."""
+        def mock_exec_chroot_side_effect(cmd, **kwargs):
+            if "which flatpak" in cmd:
+                # Flatpak is installed
+                return "/usr/bin/flatpak" if kwargs.get('get_output') else ""
+            elif "flatpak remote-add" in cmd:
+                return "1 remotes updated"
+            elif "pacman -S" in cmd:
+                return ""
+            return ""
+        
+        mock_exec_chroot.side_effect = mock_exec_chroot_side_effect
+        mock_exec.return_value = ""
+        
+        # Config with flatpak repo that has init command
+        config = Mock()
+        config.repos = {
+            "flatpak": {
+                "commands": {"install": "flatpak install -y"},
+                "package": "flatpak",
+                "init": "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+            }
+        }
+        
+        # Should proceed without error
+        result = proc_repos(config, None, False, "/mnt/root")
+        
+        # Verify it completed and returned repos
+        assert result is not None
+        assert isinstance(result, tuple)
+        assert len(result) == 2  # (repos, packages)

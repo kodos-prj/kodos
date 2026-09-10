@@ -228,6 +228,22 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         # Handle Flatpak remote initialization
         if repo == "flatpak" and "init" in repo_desc:
             init_cmd = repo_desc["init"]
+            
+            # Pre-check: verify flatpak is installed before attempting init
+            try:
+                flatpak_check = exec_chroot(
+                    "which flatpak",
+                    mount_point=mount_point,
+                    get_output=True
+                )
+                if not flatpak_check or "not found" in flatpak_check.lower():
+                    raise RuntimeError("Flatpak not installed. Install 'flatpak' package first.")
+            except RuntimeError:
+                # Re-raise our custom error message
+                raise
+            except Exception as e:
+                raise RuntimeError(f"Failed to check flatpak availability: {e}")
+            
             print(f"Initializing Flatpak: {init_cmd}")
             try:
                 exec_chroot(f"{init_cmd}", mount_point=mount_point)
