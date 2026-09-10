@@ -341,41 +341,41 @@ return {
         },
 
         -- ====================================================================
-        -- Systemd Mount Points
+        -- Systemd Mount Points (commented out - not a registered program)
         -- ====================================================================
-        systemd_mount = {
-            enable = false,
-            -- Note: Mount configurations defined below apply to system level
-            mounts = {
-                data = configs.mount({
-                    enable = false,
-                    name = "mnt-data",
-                    type = "cifs",
-                    what = "//mmserver.lan/NAS1",
-                    where = "/mnt/data",
-                    description = "MMserverNAS1",
-                    options =
-                    "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000",
-                    after = "network.target",
-                    wanted_by = "multi-user.target",
-                    automount = true,
-                    automount_config = "TimeoutIdleSec=0",
-                }),
-
-                library = configs.mount({
-                    enable = false,
-                    name = "mnt-library",
-                    type = "nfs",
-                    what = "homenas2.lan:/data/Documents",
-                    where = "/mnt/library/",
-                    description = "Document library",
-                    options = "noatime,x-systemd.automount,noauto",
-                    after = "network.target",
-                    wanted_by = "multi-user.target",
-                    automount = true,
-                    automount_config = "TimeoutIdleSec=600",
-                })
-            }
-        },
+        -- systemd_mount = {
+        --     enable = false,
+        --     -- Note: Mount configurations defined below apply to system level
+        --     mounts = {
+        --         data = configs.mount({
+        --             enable = false,
+        --             name = "mnt-data",
+        --             type = "cifs",
+        --             what = "//mmserver.lan/NAS1",
+        --             where = "/mnt/data",
+        --             description = "MMserverNAS1",
+        --             options =
+        --             "vers=2.1,credentials=/etc/samba/mmserver-cred,iocharset=utf8,rw,x-systemd.automount,uid=1000",
+        --             after = "network.target",
+        --             wanted_by = "multi-user.target",
+        --             automount = true,
+        --             automount_config = "TimeoutIdleSec=0",
+        --         }),
+        --
+        --         library = configs.mount({
+        --             enable = false,
+        --             name = "mnt-library",
+        --             type = "nfs",
+        --             what = "homenas2.lan:/data/Documents",
+        --             where = "/mnt/library/",
+        --             description = "Document library",
+        --             options = "noatime,x-systemd.automount,noauto",
+        --             after = "network.target",
+        --             wanted_by = "multi-user.target",
+        --             automount = true,
+        --             automount_config = "TimeoutIdleSec=600",
+        --         })
+        --     }
+        -- },
     },
 }
