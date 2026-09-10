@@ -56,3 +56,48 @@ class TestStepModel:
         assert lines[2] == "001 [disk] wipe:/dev/vda: wipefs -a /dev/vda"
         assert lines[3] == '002 [system] base-packages: {"kernel": "linux"}'
         assert lines[4] == "003 [system] bootloader:"
+
+
+class TestDiskSteps:
+    def test_wipe_partition_format_sequence(self):
+        from kod.planner import plan_disk_steps
+
+        conf = make_conf(devices={
+            "disk0": {"device": "/dev/vda", "partitions": {
+                "1": {"name": "boot", "size": "512M", "type": "esp", "mountpoint": "/boot"},
+                "2": {"name": "root", "size": "100%", "type": "btrfs", "mountpoint": "/"},
+            }},
+        })
+        steps = plan_disk_steps(conf)
+        assert [(s.kind, s.name) for s in steps] == [
+            ("disk", "wipe:/dev/vda"),
+            ("disk", "partition:boot"),
+            ("disk", "format:boot"),
+            ("disk", "partition:root"),
+            ("disk", "format:root"),
+        ]
+        assert steps[0].args == ("-a", "/dev/vda")
+        # 100% size -> end=0, esp type ef00 (filesystem.py:285-289)
+        assert steps[3].args == ("-n", "0:0:0", "-t", "0:8300", "-c", "0:root", "/dev/vda")
+        assert steps[1].args == ("-n", "0:0:+512M", "-t", "0:ef00", "-c", "0:boot", "/dev/vda")
+        assert steps[4].program == "mkfs.btrfs -f"
+        assert steps[4].args == ("/dev/vda2",)
+        assert steps[3].meta == {"size": "100%", "filesystem": "btrfs", "mountpoint": "/"}
+
+    def test_nvme_device_suffix(self):
+        from kod.planner import plan_disk_steps
+
+        conf = make_conf(devices={
+            "disk0": {"device": "/dev/nvme0n1", "partitions": {
+                "1": {"name": "root", "size": "100%", "type": "noformat", "mountpoint": "/"},
+            }},
+        })
+        steps = plan_disk_steps(conf)
+        # nvme -> 'p' suffix (filesystem.py:350); noformat -> no format step, no -t flag
+        assert steps[1].args == ("-n", "0:0:0", "-c", "0:root", "/dev/nvme0n1")
+        assert len(steps) == 2
+
+    def test_no_devices(self):
+        from kod.planner import plan_disk_steps
+
+        assert plan_disk_steps(make_conf()) == []

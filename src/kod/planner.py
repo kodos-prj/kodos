@@ -46,3 +46,46 @@ def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = N
             line += f" {json.dumps(s.meta, sort_keys=True)}"
         lines.append(line)
     return "\n".join(lines) + "\n"
+
+
+def plan_disk_steps(conf: Any) -> List[Step]:
+    """Emit wipe/partition/format steps from conf.devices. Read-only.
+
+    Mirrors create_disk_partitions command sequence (kod/filesystem.py) without
+    executing it. Divergence: fs types missing from _filesystem_type skip the
+    -t flag instead of raising (preview must not crash on partial tables).
+    """
+    from kod.filesystem import _filesystem_cmd, _filesystem_type
+
+    steps: List[Step] = []
+    devices = conf.devices
+    if not devices:
+        return steps
+    for d_id in sorted(devices.keys()):
+        disk = devices[d_id]
+        device = disk["device"]
+        suffix = "p" if ("nvme" in device or "mmcblk" in device) else ""
+        steps.append(Step("disk", f"wipe:{device}", program="wipefs", args=("-a", device)))
+        partitions = disk["partitions"]
+        if not partitions:
+            continue
+        for pid in sorted(partitions.keys()):
+            part = partitions[pid]
+            name = part["name"]
+            size = part["size"]
+            fs = part["type"]
+            mountpoint = part["mountpoint"]
+            blockdevice = f"{device}{suffix}{pid}"
+            end = "0" if size == "100%" else f"+{size}"
+            args = [f"-n", f"0:0:{end}"]
+            ptype = _filesystem_type.get(fs)
+            if ptype:
+                args += ["-t", f"0:{ptype}"]
+            args += ["-c", f"0:{name}", device]
+            steps.append(Step("disk", f"partition:{name}", program="sgdisk", args=tuple(args),
+                              meta={"size": size, "filesystem": fs, "mountpoint": mountpoint}))
+            fmt = _filesystem_cmd.get(fs)
+            if fmt:
+                steps.append(Step("disk", f"format:{name}", program=fmt, args=(blockdevice,),
+                                  meta={"filesystem": fs}))
+    return steps
