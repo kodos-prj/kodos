@@ -71,43 +71,43 @@ local module = {
         end
         
         -- Multi-environment configuration (desktop.environments block)
-        if config.environments and type(config.environments) == "table" then
-            local de_order = 460
-            
-            -- Handle each environment configuration
-            for env_name, env_config in pairs(config.environments) do
-                if type(env_config) == "table" then
-                    -- Map environment names to DE packages
-                    local de_map = {
-                        gnome = {"gnome", "gnome-extra"},
-                        plasma = {"plasma-meta", "kde-applications"},
-                        cosmic = {"cosmic"},
-                        budgie = {"budgie-desktop"},
-                        pantheon = {"elementary-os"},
-                    }
-                    
-                     local de_packages = de_map[env_name] or {env_name}
-                     local pkg_list = table.concat(de_packages, " ")
+         if config.environments and type(config.environments) == "table" then
+             local de_order = 460
+             
+             -- Handle each environment configuration
+             for env_name, env_config in pairs(config.environments) do
+                 if type(env_config) == "table" and env_config.enable ~= false then
+                     -- Map environment names to DE packages
+                     local de_map = {
+                         gnome = {"gnome", "gnome-extra"},
+                         plasma = {"plasma-meta", "kde-applications"},
+                         cosmic = {"cosmic"},
+                         budgie = {"budgie-desktop"},
+                         pantheon = {"elementary-os"},
+                     }
                      
-                     local install_cmd = Repos.install_cmd(distro, pkg_list)
-                     if not install_cmd then
-                         goto continue_env
-                     end
-                    
-                    -- Install environment
-                    table.insert(steps, {
-                        name = "desktop_environments_install_" .. env_name,
-                        description = "Install " .. env_name .. " desktop environment",
-                        command = install_cmd,
-                        order = de_order,
-                    })
-                    
-                    de_order = de_order + 1
-                    
-                    ::continue_env::
-                end
-            end
-        end
+                      local de_packages = de_map[env_name] or {env_name}
+                      local pkg_list = table.concat(de_packages, " ")
+                      
+                      local install_cmd = Repos.install_cmd(distro, pkg_list)
+                      if not install_cmd then
+                          goto continue_env
+                      end
+                     
+                     -- Install environment
+                     table.insert(steps, {
+                         name = "desktop_environments_install_" .. env_name,
+                         description = "Install " .. env_name .. " desktop environment",
+                         command = install_cmd,
+                         order = de_order,
+                     })
+                     
+                     de_order = de_order + 1
+                     
+                     ::continue_env::
+                 end
+             end
+         end
         
         -- Display manager configuration (if specified separately)
         if config.display_manager then
