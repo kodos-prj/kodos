@@ -19,9 +19,6 @@ from kod.common import (
     exec_chroot,
     exec_critical,
     exec_warn,
-    CommandExecutionError,
-    CommandTimeoutError,
-    UnsafeCommandError,
     set_debug,
     set_verbose,
     report_problems,
@@ -77,57 +74,6 @@ def test_encoding_parameter():
     """Test that encoding parameter works correctly."""
     result = exec("echo 'test'", get_output=True, encoding="utf-8")
     assert result.strip() == "test"
-
-
-# Test cases for custom exception classes
-
-
-def test_command_execution_error_properties():
-    """Test CommandExecutionError properties."""
-    error = CommandExecutionError("test command", 1, "stderr output", "stdout output")
-    assert error.cmd == "test command"
-    assert error.return_code == 1
-    assert error.stderr == "stderr output"
-    assert error.stdout == "stdout output"
-    assert "return code 1" in str(error)
-
-
-def test_command_timeout_error_properties():
-    """Test CommandTimeoutError properties."""
-    error = CommandTimeoutError("test command", 30)
-    assert error.cmd == "test command"
-    assert error.timeout == 30
-    assert "30s" in str(error)
-
-
-def test_unsafe_command_error_properties():
-    """Test UnsafeCommandError properties."""
-    error = UnsafeCommandError("rm -rf /", "dangerous pattern")
-    assert error.cmd == "rm -rf /"
-    assert error.reason == "dangerous pattern"
-    assert "dangerous pattern" in str(error)
-
-
-def test_dataclass_functionality():
-    """Test that dataclass features work correctly."""
-    # Test equality
-    error1 = CommandExecutionError("test", 1, "stderr", "stdout")
-    error2 = CommandExecutionError("test", 1, "stderr", "stdout")
-    error3 = CommandExecutionError("test", 2, "stderr", "stdout")
-
-    assert error1 == error2
-    assert error1 != error3
-
-    # Test repr functionality
-    repr_str = repr(error1)
-    assert "CommandExecutionError" in repr_str
-    assert "cmd='test'" in repr_str
-    assert "return_code=1" in repr_str
-
-    # Test field access
-    assert hasattr(error1, "__dataclass_fields__")
-    assert "cmd" in error1.__dataclass_fields__
-    assert "return_code" in error1.__dataclass_fields__
 
 
 # Test cases for exec abstraction functions

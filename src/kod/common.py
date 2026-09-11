@@ -9,7 +9,6 @@ import os
 import shlex
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -21,42 +20,6 @@ problems: list[dict] = []
 
 # Set up logging
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class CommandExecutionError(Exception):
-    """Raised when a command execution fails."""
-
-    cmd: str
-    return_code: int
-    stderr: str = ""
-    stdout: str = ""
-
-    def __post_init__(self):
-        super().__init__(f"Command failed with return code {self.return_code}: {self.cmd}")
-
-
-@dataclass
-class CommandTimeoutError(Exception):
-    """Raised when a command execution times out."""
-
-    cmd: str
-    timeout: Optional[int]
-
-    def __post_init__(self):
-        timeout_str = f"{self.timeout}s" if self.timeout is not None else "unknown"
-        super().__init__(f"Command timed out after {timeout_str}: {self.cmd}")
-
-
-@dataclass
-class UnsafeCommandError(Exception):
-    """Raised when a command contains potentially unsafe characters."""
-
-    cmd: str
-    reason: str
-
-    def __post_init__(self):
-        super().__init__(f"Unsafe command rejected: {self.reason} in '{self.cmd}'")
 
 
 class color:
@@ -119,9 +82,6 @@ def exec(
         Command output if get_output=True, empty string otherwise.
 
     Raises:
-        CommandExecutionError: If command fails and check_return_code is True.
-        CommandTimeoutError: If command times out.
-        UnsafeCommandError: If command contains unsafe patterns and allow_unsafe is False.
         OSError: For system-level execution errors.
     """
     if use_debug or use_verbose:
@@ -165,9 +125,6 @@ def exec(
                 problems.append({"type": "command_execution", "command": cmd, "return_code": result.returncode})
             return ""
 
-    # except subprocess.TimeoutExpired:
-    #     logger.error(f"Command timed out after {timeout}s: {cmd}")
-    #     raise CommandTimeoutError(cmd, timeout)
     except OSError as e:
         logger.error(f"OS error executing command '{cmd}': {e}")
         raise
@@ -186,7 +143,6 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         Command output from the chroot execution.
 
     Raises:
-        CommandExecutionError: If chroot command fails.
         OSError: If chroot environment is not accessible.
     """
     # # Validate that mount_point exists and is accessible
@@ -206,8 +162,6 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
     #     result = chroot(str(mount_point), cmd, get_output=get_output)
     #     # print("###~", result)
     #     return result if result is not None else ""
-    # except ChrootError as e:
-    #     raise CommandExecutionError(cmd=cmd, return_code=1, stderr=str(e))
     # Escape the mount point to prevent injection
     # safe_mount_point = shlex.quote(str(mount_point))
     # Construct chroot command - using arch-chroot for Arch-specific functionality
