@@ -73,6 +73,88 @@ local module = {
             })
         end
         
+        -- Multi-environment configuration (desktop.environments block)
+        if config.environments and type(config.environments) == "table" then
+            local de_order = 460
+            
+            -- Handle each environment configuration
+            for env_name, env_config in pairs(config.environments) do
+                if type(env_config) == "table" then
+                    -- Map environment names to DE packages
+                    local de_map = {
+                        gnome = {"gnome", "gnome-extra"},
+                        plasma = {"plasma-meta", "kde-applications"},
+                        cosmic = {"cosmic"},
+                        budgie = {"budgie-desktop"},
+                        pantheon = {"elementary-os"},
+                    }
+                    
+                    local de_packages = de_map[env_name] or {env_name}
+                    local pkg_list = table.concat(de_packages, " ")
+                    
+                    local install_cmd
+                    if distro == "arch" then
+                        install_cmd = "pacman -S --noconfirm " .. pkg_list
+                    elseif distro == "debian" then
+                        install_cmd = "apt-get install -y " .. pkg_list
+                    else
+                        goto continue_env
+                    end
+                    
+                    -- Install environment
+                    table.insert(steps, {
+                        name = "desktop_environments_install_" .. env_name,
+                        description = "Install " .. env_name .. " desktop environment",
+                        command = install_cmd,
+                        order = de_order,
+                    })
+                    
+                    de_order = de_order + 1
+                    
+                    ::continue_env::
+                end
+            end
+        end
+        
+        -- Display manager configuration (if specified separately)
+        if config.display_manager then
+            local dm_service = config.display_manager:lower()
+            
+            -- Install display manager packages if needed
+            local dm_packages = {
+                gdm = "gdm",
+                sddm = "sddm",
+                lightdm = "lightdm",
+                ["cosmic-session"] = "cosmic-session",
+            }
+            
+            local dm_pkg = dm_packages[dm_service] or dm_service
+            
+            local install_cmd
+            if distro == "arch" then
+                install_cmd = "pacman -S --noconfirm " .. dm_pkg
+            elseif distro == "debian" then
+                install_cmd = "apt-get install -y " .. dm_pkg
+            else
+                return steps
+            end
+            
+            table.insert(steps, {
+                name = "desktop_display_manager_install",
+                description = "Install display manager: " .. config.display_manager,
+                command = install_cmd,
+                order = 455,
+            })
+            
+            table.insert(steps, {
+                name = "desktop_display_manager_enable",
+                description = "Enable display manager " .. dm_service,
+                command = "systemctl enable " .. dm_service,
+                order = 456,
+                depends_on = {"desktop_display_manager_install"},
+            })
+        end
+        
         return steps
     end
 }

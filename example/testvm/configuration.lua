@@ -14,6 +14,8 @@ local use_cosmic = true
 local use_pantheon = false
 
 return {
+    base_distribution = "arch",
+    
     repos = {
         -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),

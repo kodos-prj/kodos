@@ -98,6 +98,22 @@ local module = {
                     depends_on = {"boot_loader_install_grub"},
                 })
             end
+            
+            -- Loader include files
+            if config.loader.include and #config.loader.include > 0 then
+                for i, include_entry in ipairs(config.loader.include) do
+                    -- Clean entry name for step naming (remove .conf extension if present)
+                    local entry_name = include_entry:gsub("%.conf$", ""):gsub("[/-]", "_")
+                    
+                    table.insert(steps, {
+                        name = "boot_loader_include_" .. entry_name,
+                        description = "Add loader include: " .. include_entry,
+                        command = "echo 'include " .. include_entry .. "' >> /boot/loader/loader.conf",
+                        order = 212 + i,
+                        depends_on = {"boot_loader_timeout"} or {"boot_loader_grub_timeout"},
+                    })
+                end
+            end
         end
         
         return steps

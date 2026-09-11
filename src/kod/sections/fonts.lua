@@ -64,6 +64,46 @@ local module = {
             })
         end
         
+        -- Additional font packages (Task 8 extension)
+        if config.packages and #config.packages > 0 then
+            local pkg_list = table.concat(config.packages, " ")
+            
+            local install_cmd
+            if distro == "arch" then
+                install_cmd = "pacman -S --noconfirm " .. pkg_list
+            elseif distro == "debian" then
+                install_cmd = "apt-get install -y " .. pkg_list
+            else
+                return steps
+            end
+            
+            table.insert(steps, {
+                name = "fonts_packages_install",
+                description = "Install additional font packages: " .. pkg_list,
+                command = install_cmd,
+                order = 402,
+            })
+        end
+        
+        -- Custom font directory setup
+        if config.font_dir then
+            table.insert(steps, {
+                name = "fonts_font_dir_create",
+                description = "Create custom font directory: " .. config.font_dir,
+                command = "mkdir -p " .. config.font_dir .. " && chmod 755 " .. config.font_dir,
+                order = 403,
+            })
+            
+            -- Copy system fonts to custom directory (optional)
+            table.insert(steps, {
+                name = "fonts_font_dir_refresh",
+                description = "Refresh font cache for custom directory: " .. config.font_dir,
+                command = "fc-cache -fv " .. config.font_dir,
+                order = 404,
+                depends_on = {"fonts_font_dir_create"},
+            })
+        end
+        
         return steps
     end
 }

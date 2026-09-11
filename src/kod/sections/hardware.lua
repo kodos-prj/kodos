@@ -52,6 +52,47 @@ local module = {
             })
         end
         
+        -- SANE scanner support
+        if config.sane and config.sane.enable then
+            local sane_packages = {"sane"}
+            
+            -- Add extra packages if specified
+            if config.sane.extra_packages then
+                for _, pkg in ipairs(config.sane.extra_packages) do
+                    table.insert(sane_packages, pkg)
+                end
+            end
+            
+            local pkg_list = table.concat(sane_packages, " ")
+            
+            local install_cmd
+            if distro == "arch" then
+                install_cmd = "pacman -S --noconfirm " .. pkg_list
+            elseif distro == "debian" then
+                install_cmd = "apt-get install -y " .. pkg_list
+            else
+                return steps
+            end
+            
+            table.insert(steps, {
+                name = "hardware_sane_install",
+                description = "Install SANE scanner support",
+                command = install_cmd,
+                order = 360,
+            })
+            
+            -- Add extra packages step if any extra packages
+            if config.sane.extra_packages and #config.sane.extra_packages > 0 then
+                table.insert(steps, {
+                    name = "hardware_sane_extra_packages",
+                    description = "Install additional SANE packages: " .. table.concat(config.sane.extra_packages, ", "),
+                    command = install_cmd,
+                    order = 361,
+                    depends_on = {"hardware_sane_install"},
+                })
+            end
+        end
+        
         return steps
     end
 }
