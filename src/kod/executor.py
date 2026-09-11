@@ -156,12 +156,18 @@ class Executor:
                 
                 # Execute via subprocess
                 import subprocess
+                from kod import common
+                
                 cmd = " ".join([step.program] + list(step.args))
                 
                 # If step requires chroot, wrap command with chroot
                 if step.chroot:
                     mount_point = ctx.get("mount_point", "/mnt")
                     cmd = f"chroot {mount_point} sh -c '{cmd}'"
+                
+                # Print command if verbose or debug mode
+                if common.use_debug or common.use_verbose:
+                    print(f">> {cmd}")
                 
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=step.timeout_s, check=False)
                 if result.returncode != 0:
@@ -171,12 +177,18 @@ class Executor:
             elif step.kind == "disk":
                 # Disk steps execute via subprocess
                 import subprocess
+                from kod import common
+                
                 cmd = " ".join([step.program] + list(step.args))
                 
                 # If step requires chroot, wrap command with chroot
                 if step.chroot:
                     mount_point = ctx.get("mount_point", "/mnt")
                     cmd = f"chroot {mount_point} sh -c '{cmd}'"
+                
+                # Print command if verbose or debug mode
+                if common.use_debug or common.use_verbose:
+                    print(f">> {cmd}")
                 
                 result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=step.timeout_s, check=False)
                 if result.returncode != 0:
