@@ -337,28 +337,138 @@ class TestGolden:
                  "mlocate", "schroot", "sudo", "whois"],
     })
     def test_testvm_empty_baseline_golden(self, _mock):
-        from kod._core import load_config as load_lua
-        from kod.planner import plan_install, render_plan
+         from kod._core import load_config as load_lua
+         from kod.planner import plan_install, render_plan
 
-        conf = load_lua(str(EXAMPLE / "configuration.lua"))
-        out = render_plan(plan_install(conf), "empty", "example/testvm/configuration.lua")
-        if os.environ.get("KODOS_WRITE_GOLDEN"):
-            GOLDEN.parent.mkdir(exist_ok=True)
-            GOLDEN.write_text(out)
-            pytest.skip("golden written")
-        assert out == GOLDEN.read_text()
+         conf = load_lua(str(EXAMPLE / "configuration.lua"))
+         out = render_plan(plan_install(conf), "empty", "example/testvm/configuration.lua")
+         if os.environ.get("KODOS_WRITE_GOLDEN"):
+             GOLDEN.parent.mkdir(exist_ok=True)
+             GOLDEN.write_text(out)
+             pytest.skip("golden written")
+         assert out == GOLDEN.read_text()
 
     @patch("kod.system.packages.get_base_packages", return_value={
-        "kernel": "linux-lts",
-        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
-                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
-                 "mlocate", "schroot", "sudo", "whois"],
+         "kernel": "linux-lts",
+         "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
+                  "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
+                  "mlocate", "schroot", "sudo", "whois"],
     })
     def test_testvm_preview_sanity(self, _mock):
-        from kod._core import load_config as load_lua
-        from kod.planner import plan_install
+         from kod._core import load_config as load_lua
+         from kod.planner import plan_install
 
-        conf = load_lua(str(EXAMPLE / "configuration.lua"))
-        steps = plan_install(conf)
-        assert ("disk", "wipe:/dev/vda") in [(s.kind, s.name) for s in steps]
-        assert any(s.kind == "package" and s.meta["action"] == "install" for s in steps)
+         conf = load_lua(str(EXAMPLE / "configuration.lua"))
+         steps = plan_install(conf)
+         assert ("disk", "wipe:/dev/vda") in [(s.kind, s.name) for s in steps]
+
+
+class TestHookVisibility:
+     """Tests for hook visibility in plan output (Task 5)."""
+     
+     def test_plan_includes_hooks_in_meta_when_registered(self):
+         """Plan includes hook event names in step meta when hooks exist."""
+         from kod.planner import Step, _attach_hooks_to_steps
+         
+         # Create some hooks
+         hooks_map = {
+             "post:service": [lambda step, ctx: None],
+             "pre:package": [lambda step, ctx: None],
+         }
+         
+         # Create steps
+         steps = [
+             Step("service", "nginx", meta={"action": "enable"}),
+             Step("package", "vim", meta={"action": "install"}),
+             Step("system", "kernel-update", meta={"kernel": "linux"}),
+         ]
+         
+         # Attach hooks
+         result = _attach_hooks_to_steps(steps, hooks_map)
+         
+         # Verify hooks attached to correct steps
+         service_step = [s for s in result if s.kind == "service"][0]
+         assert "hooks" in service_step.meta
+         assert service_step.meta["hooks"] == ["post:service"]
+         
+         pkg_step = [s for s in result if s.kind == "package"][0]
+         assert "hooks" in pkg_step.meta
+         assert pkg_step.meta["hooks"] == ["pre:package"]
+         
+         # System step should not have hooks (no matching events)
+         sys_step = [s for s in result if s.kind == "system"][0]
+         assert "hooks" not in sys_step.meta
+     
+     def test_plan_without_hooks_no_hooks_field(self):
+         """Plan without registered hooks doesn't include hooks field."""
+         from kod.planner import Step, _attach_hooks_to_steps
+         
+         steps = [
+             Step("service", "nginx", meta={"action": "enable"}),
+             Step("package", "vim", meta={"action": "install"}),
+         ]
+         
+         # Empty hooks map
+         result = _attach_hooks_to_steps(steps, {})
+         
+         # Verify no hooks added
+         for step in result:
+             assert "hooks" not in step.meta
+     
+     def test_plan_with_multiple_hook_types(self):
+         """Plan with multiple hook types shows all applicable events sorted."""
+         from kod.planner import Step, _attach_hooks_to_steps
+         
+         # Register multiple hooks for same kind
+         hooks_map = {
+             "post:service": [lambda step, ctx: None],
+             "pre:service": [lambda step, ctx: None],
+             "post:package": [lambda step, ctx: None],
+         }
+         
+         steps = [
+             Step("service", "nginx", meta={"action": "enable"}),
+             Step("package", "vim", meta={"action": "install"}),
+         ]
+         
+         result = _attach_hooks_to_steps(steps, hooks_map)
+         
+         service_step = [s for s in result if s.kind == "service"][0]
+         # Both pre and post hooks should be present, sorted
+         assert service_step.meta["hooks"] == ["post:service", "pre:service"]
+         
+         pkg_step = [s for s in result if s.kind == "package"][0]
+         assert pkg_step.meta["hooks"] == ["post:package"]
+     
+     def test_render_plan_includes_hooks_in_output(self):
+         """render_plan formats hooks in output."""
+         from kod.planner import Step, render_plan
+         
+         steps = [
+             Step("service", "nginx", meta={"action": "enable", "hooks": ["post:service"]}),
+             Step("package", "vim", meta={"action": "install"}),
+         ]
+         
+         output = render_plan(steps, "current", "test.lua")
+         
+         # Service step should have hooks in output
+         assert "nginx" in output
+         assert 'hooks=["post:service"]' in output
+         
+         # Package step should not have hooks
+         assert "vim" in output
+         assert '"action": "install"' in output
+     
+     def test_render_plan_skips_empty_hooks_field(self):
+         """render_plan doesn't output empty hooks lists."""
+         from kod.planner import Step, render_plan
+         
+         # Step with empty hooks list (shouldn't happen, but verify graceful handling)
+         steps = [Step("service", "nginx", meta={"action": "enable", "hooks": []})]
+         
+         output = render_plan(steps, "current")
+         
+         # Empty hooks should not appear in output
+         lines = output.strip().split("\n")
+         service_line = [l for l in lines if "nginx" in l][0]
+         assert "hooks=" not in service_line

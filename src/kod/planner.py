@@ -34,6 +34,39 @@ class Step:
         }
 
 
+def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
+    """Attach hook event names to step metadata for visibility.
+    
+    Args:
+        steps: List of Step objects
+        hooks_map: Dict mapping hook event name → list of callables
+    
+    Returns:
+        New list of Steps with hook names added to meta (frozen Step pattern).
+    """
+    if not hooks_map:
+        return steps
+    
+    result = []
+    for step in steps:
+        # Find hook events that would fire for this step's kind
+        hook_events = sorted([event for event in hooks_map.keys() if event.endswith(f":{step.kind}")])
+        
+        if hook_events:
+            # Create new Step with updated meta (frozen dataclass pattern)
+            new_meta = dict(step.meta)
+            new_meta["hooks"] = hook_events
+            step = Step(
+                step.kind, step.name,
+                program=step.program, args=step.args,
+                chroot=step.chroot, timeout_s=step.timeout_s,
+                on_error=step.on_error, meta=new_meta
+            )
+        result.append(step)
+    
+    return result
+
+
 def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = None) -> str:
     """Render steps as deterministic text (golden-file testable)."""
     lines = ["# kod plan", f"# baseline={baseline} config={config_path or '<default>'}"]
@@ -42,8 +75,17 @@ def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = N
         line = f"{i:03d} [{s.kind}] {s.name}:"
         if cmd:
             line += f" {cmd}"
-        if s.meta:
-            line += f" {json.dumps(s.meta, sort_keys=True)}"
+        
+        # Extract hooks separately for special formatting
+        meta_copy = dict(s.meta)
+        hooks = meta_copy.pop("hooks", None)
+        
+        if meta_copy:
+            line += f" {json.dumps(meta_copy, sort_keys=True)}"
+        
+        if hooks:
+            line += f" hooks={json.dumps(sorted(hooks))}"
+        
         lines.append(line)
     return "\n".join(lines) + "\n"
 
@@ -146,8 +188,18 @@ def plan_install(conf: Any) -> List[Step]:
             if services:
                 for sname in sorted(services.keys()):
                     if services[sname].enable:
-                        steps.append(Step("service", sname,
-                                          meta={"action": "enable", "user": user}))
+                         steps.append(Step("service", sname,
+                                           meta={"action": "enable", "user": user}))
+    
+    # Attach hook event names for visibility in plan output
+    from kod.hooks import collect_hooks
+    try:
+        hooks_map = collect_hooks(conf.users or {})
+        steps = _attach_hooks_to_steps(steps, hooks_map)
+    except Exception:
+        # If hook collection fails, proceed without hooks (backward compat)
+        pass
+    
     return steps
 
 
@@ -190,7 +242,17 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         steps.append(Step("system", "initramfs-update", meta={"kernel": kernel}))
     
     for svc in sorted(set(next_services) - set(current_services)):
-        steps.append(Step("service", svc, meta={"action": "enable"}))
+         steps.append(Step("service", svc, meta={"action": "enable"}))
+    
+    # Attach hook event names for visibility in plan output
+    from kod.hooks import collect_hooks
+    try:
+        hooks_map = collect_hooks(conf.users or {})
+        steps = _attach_hooks_to_steps(steps, hooks_map)
+    except Exception:
+        # If hook collection fails, proceed without hooks (backward compat)
+        pass
+    
     return steps
 
 
