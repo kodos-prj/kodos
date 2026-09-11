@@ -2,6 +2,7 @@
 -- Handles systemctl enable/start for various services, config blocks, and systemd units
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.services,
@@ -53,12 +54,8 @@ local module = {
             if svc_config.packages then
                 local main_pkg = svc_config.packages.main
                 if main_pkg then
-                    local install_cmd
-                    if distro == "arch" then
-                        install_cmd = "pacman -S --noconfirm " .. main_pkg
-                    elseif distro == "debian" then
-                        install_cmd = "apt-get install -y " .. main_pkg
-                    else
+                    local install_cmd = Repos.install_cmd(distro, main_pkg)
+                    if not install_cmd then
                         main_pkg = nil
                     end
                     
@@ -75,12 +72,8 @@ local module = {
                 -- Install extra packages
                 if svc_config.packages.extra and #svc_config.packages.extra > 0 then
                     local extra_list = table.concat(svc_config.packages.extra, " ")
-                    local install_cmd
-                    if distro == "arch" then
-                        install_cmd = "pacman -S --noconfirm " .. extra_list
-                    elseif distro == "debian" then
-                        install_cmd = "apt-get install -y " .. extra_list
-                    else
+                    local install_cmd = Repos.install_cmd(distro, extra_list)
+                    if not install_cmd then
                         install_cmd = nil
                     end
                     

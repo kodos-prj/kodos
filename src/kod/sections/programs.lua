@@ -2,6 +2,7 @@
 -- Handles custom program install logic defined via DSL
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.programs,
@@ -36,12 +37,8 @@ local module = {
                     if program_config.package then
                         local pkg_name = program_config.package
                         
-                        local install_cmd
-                        if distro == "arch" then
-                            install_cmd = "pacman -S --noconfirm " .. pkg_name
-                        elseif distro == "debian" then
-                            install_cmd = "apt-get install -y " .. pkg_name
-                        else
+                        local install_cmd = Repos.install_cmd(distro, pkg_name)
+                        if not install_cmd then
                             goto continue
                         end
                         

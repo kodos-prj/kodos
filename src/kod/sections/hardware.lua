@@ -2,6 +2,7 @@
 -- Handles pipewire audio system installation and configuration
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.hardware,
@@ -26,12 +27,8 @@ local module = {
             
             local pkg_list = table.concat(pipewire_packages, " ")
             
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. pkg_list
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. pkg_list
-            else
+            local install_cmd = Repos.install_cmd(distro, pkg_list)
+            if not install_cmd then
                 return steps
             end
             
@@ -65,12 +62,8 @@ local module = {
             
             local pkg_list = table.concat(sane_packages, " ")
             
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. pkg_list
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. pkg_list
-            else
+            local install_cmd = Repos.install_cmd(distro, pkg_list)
+            if not install_cmd then
                 return steps
             end
             

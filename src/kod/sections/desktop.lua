@@ -2,6 +2,7 @@
 -- Handles DE selection and installation (GNOME, KDE Plasma, XFCE, Cosmic, etc.)
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.desktop,
@@ -31,17 +32,13 @@ local module = {
             }
             
             de_packages = de_map[de_name] or {de_name}
-            
-            local pkg_list = table.concat(de_packages, " ")
-            
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. pkg_list
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. pkg_list
-            else
-                return steps
-            end
+             
+             local pkg_list = table.concat(de_packages, " ")
+             
+             local install_cmd = Repos.install_cmd(distro, pkg_list)
+             if not install_cmd then
+                 return steps
+             end
             
             table.insert(steps, {
                 name = "desktop_install_" .. de_name,
@@ -89,17 +86,13 @@ local module = {
                         pantheon = {"elementary-os"},
                     }
                     
-                    local de_packages = de_map[env_name] or {env_name}
-                    local pkg_list = table.concat(de_packages, " ")
-                    
-                    local install_cmd
-                    if distro == "arch" then
-                        install_cmd = "pacman -S --noconfirm " .. pkg_list
-                    elseif distro == "debian" then
-                        install_cmd = "apt-get install -y " .. pkg_list
-                    else
-                        goto continue_env
-                    end
+                     local de_packages = de_map[env_name] or {env_name}
+                     local pkg_list = table.concat(de_packages, " ")
+                     
+                     local install_cmd = Repos.install_cmd(distro, pkg_list)
+                     if not install_cmd then
+                         goto continue_env
+                     end
                     
                     -- Install environment
                     table.insert(steps, {
@@ -128,16 +121,12 @@ local module = {
                 ["cosmic-session"] = "cosmic-session",
             }
             
-            local dm_pkg = dm_packages[dm_service] or dm_service
-            
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. dm_pkg
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. dm_pkg
-            else
-                return steps
-            end
+             local dm_pkg = dm_packages[dm_service] or dm_service
+             
+             local install_cmd = Repos.install_cmd(distro, dm_pkg)
+             if not install_cmd then
+                 return steps
+             end
             
             table.insert(steps, {
                 name = "desktop_display_manager_install",

@@ -2,6 +2,7 @@
 -- Emits steps to install each package from the packages list
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.packages,
@@ -16,12 +17,8 @@ local module = {
         -- Install all packages together in a single step
         local package_list = table.concat(config, " ")
         
-        local install_cmd
-        if distro == "arch" then
-            install_cmd = "pacman -S --noconfirm " .. package_list
-        elseif distro == "debian" then
-            install_cmd = "apt-get install -y " .. package_list
-        else
+        local install_cmd = Repos.install_cmd(distro, package_list)
+        if not install_cmd then
             return steps
         end
         

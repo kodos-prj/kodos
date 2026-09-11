@@ -86,10 +86,25 @@ local function deb_repo(mirrors)
     }
 end
 
+local function install_cmd(distro, packages)
+    -- Returns the install command for the given distro
+    -- - distro: "arch" or "debian"
+    -- - packages: string or list of package names
+    -- Returns: install command string, or nil if distro unsupported
+    local pkg_str = type(packages) == "string" and packages or table.concat(packages, " ")
+    
+    if distro == "arch" then
+        return "pacman -S --noconfirm " .. pkg_str
+    elseif distro == "debian" then
+        return "apt-get install -y " .. pkg_str
+    end
+    return nil
+end
 
 return {
     arch_repo = arch_repo,
     aur_repo = aur_repo,
     flatpak_repo = flatpak_repo,
     deb_repo = deb_repo,
+    install_cmd = install_cmd,
 }

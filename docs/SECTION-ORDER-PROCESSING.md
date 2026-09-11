@@ -1,11 +1,13 @@
-# Section Order Processing in Phase 5c
+# Section Order Processing in Phase 5c & Phase 5d
 
 ## Overview
 
-Phase 5c has **two levels of ordering**:
+Phase 5c/5d has **two levels of ordering**:
 
 1. **Section Iteration Order** — Which sections are processed (planner)
 2. **Step Execution Order** — Which steps within/across sections run first (steps)
+
+**Phase 5d Note:** User-level programs and services are merged into system-level ordering. See [User Programs/Services Merge](#user-programsservices-merge-phase-5d) below.
 
 ---
 
@@ -464,6 +466,247 @@ For typical config (~50-100 steps): negligible performance impact.
 
 ---
 
+## User Programs/Services Merge (Phase 5d)
+
+### New in Phase 5d: User-Level Programs & Services
+
+Phase 5d introduces user-level configuration blocks:
+
+```lua
+users = {
+  abuss = {
+    programs = {                   -- NEW: User programs
+      git = { enable = true },
+      zsh = { enable = true },
+    },
+    
+    services = {                   -- NEW: User services
+      syncthing = { enable = false },
+    },
+  },
+}
+```
+
+**Challenge:** How do user-level programs/services integrate with system-level ordering?
+
+### Solution: Merge at Plan Time
+
+**During planning, user programs/services are merged into system step order:**
+
+1. Planner processes `users` section
+2. For each user with `programs` block:
+   - Extract programs into list
+   - Merge with system `programs` section steps
+   - Emit combined steps with user context
+3. Same process for `services`
+
+### Execution Order: User vs System
+
+**Result:** User program steps are interleaved with system program steps based on step order values.
+
+**Example:**
+
+```lua
+-- System config
+programs = {
+  firefox = { enable = true },
+  chromium = { enable = true },
+}
+
+-- User config (abuss)
+users = {
+  abuss = {
+    programs = {
+      git = { enable = true },
+      neovim = { enable = true },
+    },
+  },
+}
+```
+
+**Generated steps (merged):**
+
+| Step | Type | Program | Order | User |
+|------|------|---------|-------|------|
+| 1 | System | firefox | 900 | system |
+| 2 | System | chromium | 900 | system |
+| 3 | User | git | 900 | abuss |
+| 4 | User | neovim | 900 | abuss |
+
+**Execution:** All at order 900 (insertion order preserved): firefox → chromium → git → neovim
+
+### User Context in Steps
+
+Each user program step carries user information:
+
+```lua
+{
+    name = "programs_user_abuss_git_install",
+    description = "Install git for user abuss",
+    command = "pacman -S --noconfirm git",
+    order = 900,
+    user = "abuss",                         -- Phase 5d: User context
+    depends_on = {"users_abuss_create"},   -- Wait for user creation
+}
+```
+
+### User Services Same Pattern
+
+**User services** follow the same merge pattern:
+
+```lua
+-- System config
+services = {
+  openssh = { enable = true },
+}
+
+-- User config (abuss)
+users = {
+  abuss = {
+    services = {
+      syncthing = { enable = false },
+    },
+  },
+}
+```
+
+**Generated steps:**
+
+| Step | Service | Order | User | Depends On |
+|------|---------|-------|------|-----------|
+| 1 | openssh (system) | 800 | system | — |
+| 2 | syncthing (abuss) | 800 | abuss | users_abuss_create |
+
+**Key:** User services depend on user creation step to ensure user exists before service setup.
+
+### Phase 5d User Section Order
+
+The updated section iteration order includes extended `users` processing:
+
+```lua
+Planner.sections = {
+    'base_distribution',     -- 1. Validate distro
+    'repos',                 -- 2. Configure repos
+    'devices',               -- 3. Prepare disks
+    'boot',                  -- 4. Install kernel & bootloader
+    'hardware',              -- 5. Configure hardware
+    'locale',                -- 6. Set locale
+    'network',               -- 7. Configure network
+    'users',                 -- 8. Create users (Phase 5d: now emits 3 phases)
+    'desktop',               -- 9. Install desktop environment
+    'fonts',                 -- 10. Install fonts
+    'packages',              -- 11. Install packages
+    'services',              -- 12. Enable services (Phase 5d: merged with user services)
+    'programs'               -- 13. Install programs (Phase 5d: merged with user programs)
+}
+```
+
+### Phase 5d `users` Section Emits Steps in Order
+
+**Phase 1: User creation (order 400)**
+```lua
+{
+    name = "users_abuss_create",
+    description = "Create user abuss",
+    order = 400,
+}
+```
+
+**Phase 2: User identity setup (order 410)**
+```lua
+{
+    name = "users_abuss_identity_setup",
+    description = "Set password and groups for abuss",
+    order = 410,
+    depends_on = {"users_abuss_create"},
+}
+```
+
+**Phase 3: User programs/services (order 900/800)**
+```lua
+{
+    name = "programs_user_abuss_git",
+    description = "Install git for abuss",
+    order = 900,
+    user = "abuss",
+    depends_on = {"users_abuss_create"},
+}
+```
+
+**Benefit:** User setup steps (creation, identity) happen early (order 400+), while user programs/services happen in their proper section order (900/800) but with user context intact.
+
+### Real-World Example: eszkoz User Programs
+
+eszkoz configures user `abuss` with multiple programs:
+
+```lua
+users = {
+  abuss = {
+    identity = { ... },
+    ssh_keys = { ... },
+    dotfiles = { ... },
+    
+    programs = {
+      git = { enable = true, config = configs.git({...}) },
+      zsh = { enable = true, deploy_config = true },
+      neovim = { enable = true, deploy_config = true },
+      emacs = { enable = true, package = "emacs-wayland", extra_packages = {...} },
+    },
+  },
+}
+```
+
+**Generated steps (eszkoz, subset):**
+
+| Order | Step | User | Depends On |
+|-------|------|------|-----------|
+| 400 | users_abuss_create | — | — |
+| 410 | users_abuss_identity_setup | — | users_abuss_create |
+| 420 | users_abuss_ssh_keys_setup | — | users_abuss_create |
+| 430 | users_abuss_dotfiles_deploy | — | users_abuss_create |
+| 700 | packages (all) | — | — |
+| 800 | services (system) | — | — |
+| 900 | programs_git_install (system) | — | — |
+| 900 | programs_user_abuss_git | abuss | users_abuss_create |
+| 900 | programs_user_abuss_zsh | abuss | users_abuss_create |
+| 900 | programs_user_abuss_neovim | abuss | users_abuss_create |
+| 900 | programs_user_abuss_emacs | abuss | users_abuss_create |
+
+### Dotfiles Integration
+
+User dotfiles are deployed as part of user section (order ~430):
+
+```lua
+{
+    name = "users_abuss_dotfiles_deploy",
+    description = "Deploy dotfiles for abuss using stow",
+    command = "cd ~/.dotfiles && stow zsh git nvim helix emacs",
+    order = 430,
+    user = "abuss",
+    depends_on = {"users_abuss_create"},
+}
+```
+
+Then user programs that reference dotfiles (via `deploy_config = true`) run after:
+
+```lua
+{
+    name = "programs_user_abuss_neovim",
+    description = "Install neovim for user abuss",
+    command = "pacman -S --noconfirm neovim",
+    order = 900,
+    user = "abuss",
+    depends_on = {
+        "users_abuss_create",
+        "users_abuss_dotfiles_deploy",  -- Wait for dotfiles
+    },
+}
+```
+
+**Result:** Dotfiles deployed (order 430) → programs installed (order 900) → config files already in place from dotfiles.
+
+---
+
 ## Summary
 
 **Section Order Processing:**
@@ -491,4 +734,12 @@ For typical config (~50-100 steps): negligible performance impact.
 
 - **Planner:** `src/kod/lib/planner.lua` (lines 7-79 for sorting)
 - **Boot section:** `src/kod/sections/boot.lua` (example step ordering)
+- **Users section:** `src/kod/sections/users.lua` (Phase 5d: user programs/services merge)
 - **Other sections:** `src/kod/sections/*.lua` (follow same pattern)
+
+## Phase 5d Documentation
+
+- [PHASE-5D-STRUCTURED-DESIGN.md](./PHASE-5D-STRUCTURED-DESIGN.md) — Full Phase 5d schema overview
+- [ADVANCED-USER-CONFIG.md](./ADVANCED-USER-CONFIG.md) — User-level programs & services
+- [SERVICE-CUSTOMIZATION.md](./SERVICE-CUSTOMIZATION.md) — Service config blocks
+- [DESKTOP-ENVIRONMENTS.md](./DESKTOP-ENVIRONMENTS.md) — Multi-DE configuration

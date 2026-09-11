@@ -2,6 +2,7 @@
 -- Handles installation of monospace, sans-serif, and emoji fonts
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.fonts,
@@ -38,12 +39,8 @@ local module = {
         if #font_packages > 0 then
             local pkg_list = table.concat(font_packages, " ")
             
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. pkg_list
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. pkg_list
-            else
+            local install_cmd = Repos.install_cmd(distro, pkg_list)
+            if not install_cmd then
                 return steps
             end
             
@@ -68,12 +65,8 @@ local module = {
         if config.packages and #config.packages > 0 then
             local pkg_list = table.concat(config.packages, " ")
             
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. pkg_list
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. pkg_list
-            else
+            local install_cmd = Repos.install_cmd(distro, pkg_list)
+            if not install_cmd then
                 return steps
             end
             

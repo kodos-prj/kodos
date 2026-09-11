@@ -2,6 +2,7 @@
 -- Handles kernel package, modules, and bootloader setup
 
 local Schema = require('kod.lib.schema')
+local Repos = require('kod.lib.repos')
 
 local module = {
     schema = Schema.boot,
@@ -14,18 +15,14 @@ local module = {
         end
         
         -- Kernel configuration
-        if config.kernel then
-            local kernel_pkg = config.kernel.package or "linux"
-            
-            -- Install kernel package
-            local install_cmd
-            if distro == "arch" then
-                install_cmd = "pacman -S --noconfirm " .. kernel_pkg
-            elseif distro == "debian" then
-                install_cmd = "apt-get install -y " .. kernel_pkg
-            else
-                return steps
-            end
+         if config.kernel then
+             local kernel_pkg = config.kernel.package or "linux"
+             
+             -- Install kernel package
+             local install_cmd = Repos.install_cmd(distro, kernel_pkg)
+             if not install_cmd then
+                 return steps
+             end
             
             table.insert(steps, {
                 name = "boot_kernel_install",
@@ -74,20 +71,16 @@ local module = {
                     depends_on = {"boot_loader_install_systemd"},
                 })
             elseif loader_type == "grub" then
-                -- Install GRUB
-                local grub_pkg = "grub"
-                if distro == "arch" then
-                    grub_pkg = "grub"
-                elseif distro == "debian" then
-                    grub_pkg = "grub-pc"
-                end
-                
-                table.insert(steps, {
-                    name = "boot_loader_install_grub",
-                    description = "Install GRUB bootloader",
-                    command = (distro == "arch" and "pacman -S --noconfirm " or "apt-get install -y ") .. grub_pkg,
-                    order = 210,
-                })
+                 -- Install GRUB
+                 local grub_pkg = distro == "arch" and "grub" or "grub-pc"
+                 local grub_install = Repos.install_cmd(distro, grub_pkg)
+                 
+                 table.insert(steps, {
+                     name = "boot_loader_install_grub",
+                     description = "Install GRUB bootloader",
+                     command = grub_install,
+                     order = 210,
+                 })
                 
                 -- Configure GRUB timeout
                 table.insert(steps, {
