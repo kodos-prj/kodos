@@ -87,6 +87,11 @@ Schema.boot = {
                     required = false,
                     default = 10,
                     description = "Boot menu timeout in seconds.",
+                },
+                include = {
+                    type = "list",
+                    required = false,
+                    description = "Additional loader configuration files to include.",
                 }
             }
         }
@@ -118,6 +123,26 @@ Schema.hardware = {
                     type = "list",
                     required = false,
                     description = "Additional PipeWire packages (e.g., ALSA/PulseAudio compatibility).",
+                }
+            }
+        },
+        
+        sane = {
+            type = "dict",
+            required = false,
+            description = "SANE scanner support (Scanner Access Now Easy).",
+            
+            fields = {
+                enable = {
+                    type = "boolean",
+                    required = false,
+                    default = false,
+                    description = "Enable SANE scanner support.",
+                },
+                extra_packages = {
+                    type = "list",
+                    required = false,
+                    description = "Additional SANE packages and scanner backends.",
                 }
             }
         }
@@ -206,10 +231,13 @@ Schema.users = {
     description = "User accounts (login, shell, groups, home configuration).",
     
     fields = {
-        -- USERNAME is dynamic key; inside each user config:
-        -- shell: string (optional, default: /bin/bash)
-        -- groups: list (optional, e.g. {wheel, docker})
-        -- home_programs: dict (optional, program configs)
+        -- USERNAME is dynamic key; inside each user config are optional nested blocks:
+        --   identity: name, hashed_password, groups
+        --   ssh_keys: enabled, authorized[]
+        --   dotfiles: repo_url, source_dir, deploy_tool
+        --   programs: nested program configs
+        --   services: nested service configs
+        --   home_config: dotfiles_repos[]
     }
 }
 
@@ -233,6 +261,50 @@ Schema.desktop = {
             required = false,
             default = true,
             description = "Enable desktop environment installation.",
+        },
+        
+        display_manager = {
+            type = "string",
+            required = false,
+            description = "Display manager (login screen) - e.g., 'gdm', 'sddm', 'lightdm'.",
+        },
+        
+        environments = {
+            type = "dict",
+            required = false,
+            description = "Desktop environment configurations for specific DE types.",
+            
+            fields = {
+                gnome = {
+                    type = "dict",
+                    required = false,
+                    description = "GNOME-specific configuration.",
+                },
+                
+                plasma = {
+                    type = "dict",
+                    required = false,
+                    description = "KDE Plasma-specific configuration.",
+                },
+                
+                cosmic = {
+                    type = "dict",
+                    required = false,
+                    description = "COSMIC-specific configuration.",
+                },
+                
+                budgie = {
+                    type = "dict",
+                    required = false,
+                    description = "Budgie-specific configuration.",
+                },
+                
+                pantheon = {
+                    type = "dict",
+                    required = false,
+                    description = "Pantheon (Elementary OS)-specific configuration.",
+                }
+            }
         }
     }
 }
@@ -269,6 +341,18 @@ Schema.fonts = {
             required = false,
             default = true,
             description = "Enable font installation.",
+        },
+        
+        font_dir = {
+            type = "string",
+            required = false,
+            description = "Custom font directory path for user-installed fonts.",
+        },
+        
+        packages = {
+            type = "list",
+            required = false,
+            description = "Additional font packages to install.",
         }
     }
 }
@@ -292,8 +376,29 @@ Schema.services = {
     
     fields = {
         -- SERVICE_NAME is dynamic key; inside each service config:
-        -- enable: boolean (optional, enable on boot)
-        -- start: boolean (optional, start immediately)
+        --   enable: boolean (optional, enable on boot)
+        --   start: boolean (optional, start immediately)
+        --   config: service configuration block with service_name, packages, settings
+        
+        systemd = {
+            type = "dict",
+            required = false,
+            description = "Systemd-specific configuration (mounts, units).",
+            
+            fields = {
+                mounts = {
+                    type = "dict",
+                    required = false,
+                    description = "Systemd mount definitions.",
+                },
+                
+                units = {
+                    type = "dict",
+                    required = false,
+                    description = "Systemd unit definitions.",
+                }
+            }
+        }
     }
 }
 
