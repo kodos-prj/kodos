@@ -130,24 +130,27 @@ local module = {
                          end
                      end
                     
-                     -- Mount partitions
-                     if disk_config.partitions and type(disk_config.partitions) == "table" then
-                         for part_num, partition in pairs(disk_config.partitions) do
-                             if type(partition) == "table" and partition.mountpoint then
-                                 local part_device = device_path .. part_num
-                                 local mount_path = partition.mountpoint
-                                 
-                                 table.insert(steps, {
-                                     name = "devices_mount_" .. disk_name .. "_" .. part_num,
-                                     description = "Mount " .. part_device .. " at " .. mount_path,
-                                     command = "mkdir -p " .. mount_path .. " && mount " .. part_device .. " " .. mount_path,
-                                     chroot = false,
-                                     order = 30 + part_num,
-                                     depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
-                                 })
-                             end
-                         end
-                     end
+                      -- Mount partitions to /mnt staging area (for chroot installation)
+                      if disk_config.partitions and type(disk_config.partitions) == "table" then
+                          for part_num, partition in pairs(disk_config.partitions) do
+                              if type(partition) == "table" and partition.mountpoint then
+                                  local part_device = device_path .. part_num
+                                  local mount_path = partition.mountpoint
+                                  -- For chroot installation, mount to /mnt staging area
+                                  -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
+                                  local chroot_mount_path = "/mnt" .. (mount_path == "/" and "" or mount_path)
+                                  
+                                  table.insert(steps, {
+                                      name = "devices_mount_" .. disk_name .. "_" .. part_num,
+                                      description = "Mount " .. part_device .. " at " .. chroot_mount_path,
+                                      command = "mkdir -p " .. chroot_mount_path .. " && mount " .. part_device .. " " .. chroot_mount_path,
+                                      chroot = false,
+                                      order = 30 + part_num,
+                                      depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
+                                  })
+                              end
+                          end
+                      end
                 end
             end
         end
