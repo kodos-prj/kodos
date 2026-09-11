@@ -9,31 +9,6 @@ import os
 from kod.planner import Step
 
 
-def _load_lua_bootstrap_module(distro: str):
-    """Load and return Lua bootstrap module (arch or debian)."""
-    try:
-        from lupa import LuaRuntime
-    except ImportError:
-        raise ImportError("lupa is required for Lua bootstrap modules")
-    
-    lua = LuaRuntime()
-    module_name = f"bootstrap-{distro}"
-    module_path = os.path.join(os.path.dirname(__file__), "lib", f"{module_name}.lua")
-    
-    if not os.path.exists(module_path):
-        raise FileNotFoundError(f"Bootstrap module not found: {module_path}")
-    
-    with open(module_path) as f:
-        bootstrap_code = f.read()
-    
-    try:
-        bootstrap_module = lua.execute(bootstrap_code)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load Lua bootstrap module {module_name}: {e}")
-    
-    return bootstrap_module, lua
-
-
 def _convert_to_lua_table(lua, value):
     """Recursively convert Python dict/list to Lua table."""
     if isinstance(value, dict):
@@ -50,11 +25,26 @@ def _convert_to_lua_table(lua, value):
         return value
 
 
+def _lua_table_to_dict(lua_table):
+    """Convert a Lua table to a Python dict."""
+    if not hasattr(lua_table, "keys"):
+        return lua_table
+    
+    result = {}
+    for key in lua_table.keys():
+        val = lua_table[key]
+        if hasattr(val, "keys"):  # It's a Lua table
+            result[key] = _lua_table_to_dict(val)
+        else:
+            result[key] = val
+    return result
+
+
 def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro: str = "arch") -> List[Step]:
     """Emit bootstrap steps via Lua module.
     
     Args:
-        conf: Configuration object (dict or object with __dict__)
+        conf: Configuration object (dict, Lua table, or object with __dict__)
         predicted_partition_list: Pre-computed partition list from predict_partition_list()
         distro: Distribution name ("arch" or "debian")
     
@@ -65,27 +55,39 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
         FileNotFoundError: If Lua module not found
         RuntimeError: If Lua module fails to load or execute
     """
-    bootstrap_module, lua = _load_lua_bootstrap_module(distro)
+    from lupa import LuaRuntime
     
-    # Convert conf to dict if needed
+    # Always create a fresh Lua runtime to avoid runtime mixing issues
+    lua = LuaRuntime()
+    
+    # Convert conf to dict first if it's a Lua table
+    if hasattr(conf, "keys"):  # It's a Lua table
+        conf = _lua_table_to_dict(conf)
+    
+    # Convert conf to Lua table in our runtime
     if hasattr(conf, "__dict__"):
-        conf_dict = vars(conf)
+        conf_lua = _convert_to_lua_table(lua, vars(conf))
     elif isinstance(conf, dict):
-        conf_dict = conf
+        conf_lua = _convert_to_lua_table(lua, conf)
     else:
-        # Assume it's already a Lua table from test
-        conf_dict = conf
+        conf_lua = conf
     
-    # Convert conf and partition_list to Lua tables
+    # Load bootstrap module
+    module_name = f"bootstrap-{distro}"
+    module_path = os.path.join(os.path.dirname(__file__), "lib", f"{module_name}.lua")
+    
+    if not os.path.exists(module_path):
+        raise FileNotFoundError(f"Bootstrap module not found: {module_path}")
+    
+    with open(module_path) as f:
+        bootstrap_code = f.read()
+    
     try:
-        if not isinstance(conf_dict, dict):
-            # Already a Lua table
-            conf_lua = conf_dict
-        else:
-            conf_lua = _convert_to_lua_table(lua, conf_dict)
+        bootstrap_module = lua.execute(bootstrap_code)
     except Exception as e:
-        raise RuntimeError(f"Failed to convert conf to Lua table: {e}")
+        raise RuntimeError(f"Failed to load Lua bootstrap module {module_name}: {e}")
     
+    # Convert partition_list to Lua table
     try:
         partition_list_lua = _convert_to_lua_table(lua, predicted_partition_list)
     except Exception as e:
