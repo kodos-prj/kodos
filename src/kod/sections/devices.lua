@@ -131,32 +131,55 @@ local module = {
                      end
                     
                        -- Mount partitions to /mnt staging area (for chroot installation)
-                       local has_root_partition = false
-                       if disk_config.partitions and type(disk_config.partitions) == "table" then
-                           for part_num, partition in pairs(disk_config.partitions) do
-                               if type(partition) == "table" and partition.mountpoint then
-                                   local part_device = device_path .. part_num
-                                   local mount_path = partition.mountpoint
-                                   -- For chroot installation, mount to /mnt staging area
-                                   -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
-                                   local chroot_mount_path = "/mnt" .. (mount_path == "/" and "" or mount_path)
-                                   
-                                   table.insert(steps, {
-                                       name = "devices_mount_" .. disk_name .. "_" .. part_num,
-                                       description = "Mount " .. part_device .. " at " .. chroot_mount_path,
-                                       command = "mkdir -p " .. chroot_mount_path .. " && mount " .. part_device .. " " .. chroot_mount_path,
-                                       chroot = false,
-                                       order = 30 + part_num,
-                                       depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
-                                   })
-                                   
-                                   -- Track if we have a root partition
-                                   if mount_path == "/" then
-                                       has_root_partition = true
-                                   end
-                               end
-                           end
-                       end
+                        -- Mount root first (order 30), then other partitions (order 31+)
+                        local has_root_partition = false
+                        local mount_steps = {}
+                        
+                        if disk_config.partitions and type(disk_config.partitions) == "table" then
+                            -- First pass: find root partition and collect all mount steps
+                            for part_num, partition in pairs(disk_config.partitions) do
+                                if type(partition) == "table" and partition.mountpoint then
+                                    local part_device = device_path .. part_num
+                                    local mount_path = partition.mountpoint
+                                    -- For chroot installation, mount to /mnt staging area
+                                    -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
+                                    local chroot_mount_path = "/mnt" .. (mount_path == "/" and "" or mount_path)
+                                    
+                                    -- Calculate order: root first (30), then others (31+)
+                                    local mount_order = (mount_path == "/" and 30) or (30 + part_num)
+                                    
+                                    table.insert(mount_steps, {
+                                        name = "devices_mount_" .. disk_name .. "_" .. part_num,
+                                        description = "Mount " .. part_device .. " at " .. chroot_mount_path,
+                                        command = "mkdir -p " .. chroot_mount_path .. " && mount " .. part_device .. " " .. chroot_mount_path,
+                                        chroot = false,
+                                        order = mount_order,
+                                        depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
+                                        mount_path = mount_path,
+                                    })
+                                    
+                                    -- Track if we have a root partition
+                                    if mount_path == "/" then
+                                        has_root_partition = true
+                                    end
+                                end
+                            end
+                            
+                            -- Sort mount steps: root first, then by order
+                            table.sort(mount_steps, function(a, b)
+                                if a.mount_path == "/" then return true end
+                                if b.mount_path == "/" then return false end
+                                return a.order < b.order
+                            end)
+                            
+                            -- Add sorted mount steps and update their order values
+                            local mount_order_counter = 30
+                            for _, step in ipairs(mount_steps) do
+                                step.order = mount_order_counter
+                                mount_order_counter = mount_order_counter + 1
+                                table.insert(steps, step)
+                            end
+                        end
                        
                        -- Bootstrap base system (Arch Linux pacstrap)
                        -- This must run after mounting, before any chroot steps
