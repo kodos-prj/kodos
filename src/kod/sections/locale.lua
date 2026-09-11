@@ -22,6 +22,7 @@ local module = {
                 name = "locale_generate_default",
                 description = "Generate default locale: " .. default_locale,
                 command = "echo '" .. default_locale .. "' >> /etc/locale.gen && locale-gen",
+                chroot = true,
                 order = 150,
             })
             
@@ -30,6 +31,7 @@ local module = {
                 name = "locale_set_default",
                 description = "Set default system locale",
                 command = "localectl set-locale LANG=" .. (default_locale:gsub(" .*", "")),
+                chroot = true,
                 order = 151,
                 depends_on = {"locale_generate_default"},
             })
@@ -41,6 +43,7 @@ local module = {
                         name = "locale_generate_extra_" .. locale_str:gsub("[^%w]", "_"),
                         description = "Generate extra locale: " .. locale_str,
                         command = "echo '" .. locale_str .. "' >> /etc/locale.gen && locale-gen",
+                        chroot = true,
                         order = 152,
                         depends_on = {"locale_generate_default"},
                     })
@@ -59,6 +62,7 @@ local module = {
                         name = "locale_set_extra_vars",
                         description = "Set extra locale environment variables",
                         command = table.concat(env_vars, " && "),
+                        chroot = true,
                         order = 153,
                         depends_on = {"locale_set_default"},
                     })
@@ -72,6 +76,7 @@ local module = {
                 name = "locale_timezone_set",
                 description = "Set system timezone to " .. config.timezone,
                 command = "ln -sf /usr/share/zoneinfo/" .. config.timezone .. " /etc/localtime",
+                chroot = true,
                 order = 160,
             })
             
@@ -80,6 +85,7 @@ local module = {
                 name = "locale_hwclock_sync",
                 description = "Synchronize hardware clock",
                 command = "hwclock --systohc",
+                chroot = true,
                 order = 161,
                 depends_on = {"locale_timezone_set"},
             })
@@ -100,6 +106,7 @@ local module = {
                 name = "locale_keymap_set",
                 description = "Set console keymap to " .. config.keymap,
                 command = keymap_cmd,
+                chroot = true,
                 order = 170,
             })
         end

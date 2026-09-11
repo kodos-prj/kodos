@@ -19,6 +19,7 @@ local module = {
                 name = "network_hostname_set",
                 description = "Set system hostname to " .. config.hostname,
                 command = "echo '" .. config.hostname .. "' > /etc/hostname",
+                chroot = true,
                 order = 120,
             })
             
@@ -27,6 +28,7 @@ local module = {
                 name = "network_hosts_file_update",
                 description = "Add hostname to /etc/hosts",
                 command = "echo '127.0.0.1 " .. config.hostname .. "' >> /etc/hosts",
+                chroot = true,
                 order = 121,
                 depends_on = {"network_hostname_set"},
             })
@@ -39,6 +41,7 @@ local module = {
                 name = "network_ipv6_disable",
                 description = "Disable IPv6 support",
                 command = "echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.d/99-disable-ipv6.conf",
+                chroot = true,
                 order = 130,
             })
         elseif config.ipv6 == true then
@@ -47,6 +50,7 @@ local module = {
                 name = "network_ipv6_enable",
                 description = "Enable IPv6 support",
                 command = "echo 'net.ipv6.conf.all.disable_ipv6 = 0' >> /etc/sysctl.d/99-enable-ipv6.conf",
+                chroot = true,
                 order = 130,
             })
         end

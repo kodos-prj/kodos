@@ -44,6 +44,7 @@ local module = {
                 name = "desktop_install_" .. de_name,
                 description = "Install " .. config.environment .. " desktop environment",
                 command = install_cmd,
+                chroot = true,
                 order = 450,
             })
             
@@ -65,6 +66,7 @@ local module = {
                 name = "desktop_dm_enable",
                 description = "Enable display manager " .. dm_service,
                 command = "systemctl enable " .. dm_service,
+                chroot = true,
                 order = 451,
                 depends_on = {"desktop_install_" .. de_name},
             })
@@ -94,13 +96,14 @@ local module = {
                           goto continue_env
                       end
                      
-                     -- Install environment
-                     table.insert(steps, {
-                         name = "desktop_environments_install_" .. env_name,
-                         description = "Install " .. env_name .. " desktop environment",
-                         command = install_cmd,
-                         order = de_order,
-                     })
+                      -- Install environment
+                      table.insert(steps, {
+                          name = "desktop_environments_install_" .. env_name,
+                          description = "Install " .. env_name .. " desktop environment",
+                          command = install_cmd,
+                          chroot = true,
+                          order = de_order,
+                      })
                      
                      de_order = de_order + 1
                      
@@ -132,6 +135,7 @@ local module = {
                 name = "desktop_display_manager_install",
                 description = "Install display manager: " .. config.display_manager,
                 command = install_cmd,
+                chroot = true,
                 order = 455,
             })
             
@@ -139,6 +143,7 @@ local module = {
                 name = "desktop_display_manager_enable",
                 description = "Enable display manager " .. dm_service,
                 command = "systemctl enable " .. dm_service,
+                chroot = true,
                 order = 456,
                 depends_on = {"desktop_display_manager_install"},
             })

@@ -36,6 +36,7 @@ local module = {
                 name = "hardware_pipewire_install",
                 description = "Install PipeWire audio system",
                 command = install_cmd,
+                chroot = true,
                 order = 350,
             })
             
@@ -44,6 +45,7 @@ local module = {
                 name = "hardware_pipewire_enable",
                 description = "Enable PipeWire service",
                 command = "systemctl enable --global pipewire",
+                chroot = true,
                 order = 351,
                 depends_on = {"hardware_pipewire_install"},
             })
@@ -71,6 +73,7 @@ local module = {
                 name = "hardware_sane_install",
                 description = "Install SANE scanner support",
                 command = install_cmd,
+                chroot = true,
                 order = 360,
             })
             
@@ -80,6 +83,7 @@ local module = {
                     name = "hardware_sane_extra_packages",
                     description = "Install additional SANE packages: " .. table.concat(config.sane.extra_packages, ", "),
                     command = install_cmd,
+                    chroot = true,
                     order = 361,
                     depends_on = {"hardware_sane_install"},
                 })

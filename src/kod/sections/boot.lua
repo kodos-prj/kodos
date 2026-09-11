@@ -28,6 +28,7 @@ local module = {
                 name = "boot_kernel_install",
                 description = "Install kernel: " .. kernel_pkg,
                 command = install_cmd,
+                chroot = true,
                 order = 200,
             })
             
@@ -39,6 +40,7 @@ local module = {
                     name = "boot_kernel_modules_config",
                     description = "Configure kernel modules in initramfs: " .. modules_str,
                     command = "echo 'MODULES=(" .. modules_str .. ")' > /etc/mkinitcpio.conf.d/modules.conf",
+                    chroot = true,
                     order = 201,
                     on_distro = "arch",
                     depends_on = {"boot_kernel_install"},
@@ -57,6 +59,7 @@ local module = {
                     name = "boot_loader_install_systemd",
                     description = "Install systemd-boot bootloader",
                     command = "bootctl install",
+                    chroot = true,
                     order = 210,
                     on_distro = "arch",
                 })
@@ -66,27 +69,30 @@ local module = {
                     name = "boot_loader_timeout",
                     description = "Set boot timeout to " .. timeout .. " seconds",
                     command = "echo 'timeout " .. timeout .. "' > /boot/loader/loader.conf",
+                    chroot = true,
                     order = 211,
                     on_distro = "arch",
                     depends_on = {"boot_loader_install_systemd"},
                 })
             elseif loader_type == "grub" then
-                 -- Install GRUB
-                 local grub_pkg = distro == "arch" and "grub" or "grub-pc"
-                 local grub_install = Repos.install_cmd(distro, grub_pkg)
-                 
-                 table.insert(steps, {
-                     name = "boot_loader_install_grub",
-                     description = "Install GRUB bootloader",
-                     command = grub_install,
-                     order = 210,
-                 })
+                  -- Install GRUB
+                  local grub_pkg = distro == "arch" and "grub" or "grub-pc"
+                  local grub_install = Repos.install_cmd(distro, grub_pkg)
+                  
+                  table.insert(steps, {
+                      name = "boot_loader_install_grub",
+                      description = "Install GRUB bootloader",
+                      command = grub_install,
+                      chroot = true,
+                      order = 210,
+                  })
                 
                 -- Configure GRUB timeout
                 table.insert(steps, {
                     name = "boot_loader_grub_timeout",
                     description = "Set GRUB timeout to " .. timeout .. " seconds",
                     command = "sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=" .. timeout .. "/' /etc/default/grub",
+                    chroot = true,
                     order = 211,
                     depends_on = {"boot_loader_install_grub"},
                 })
@@ -102,6 +108,7 @@ local module = {
                         name = "boot_loader_include_" .. entry_name,
                         description = "Add loader include: " .. include_entry,
                         command = "echo 'include " .. include_entry .. "' >> /boot/loader/loader.conf",
+                        chroot = true,
                         order = 212 + i,
                         depends_on = {"boot_loader_timeout"} or {"boot_loader_grub_timeout"},
                     })

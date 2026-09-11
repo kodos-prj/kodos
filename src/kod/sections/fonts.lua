@@ -48,6 +48,7 @@ local module = {
                 name = "fonts_install_all",
                 description = "Install system fonts: " .. pkg_list,
                 command = install_cmd,
+                chroot = true,
                 order = 400,
             })
             
@@ -56,6 +57,7 @@ local module = {
                 name = "fonts_cache_update",
                 description = "Update system font cache",
                 command = "fc-cache -fv",
+                chroot = true,
                 order = 401,
                 depends_on = {"fonts_install_all"},
             })
@@ -74,6 +76,7 @@ local module = {
                 name = "fonts_packages_install",
                 description = "Install additional font packages: " .. pkg_list,
                 command = install_cmd,
+                chroot = true,
                 order = 402,
             })
         end
@@ -84,6 +87,7 @@ local module = {
                 name = "fonts_font_dir_create",
                 description = "Create custom font directory: " .. config.font_dir,
                 command = "mkdir -p " .. config.font_dir .. " && chmod 755 " .. config.font_dir,
+                chroot = true,
                 order = 403,
             })
             
@@ -92,6 +96,7 @@ local module = {
                 name = "fonts_font_dir_refresh",
                 description = "Refresh font cache for custom directory: " .. config.font_dir,
                 command = "fc-cache -fv " .. config.font_dir,
+                chroot = true,
                 order = 404,
                 depends_on = {"fonts_font_dir_create"},
             })

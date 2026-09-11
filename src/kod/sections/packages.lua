@@ -26,6 +26,7 @@ local module = {
             name = "packages_install_all",
             description = "Install system packages: " .. package_list,
             command = install_cmd,
+            chroot = true,
             order = 500,
         })
         

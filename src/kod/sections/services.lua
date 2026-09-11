@@ -26,6 +26,7 @@ local module = {
                         name = "services_enable_" .. service_name,
                         description = "Enable service on boot: " .. service_name,
                         command = "systemctl enable " .. service_name,
+                        chroot = true,
                         order = 700,
                     })
                 end
@@ -38,6 +39,7 @@ local module = {
                         name = "services_start_" .. service_name,
                         description = "Start service: " .. service_name,
                         command = "systemctl start " .. service_name,
+                        chroot = true,
                         order = 701,
                         depends_on = depend_on,
                     })
@@ -64,6 +66,7 @@ local module = {
                             name = "services_config_install_main",
                             description = "Install main service package: " .. main_pkg,
                             command = install_cmd,
+                            chroot = true,
                             order = 710,
                         })
                     end
@@ -82,6 +85,7 @@ local module = {
                             name = "services_config_install_extra",
                             description = "Install extra service packages: " .. extra_list,
                             command = install_cmd,
+                            chroot = true,
                             order = 711,
                         })
                     end
@@ -96,6 +100,7 @@ local module = {
                         name = "services_config_setting_" .. setting_key,
                         description = "Configure service setting: " .. setting_key .. " = " .. tostring(setting_value),
                         command = "echo 'Setting " .. setting_key .. "=" .. tostring(setting_value) .. "' # Placeholder for service config",
+                        chroot = true,
                         order = settings_order,
                     })
                     settings_order = settings_order + 1
@@ -114,6 +119,7 @@ local module = {
                             name = "services_systemd_mount_" .. mount_name,
                             description = "Configure systemd mount: " .. mount_name,
                             command = "mkdir -p /etc/systemd/system/ && echo '[Mount]' > /etc/systemd/system/" .. mount_name .. ".mount",
+                            chroot = true,
                             order = mount_order,
                         })
                         mount_order = mount_order + 1
@@ -130,6 +136,7 @@ local module = {
                             name = "services_systemd_unit_" .. unit_name,
                             description = "Configure systemd unit: " .. unit_name,
                             command = "mkdir -p /etc/systemd/system/ && echo '[Unit]' > /etc/systemd/system/" .. unit_name .. ".service",
+                            chroot = true,
                             order = unit_order,
                         })
                         unit_order = unit_order + 1

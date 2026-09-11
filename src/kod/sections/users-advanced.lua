@@ -26,6 +26,7 @@ local module = {
                             name = "users_" .. username .. "_identity_name",
                             description = "Set user " .. username .. " full name: " .. identity.name,
                             command = "usermod -c '" .. identity.name .. "' " .. username,
+                            chroot = true,
                             order = 620 + (tonumber(username:match("%d+")) or 0),
                         })
                     end
@@ -36,6 +37,7 @@ local module = {
                             name = "users_" .. username .. "_identity_password",
                             description = "Set user " .. username .. " password hash",
                             command = "echo '" .. username .. ":" .. identity.hashed_password .. "' | chpasswd -e",
+                            chroot = true,
                             order = 621 + (tonumber(username:match("%d+")) or 0),
                         })
                     end
@@ -48,6 +50,7 @@ local module = {
                             name = "users_" .. username .. "_identity_groups",
                             description = "Add user " .. username .. " to groups: " .. groups_str,
                             command = "usermod -aG " .. groups_str .. " " .. username,
+                            chroot = true,
                             order = 622 + (tonumber(username:match("%d+")) or 0),
                         })
                     end
@@ -63,6 +66,7 @@ local module = {
                             name = "users_" .. username .. "_ssh_keys_init",
                             description = "Initialize SSH directory for user " .. username,
                             command = "mkdir -p /home/" .. username .. "/.ssh && chmod 700 /home/" .. username .. "/.ssh && chown " .. username .. ":" .. username .. " /home/" .. username .. "/.ssh",
+                            chroot = true,
                             order = 630 + (tonumber(username:match("%d+")) or 0),
                         })
                         
@@ -73,6 +77,7 @@ local module = {
                                     name = "users_" .. username .. "_ssh_keys_add_" .. i,
                                     description = "Add authorized SSH key " .. i .. " for user " .. username,
                                     command = "echo '" .. key .. "' >> /home/" .. username .. "/.ssh/authorized_keys",
+                                    chroot = true,
                                     order = 631 + i + (tonumber(username:match("%d+")) or 0),
                                     depends_on = {"users_" .. username .. "_ssh_keys_init"},
                                 })
@@ -83,6 +88,7 @@ local module = {
                                 name = "users_" .. username .. "_ssh_keys_perms",
                                 description = "Set authorized_keys permissions for user " .. username,
                                 command = "chmod 600 /home/" .. username .. "/.ssh/authorized_keys && chown " .. username .. ":" .. username .. " /home/" .. username .. "/.ssh/authorized_keys",
+                                chroot = true,
                                 order = 635 + (tonumber(username:match("%d+")) or 0),
                             })
                         end
@@ -103,6 +109,7 @@ local module = {
                             name = "users_" .. username .. "_dotfiles_clone",
                             description = "Clone dotfiles repository for user " .. username,
                             command = "git clone " .. dotfiles.repo_url .. " " .. repo_dir,
+                            chroot = true,
                             order = 640 + (tonumber(username:match("%d+")) or 0),
                         })
                         
@@ -121,6 +128,7 @@ local module = {
                             name = "users_" .. username .. "_dotfiles_deploy_" .. deploy_tool,
                             description = "Deploy dotfiles for user " .. username .. " using " .. deploy_tool,
                             command = deploy_cmd,
+                            chroot = true,
                             order = 641 + (tonumber(username:match("%d+")) or 0),
                             depends_on = {"users_" .. username .. "_dotfiles_clone"},
                         })
@@ -130,6 +138,7 @@ local module = {
                             name = "users_" .. username .. "_dotfiles_ownership",
                             description = "Fix dotfiles ownership for user " .. username,
                             command = "chown -R " .. username .. ":" .. username .. " /home/" .. username,
+                            chroot = true,
                             order = 642 + (tonumber(username:match("%d+")) or 0),
                             depends_on = {"users_" .. username .. "_dotfiles_deploy_" .. deploy_tool},
                         })

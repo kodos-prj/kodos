@@ -46,6 +46,7 @@ local module = {
                             name = "programs_install_" .. program_name,
                             description = "Install program: " .. program_name,
                             command = install_cmd,
+                            chroot = true,
                             order = 800,
                         })
                     end
