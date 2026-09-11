@@ -33,42 +33,66 @@ local module = {
                          })
                      end
                      
-                     -- Create partitions if defined
-                     if disk_config.partitions and type(disk_config.partitions) == "table" then
-                         -- Calculate partition positions based on sizes
-                         local current_pos = "0"
-                         
-                         for part_num, partition in pairs(disk_config.partitions) do
-                             if type(partition) == "table" and partition.size then
-                                 local part_name = partition.name or ("part" .. part_num)
-                                 local part_type = partition.type or "primary"
-                                 local part_size = partition.size
-                                 
-                                 -- Build parted mkpart command with proper syntax
-                                 -- Format: parted -s DEVICE mkpart [PART-TYPE NAME FS-TYPE] START END
-                                 local mkpart_cmd = "parted -s " .. device_path .. " mkpart "
-                                 if disk_config.type == "gpt" then
-                                     -- GPT: mkpart NAME FS-TYPE START END
-                                     mkpart_cmd = mkpart_cmd .. '"' .. part_name .. '" ' .. part_type .. " " .. current_pos .. " " .. part_size
-                                 else
-                                     -- MBR: mkpart [PRIMARY|EXTENDED|LOGICAL] [FS-TYPE] START END
-                                     mkpart_cmd = mkpart_cmd .. part_type .. " " .. current_pos .. " " .. part_size
-                                 end
-                                 
-                                 table.insert(steps, {
-                                     name = "devices_partition_" .. disk_name .. "_" .. part_num,
-                                     description = "Create " .. part_type .. " partition '" .. part_name .. "' on " .. device_path,
-                                     command = mkpart_cmd,
-                                     chroot = false,
-                                     order = 10 + part_num,
-                                     depends_on = disk_config.type and {"devices_init_" .. disk_name} or nil,
-                                 })
-                                 
-                                 -- Update current position for next partition
-                                 current_pos = part_size
-                             end
-                         end
-                     end
+                      -- Create partitions if defined
+                      if disk_config.partitions and type(disk_config.partitions) == "table" then
+                          -- Calculate partition positions based on sizes
+                          local current_pos = "0"
+                          
+                          for part_num, partition in pairs(disk_config.partitions) do
+                              if type(partition) == "table" and partition.size then
+                                  local part_name = partition.name or ("part" .. part_num)
+                                  local part_type = partition.type or "primary"
+                                  local part_size = partition.size
+                                  
+                                  -- Map partition types to parted FS types
+                                  local parted_fs_type = "ext4"  -- default
+                                  if part_type == "esp" then
+                                      parted_fs_type = "fat32"
+                                  elseif part_type == "linux-swap" then
+                                      parted_fs_type = "linux-swap"
+                                  elseif part_type == "btrfs" then
+                                      parted_fs_type = "btrfs"
+                                  elseif part_type == "xfs" then
+                                      parted_fs_type = "xfs"
+                                  end
+                                  
+                                  -- Build parted mkpart command with proper syntax
+                                  local mkpart_cmd = "parted -s " .. device_path .. " mkpart "
+                                  if disk_config.type == "gpt" then
+                                      -- GPT: mkpart PART-TYPE FS-TYPE START END
+                                      -- PART-TYPE is usually "primary" for GPT (or part name in some versions)
+                                      mkpart_cmd = mkpart_cmd .. 'primary ' .. parted_fs_type .. " " .. current_pos .. " " .. part_size
+                                  else
+                                      -- MBR: mkpart [PRIMARY|EXTENDED|LOGICAL] [FS-TYPE] START END
+                                      mkpart_cmd = mkpart_cmd .. part_type .. " " .. parted_fs_type .. " " .. current_pos .. " " .. part_size
+                                  end
+                                  
+                                  table.insert(steps, {
+                                      name = "devices_partition_" .. disk_name .. "_" .. part_num,
+                                      description = "Create " .. part_type .. " partition '" .. part_name .. "' on " .. device_path,
+                                      command = mkpart_cmd,
+                                      chroot = false,
+                                      order = 10 + part_num,
+                                      depends_on = disk_config.type and {"devices_init_" .. disk_name} or nil,
+                                  })
+                                  
+                                  -- For GPT ESP partitions, set the esp flag
+                                  if disk_config.type == "gpt" and part_type == "esp" then
+                                      table.insert(steps, {
+                                          name = "devices_set_esp_" .. disk_name .. "_" .. part_num,
+                                          description = "Mark partition " .. part_num .. " as EFI System Partition",
+                                          command = "parted -s " .. device_path .. " set " .. part_num .. " esp on",
+                                          chroot = false,
+                                          order = 11 + part_num,
+                                          depends_on = {"devices_partition_" .. disk_name .. "_" .. part_num},
+                                      })
+                                  end
+                                  
+                                  -- Update current position for next partition
+                                  current_pos = part_size
+                              end
+                          end
+                      end
                     
                      -- Format partitions
                      if disk_config.partitions and type(disk_config.partitions) == "table" then
