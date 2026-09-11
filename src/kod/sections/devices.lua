@@ -170,6 +170,17 @@ local module = {
                                depends_on = {"devices_mount_disk0_3"},
                            })
                            
+                           -- Generate /etc/mtab for chroot environment
+                           -- This is required for pacman to work inside chroot
+                           table.insert(steps, {
+                               name = "devices_setup_mtab",
+                               description = "Generate /etc/mtab for chroot environment",
+                               command = "mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && grep -v '^#' /proc/mounts | awk '{print $1,$2,$3,$4}' > /mnt/etc/mtab",
+                               chroot = false,
+                               order = 41,
+                               depends_on = {"devices_bootstrap_base_system"},
+                           })
+                           
                            -- Initialize pacman keyring for package verification
                            -- This must run in chroot AFTER bootstrap and BEFORE any pacman installs
                            table.insert(steps, {
@@ -177,8 +188,8 @@ local module = {
                                description = "Initialize pacman keyring for package verification",
                                command = "pacman-key --init && pacman-key --populate archlinux",
                                chroot = true,
-                               order = 41,
-                               depends_on = {"devices_bootstrap_base_system"},
+                               order = 42,
+                               depends_on = {"devices_setup_mtab"},
                            })
                        end
                 end
