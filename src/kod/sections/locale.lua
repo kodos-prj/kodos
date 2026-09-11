@@ -88,6 +88,7 @@ local module = {
                 chroot = true,
                 order = 161,
                 depends_on = {"locale_timezone_set"},
+                on_error = "warn",  -- Non-critical in chroot/VM environments
             })
         end
         
