@@ -181,8 +181,123 @@ local module = {
                             end
                         end
                        
+                       -- Create btrfs filesystem hierarchy with subvolumes and bind mounts
+                       -- This must run after mounting but before bootstrap
+                       if has_root_partition then
+                           -- Step 1: Create top-level directories
+                           table.insert(steps, {
+                               name = "devices_create_btrfs_dirs",
+                               description = "Create btrfs filesystem hierarchy directories",
+                               command = "mkdir -p /mnt/store /mnt/generations/0 /mnt/current && mkdir -p /mnt/store/root /mnt/store/var/log /mnt/store/var/tmp /mnt/store/var/cache /mnt/store/var/kod",
+                               chroot = false,
+                               order = 35,
+                               depends_on = {"devices_mount_disk0_3"},
+                           })
+                           
+                           -- Step 2: Create btrfs subvolumes
+                           -- store/home subvolume for persistent home directory
+                           table.insert(steps, {
+                               name = "devices_create_btrfs_store_home",
+                               description = "Create btrfs store/home subvolume",
+                               command = "btrfs subvolume create /mnt/store/home",
+                               chroot = false,
+                               order = 36,
+                               depends_on = {"devices_create_btrfs_dirs"},
+                               on_error = "warn",  -- May fail if already exists
+                           })
+                           
+                           -- Step 3: Create generation 0 rootfs subvolume
+                           table.insert(steps, {
+                               name = "devices_create_btrfs_generation_0",
+                               description = "Create btrfs generation 0 rootfs subvolume",
+                               command = "btrfs subvolume create /mnt/generations/0/rootfs",
+                               chroot = false,
+                               order = 37,
+                               depends_on = {"devices_create_btrfs_store_home"},
+                           })
+                           
+                           -- Step 4: Remount filesystem hierarchy
+                           -- Unmount current /mnt, then remount generation 0 rootfs as root
+                           -- Get the root partition from config to use in mount command
+                           local root_partition_device = nil
+                           if disk_config.partitions and disk_config.partitions[3] then
+                               root_partition_device = device_path .. "3"
+                           end
+                           
+                           if root_partition_device then
+                               table.insert(steps, {
+                                   name = "devices_remount_btrfs_generation",
+                                   description = "Remount btrfs generation 0 rootfs as root",
+                                   command = "umount -R /mnt && mount -o subvol=generations/0/rootfs " .. root_partition_device .. " /mnt",
+                                   chroot = false,
+                                   order = 38,
+                                   depends_on = {"devices_create_btrfs_generation_0"},
+                               })
+                               
+                               -- Step 5: Recreate mount directories inside new root
+                               table.insert(steps, {
+                                   name = "devices_create_mount_dirs",
+                                   description = "Create mount directories in generation rootfs",
+                                   command = "mkdir -p /mnt/boot /mnt/kod /mnt/home /mnt/root /mnt/var/log /mnt/var/tmp /mnt/var/cache /mnt/var/kod",
+                                   chroot = false,
+                                   order = 38.5,
+                                   depends_on = {"devices_remount_btrfs_generation"},
+                               })
+                               
+                               -- Step 6: Mount boot partition
+                               table.insert(steps, {
+                                   name = "devices_mount_btrfs_boot",
+                                   description = "Mount boot partition",
+                                   command = "mount " .. device_path .. "1 /mnt/boot",
+                                   chroot = false,
+                                   order = 38.6,
+                                   depends_on = {"devices_create_mount_dirs"},
+                               })
+                               
+                               -- Step 7: Mount /kod (raw btrfs root for subvolume access)
+                               table.insert(steps, {
+                                   name = "devices_mount_btrfs_kod",
+                                   description = "Mount raw btrfs root for store access",
+                                   command = "mount " .. root_partition_device .. " /mnt/kod",
+                                   chroot = false,
+                                   order = 38.7,
+                                   depends_on = {"devices_mount_btrfs_boot"},
+                               })
+                               
+                               -- Step 8: Mount /home (store/home subvolume)
+                               table.insert(steps, {
+                                   name = "devices_mount_btrfs_home",
+                                   description = "Mount store/home subvolume",
+                                   command = "mount -o subvol=store/home " .. root_partition_device .. " /mnt/home",
+                                   chroot = false,
+                                   order = 38.8,
+                                   depends_on = {"devices_mount_btrfs_kod"},
+                               })
+                               
+                               -- Step 9: Mount bind mounts for persistent directories
+                               table.insert(steps, {
+                                   name = "devices_mount_btrfs_binds",
+                                   description = "Create bind mounts for persistent directories",
+                                   command = "mount --bind /mnt/kod/store/root /mnt/root && mount --bind /mnt/kod/store/var/log /mnt/var/log && mount --bind /mnt/kod/store/var/tmp /mnt/var/tmp && mount --bind /mnt/kod/store/var/cache /mnt/var/cache && mount --bind /mnt/kod/store/var/kod /mnt/var/kod",
+                                   chroot = false,
+                                   order = 38.9,
+                                   depends_on = {"devices_mount_btrfs_home"},
+                               })
+                               
+                               -- Step 10: Write generation marker
+                               table.insert(steps, {
+                                   name = "devices_write_generation_marker",
+                                   description = "Write generation number marker",
+                                   command = "echo '0' > /mnt/.generation",
+                                   chroot = false,
+                                   order = 39,
+                                   depends_on = {"devices_mount_btrfs_binds"},
+                               })
+                           end
+                       end
+                       
                        -- Bootstrap base system (Arch Linux pacstrap)
-                       -- This must run after mounting, before any chroot steps
+                       -- This must run after btrfs hierarchy setup, before any chroot steps
                        if has_root_partition then
                            table.insert(steps, {
                                name = "devices_bootstrap_base_system",
@@ -190,7 +305,7 @@ local module = {
                                command = "pacstrap /mnt base linux-lts",
                                chroot = false,
                                order = 40,
-                               depends_on = {"devices_mount_disk0_3"},
+                               depends_on = {"devices_write_generation_marker"},
                            })
                            
                            -- Generate /etc/mtab for chroot environment
@@ -215,54 +330,42 @@ local module = {
                                 depends_on = {"devices_setup_mtab"},
                             })
                             
-                            -- Generate /etc/fstab for system boot
-                            -- This must be created after all partitions are formatted and before boot
-                            -- Collect partition info and generate fstab entries using UUIDs
-                            local fstab_entries = {}
-                            if disk_config.partitions and type(disk_config.partitions) == "table" then
-                                for part_num, partition in pairs(disk_config.partitions) do
-                                    if type(partition) == "table" and partition.mountpoint then
-                                        local part_device = device_path .. part_num
-                                        local mount_point = partition.mountpoint
-                                        local fs_type = partition.filesystem or "ext4"
-                                        local mount_opts = partition.mount_options or "defaults"
-                                        local dump = partition.dump or "0"
-                                        local fsck_pass = partition.fsck_pass or "0"
-                                        
-                                        -- Adjust fsck_pass for root and boot
-                                        if mount_point == "/" then
-                                            fsck_pass = "1"
-                                        elseif mount_point == "/boot" then
-                                            fsck_pass = "2"
-                                        end
-                                        
-                                        -- Format fstab line with UUID lookup
-                                        -- Use variable substitution to avoid quote nesting issues
-                                        local fstab_line = 'UUID=$(lsblk -no UUID ' .. part_device .. ') && echo "$UUID ' .. mount_point .. ' ' .. fs_type .. ' ' .. mount_opts .. ' ' .. dump .. ' ' .. fsck_pass .. '" >> /etc/fstab'
-                                        table.insert(fstab_entries, fstab_line)
-                                    end
-                                end
-                            end
-                            
-                            if #fstab_entries > 0 then
-                                -- Create fstab with header and UUID-based entries
-                                local fstab_command = 'echo "# Static information about the filesystems." > /etc/fstab && '
-                                fstab_command = fstab_command .. 'echo "# See fstab(5) for details." >> /etc/fstab && '
-                                fstab_command = fstab_command .. 'echo "" >> /etc/fstab'
-                                
-                                for _, cmd in ipairs(fstab_entries) do
-                                    fstab_command = fstab_command .. ' && ' .. cmd
-                                end
-                                
-                                table.insert(steps, {
-                                    name = "devices_generate_fstab",
-                                    description = "Generate /etc/fstab with UUID-based device references",
-                                    command = fstab_command,
-                                    chroot = true,
-                                    order = 43,
-                                    depends_on = {"devices_pacman_keyring_init"},
-                                })
-                            end
+                             -- Generate /etc/fstab for system boot with btrfs subvolume support
+                             -- This must be created after all partitions are formatted and before boot
+                             -- Format: device mountpoint fstype options dump fsck_pass
+                             local fstab_commands = {
+                                 'echo "# Static information about the filesystems." > /etc/fstab',
+                                 'echo "# See fstab(5) for details." >> /etc/fstab',
+                                 'echo "" >> /etc/fstab',
+                             }
+                             
+                             -- Root partition (/) - generation 0 rootfs subvolume
+                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /etc/fstab')
+                             
+                             -- Boot partition (/boot)
+                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && echo "$UUID /boot esp defaults 0 2" >> /etc/fstab')
+                             
+                             -- /kod mount (raw btrfs root for subvolume access)
+                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /kod btrfs defaults 0 0" >> /etc/fstab')
+                             
+                             -- /home (store/home subvolume)
+                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /etc/fstab')
+                             
+                             -- Bind mounts for persistent store directories
+                             table.insert(fstab_commands, 'echo "/kod/store/root /root none defaults,bind 0 0" >> /etc/fstab')
+                             table.insert(fstab_commands, 'echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /etc/fstab')
+                             table.insert(fstab_commands, 'echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /etc/fstab')
+                             table.insert(fstab_commands, 'echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /etc/fstab')
+                             table.insert(fstab_commands, 'echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /etc/fstab')
+                             
+                             table.insert(steps, {
+                                 name = "devices_generate_fstab",
+                                 description = "Generate /etc/fstab with btrfs subvolume and bind mount configuration",
+                                 command = table.concat(fstab_commands, ' && '),
+                                 chroot = true,
+                                 order = 43,
+                                 depends_on = {"devices_pacman_keyring_init"},
+                             })
                             
                             -- Copy resolv.conf from host for DNS resolution in chroot
                             -- This allows pacman to resolve mirrors during package installation

@@ -15,7 +15,7 @@ local use_pantheon = false
 
 return {
     base_distribution = "arch",
-    
+
     repos = {
         -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
@@ -90,7 +90,7 @@ return {
                 name = "Antal Buss",
                 password = "abuss",
                 -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-                shell = "/usr/bin/fish",
+                shell = "/bin/bash",
                 groups = list({ "audio", "input", "network", "users", "video", "wheel" }),
             },
 
@@ -115,8 +115,8 @@ return {
                     deploy_config = true,
                 },
 
-                fish = {
-                    enable = false,
+                zsh = {
+                    enable = true,
                 },
 
                 neovim = {
@@ -171,7 +171,7 @@ return {
     },
 
     desktop = {
-        display_manager = "gdm",
+        display_manager = "cosmic-greeter",
         environments = {
             gnome = {
                 enable = use_gnome,
