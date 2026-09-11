@@ -263,6 +263,18 @@ local module = {
                                     depends_on = {"devices_pacman_keyring_init"},
                                 })
                             end
+                            
+                            -- Copy resolv.conf from host for DNS resolution in chroot
+                            -- This allows pacman to resolve mirrors during package installation
+                            table.insert(steps, {
+                                name = "devices_setup_dns",
+                                description = "Copy host /etc/resolv.conf to chroot for DNS resolution",
+                                command = "cp /etc/resolv.conf /mnt/etc/resolv.conf || true",
+                                chroot = false,  -- Run on host, not in chroot
+                                order = 44,
+                                depends_on = {"devices_pacman_keyring_init"},
+                                on_error = "warn",  -- Non-critical if host has no resolv.conf
+                            })
                         end
                  end
              end
