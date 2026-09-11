@@ -198,7 +198,7 @@ local module = {
                            table.insert(steps, {
                                name = "devices_setup_mtab",
                                description = "Generate /etc/mtab for chroot environment",
-                               command = "mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && cat /proc/mounts | grep /mnt > /mnt/etc/mtab",
+                               command = "mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && ln -sf /proc/mounts /mnt/etc/mtab",
                                chroot = false,
                                order = 41,
                                depends_on = {"devices_bootstrap_base_system"},
