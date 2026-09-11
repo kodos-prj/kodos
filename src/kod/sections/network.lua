@@ -34,26 +34,26 @@ local module = {
             })
         end
         
-        -- IPv6 configuration
-        if config.ipv6 == false then
-            -- Disable IPv6
-            table.insert(steps, {
-                name = "network_ipv6_disable",
-                description = "Disable IPv6 support",
-                command = "echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.d/99-disable-ipv6.conf",
-                chroot = true,
-                order = 130,
-            })
-        elseif config.ipv6 == true then
-            -- Enable IPv6 (may already be enabled, but ensure it)
-            table.insert(steps, {
-                name = "network_ipv6_enable",
-                description = "Enable IPv6 support",
-                command = "echo 'net.ipv6.conf.all.disable_ipv6 = 0' >> /etc/sysctl.d/99-enable-ipv6.conf",
-                chroot = true,
-                order = 130,
-            })
-        end
+         -- IPv6 configuration
+         if config.ipv6 == false then
+             -- Disable IPv6
+             table.insert(steps, {
+                 name = "network_ipv6_disable",
+                 description = "Disable IPv6 support",
+                 command = "mkdir -p /etc/sysctl.d && echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.d/99-disable-ipv6.conf",
+                 chroot = true,
+                 order = 130,
+             })
+         elseif config.ipv6 == true then
+             -- Enable IPv6 (may already be enabled, but ensure it)
+             table.insert(steps, {
+                 name = "network_ipv6_enable",
+                 description = "Enable IPv6 support",
+                 command = "mkdir -p /etc/sysctl.d && echo 'net.ipv6.conf.all.disable_ipv6 = 0' >> /etc/sysctl.d/99-enable-ipv6.conf",
+                 chroot = true,
+                 order = 130,
+             })
+         end
         
         return steps
     end

@@ -33,19 +33,19 @@ local module = {
             })
             
             -- Configure kernel modules in initramfs
-            if config.kernel.modules and #config.kernel.modules > 0 then
-                local modules_str = table.concat(config.kernel.modules, " ")
-                
-                table.insert(steps, {
-                    name = "boot_kernel_modules_config",
-                    description = "Configure kernel modules in initramfs: " .. modules_str,
-                    command = "echo 'MODULES=(" .. modules_str .. ")' > /etc/mkinitcpio.conf.d/modules.conf",
-                    chroot = true,
-                    order = 201,
-                    on_distro = "arch",
-                    depends_on = {"boot_kernel_install"},
-                })
-            end
+             if config.kernel.modules and #config.kernel.modules > 0 then
+                 local modules_str = table.concat(config.kernel.modules, " ")
+                 
+                 table.insert(steps, {
+                     name = "boot_kernel_modules_config",
+                     description = "Configure kernel modules in initramfs: " .. modules_str,
+                     command = "mkdir -p /etc/mkinitcpio.conf.d && echo 'MODULES=(" .. modules_str .. ")' > /etc/mkinitcpio.conf.d/modules.conf",
+                     chroot = true,
+                     order = 201,
+                     on_distro = "arch",
+                     depends_on = {"boot_kernel_install"},
+                 })
+             end
         end
         
         -- Bootloader configuration
