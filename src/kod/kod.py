@@ -312,6 +312,11 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             dry_run: bool = False) -> None:
     "Rebuild KodOS system installation"
 
+    from kod.planner import build_plan, render_plan
+    from kod.executor import Executor
+    from kod.hooks import collect_hooks
+    from kod.system.boot import update_kernel_hook, update_initramfs_hook
+
     # stage = "rebuild"
     conf = load_config(config)
     base_distribution = conf.base_distribution
@@ -321,8 +326,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     dist = set_base_distribution(base_distribution)
 
     if dry_run:
-        from kod.planner import build_plan, render_plan
-
         _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
         steps = build_plan(conf, dist, baseline="current", current_packages=cur_pkgs,
                            current_services=cur_svcs, current_installed_packages=cur_lock,
@@ -332,7 +335,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
     print("========================================")
 
-    # Get next generation number
+    # === Generation bookkeeping (unchanged) ===
     max_generation = get_max_generation()
     generation_id = int(max_generation) + 1
 
@@ -367,19 +370,18 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             use_chroot = True
             new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
         else:
-            # os._exit(0)
             exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
             exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")
             exec(f"cp /kod/generations/{current_generation}/enabled_services /kod/current/enabled_services")
             use_chroot = False
             new_root_path = "/"
-            # exec("mount -o remount,rw /usr")
 
         ctx = Context(os.environ["USER"], mount_point=new_root_path, use_chroot=use_chroot)
 
         print("==========================================")
         print("==== Processing packages and services ====")
 
+        # === Proc repos (unchanged; needed for manage_packages dispatch) ===
         current_repos = load_repos()
         repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
         print("repo_packages\n", repo_packages)
@@ -389,83 +391,62 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
         if update:
             print("Updating packages")
-            dist.refresh_package_db(new_root_path, new_generation)  # TODO: this function requires a wrapper
+            dist.refresh_package_db(new_root_path, new_generation)
             update_all_packages(new_root_path, new_generation, repos)
 
-        # === Proc packages
-        packages_to_install, packages_to_remove = get_packages_to_install(conf)
-        print("packages\n", packages_to_install)
-        kernel_package = packages_to_install["kernel"] or "linux"
-
-        # Package filtering
+        # === Build plan ===
         current_installed_packages = load_package_lock(current_state_path)
-        new_packages_to_install, packages_to_remove, packages_to_update, kernel_update_required = get_packages_updates(
-            dist,
-            current_packages,
-            packages_to_install,
-            packages_to_remove,
-            current_installed_packages,
-            new_root_path,
+        steps = build_plan(
+            conf, dist, baseline="current",
+            current_packages=current_packages,
+            current_services=current_services,
+            current_installed_packages=current_installed_packages,
+            update=update,
+            new_generation=new_generation
         )
 
-        # === Proc services
+        # === Setup executor environment ===
+        env = {
+            "mount_point": new_root_path,
+            "repos": repos,
+            "generation_id": generation_id,
+            "use_chroot": use_chroot,
+            "manage_packages": manage_packages,
+            "enable_services": enable_services,
+            "disable_services": disable_services,
+            "update_all_packages": update_all_packages,
+            "update_kernel_hook": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
+            "update_initramfs_hook": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
+        }
+
+        # Collect hooks from program definitions
+        try:
+            hooks_dict = collect_hooks(conf.users if conf.users else {})
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to collect hooks: {e}")
+            hooks_dict = {}
+
+        # === Execute plan ===
+        print("================== Executing plan ==================")
+        executor = Executor(env=env)
+        results = executor.execute(steps, ctx, hooks=hooks_dict)
+
+        # Check for failures
+        for result in results:
+            if not result.success:
+                print(f"⚠️  Step '{result.step.name}' failed (non-aborting): {result.error}")
+
+        # === Finalization (unchanged structure) ===
         next_services = get_services_to_enable(ctx, conf)
-
-        # Services filtering
-        services_to_disable = list(set(current_services) - set(next_services))
-        new_service_to_enable = list(set(next_services) - set(current_services))
-
-        if not new_generation and services_to_disable:
-            disable_services(services_to_disable, new_root_path, use_chroot=use_chroot)
-
-        # ======
-
-        # try:
-        if packages_to_remove:
-            print("Packages to remove:", packages_to_remove)
-            for pkg in packages_to_remove:
-                try:
-                    manage_packages(new_root_path, repos, "remove", [pkg], chroot=use_chroot)
-                except Exception:
-                    # Silently ignore package removal failures as they may not be critical
-                    pass
-
-        if new_packages_to_install:
-            print("Packages to install:", new_packages_to_install)
-            manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
-
-        # Run kernel update hooks if needed
-        if kernel_update_required:
-            print("Running kernel update hooks")
-            from kod.system.boot import update_kernel_hook, update_initramfs_hook
-            update_kernel_hook(kernel_package, new_root_path)()
-            update_initramfs_hook(kernel_package, new_root_path)()
-
-        # System services
-        print(f"Services to enable: {new_service_to_enable}")
-        enable_services(new_service_to_enable, new_root_path, use_chroot=use_chroot)
-
-        # # === Proc users
-        # print("\n====== Processing users ======")
-        # # TODO: Check if repo is already cloned
-        # user_dotfile_mngrs = proc_user_dotfile_manager(conf)
-        # user_configs = proc_user_configs(conf)
-        # configure_users(c, user_dotfile_mngrs, user_configs)
-
-        # user_services_to_enable = proc_user_services(conf)
-        # print(f"User services to enable: {user_services_to_enable}")
-        # enable_user_services(c, user_services_to_enable, use_chroot=True)
-
-        # Storing list of installed packages and enabled services
-        # Create a list of installed packages
+        packages_to_install, _packages_to_remove = get_packages_to_install(conf)
         store_packages_services(next_state_path, packages_to_install, next_services)
         dist.generale_package_lock(new_root_path, next_state_path)
 
         partition_list = load_fstab("/")
 
-        _kernel_file, kver = dist.get_kernel_file(
-            new_root_path, package=kernel_package
-        )  # TODO: this function requires a wrapper
+        kernel_package = packages_to_install.get("kernel") or "linux"
+        _kernel_file, kver = dist.get_kernel_file(new_root_path, package=kernel_package)
 
         print("==== Deploying new generation ====")
         if new_generation:
@@ -491,9 +472,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
         if new_generation:
             exec(f"umount -R {new_root_path}")
-
-        # else:
-        # exec("mount -o remount,ro /usr")
 
         print(f"✅ Done. Generation {generation_id} created")
         
