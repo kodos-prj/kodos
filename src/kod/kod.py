@@ -250,6 +250,25 @@ def config_schema(section: Optional[str], format: str) -> None:
             _print_section_text(sec_name, sec_data)
 
 
+@config.command(name="init")
+@click.option("--distro", type=click.Choice(["arch", "debian"]), default="arch",
+              help="Target distribution")
+@click.option("--output", type=click.Path(), default=None,
+              help="Write to file (default: stdout)")
+def config_init(distro: str, output: Optional[str]) -> None:
+    """Generate a starter configuration file with all sections documented."""
+    from kod.config.template import generate_config_template
+    
+    template = generate_config_template(distro)
+    
+    if output:
+        with open(output, 'w') as f:
+            f.write(template)
+        click.echo(f"Template written to {output}")
+    else:
+        click.echo(template)
+
+
 # Register registry commands
 cli.add_command(registry_group)
 
