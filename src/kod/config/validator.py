@@ -503,6 +503,97 @@ def _validate_programs_section(programs: dict, location: str = "system") -> List
     return errors
 
 
+def _validate_users_section(users: dict) -> List[ValidationError]:
+    """Validate the 'users' section in config, including nested programs/services (Task 11).
+    
+    For each user in the section:
+    1. Validate user-level programs (if present)
+    2. Validate user-level services (if present)
+    3. Collect all errors together
+    
+    Args:
+        users: The users dict from config
+        
+    Returns:
+        List of ValidationError objects (may be empty)
+    """
+    errors: List[ValidationError] = []
+    
+    if not users:
+        return errors
+    
+    for username, user_config in users.items():
+        if not isinstance(user_config, dict):
+            continue
+        
+        # Validate user-level programs (Task 11)
+        if "programs" in user_config:
+            user_programs = user_config["programs"]
+            if isinstance(user_programs, dict):
+                user_prog_errors = _validate_programs_section(
+                    user_programs,
+                    location=f"users.{username}"
+                )
+                errors.extend(user_prog_errors)
+        
+        # Validate user-level services (Task 11)
+        if "services" in user_config:
+            user_services = user_config["services"]
+            if isinstance(user_services, dict):
+                user_svc_errors = _validate_services_section(
+                    user_services,
+                    location=f"users.{username}"
+                )
+                errors.extend(user_svc_errors)
+    
+    return errors
+
+
+def _validate_services_section(services: dict, location: str = "system") -> List[ValidationError]:
+    """Validate the 'services' section in config (Task 11 - supports nested user services).
+    
+    For each service name in the section:
+    1. Basic structure validation
+    2. Collect errors together
+    
+    Args:
+        services: The services dict from config
+        location: "system" or "users.<username>" etc. (default: "system")
+        
+    Returns:
+        List of ValidationError objects (may be empty)
+    """
+    errors: List[ValidationError] = []
+    
+    if not services or not isinstance(services, dict):
+        return errors
+    
+    # Determine location suffix for error messages
+    if location == "system":
+        loc_prefix = "services"
+    else:
+        loc_prefix = f"{location}.services"
+    
+    for service_name, service_config in services.items():
+        if not isinstance(service_config, dict):
+            continue
+        
+        # Skip reserved fields like 'config' and 'systemd'
+        if service_name in ["config", "systemd"]:
+            continue
+        
+        # Basic validation: service_name should be string
+        if not isinstance(service_name, str):
+            errors.append(
+                ValidationError(
+                    f"Service name must be string, got {type(service_name).__name__}",
+                    location=f"{loc_prefix}.{service_name}",
+                )
+            )
+    
+    return errors
+
+
 def _validate_nested_fields(config: dict) -> List[ValidationError]:
     """Validate nested field types (best-effort, optional fields only).
     
@@ -637,6 +728,16 @@ def validate_config(config: dict) -> List[ValidationError]:
     
     if has_programs:
         errors.extend(_validate_programs_section(config["programs"]))
+    
+    # Task 11: Validate users section (including nested programs/services)
+    try:
+        has_users = "users" in config
+    except TypeError:
+        # LuaTable or similar object without __contains__
+        has_users = False
+    
+    if has_users:
+        errors.extend(_validate_users_section(config["users"]))
     
     # Phase 5b: Validate nested fields (best-effort)
     errors.extend(_validate_nested_fields(config))
