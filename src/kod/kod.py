@@ -11,8 +11,11 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional, Tuple
+import logging
 
 import click
+
+logger = logging.getLogger(__name__)
 
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
@@ -65,6 +68,9 @@ from kod.config.compiler import compile_config
 from kod.config.schema import SCHEMA
 from kod.filesystem import create_partitions, get_partition_devices
 from kod.cli import registry_group
+
+# Shorthand for load_config (from kod.core, which uses Lua loader)
+load_config = load_config_lua_raw
 
 # from kod.core import *
 
@@ -148,81 +154,70 @@ load_config = load_config_lua_raw
 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
-@click.option("-m", "--mount_point", default="/mnt", help="Mount poin used to install")
+@click.option("-m", "--mount_point", default="/mnt", help="Mount point for install")
 def install(config: Optional[str], mount_point: str) -> None:
-    "Install KodOS based on the given configuration"
-    ctx = Context(os.environ["USER"], mount_point=mount_point, use_chroot=True, stage="install")
-
-    conf = load_config(config)
-
-    base_distribution = conf.base_distribution
-    base_distribution = "arch" if base_distribution is None else base_distribution
-    print("Base distribution:", base_distribution)
-
-    dist = set_base_distribution(base_distribution)
-
-    # if base_distribution == "debian":
-    #     from kod.debian import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-    #     exec("apt install -y gdisk")
-    # else:
-    #     from kod.arch import (
-    #         generale_package_lock,
-    #         get_base_packages,
-    #         install_essentials_pkgs,
-    #         proc_repos,
-    #     )
-
-    print("-------------------------------")
-    boot_partition, root_partition, partition_list = create_partitions(conf)
-
-    partition_list = create_filesystem_hierarchy(boot_partition, root_partition, partition_list, mount_point)
-
-    # Install base packages and configure system
-    base_packages = dist.get_base_packages(conf)  # TODO: this function requires a wrapper
-
-    dist.install_essentials_pkgs(base_packages, mount_point)  # TODO: this function requires a wrapper
-
-    configure_system(conf, partition_list=partition_list, mount_point=mount_point)
-    # setup_bootloader(conf, partition_list, base_distribution)
-
-    setup_bootloader(conf, partition_list, dist)
-    create_kod_user(mount_point)
-
-    # === Proc packages
-    repos, repo_packages = dist.proc_repos(conf, mount_point=mount_point)  # TODO: this function requires a wrapper
-    packages_to_install, packages_to_remove = get_packages_to_install(conf)
-    pending_to_install = get_pending_packages(packages_to_install)
-    print("packages\n", packages_to_install)
-
-    manage_packages(mount_point, repos, "install", pending_to_install, chroot=True)
-    # === Proc services
-    system_services_to_enable = get_services_to_enable(ctx, conf)
-    print(f"Services to enable: {system_services_to_enable}")
-    enable_services(system_services_to_enable, use_chroot=True)
-
-    # === Proc users
-    print("\n====== Creating users ======")
-    proc_users(ctx, conf)
-
-    # print("==== Deploying generation ====")
-    store_packages_services(f"{mount_point}/kod/generations/0", packages_to_install, system_services_to_enable)
-    dist.generale_package_lock(mount_point, f"{mount_point}/kod/generations/0")
-
-    exec_warn(f"umount -R {mount_point}", f"Failed to unmount {mount_point}")
-
-    print("Done")
-    print("=-=-=-=-=-=-=-=-=-=-")
-    report_problems()
-    print("-=-=-=-=-=-=-=-=-=-=")
-    exec_critical(f"mount {root_partition} {mount_point}", "Failed to mount for kodos copy")
-    exec_critical(f"cp -r /root/kodos {mount_point}/store/root/", "Failed to copy kodos to installation")
-    exec_critical(f"umount {mount_point}", "Failed to unmount after kodos copy")
-    print(" Done installing KodOS")
+    """Install KodOS based on configuration."""
+    from kod.planner import build_plan, render_plan
+    from kod.executor import Executor, StepError
+    from kod.hooks import collect_hooks
+    from kod._core import Context
+    
+    try:
+        ctx_obj = Context(os.environ.get("USER", "root"), mount_point=mount_point, use_chroot=True, stage="install")
+        conf = load_config(config)
+        base_distribution = conf.base_distribution or "arch"
+        dist = set_base_distribution(base_distribution)
+        
+        print("-------------------------------")
+        print(f"Base distribution: {base_distribution}")
+        print(f"Mount point: {mount_point}")
+        
+        # Build and preview full install plan
+        steps = build_plan(conf, dist, baseline="empty")
+        print("\n=== Install Plan Preview ===\n")
+        print(render_plan(steps, "empty", config))
+        
+        # Setup execution environment
+        env = {
+            "mount_point": mount_point,
+            "use_chroot": True,
+            "stage": "install",
+            "dist": dist,
+            "manage_packages": manage_packages,
+            "enable_services": enable_services,
+            "update_kernel_hook": lambda kernel, mp: None,  # placeholder
+            "update_initramfs_hook": lambda kernel, mp: None,  # placeholder
+        }
+        
+        try:
+            hooks_dict = collect_hooks(conf.users or {})
+        except Exception as e:
+            logger.warning(f"Failed to collect hooks: {e}")
+            hooks_dict = {}
+        
+        # Execute plan
+        print("\n=== Executing Install ===\n")
+        executor = Executor(env=env)
+        results = executor.execute(steps, {"mount_point": mount_point, "use_chroot": True}, hooks=hooks_dict)
+        
+        # Check for failures
+        failures = [r for r in results if not r.success]
+        if failures:
+            print(f"\n❌ Install failed at {len(failures)} step(s):", file=sys.stderr)
+            for r in failures:
+                print(f"  - {r.step.name}: {r.error}", file=sys.stderr)
+            sys.exit(1)
+        
+        print("\n✅ Install completed successfully")
+        
+    except StepError as e:
+        print(f"❌ Step error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Install failed: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
