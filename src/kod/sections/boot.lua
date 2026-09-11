@@ -32,20 +32,31 @@ local module = {
                 order = 200,
             })
             
-            -- Configure kernel modules in initramfs
-             if config.kernel.modules and #config.kernel.modules > 0 then
-                 local modules_str = table.concat(config.kernel.modules, " ")
-                 
-                 table.insert(steps, {
-                     name = "boot_kernel_modules_config",
-                     description = "Configure kernel modules in initramfs: " .. modules_str,
-                     command = "mkdir -p /etc/mkinitcpio.conf.d && echo 'MODULES=(" .. modules_str .. ")' > /etc/mkinitcpio.conf.d/modules.conf",
-                     chroot = true,
-                     order = 201,
-                     on_distro = "arch",
-                     depends_on = {"boot_kernel_install"},
-                 })
-             end
+             -- Configure kernel modules in initramfs
+              if config.kernel.modules and #config.kernel.modules > 0 then
+                  local modules_str = table.concat(config.kernel.modules, " ")
+                  
+                  table.insert(steps, {
+                      name = "boot_kernel_modules_config",
+                      description = "Configure kernel modules in initramfs: " .. modules_str,
+                      command = "mkdir -p /etc/mkinitcpio.conf.d && echo 'MODULES=(" .. modules_str .. ")' > /etc/mkinitcpio.conf.d/modules.conf",
+                      chroot = true,
+                      order = 201,
+                      on_distro = "arch",
+                      depends_on = {"boot_kernel_install"},
+                  })
+                  
+                  -- Regenerate initramfs with configured modules
+                  table.insert(steps, {
+                      name = "boot_kernel_initramfs_regenerate",
+                      description = "Regenerate initramfs with configured modules",
+                      command = "mkinitcpio -p " .. kernel_pkg,
+                      chroot = true,
+                      order = 202,
+                      on_distro = "arch",
+                      depends_on = {"boot_kernel_modules_config"},
+                  })
+              end
         end
         
         -- Bootloader configuration
