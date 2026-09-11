@@ -266,3 +266,29 @@ def test_collect_hooks_empty_programs():
     """Empty programs dict returns empty hooks."""
     hooks = collect_hooks({})
     assert len(hooks) == 0
+
+
+# ============ Example Hook Tests (Task 6) ============
+
+def test_example_post_service_hook_execution():
+    """Example: post:service hook that restarts nginx if running (from docs)."""
+    log = []
+    
+    def mock_hook(step, ctx):
+        """Simplified version of the nginx restart hook."""
+        if step.name == "nginx":
+            log.append(f"would restart {step.name}")
+    
+    def mock_enable(services, mount_point="/", use_chroot=False):
+        pass
+    
+    env = {"enable_services": mock_enable}
+    hooks = {"post:service": [mock_hook]}
+    
+    step = Step("service", "nginx", meta={"action": "enable"})
+    executor = Executor(env=env)
+    results = executor.execute([step], {}, hooks=hooks)
+    
+    assert len(results) == 1
+    assert results[0].success is True
+    assert log == ["would restart nginx"]
