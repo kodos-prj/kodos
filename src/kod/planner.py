@@ -168,7 +168,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         steps.append(Step("system", "update-packages"))
 
     next_packages, remove_packages = get_packages_to_install(conf)
-    to_install, to_remove, _to_update, hooks = get_packages_updates(
+    to_install, to_remove, _to_update, kernel_update_required = get_packages_updates(
         dist, current_packages, next_packages, remove_packages,
         current_installed_packages or {}, mount_point)
 
@@ -182,9 +182,13 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         steps.append(Step("package", pkg, meta={"action": "remove"}, on_error="warn"))
     for pkg in sorted(to_install):
         steps.append(Step("package", pkg, meta={"action": "install"}))
-    if hooks:
-        steps.append(Step("program", f"kernel-update:{next_packages.get('kernel', 'linux')}",
-                          meta={"hooks": len(hooks)}))
+    
+    # Emit kernel update as explicit system steps instead of hooks
+    if kernel_update_required:
+        kernel = next_packages.get("kernel", "linux")
+        steps.append(Step("system", "kernel-update", meta={"kernel": kernel}))
+        steps.append(Step("system", "initramfs-update", meta={"kernel": kernel}))
+    
     for svc in sorted(set(next_services) - set(current_services)):
         steps.append(Step("service", svc, meta={"action": "enable"}))
     return steps

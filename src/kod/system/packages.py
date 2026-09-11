@@ -550,13 +550,13 @@ def get_packages_updates(
     remove_packages: List[str],
     current_installed_packages: List[str],
     mount_point: str,
-) -> Tuple[List[str], List[str], List[str], List[Callable[[], None]]]:
+) -> Tuple[List[str], List[str], List[str], bool]:
     """
-    Determine the packages to install, remove, and update, as well as any necessary hooks to run.
+    Determine the packages to install, remove, and update, plus kernel update flag.
 
     This function compares the current and next package sets to decide which packages
     need to be installed, removed, or updated. It also determines if a kernel update is
-    required and prepares appropriate hooks for updating the kernel and initramfs.
+    required and returns a flag indicating this.
 
     Args:
         current_packages (dict): A dictionary containing information about currently installed packages.
@@ -570,23 +570,19 @@ def get_packages_updates(
             - packages_to_install (list): A list of package names that need to be installed.
             - packages_to_remove (list): A list of package names that need to be removed.
             - packages_to_update (list): A list of package names that need to be updated.
-            - hooks_to_run (list): A list of hook functions that need to be executed.
+            - kernel_update_required (bool): True if kernel update is needed; system steps will be emitted by plan_rebuild.
     """
 
     packages_to_install = []
     packages_to_remove = []
     packages_to_update = []
-    hooks_to_run = []
 
     current_kernel = current_packages.get("kernel", "linux")
     next_kernel = next_packages.get("kernel", "linux")
 
-    if dist.kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point):
+    kernel_update_required = dist.kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point)
+    if kernel_update_required:
         packages_to_install += [next_kernel]
-        hooks_to_run += [
-            update_kernel_hook(next_kernel, mount_point),
-            update_initramfs_hook(next_kernel, mount_point),
-        ]
 
     current_pkgs = current_packages.get("packages", [])
     next_pkgs = next_packages.get("packages", [])
@@ -603,7 +599,7 @@ def get_packages_updates(
         update_pkg = set(current_pkgs) & set(next_pkgs)
         packages_to_update += list(update_pkg)
 
-    return packages_to_install, packages_to_remove, packages_to_update, hooks_to_run
+    return packages_to_install, packages_to_remove, packages_to_update, kernel_update_required
 
 
 def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: List[str], chroot: bool) -> None:

@@ -234,8 +234,12 @@ class TestPlanRebuild:
         conf = make_conf(boot={"kernel": {"package": "linux-lts"}})
         current_packages = {"packages": [], "kernel": "linux"}
         steps = plan_rebuild(conf, make_dist(kernel_update=True), current_packages, [], {})
-        hooks = [s for s in steps if s.kind == "program"]
-        assert [(s.name, s.meta) for s in hooks] == [("kernel-update:linux-lts", {"hooks": 2})]
+        kernel_steps = [s for s in steps if s.kind == "system" and "update" in s.name]
+        assert len(kernel_steps) == 2
+        assert kernel_steps[0].name == "kernel-update"
+        assert kernel_steps[0].meta.get("kernel") == "linux-lts"
+        assert kernel_steps[1].name == "initramfs-update"
+        assert kernel_steps[1].meta.get("kernel") == "linux-lts"
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
     def test_update_flag(self, _mock):

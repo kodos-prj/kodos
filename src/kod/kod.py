@@ -399,7 +399,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
         # Package filtering
         current_installed_packages = load_package_lock(current_state_path)
-        new_packages_to_install, packages_to_remove, packages_to_update, hooks_to_run = get_packages_updates(
+        new_packages_to_install, packages_to_remove, packages_to_update, kernel_update_required = get_packages_updates(
             dist,
             current_packages,
             packages_to_install,
@@ -434,10 +434,12 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             print("Packages to install:", new_packages_to_install)
             manage_packages(new_root_path, repos, "install", new_packages_to_install, chroot=use_chroot)
 
-        print("Running hooks")
-        for hook in hooks_to_run:
-            print(f"Running {hook}")
-            hook()
+        # Run kernel update hooks if needed
+        if kernel_update_required:
+            print("Running kernel update hooks")
+            from kod.system.boot import update_kernel_hook, update_initramfs_hook
+            update_kernel_hook(kernel_package, new_root_path)()
+            update_initramfs_hook(kernel_package, new_root_path)()
 
         # System services
         print(f"Services to enable: {new_service_to_enable}")
