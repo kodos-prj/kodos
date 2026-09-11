@@ -217,7 +217,7 @@ local module = {
                             
                             -- Generate /etc/fstab for system boot
                             -- This must be created after all partitions are formatted and before boot
-                            -- Collect partition info and generate fstab entries
+                            -- Collect partition info and generate fstab entries using UUIDs
                             local fstab_entries = {}
                             if disk_config.partitions and type(disk_config.partitions) == "table" then
                                 for part_num, partition in pairs(disk_config.partitions) do
@@ -236,19 +236,33 @@ local module = {
                                             fsck_pass = "2"
                                         end
                                         
+                                        -- Get UUID from device (using lsblk)
+                                        -- UUID is more reliable than device names which can change
+                                        local get_uuid_cmd = "lsblk -no UUID " .. part_device
+                                        
                                         -- Format: device mount fs_type opts dump fsck_pass
-                                        local fstab_line = part_device .. "\t" .. mount_point .. "\t" .. fs_type .. "\t" .. mount_opts .. "\t" .. dump .. "\t" .. fsck_pass
+                                        -- We'll use a command that queries UUID at runtime in chroot
+                                        local fstab_line = "UUID=$(lsblk -no UUID " .. part_device .. ") && echo \"$UUID " .. mount_point .. " " .. fs_type .. " " .. mount_opts .. " " .. dump .. " " .. fsck_pass .. "\" >> /etc/fstab"
                                         table.insert(fstab_entries, fstab_line)
                                     end
                                 end
                             end
                             
                             if #fstab_entries > 0 then
-                                local fstab_content = table.concat(fstab_entries, "\\n")
+                                -- Create fstab with header and UUID-based entries
+                                local fstab_commands = {
+                                    "echo '# Static information about the filesystems.' > /etc/fstab",
+                                    "echo '# See fstab(5) for details.' >> /etc/fstab",
+                                    "echo '' >> /etc/fstab"
+                                }
+                                for _, cmd in ipairs(fstab_entries) do
+                                    table.insert(fstab_commands, cmd)
+                                end
+                                
                                 table.insert(steps, {
                                     name = "devices_generate_fstab",
-                                    description = "Generate /etc/fstab for system boot",
-                                    command = "echo -e '" .. fstab_content .. "' > /etc/fstab",
+                                    description = "Generate /etc/fstab with UUID-based device references",
+                                    command = table.concat(fstab_commands, " && "),
                                     chroot = true,
                                     order = 43,
                                     depends_on = {"devices_pacman_keyring_init"},
