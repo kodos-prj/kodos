@@ -45,16 +45,31 @@ local module = {
                       on_distro = "arch",
                       depends_on = {"boot_kernel_install"},
                   })
-                  
-                  -- Regenerate initramfs with configured modules
+              end
+              
+              -- Regenerate initramfs after kernel install and module configuration
+              -- Use distribution-specific tool:
+              -- - Arch Linux: mkinitcpio
+              -- - Debian/Ubuntu: dracut
+              if distro == "arch" then
                   table.insert(steps, {
                       name = "boot_kernel_initramfs_regenerate",
-                      description = "Regenerate initramfs with configured modules",
+                      description = "Regenerate initramfs with mkinitcpio",
                       command = "mkinitcpio -p " .. kernel_pkg,
                       chroot = true,
                       order = 202,
                       on_distro = "arch",
-                      depends_on = {"boot_kernel_modules_config"},
+                      depends_on = (config.kernel.modules and #config.kernel.modules > 0) and {"boot_kernel_modules_config"} or {"boot_kernel_install"},
+                  })
+              elseif distro == "debian" then
+                  table.insert(steps, {
+                      name = "boot_kernel_initramfs_regenerate",
+                      description = "Regenerate initramfs with dracut",
+                      command = "dracut -f",
+                      chroot = true,
+                      order = 202,
+                      on_distro = "debian",
+                      depends_on = (config.kernel.modules and #config.kernel.modules > 0) and {"boot_kernel_modules_config"} or {"boot_kernel_install"},
                   })
               end
         end
