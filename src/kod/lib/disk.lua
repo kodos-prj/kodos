@@ -12,29 +12,33 @@ function disk_definition(device, swap_size)
       type = "gpt",
    }
    
-   partitions = {
-      {
-         name = "Boot",
-         size = "1GB",
-         type = "esp",
-         mountpoint = "/boot",
-      }
-   }
-   if swap_size then
-      swap_part = {
-         name = "Swap",
-         size = swap_size,
-         type = "linux-swap",
-         resumeDevice = true,
-      }
-      table.insert(partitions, swap_part)
-   end
+    partitions = {
+       {
+          name = "Boot",
+          size = "1GB",
+          type = "esp",
+          filesystem = "esp",
+          mountpoint = "/boot",
+       }
+    }
+    if swap_size then
+       swap_part = {
+          name = "Swap",
+          size = swap_size,
+          type = "linux-swap",
+          filesystem = "linux-swap",
+          resumeDevice = true,
+       }
+       table.insert(partitions, swap_part)
+    end
 
-   root_part = {
-      name = "Root",
-      size = "100%",
-      type = "btrfs",
-   }
+    root_part = {
+       name = "Root",
+       size = "100%",
+       type = "btrfs",
+       filesystem = "btrfs",
+       mountpoint = "/",
+    }
 
    table.insert(partitions, root_part)
 
