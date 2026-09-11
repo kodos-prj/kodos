@@ -204,23 +204,63 @@ local module = {
                                depends_on = {"devices_bootstrap_base_system"},
                            })
                            
-                           -- Initialize pacman keyring for package verification
-                           -- This must run in chroot AFTER bootstrap and BEFORE any pacman installs
-                           table.insert(steps, {
-                               name = "devices_pacman_keyring_init",
-                               description = "Initialize pacman keyring for package verification",
-                               command = "pacman-key --init && pacman-key --populate archlinux",
-                               chroot = true,
-                               order = 42,
-                               depends_on = {"devices_setup_mtab"},
-                           })
-                       end
-                end
-            end
-        end
-        
-        return steps
-    end
+                            -- Initialize pacman keyring for package verification
+                            -- This must run in chroot AFTER bootstrap and BEFORE any pacman installs
+                            table.insert(steps, {
+                                name = "devices_pacman_keyring_init",
+                                description = "Initialize pacman keyring for package verification",
+                                command = "pacman-key --init && pacman-key --populate archlinux",
+                                chroot = true,
+                                order = 42,
+                                depends_on = {"devices_setup_mtab"},
+                            })
+                            
+                            -- Generate /etc/fstab for system boot
+                            -- This must be created after all partitions are formatted and before boot
+                            -- Collect partition info and generate fstab entries
+                            local fstab_entries = {}
+                            if disk_config.partitions and type(disk_config.partitions) == "table" then
+                                for part_num, partition in pairs(disk_config.partitions) do
+                                    if type(partition) == "table" and partition.mountpoint then
+                                        local part_device = device_path .. part_num
+                                        local mount_point = partition.mountpoint
+                                        local fs_type = partition.filesystem or "ext4"
+                                        local mount_opts = partition.mount_options or "defaults"
+                                        local dump = partition.dump or "0"
+                                        local fsck_pass = partition.fsck_pass or "0"
+                                        
+                                        -- Adjust fsck_pass for root and boot
+                                        if mount_point == "/" then
+                                            fsck_pass = "1"
+                                        elseif mount_point == "/boot" then
+                                            fsck_pass = "2"
+                                        end
+                                        
+                                        -- Format: device mount fs_type opts dump fsck_pass
+                                        local fstab_line = part_device .. "\t" .. mount_point .. "\t" .. fs_type .. "\t" .. mount_opts .. "\t" .. dump .. "\t" .. fsck_pass
+                                        table.insert(fstab_entries, fstab_line)
+                                    end
+                                end
+                            end
+                            
+                            if #fstab_entries > 0 then
+                                local fstab_content = table.concat(fstab_entries, "\\n")
+                                table.insert(steps, {
+                                    name = "devices_generate_fstab",
+                                    description = "Generate /etc/fstab for system boot",
+                                    command = "echo -e '" .. fstab_content .. "' > /etc/fstab",
+                                    chroot = true,
+                                    order = 43,
+                                    depends_on = {"devices_pacman_keyring_init"},
+                                })
+                            end
+                        end
+                 end
+             end
+         end
+         
+         return steps
+     end
 }
 
 return module
