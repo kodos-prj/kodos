@@ -6,8 +6,12 @@ flows use so preview output matches actual behavior (spec: planner section).
 """
 
 import json
+import os
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
+
+# Feature flag: enable Lua planner for install baseline
+KOD_USE_LUA_PLANNER = os.getenv('KOD_USE_LUA_PLANNER', 'true').lower() == 'true'
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,131 @@ class Step:
             "on_error": self.on_error,
             "meta": self.meta,
         }
+
+
+def _convert_lua_step_to_step(lua_step: Any) -> Step:
+    """Convert a Lua step table to a Python Step object.
+    
+    Args:
+        lua_step: A Lua table with step fields
+        
+    Returns:
+        A Step object
+    """
+    # Extract fields from Lua table (use attribute access for Lupa LuaTable)
+    kind = str(lua_step.kind or lua_step.step_kind or "system")
+    name = str(lua_step.name or "")
+    program = str(lua_step.program or lua_step.command or "")
+    
+    # Extract args (convert from Lua table to Python tuple)
+    args = ()
+    args_lua = lua_step.args
+    if args_lua:
+        args_list = []
+        for i in range(1, len(args_lua) + 1):
+            if i in args_lua:  # Check if index exists
+                args_list.append(str(args_lua[i]))
+        args = tuple(args_list)
+    
+    # Extract meta (convert from Lua table to Python dict)
+    meta = {}
+    meta_lua = lua_step.meta
+    if meta_lua and hasattr(meta_lua, "keys"):
+        for key in meta_lua.keys():
+            val = meta_lua[key]
+            if hasattr(val, "keys"):
+                # Nested Lua table - convert to dict
+                nested = {}
+                for nkey in val.keys():
+                    nested[nkey] = val[nkey]
+                meta[key] = nested
+            else:
+                meta[key] = val
+    
+    # Extract other Step fields
+    chroot = bool(lua_step.chroot or False)
+    timeout_s = int(lua_step.timeout_s or 300)
+    on_error = str(lua_step.on_error or "abort")
+    
+    return Step(
+        kind=kind,
+        name=name,
+        program=program,
+        args=args,
+        chroot=chroot,
+        timeout_s=timeout_s,
+        on_error=on_error,
+        meta=meta,
+    )
+
+
+def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
+    """Call the Lua planner to compose steps from all sections.
+    
+    This replaces the manual Python composition in plan_install() with
+    the schema-driven Lua planner that loads all section modules.
+    
+    Args:
+        config: Configuration object (dict, Lua table, or object with __dict__)
+        distro: Distribution name ("arch" or "debian")
+    
+    Returns:
+        List of Step objects in execution order
+        
+    Raises:
+        RuntimeError: If Lua planner fails (can be caught for fallback)
+    """
+    import os
+    import logging
+    from kod.lua_runtime import get_lua_runtime
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Get persistent Lua runtime
+        lua = get_lua_runtime()
+        
+        # Set Lua package.path to include src/kod/lib and src/kod/sections
+        base_path = os.path.dirname(os.path.dirname(__file__))
+        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+        lua.eval(f"package.path = '{lua_path}' .. package.path")
+        
+        # Convert config to Lua table if needed
+        from kod.bootstrap import _convert_to_lua_table
+        if hasattr(config, "__dict__"):
+            config_lua = _convert_to_lua_table(lua, vars(config))
+        elif isinstance(config, dict):
+            config_lua = _convert_to_lua_table(lua, config)
+        else:
+            config_lua = config
+        
+        # Load and call Lua planner
+        planner_module = lua.require("kod.lib.planner")
+        lua_steps, error_msg = planner_module.compose(config_lua, distro)
+        
+        if error_msg:
+            logger.warning(f"Lua planner warnings: {error_msg}")
+        
+        if not lua_steps:
+            logger.warning("Lua planner returned no steps")
+            return []
+        
+        # Convert Lua steps to Python Step objects
+        steps = []
+        try:
+            # lua_steps is a Lua table with integer keys (1-indexed)
+            for idx in range(1, len(lua_steps) + 1):
+                lua_step = lua_steps[idx]
+                step = _convert_lua_step_to_step(lua_step)
+                steps.append(step)
+        except Exception as e:
+            logger.error(f"Failed to convert Lua steps: {e}")
+            raise RuntimeError(f"Failed to convert Lua steps to Python: {e}")
+        
+        return steps
+        
+    except Exception as e:
+        raise RuntimeError(f"Lua planner failed: {e}")
 
 
 def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
@@ -188,23 +317,43 @@ def plan_disk_steps(conf: Any) -> List[Step]:
 def plan_install(conf: Any) -> List[Step]:
     """Full install preview over an empty baseline. Read-only.
     
-    Integrates Lua bootstrap emission (disk + mount + system config) with
-    package, service, and user management steps.
+    Integrates schema-driven Lua planner (if enabled) with package, service,
+    and user management steps. Falls back to Python planner if Lua fails.
     """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    distro = conf.base_distribution or "arch"
+    
+    # Try Lua planner first if enabled (Phase 5c)
+    if KOD_USE_LUA_PLANNER:
+        try:
+            steps = compose_steps_lua(conf, distro)
+            if steps:
+                logger.debug(f"Lua planner returned {len(steps)} steps")
+                # Attach hook event names for visibility
+                from kod.hooks import collect_hooks
+                try:
+                    hooks_map = collect_hooks(conf.users or {})
+                    steps = _attach_hooks_to_steps(steps, hooks_map)
+                except Exception:
+                    pass
+                return steps
+        except Exception as e:
+            logger.warning(f"Lua planner failed: {e}; falling back to Python planner")
+    
+    # Fallback to Python planner (original implementation)
     from kod._core import Context
     from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable
     from kod.bootstrap import emit_bootstrap_steps
-    import logging
     
-    logger = logging.getLogger(__name__)
     steps = []
     
-    # Step 1: Pre-compute partition list from conf (Option B)
+    # Step 1: Pre-compute partition list from conf
     predicted_partition_list = predict_partition_list(conf)
     
     # Step 2: Emit bootstrap steps via Lua module (disk + mount + system config)
-    distro = conf.base_distribution or "arch"
     try:
         bootstrap_steps = emit_bootstrap_steps(conf, predicted_partition_list, distro=distro)
         steps.extend(bootstrap_steps)
