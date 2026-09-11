@@ -130,27 +130,46 @@ local module = {
                          end
                      end
                     
-                      -- Mount partitions to /mnt staging area (for chroot installation)
-                      if disk_config.partitions and type(disk_config.partitions) == "table" then
-                          for part_num, partition in pairs(disk_config.partitions) do
-                              if type(partition) == "table" and partition.mountpoint then
-                                  local part_device = device_path .. part_num
-                                  local mount_path = partition.mountpoint
-                                  -- For chroot installation, mount to /mnt staging area
-                                  -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
-                                  local chroot_mount_path = "/mnt" .. (mount_path == "/" and "" or mount_path)
-                                  
-                                  table.insert(steps, {
-                                      name = "devices_mount_" .. disk_name .. "_" .. part_num,
-                                      description = "Mount " .. part_device .. " at " .. chroot_mount_path,
-                                      command = "mkdir -p " .. chroot_mount_path .. " && mount " .. part_device .. " " .. chroot_mount_path,
-                                      chroot = false,
-                                      order = 30 + part_num,
-                                      depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
-                                  })
-                              end
-                          end
-                      end
+                       -- Mount partitions to /mnt staging area (for chroot installation)
+                       local has_root_partition = false
+                       if disk_config.partitions and type(disk_config.partitions) == "table" then
+                           for part_num, partition in pairs(disk_config.partitions) do
+                               if type(partition) == "table" and partition.mountpoint then
+                                   local part_device = device_path .. part_num
+                                   local mount_path = partition.mountpoint
+                                   -- For chroot installation, mount to /mnt staging area
+                                   -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
+                                   local chroot_mount_path = "/mnt" .. (mount_path == "/" and "" or mount_path)
+                                   
+                                   table.insert(steps, {
+                                       name = "devices_mount_" .. disk_name .. "_" .. part_num,
+                                       description = "Mount " .. part_device .. " at " .. chroot_mount_path,
+                                       command = "mkdir -p " .. chroot_mount_path .. " && mount " .. part_device .. " " .. chroot_mount_path,
+                                       chroot = false,
+                                       order = 30 + part_num,
+                                       depends_on = {"devices_format_" .. disk_name .. "_" .. part_num},
+                                   })
+                                   
+                                   -- Track if we have a root partition
+                                   if mount_path == "/" then
+                                       has_root_partition = true
+                                   end
+                               end
+                           end
+                       end
+                       
+                       -- Bootstrap base system (Arch Linux pacstrap)
+                       -- This must run after mounting, before any chroot steps
+                       if has_root_partition then
+                           table.insert(steps, {
+                               name = "devices_bootstrap_base_system",
+                               description = "Bootstrap base system to /mnt",
+                               command = "pacstrap /mnt base linux-lts",
+                               chroot = false,
+                               order = 40,
+                               depends_on = {"devices_mount_disk0_3"},
+                           })
+                       end
                 end
             end
         end
