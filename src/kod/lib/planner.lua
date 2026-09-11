@@ -95,6 +95,46 @@ local function validate_config(config)
     return true, nil
 end
 
+-- Merge user-level programs and services into global collections
+-- Order: global first (lower order), then user (higher order)
+-- No duplicates: if a program/service exists in both, global is kept
+local function merge_user_programs_services(config)
+    if not config.users then
+        return
+    end
+    
+    -- Iterate through users and merge their programs and services into global
+    for username, user_config in pairs(config.users) do
+        if type(user_config) == "table" then
+            -- Merge user-level programs into global programs
+            if user_config.programs and type(user_config.programs) == "table" then
+                if not config.programs then
+                    config.programs = {}
+                end
+                for program_name, program_config in pairs(user_config.programs) do
+                    -- Only add if not already in global (global takes precedence)
+                    if not config.programs[program_name] then
+                        config.programs[program_name] = program_config
+                    end
+                end
+            end
+            
+            -- Merge user-level services into global services
+            if user_config.services and type(user_config.services) == "table" then
+                if not config.services then
+                    config.services = {}
+                end
+                for service_name, service_config in pairs(user_config.services) do
+                    -- Only add if not already in global (global takes precedence)
+                    if not config.services[service_name] then
+                        config.services[service_name] = service_config
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- Main composition function: load all sections, call emit_steps, collect and sort results
 function Planner:compose(config, distro)
     -- Validate inputs
@@ -111,6 +151,9 @@ function Planner:compose(config, distro)
     if not config.base_distribution then
         config.base_distribution = distro
     end
+    
+    -- Merge user-level programs and services into global collections (Task 10)
+    merge_user_programs_services(config)
     
     local all_steps = {}
     local errors = {}
