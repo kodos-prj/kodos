@@ -9,6 +9,7 @@ with KodOS functionality including installation, configuration, and system manag
 
 import os
 import sys
+import json
 from pathlib import Path
 from typing import Optional, Tuple
 import logging
@@ -65,7 +66,7 @@ from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
-from kod.config.schema import SCHEMA
+from kod.config.schema import SCHEMA, SECTION_HELP
 from kod.filesystem import create_partitions, get_partition_devices
 from kod.cli import registry_group
 
@@ -82,6 +83,99 @@ load_config = load_config_lua_raw
 def cli(debug: bool, verbose: bool) -> None:
     set_debug(debug)
     set_verbose(verbose)
+
+
+def _wrap_text(text: str, width: int = 76, indent: int = 0) -> str:
+    """Wrap text to fit within width, with optional indentation."""
+    indent_str = " " * indent
+    lines = []
+    for paragraph in text.split("\n"):
+        if not paragraph.strip():
+            lines.append("")
+            continue
+        words = paragraph.split()
+        current_line = []
+        current_length = indent
+        for word in words:
+            if current_length + len(word) + 1 > width and current_line:
+                lines.append(indent_str + " ".join(current_line))
+                current_line = [word]
+                current_length = indent + len(word)
+            else:
+                current_line.append(word)
+                current_length += len(word) + 1
+        if current_line:
+            lines.append(indent_str + " ".join(current_line))
+    return "\n".join(lines)
+
+
+def _print_section_text(name: str, data: dict, level: int = 0) -> None:
+    """Print section in readable text format with proper indentation."""
+    indent = "  " * level
+    
+    if level == 0:
+        # Top-level section header
+        click.echo(name.upper())
+        click.echo("=" * 60)
+    
+    # Print type and required
+    click.echo(f"{indent}Type: {data.get('type', 'unknown')}")
+    required = data.get('required', False)
+    click.echo(f"{indent}Required: {'Yes' if required else 'No'}")
+    click.echo()
+    
+    # Print description
+    description = data.get('description', '')
+    if description:
+        click.echo(_wrap_text(description, width=76, indent=len(indent)))
+        click.echo()
+    
+    # Print example
+    example = data.get('example', '')
+    if example:
+        click.echo(f"{indent}Example:")
+        for line in example.split('\n'):
+            click.echo(f"{indent}  {line}")
+        click.echo()
+    
+    # Print fields
+    fields = data.get('fields', {})
+    if fields:
+        click.echo(f"{indent}Fields:")
+        for field_name, field_data in fields.items():
+            click.echo(f"{indent}  {field_name}:")
+            field_indent = "    " * (level + 1)
+            click.echo(f"{field_indent}Type: {field_data.get('type', 'unknown')}")
+            
+            field_required = field_data.get('required', False)
+            click.echo(f"{field_indent}Required: {'Yes' if field_required else 'No'}")
+            
+            field_description = field_data.get('description', '')
+            if field_description:
+                click.echo(_wrap_text(field_description, width=76, indent=len(field_indent)))
+            
+            # Print field default if present
+            if 'default' in field_data:
+                click.echo(f"{field_indent}Default: {field_data['default']}")
+            
+            # Print field example if present
+            if 'example' in field_data:
+                click.echo(f"{field_indent}Example: {field_data['example']}")
+            
+            # Print valid_values if present
+            if 'valid_values' in field_data:
+                click.echo(f"{field_indent}Valid values: {', '.join(field_data['valid_values'])}")
+            
+            # Print subfields
+            subfields = field_data.get('fields', {})
+            if subfields:
+                click.echo(f"{field_indent}Subfields:")
+                for subfield_name, subfield_data in subfields.items():
+                    click.echo(f"{field_indent}  {subfield_name}: {subfield_data.get('description', '')}")
+            
+            click.echo()
+    
+    click.echo()
 
 
 @cli.group()
@@ -131,12 +225,29 @@ def config_compile(config: Optional[str]) -> None:
 
 
 @config.command(name="schema")
-def config_schema() -> None:
-    "Show configuration schema"
-    print("Available configuration options:")
-    print()
-    for key in sorted(SCHEMA.keys()):
-        print(f"  {key}: {SCHEMA[key].__name__ if hasattr(SCHEMA[key], '__name__') else SCHEMA[key]}")
+@click.option("--section", default=None, help="Show only this section (e.g., 'boot')")
+@click.option("--format", type=click.Choice(["text", "json"]), default="text", help="Output format")
+def config_schema(section: Optional[str], format: str) -> None:
+    "Display configuration schema with descriptions and field documentation."
+    
+    # Validate section name if provided
+    if section and section not in SECTION_HELP:
+        click.echo(f"Error: Section '{section}' not found", err=True)
+        click.echo(f"Valid sections: {', '.join(sorted(SECTION_HELP.keys()))}", err=True)
+        sys.exit(1)
+    
+    # Determine which sections to display
+    sections_to_display = {section: SECTION_HELP[section]} if section else SECTION_HELP
+    
+    if format == "json":
+        # Output as JSON
+        output = {k: v for k, v in sections_to_display.items()}
+        click.echo(json.dumps(output, indent=2))
+    else:
+        # Output as readable text
+        for sec_name in sorted(sections_to_display.keys()):
+            sec_data = sections_to_display[sec_name]
+            _print_section_text(sec_name, sec_data)
 
 
 # Register registry commands
