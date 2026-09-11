@@ -30,7 +30,7 @@ local module = {
             table.insert(steps, {
                 name = "locale_set_default",
                 description = "Set default system locale",
-                command = "localectl set-locale LANG=" .. (default_locale:gsub(" .*", "")),
+                command = "echo 'LANG=" .. (default_locale:gsub(" .*", "")) .. "' > /etc/locale.conf",
                 chroot = true,
                 order = 151,
                 depends_on = {"locale_generate_default"},
