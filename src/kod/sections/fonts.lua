@@ -82,7 +82,7 @@ local module = {
         end
         
         -- Custom font directory setup
-        if config.font_dir then
+        if config.font_dir and type(config.font_dir) == "string" then
             table.insert(steps, {
                 name = "fonts_font_dir_create",
                 description = "Create custom font directory: " .. config.font_dir,
