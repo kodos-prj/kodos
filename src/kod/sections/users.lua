@@ -26,6 +26,7 @@ local module = {
                     name = "users_create_" .. username,
                     description = "Create user account: " .. username,
                     command = useradd_cmd,
+                    chroot = true,
                     order = 600 + (tonumber(username:match("%d+")) or 0),
                 })
                 
@@ -37,6 +38,7 @@ local module = {
                         name = "users_groups_" .. username,
                         description = "Add user " .. username .. " to groups: " .. groups_str,
                         command = "usermod -aG " .. groups_str .. " " .. username,
+                        chroot = true,
                         order = 601 + (tonumber(username:match("%d+")) or 0),
                         depends_on = {"users_create_" .. username},
                     })
@@ -53,6 +55,7 @@ local module = {
                                 name = "users_home_config_" .. username .. "_" .. program_name,
                                 description = "Create config directory for " .. program_name .. " in " .. username .. "'s home",
                                 command = "mkdir -p " .. config_dir .. " && chown " .. username .. ":" .. username .. " " .. config_dir,
+                                chroot = true,
                                 order = 610 + (tonumber(username:match("%d+")) or 0),
                                 depends_on = {"users_create_" .. username},
                             })
