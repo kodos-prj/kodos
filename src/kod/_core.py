@@ -136,7 +136,10 @@ def load_config(config_filename: Optional[str]) -> Any:
         The loaded configuration as a Lua table.
     """
 
-    luart = lua.LuaRuntime()
+    from kod.lua_runtime import get_lua_runtime
+    
+    # Use persistent Lua runtime (singleton) to avoid runtime mixing issues
+    luart = get_lua_runtime()
 
     if config_filename is None:
         config_filename = "/etc/kodos"
