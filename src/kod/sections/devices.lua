@@ -169,6 +169,17 @@ local module = {
                                order = 40,
                                depends_on = {"devices_mount_disk0_3"},
                            })
+                           
+                           -- Initialize pacman keyring for package verification
+                           -- This must run in chroot AFTER bootstrap and BEFORE any pacman installs
+                           table.insert(steps, {
+                               name = "devices_pacman_keyring_init",
+                               description = "Initialize pacman keyring for package verification",
+                               command = "pacman-key --init && pacman-key --populate archlinux",
+                               chroot = true,
+                               order = 41,
+                               depends_on = {"devices_bootstrap_base_system"},
+                           })
                        end
                 end
             end
