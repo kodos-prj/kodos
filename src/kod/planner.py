@@ -123,7 +123,7 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
         # Set Lua package.path to include src/kod/lib and src/kod/sections
         base_path = os.path.dirname(os.path.dirname(__file__))
         lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
-        lua.eval(f"package.path = '{lua_path}' .. package.path")
+        lua.execute(f"package.path = '{lua_path}' .. package.path")
         
         # Convert config to Lua table if needed
         from kod.bootstrap import _convert_to_lua_table
@@ -135,8 +135,12 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
             config_lua = config
         
         # Load and call Lua planner
-        planner_module = lua.require("kod.lib.planner")
-        lua_steps, error_msg = planner_module.compose(config_lua, distro)
+        # lua.require() returns (module, filename) tuple
+        result = lua.require("kod.lib.planner")
+        planner_module = result[0] if isinstance(result, tuple) else result
+        
+        # Call the compose method on the planner object
+        lua_steps, error_msg = planner_module.compose(planner_module, config_lua, distro)
         
         if error_msg:
             logger.warning(f"Lua planner warnings: {error_msg}")
