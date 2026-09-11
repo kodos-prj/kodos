@@ -26,16 +26,24 @@ def _convert_to_lua_table(lua, value):
 
 
 def _lua_table_to_dict(lua_table):
-    """Convert a Lua table to a Python dict."""
+    """Recursively convert a Lua table and all nested Lua objects to Python dict/list."""
     if not hasattr(lua_table, "keys"):
+        # Not a Lua table, return as-is
         return lua_table
     
     result = {}
     for key in lua_table.keys():
         val = lua_table[key]
-        if hasattr(val, "keys"):  # It's a Lua table
+        if hasattr(val, "keys"):  # It's a Lua table - recurse
             result[key] = _lua_table_to_dict(val)
+        elif isinstance(val, list):
+            # Convert lists element by element (in case they contain Lua objects)
+            result[key] = [_lua_table_to_dict(v) if hasattr(v, "keys") else v for v in val]
+        elif isinstance(val, dict):
+            # Convert dict values (in case they contain Lua objects)
+            result[key] = {k: _lua_table_to_dict(v) if hasattr(v, "keys") else v for k, v in val.items()}
         else:
+            # Regular Python object
             result[key] = val
     return result
 

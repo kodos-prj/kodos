@@ -114,15 +114,39 @@ def test_executor_timeout():
     assert "timed" in str(exc_info.value).lower()
 
 
-def test_executor_disk_step_rejected():
-    """Disk steps raise StepError (not executable yet; deferred to §6 step 2)."""
-    step = Step("disk", "wipe:/dev/sda")
+def test_executor_disk_step_execution():
+    """Disk step executes via subprocess (Task 6)."""
+    step = Step("disk", "test-wipe", program="echo", args=("test",))
+    executor = Executor(env={})
+    results = executor.execute([step], {})
+    
+    assert len(results) == 1
+    assert results[0].success is True
+    assert results[0].stdout == "test\n"
+    assert results[0].stderr == ""
+
+
+def test_executor_system_step_metadata_only():
+    """System step with empty program is metadata-only (no-op)."""
+    step = Step("system", "configure-system", program="", meta={"key": "value"})
+    executor = Executor(env={})
+    results = executor.execute([step], {})
+    
+    assert len(results) == 1
+    assert results[0].success is True
+    assert results[0].stdout == ""
+    assert results[0].stderr == ""
+
+
+def test_executor_disk_step_failure():
+    """Disk step failure raises StepError."""
+    step = Step("disk", "test-fail", program="false", args=())
     executor = Executor(env={})
     
     with pytest.raises(StepError) as exc_info:
         executor.execute([step], {})
     
-    assert "not executable" in str(exc_info.value) or "disk" in str(exc_info.value).lower()
+    assert "test-fail" in str(exc_info.value) or "failed" in str(exc_info.value).lower()
 
 
 def test_executor_unknown_kind():

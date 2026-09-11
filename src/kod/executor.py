@@ -149,31 +149,27 @@ class Executor:
                     raise StepError(f"Unknown service action: {action}")
             
             elif step.kind == "system":
-                if step.name == "kernel-update":
-                    fn = self.env.get("update_kernel_hook")
-                    if not fn:
-                        raise StepError("update_kernel_hook not in env")
-                    kernel = step.meta.get("kernel", "linux")
-                    fn(kernel, ctx.get("mount_point", "/"))
+                # System steps can be metadata-only (empty program) or subprocess-based
+                if step.program == "":
+                    # Metadata-only step (no execution needed)
+                    return StepResult(step, success=True, stdout="", stderr="")
                 
-                elif step.name == "initramfs-update":
-                    fn = self.env.get("update_initramfs_hook")
-                    if not fn:
-                        raise StepError("update_initramfs_hook not in env")
-                    kernel = step.meta.get("kernel", "linux")
-                    fn(kernel, ctx.get("mount_point", "/"))
-                
-                elif step.name == "update-packages":
-                    fn = self.env.get("update_all_packages")
-                    if not fn:
-                        raise StepError("update_all_packages not in env")
-                    fn(ctx.get("mount_point", "/"), ctx.get("generation_id"), ctx.get("repos"))
-                
-                else:
-                    raise StepError(f"Unknown system step: {step.name}")
+                # Execute via subprocess
+                import subprocess
+                cmd = " ".join([step.program] + list(step.args))
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=step.timeout_s, check=False)
+                if result.returncode != 0:
+                    raise StepError(f"System step '{step.name}' failed: {result.stderr}")
+                return StepResult(step, success=True, stdout=result.stdout, stderr=result.stderr)
             
             elif step.kind == "disk":
-                raise StepError(f"Disk steps are not executable yet (bootstrap port pending §6 step 2): {step.name}")
+                # Disk steps execute via subprocess
+                import subprocess
+                cmd = " ".join([step.program] + list(step.args))
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=step.timeout_s, check=False)
+                if result.returncode != 0:
+                    raise StepError(f"Disk step '{step.name}' failed: {result.stderr}")
+                return StepResult(step, success=True, stdout=result.stdout, stderr=result.stderr)
             
             else:
                 raise StepError(f"Unknown step kind: {step.kind}")

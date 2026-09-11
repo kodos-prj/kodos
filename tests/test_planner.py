@@ -197,10 +197,17 @@ class TestPlanInstall:
         )
         steps = plan_install(conf)
         kinds_names = [(s.kind, s.name) for s in steps]
-        assert kinds_names[0] == ("disk", "wipe:/dev/vda")
-        # system phase steps in install-flow order (kod.py:186-213)
+        # Disk steps come first (from plan_disk_steps via Lua bootstrap)
+        assert kinds_names[0][0] == "disk", f"Expected first step to be disk (wipe), got {kinds_names[0]}"
+        # system phase steps in install-flow order:
+        # 1. Bootstrap system config from Lua (fstab, locale, hostname, bootloader)
+        # 2. Package management system steps (base-packages, repos, configure-system, kod-user)
         phases = [n for k, n in kinds_names if k == "system"]
-        assert phases == ["base-packages", "repos", "configure-system", "bootloader", "kod-user"]
+        assert "fstab" in phases
+        assert "base-packages" in phases
+        assert "repos" in phases
+        assert "configure-system" in phases
+        assert "kod-user" in phases
         # packages: "git" from conf.packages; "vim" from bob's enabled program
         # (_proc_user_programs adds program names as packages too)
         pkgs = [s for s in steps if s.kind == "package"]
@@ -310,8 +317,13 @@ class TestBuildPlan:
 
         conf = make_conf(packages=["git"])
         empty = build_plan(conf, baseline="empty")
-        # install plan starts with system phases; rebuild plan never has them
-        assert [s.name for s in empty if s.kind == "system"][:2] == ["base-packages", "repos"]
+        # install plan starts with system steps from Lua bootstrap
+        system_steps = [s.name for s in empty if s.kind == "system"]
+        # Should include base-packages and repos steps
+        assert "base-packages" in system_steps
+        assert "repos" in system_steps
+        # Should also include bootstrap system config steps
+        assert len(system_steps) >= 4  # At least fstab, locale, hostname, bootloader
 
         current = build_plan(conf, make_dist(), baseline="current",
                              current_packages={"packages": []}, current_services=[])

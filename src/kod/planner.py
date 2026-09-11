@@ -186,15 +186,34 @@ def plan_disk_steps(conf: Any) -> List[Step]:
 
 
 def plan_install(conf: Any) -> List[Step]:
-    """Full install preview over an empty baseline. Read-only."""
+    """Full install preview over an empty baseline. Read-only.
+    
+    Integrates Lua bootstrap emission (disk + mount + system config) with
+    package, service, and user management steps.
+    """
     from kod._core import Context
     from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable
-
-    # Use Python disk steps for now (Lua bootstrap to follow in Phase 1b)
-    # This maintains backward compatibility with existing tests
-    steps = plan_disk_steps(conf)
-
+    from kod.bootstrap import emit_bootstrap_steps
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    steps = []
+    
+    # Step 1: Pre-compute partition list from conf (Option B)
+    predicted_partition_list = predict_partition_list(conf)
+    
+    # Step 2: Emit bootstrap steps via Lua module (disk + mount + system config)
+    distro = conf.base_distribution or "arch"
+    try:
+        bootstrap_steps = emit_bootstrap_steps(conf, predicted_partition_list, distro=distro)
+        steps.extend(bootstrap_steps)
+    except Exception as e:
+        # If Lua bootstrap fails, fall back to plan_disk_steps (backward compat)
+        logger.warning(f"Lua bootstrap failed: {e}; falling back to plan_disk_steps")
+        steps.extend(plan_disk_steps(conf))
+    
+    # Step 3: Add package management steps
     pkgs, _remove = get_packages_to_install(conf)
     base_info = {k: v for k, v in pkgs.items() if k != "packages"}
     steps.append(Step("system", "base-packages",
@@ -209,8 +228,9 @@ def plan_install(conf: Any) -> List[Step]:
         if base_pkgs:
             repo_meta["base_packages"] = base_pkgs
     steps.append(Step("system", "repos", meta=repo_meta))
+    
+    # Step 4: Add system configuration steps
     steps.append(Step("system", "configure-system"))
-    steps.append(Step("system", "bootloader"))
     steps.append(Step("system", "kod-user"))
 
     for pkg in sorted(pkgs["packages"]):
