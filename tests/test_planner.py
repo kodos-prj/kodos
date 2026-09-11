@@ -125,6 +125,58 @@ class TestDiskSteps:
         assert plan_disk_steps(make_conf()) == []
 
 
+class TestPartitionPrediction:
+    def test_predict_partition_list_sda(self):
+        """predict_partition_list handles /dev/sdaX naming."""
+        from kod.planner import predict_partition_list
+
+        conf = make_conf(devices={
+            "disk0": {"device": "/dev/sda", "partitions": {
+                "1": {"name": "boot", "size": "512M", "type": "esp", "mountpoint": "/boot"},
+                "2": {"name": "root", "size": "100%", "type": "btrfs", "mountpoint": "/"},
+            }},
+        })
+        parts = predict_partition_list(conf)
+        assert len(parts) == 2
+        assert parts[0] == {"device": "/dev/sda1", "mountpoint": "/boot", "filesystem": "esp"}
+        assert parts[1] == {"device": "/dev/sda2", "mountpoint": "/", "filesystem": "btrfs"}
+
+    def test_predict_partition_list_nvme(self):
+        """predict_partition_list handles /dev/nvmXcYpZ naming."""
+        from kod.planner import predict_partition_list
+
+        conf = make_conf(devices={
+            "disk0": {"device": "/dev/nvme0n1", "partitions": {
+                "1": {"name": "boot", "size": "512M", "type": "esp", "mountpoint": "/boot"},
+                "2": {"name": "root", "size": "100%", "type": "ext4", "mountpoint": "/"},
+            }},
+        })
+        parts = predict_partition_list(conf)
+        assert len(parts) == 2
+        assert parts[0] == {"device": "/dev/nvme0n1p1", "mountpoint": "/boot", "filesystem": "esp"}
+        assert parts[1] == {"device": "/dev/nvme0n1p2", "mountpoint": "/", "filesystem": "ext4"}
+
+    def test_predict_partition_list_malformed_raises(self):
+        """predict_partition_list raises ValueError on missing root partition."""
+        from kod.planner import predict_partition_list
+
+        # No root partition
+        conf = make_conf(devices={
+            "disk0": {"device": "/dev/sda", "partitions": {
+                "1": {"name": "boot", "size": "512M", "type": "esp", "mountpoint": "/boot"},
+            }},
+        })
+        with pytest.raises(ValueError, match="root.*partition"):
+            predict_partition_list(conf)
+
+    def test_predict_partition_list_empty_devices(self):
+        """predict_partition_list returns empty list for no devices."""
+        from kod.planner import predict_partition_list
+
+        parts = predict_partition_list(make_conf())
+        assert parts == []
+
+
 BASE_PKGS = {"kernel": "linux-lts",
              "base": ["base", "base-devel", "intel-ucode"]}
 

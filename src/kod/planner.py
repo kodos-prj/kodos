@@ -90,6 +90,66 @@ def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = N
     return "\n".join(lines) + "\n"
 
 
+def predict_partition_list(conf: Any) -> List[dict]:
+    """Predict partition_list from conf.devices without execution.
+    
+    Pre-computes the list of partitions that will be created, used as input
+    to Lua bootstrap modules. Must NOT execute any filesystem operations.
+    
+    Args:
+        conf: Configuration object with conf.devices
+    
+    Returns:
+        List of dicts: [{device: "/dev/sda1", mountpoint: "/boot", filesystem: "vfat"}, ...]
+    
+    Raises:
+        ValueError: If conf.devices is incomplete or missing root partition
+    
+    Logic:
+    - For each device in conf.devices (sorted by ID):
+      - Determine suffix ("p" for nvme/mmcblk, "" for sda/sdb)
+      - For each partition in device.partitions (sorted by ID):
+        - Compute device name: device + suffix + partition_id
+        - Extract mountpoint, filesystem from partition config
+        - Add to list
+    """
+    partitions = []
+    devices = conf.devices
+    if not devices:
+        return partitions
+    
+    has_root = False
+    for d_id in sorted(devices.keys()):
+        disk = devices[d_id]
+        device = disk["device"]
+        suffix = "p" if ("nvme" in device or "mmcblk" in device) else ""
+        disk_partitions = disk["partitions"] if disk["partitions"] else {}
+        
+        if not disk_partitions:
+            continue
+        
+        for pid in sorted(disk_partitions.keys()):
+            part = disk_partitions[pid]
+            name = part["name"]
+            fs = part["type"]
+            mountpoint = part["mountpoint"]
+            blockdevice = f"{device}{suffix}{pid}"
+            
+            partitions.append({
+                "device": blockdevice,
+                "mountpoint": mountpoint,
+                "filesystem": fs,
+            })
+            
+            if mountpoint == "/":
+                has_root = True
+    
+    if not has_root and devices:
+        raise ValueError("No root (/) partition found in conf.devices")
+    
+    return partitions
+
+
 def plan_disk_steps(conf: Any) -> List[Step]:
     """Emit wipe/partition/format steps from conf.devices. Read-only.
 
