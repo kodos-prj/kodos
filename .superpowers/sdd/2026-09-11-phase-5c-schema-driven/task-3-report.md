@@ -3,7 +3,7 @@
 **Status:** ✅ DONE
 
 **Execution Date:** 2026-09-11  
-**Commit Hash:** (pending git commit)  
+**Commit Hash:** `fca1aa3` - feat: refactor planner to schema-driven composition (Phase 5c Task 3)  
 **Branch:** feat/architecture-redesign
 
 ## Task Summary
