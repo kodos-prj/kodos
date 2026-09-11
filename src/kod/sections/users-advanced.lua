@@ -21,26 +21,26 @@ local module = {
                     local identity = user_config.identity
                     
                     -- Set user's full name (GECOS field)
-                    if identity.name then
-                        table.insert(steps, {
-                            name = "users_" .. username .. "_identity_name",
-                            description = "Set user " .. username .. " full name: " .. identity.name,
-                            command = "usermod -c '" .. identity.name .. "' " .. username,
-                            chroot = true,
-                            order = 620 + (tonumber(username:match("%d+")) or 0),
-                        })
-                    end
-                    
-                    -- Set user password hash
-                    if identity.hashed_password then
-                        table.insert(steps, {
-                            name = "users_" .. username .. "_identity_password",
-                            description = "Set user " .. username .. " password hash",
-                            command = "echo '" .. username .. ":" .. identity.hashed_password .. "' | chpasswd -e",
-                            chroot = true,
-                            order = 621 + (tonumber(username:match("%d+")) or 0),
-                        })
-                    end
+                     if identity.name then
+                         table.insert(steps, {
+                             name = "users_" .. username .. "_identity_name",
+                             description = "Set user " .. username .. " full name: " .. identity.name,
+                             command = "usermod -c \"" .. identity.name .. "\" " .. username,
+                             chroot = true,
+                             order = 620 + (tonumber(username:match("%d+")) or 0),
+                         })
+                     end
+                     
+                     -- Set user password hash
+                     if identity.hashed_password then
+                         table.insert(steps, {
+                             name = "users_" .. username .. "_identity_password",
+                             description = "Set user " .. username .. " password hash",
+                             command = "echo \"" .. username .. ":" .. identity.hashed_password .. "\" | chpasswd -e",
+                             chroot = true,
+                             order = 621 + (tonumber(username:match("%d+")) or 0),
+                         })
+                     end
                     
                     -- Add groups from identity (if not handled by base users module)
                     if identity.groups and #identity.groups > 0 then
@@ -70,18 +70,18 @@ local module = {
                             order = 630 + (tonumber(username:match("%d+")) or 0),
                         })
                         
-                        -- Add authorized SSH keys
-                        if ssh_keys.authorized and #ssh_keys.authorized > 0 then
-                            for i, key in ipairs(ssh_keys.authorized) do
-                                table.insert(steps, {
-                                    name = "users_" .. username .. "_ssh_keys_add_" .. i,
-                                    description = "Add authorized SSH key " .. i .. " for user " .. username,
-                                    command = "echo '" .. key .. "' >> /home/" .. username .. "/.ssh/authorized_keys",
-                                    chroot = true,
-                                    order = 631 + i + (tonumber(username:match("%d+")) or 0),
-                                    depends_on = {"users_" .. username .. "_ssh_keys_init"},
-                                })
-                            end
+                         -- Add authorized SSH keys
+                         if ssh_keys.authorized and #ssh_keys.authorized > 0 then
+                             for i, key in ipairs(ssh_keys.authorized) do
+                                 table.insert(steps, {
+                                     name = "users_" .. username .. "_ssh_keys_add_" .. i,
+                                     description = "Add authorized SSH key " .. i .. " for user " .. username,
+                                     command = "echo \"" .. key .. "\" >> /home/" .. username .. "/.ssh/authorized_keys",
+                                     chroot = true,
+                                     order = 631 + i + (tonumber(username:match("%d+")) or 0),
+                                     depends_on = {"users_" .. username .. "_ssh_keys_init"},
+                                 })
+                             end
                             
                             -- Set proper permissions on authorized_keys
                             table.insert(steps, {

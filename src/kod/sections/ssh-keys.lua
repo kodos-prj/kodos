@@ -28,16 +28,16 @@ local module = {
                     })
                     
                     -- Add each authorized SSH key
-                    if ssh_keys.authorized and #ssh_keys.authorized > 0 then
-                        for i, key in ipairs(ssh_keys.authorized) do
-                            table.insert(steps, {
-                                name = "ssh_keys_" .. username .. "_authorize_" .. i,
-                                description = "Add authorized SSH key " .. i .. " for user " .. username,
-                                command = "echo '" .. key .. "' >> /home/" .. username .. "/.ssh/authorized_keys",
-                                order = 481 + i + (tonumber(username:match("%d+")) or 0),
-                                depends_on = {"ssh_keys_" .. username .. "_init"},
-                            })
-                        end
+                     if ssh_keys.authorized and #ssh_keys.authorized > 0 then
+                         for i, key in ipairs(ssh_keys.authorized) do
+                             table.insert(steps, {
+                                 name = "ssh_keys_" .. username .. "_authorize_" .. i,
+                                 description = "Add authorized SSH key " .. i .. " for user " .. username,
+                                 command = "echo \"" .. key .. "\" >> /home/" .. username .. "/.ssh/authorized_keys",
+                                 order = 481 + i + (tonumber(username:match("%d+")) or 0),
+                                 depends_on = {"ssh_keys_" .. username .. "_init"},
+                             })
+                         end
                         
                         -- Set proper permissions on authorized_keys file
                         table.insert(steps, {

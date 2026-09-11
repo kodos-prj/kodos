@@ -92,58 +92,58 @@ local module = {
                 end
             end
             
-            -- Apply service settings
-            if svc_config.settings and type(svc_config.settings) == "table" then
-                local settings_order = 720
-                for setting_key, setting_value in pairs(svc_config.settings) do
-                    table.insert(steps, {
-                        name = "services_config_setting_" .. setting_key,
-                        description = "Configure service setting: " .. setting_key .. " = " .. tostring(setting_value),
-                        command = "echo 'Setting " .. setting_key .. "=" .. tostring(setting_value) .. "' # Placeholder for service config",
-                        chroot = true,
-                        order = settings_order,
-                    })
-                    settings_order = settings_order + 1
-                end
-            end
-        end
-        
-        -- Systemd configuration block (Task 9 extension)
-        if config.systemd and type(config.systemd) == "table" then
-            -- Handle systemd mounts
-            if config.systemd.mounts and type(config.systemd.mounts) == "table" then
-                local mount_order = 730
-                for mount_name, mount_config in pairs(config.systemd.mounts) do
-                    if type(mount_config) == "table" then
-                        table.insert(steps, {
-                            name = "services_systemd_mount_" .. mount_name,
-                            description = "Configure systemd mount: " .. mount_name,
-                            command = "mkdir -p /etc/systemd/system/ && echo '[Mount]' > /etc/systemd/system/" .. mount_name .. ".mount",
-                            chroot = true,
-                            order = mount_order,
-                        })
-                        mount_order = mount_order + 1
-                    end
-                end
-            end
-            
-            -- Handle systemd units
-            if config.systemd.units and type(config.systemd.units) == "table" then
-                local unit_order = 740
-                for unit_name, unit_config in pairs(config.systemd.units) do
-                    if type(unit_config) == "table" then
-                        table.insert(steps, {
-                            name = "services_systemd_unit_" .. unit_name,
-                            description = "Configure systemd unit: " .. unit_name,
-                            command = "mkdir -p /etc/systemd/system/ && echo '[Unit]' > /etc/systemd/system/" .. unit_name .. ".service",
-                            chroot = true,
-                            order = unit_order,
-                        })
-                        unit_order = unit_order + 1
-                    end
-                end
-            end
-        end
+             -- Apply service settings
+             if svc_config.settings and type(svc_config.settings) == "table" then
+                 local settings_order = 720
+                 for setting_key, setting_value in pairs(svc_config.settings) do
+                     table.insert(steps, {
+                         name = "services_config_setting_" .. setting_key,
+                         description = "Configure service setting: " .. setting_key .. " = " .. tostring(setting_value),
+                         command = "echo \"Setting " .. setting_key .. "=" .. tostring(setting_value) .. "\" # Placeholder for service config",
+                         chroot = true,
+                         order = settings_order,
+                     })
+                     settings_order = settings_order + 1
+                 end
+             end
+         end
+         
+         -- Systemd configuration block (Task 9 extension)
+         if config.systemd and type(config.systemd) == "table" then
+             -- Handle systemd mounts
+             if config.systemd.mounts and type(config.systemd.mounts) == "table" then
+                 local mount_order = 730
+                 for mount_name, mount_config in pairs(config.systemd.mounts) do
+                     if type(mount_config) == "table" then
+                         table.insert(steps, {
+                             name = "services_systemd_mount_" .. mount_name,
+                             description = "Configure systemd mount: " .. mount_name,
+                             command = "mkdir -p /etc/systemd/system/ && echo \"[Mount]\" > /etc/systemd/system/" .. mount_name .. ".mount",
+                             chroot = true,
+                             order = mount_order,
+                         })
+                         mount_order = mount_order + 1
+                     end
+                 end
+             end
+             
+             -- Handle systemd units
+             if config.systemd.units and type(config.systemd.units) == "table" then
+                 local unit_order = 740
+                 for unit_name, unit_config in pairs(config.systemd.units) do
+                     if type(unit_config) == "table" then
+                         table.insert(steps, {
+                             name = "services_systemd_unit_" .. unit_name,
+                             description = "Configure systemd unit: " .. unit_name,
+                             command = "mkdir -p /etc/systemd/system/ && echo \"[Unit]\" > /etc/systemd/system/" .. unit_name .. ".service",
+                             chroot = true,
+                             order = unit_order,
+                         })
+                         unit_order = unit_order + 1
+                     end
+                 end
+             end
+         end
         
         return steps
     end

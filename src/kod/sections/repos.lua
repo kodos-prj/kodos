@@ -32,32 +32,32 @@ local module = {
                     end
                 else
                     -- Fallback: try generic approach based on repo properties
-                    if repo_config.url then
-                        if distro == "arch" then
-                            -- For Arch, add repository to pacman.conf
-                            table.insert(steps, {
-                                name = "repos_add_" .. repo_name .. "_arch",
-                                description = "Add repository: " .. repo_name,
-                                command = "echo '[" .. repo_name .. "]' >> /etc/pacman.conf && echo 'Server = " .. repo_config.url .. "' >> /etc/pacman.conf",
-                                order = 50,
-                            })
-                        elseif distro == "debian" then
-                            -- For Debian, add PPA or repository
-                            if repo_config.ppa then
-                                table.insert(steps, {
-                                    name = "repos_add_" .. repo_name .. "_debian",
-                                    description = "Add PPA: " .. repo_config.ppa,
-                                    command = "add-apt-repository -y " .. repo_config.ppa .. " && apt-get update",
-                                    order = 50,
-                                })
-                            else
-                                table.insert(steps, {
-                                    name = "repos_add_" .. repo_name .. "_debian",
-                                    description = "Add repository: " .. repo_name,
-                                    command = "echo 'deb " .. repo_config.url .. "' | tee /etc/apt/sources.list.d/" .. repo_name .. ".list && apt-get update",
-                                    order = 50,
-                                })
-                            end
+                     if repo_config.url then
+                         if distro == "arch" then
+                             -- For Arch, add repository to pacman.conf
+                             table.insert(steps, {
+                                 name = "repos_add_" .. repo_name .. "_arch",
+                                 description = "Add repository: " .. repo_name,
+                                 command = "echo \"[" .. repo_name .. "]\" >> /etc/pacman.conf && echo \"Server = " .. repo_config.url .. "\" >> /etc/pacman.conf",
+                                 order = 50,
+                             })
+                         elseif distro == "debian" then
+                             -- For Debian, add PPA or repository
+                             if repo_config.ppa then
+                                 table.insert(steps, {
+                                     name = "repos_add_" .. repo_name .. "_debian",
+                                     description = "Add PPA: " .. repo_config.ppa,
+                                     command = "add-apt-repository -y " .. repo_config.ppa .. " && apt-get update",
+                                     order = 50,
+                                 })
+                             else
+                                 table.insert(steps, {
+                                     name = "repos_add_" .. repo_name .. "_debian",
+                                     description = "Add repository: " .. repo_name,
+                                     command = "echo \"deb " .. repo_config.url .. "\" | tee /etc/apt/sources.list.d/" .. repo_name .. ".list && apt-get update",
+                                     order = 50,
+                                 })
+                             end
                         end
                     end
                 end
