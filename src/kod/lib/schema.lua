@@ -232,12 +232,99 @@ Schema.users = {
     
     fields = {
         -- USERNAME is dynamic key; inside each user config are optional nested blocks:
-        --   identity: name, hashed_password, groups
-        --   ssh_keys: enabled, authorized[]
-        --   dotfiles: repo_url, source_dir, deploy_tool
-        --   programs: nested program configs
-        --   services: nested service configs
-        --   home_config: dotfiles_repos[]
+        identity = {
+            type = "dict",
+            required = false,
+            description = "User identity information (name, password, groups).",
+            
+            fields = {
+                name = {
+                    type = "string",
+                    required = false,
+                    description = "User's full name (GECOS field).",
+                },
+                hashed_password = {
+                    type = "string",
+                    required = false,
+                    description = "User's password hash (bcrypt, argon2, or sha512).",
+                },
+                groups = {
+                    type = "list",
+                    required = false,
+                    description = "List of groups the user belongs to.",
+                }
+            }
+        },
+        
+        ssh_keys = {
+            type = "dict",
+            required = false,
+            description = "SSH key configuration for the user.",
+            
+            fields = {
+                enabled = {
+                    type = "boolean",
+                    required = false,
+                    default = false,
+                    description = "Enable SSH key authentication.",
+                },
+                authorized = {
+                    type = "list",
+                    required = false,
+                    description = "List of authorized public SSH keys.",
+                }
+            }
+        },
+        
+        dotfiles = {
+            type = "dict",
+            required = false,
+            description = "Dotfiles repository configuration.",
+            
+            fields = {
+                repo_url = {
+                    type = "string",
+                    required = false,
+                    description = "Git repository URL for dotfiles.",
+                },
+                source_dir = {
+                    type = "string",
+                    required = false,
+                    description = "Directory within repo containing dotfiles.",
+                },
+                deploy_tool = {
+                    type = "string",
+                    required = false,
+                    description = "Deployment tool (e.g., 'stow', 'yadm', 'chezmoi').",
+                }
+            }
+        },
+        
+        programs = {
+            type = "dict",
+            required = false,
+            description = "User-specific program configurations (nested program configs).",
+        },
+        
+        services = {
+            type = "dict",
+            required = false,
+            description = "User-specific service configurations (nested service configs).",
+        },
+        
+        home_config = {
+            type = "dict",
+            required = false,
+            description = "Home directory configuration (dotfiles repositories, etc).",
+            
+            fields = {
+                dotfiles_repos = {
+                    type = "list",
+                    required = false,
+                    description = "List of dotfiles repository URLs for the user's home.",
+                }
+            }
+        }
     }
 }
 
@@ -379,6 +466,46 @@ Schema.services = {
         --   enable: boolean (optional, enable on boot)
         --   start: boolean (optional, start immediately)
         --   config: service configuration block with service_name, packages, settings
+        
+        config = {
+            type = "dict",
+            required = false,
+            description = "Service configuration block (service_name, packages, settings).",
+            
+            fields = {
+                service_name = {
+                    type = "string",
+                    required = false,
+                    description = "Override systemd service name (if different from config key).",
+                },
+                
+                packages = {
+                    type = "dict",
+                    required = false,
+                    description = "Service packages configuration (main and extra packages).",
+                    
+                    fields = {
+                        main = {
+                            type = "string",
+                            required = false,
+                            description = "Main package providing the service.",
+                        },
+                        
+                        extra = {
+                            type = "list",
+                            required = false,
+                            description = "List of additional packages for the service.",
+                        }
+                    }
+                },
+                
+                settings = {
+                    type = "dict",
+                    required = false,
+                    description = "Service-specific settings (untyped dict for flexibility).",
+                }
+            }
+        },
         
         systemd = {
             type = "dict",

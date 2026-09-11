@@ -353,3 +353,405 @@ class TestDocumentationStrings:
         """
         result = lua.execute(code)
         assert result is True
+
+
+class TestUserBlocks:
+    """Test user nested block definitions."""
+
+    def test_users_identity_block_exists(self):
+        """users.identity block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.identity
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_identity_name_field(self):
+        """users.identity.name field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.identity.fields.name
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_identity_hashed_password_field(self):
+        """users.identity.hashed_password field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.identity.fields.hashed_password
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_identity_groups_field(self):
+        """users.identity.groups field is list and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.identity.fields.groups
+        return field.type == 'list' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_ssh_keys_block_exists(self):
+        """users.ssh_keys block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.ssh_keys
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_ssh_keys_enabled_field(self):
+        """users.ssh_keys.enabled field is boolean and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.ssh_keys.fields.enabled
+        return field.type == 'boolean' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_ssh_keys_authorized_field(self):
+        """users.ssh_keys.authorized field is list and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.ssh_keys.fields.authorized
+        return field.type == 'list' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_dotfiles_block_exists(self):
+        """users.dotfiles block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.dotfiles
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_dotfiles_repo_url_field(self):
+        """users.dotfiles.repo_url field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.dotfiles.fields.repo_url
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_dotfiles_source_dir_field(self):
+        """users.dotfiles.source_dir field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.dotfiles.fields.source_dir
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_dotfiles_deploy_tool_field(self):
+        """users.dotfiles.deploy_tool field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.dotfiles.fields.deploy_tool
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_programs_block_exists(self):
+        """users.programs block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.programs
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_programs_is_optional(self):
+        """users.programs is optional (not required)."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.programs
+        return block.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_services_block_exists(self):
+        """users.services block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.services
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_services_is_optional(self):
+        """users.services is optional (not required)."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.services
+        return block.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_home_config_block_exists(self):
+        """users.home_config block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.users.fields.home_config
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_users_home_config_dotfiles_repos_field(self):
+        """users.home_config.dotfiles_repos field is list and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.users.fields.home_config.fields.dotfiles_repos
+        return field.type == 'list' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+
+class TestServicesConfigBlock:
+    """Test services.config nested block definition."""
+
+    def test_services_config_block_exists(self):
+        """services.config block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.services.fields.config
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_is_optional(self):
+        """services.config is optional (not required)."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.services.fields.config
+        return block.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_service_name_field(self):
+        """services.config.service_name field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.services.fields.config.fields.service_name
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_packages_block_exists(self):
+        """services.config.packages block exists and is a dict."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.services.fields.config.fields.packages
+        return block and block.type == 'dict'
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_packages_is_optional(self):
+        """services.config.packages is optional (not required)."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local block = Schema.services.fields.config.fields.packages
+        return block.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_packages_main_field(self):
+        """services.config.packages.main field is string and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.services.fields.config.fields.packages.fields.main
+        return field.type == 'string' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_packages_extra_field(self):
+        """services.config.packages.extra field is list and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.services.fields.config.fields.packages.fields.extra
+        return field.type == 'list' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_settings_field(self):
+        """services.config.settings field is dict and optional."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local field = Schema.services.fields.config.fields.settings
+        return field.type == 'dict' and field.required ~= true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+
+class TestUserBlocksValidation:
+    """Test that user block configurations validate correctly."""
+
+    def test_user_identity_config_validates(self):
+        """User identity config validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            identity = {
+                name = "John Doe",
+                hashed_password = "$2b$12$...",
+                groups = {"wheel", "audio"}
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.users, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_user_ssh_keys_config_validates(self):
+        """User ssh_keys config validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            ssh_keys = {
+                enabled = true,
+                authorized = {"ssh-rsa AAAA...", "ssh-ed25519 AAAA..."}
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.users, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_user_dotfiles_config_validates(self):
+        """User dotfiles config validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            dotfiles = {
+                repo_url = "https://github.com/user/dotfiles.git",
+                source_dir = "home",
+                deploy_tool = "stow"
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.users, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_user_home_config_validates(self):
+        """User home_config with dotfiles_repos validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            home_config = {
+                dotfiles_repos = {"https://github.com/user/dotfiles.git"}
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.users, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+
+class TestServicesConfigValidation:
+    """Test that services.config configurations validate correctly."""
+
+    def test_services_config_basic_validates(self):
+        """Services config block validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            config = {
+                service_name = "openssh",
+                packages = {
+                    main = "openssh",
+                    extra = {"openssh-server"}
+                },
+                settings = {Port = 2222, PermitRootLogin = false}
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.services, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
+
+    def test_services_config_with_systemd_validates(self):
+        """Services with both config and systemd validates."""
+        lua = get_lua_runtime()
+        code = """
+        local Schema = require('src.kod.lib.schema')
+        local config = {
+            config = {
+                service_name = "nginx",
+                packages = {main = "nginx"}
+            },
+            systemd = {
+                mounts = {storage = {What = "/dev/sdb1"}},
+                units = {custom = {Description = "Custom unit"}}
+            }
+        }
+        local ok, err = Schema:validate_field(Schema.services, config)
+        return ok == true
+        """
+        result = lua.execute(code)
+        assert result is True
