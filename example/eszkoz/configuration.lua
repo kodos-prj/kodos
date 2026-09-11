@@ -93,27 +93,33 @@ return {
 	users = {
 
 		root = {
-			no_password = true,
-			shell = "/bin/bash",
+			identity = {
+				no_password = true,
+			},
 		},
 
 		abuss = {
-			name = "Antal Buss",
-			-- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.";
-			hashed_password = "$6$MOkGLOzXlj0lIE2d$5sxAysiDyD/7ZfntgZaN3vJ48t.BMi2qwPxqjgVxGXKXrNlFxRvnO8uCvOlHaGW2pVDrjt0JLNR9GWH.2YT5j.",
-			shell = "/usr/bin/zsh",
-			extra_groups = map({ "audio", "input", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
-			openssh_authorized = {
-				keys = {
+			identity = {
+				name = "Antal Buss",
+				-- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.";
+				hashed_password = "$6$MOkGLOzXlj0lIE2d$5sxAysiDyD/7ZfntgZaN3vJ48t.BMi2qwPxqjgVxGXKXrNlFxRvnO8uCvOlHaGW2pVDrjt0JLNR9GWH.2YT5j.",
+				shell = "/usr/bin/zsh",
+				groups = map({ "audio", "input", "users", "video", "wheel" }),
+			},
+
+			ssh_keys = {
+				enabled = true,
+				authorized = {
 					"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDOA6V+TZJ+BmBAU4FB0nbhYQ9XOFZwCHdwXTuQkb77sPi6fVcbzso5AofUc+3DhfN56ATNOOslvjutSPE8kIp3Uv91/c7DE0RHoidNl3oLre8bau2FT+9AUTZnNEtWH/qXp5+fzvGk417mSL3M5jdoRwude+AzhPNXmbdAzn08TMGAkjGrMQejXItcG1OhXKUjqeLmB0A0l3Ac8DGQ6EcSRtgPCiej8Boabn21K2OBfq64KwW/MMh/FWTHndyBF/lhfEos7tGPvrDN+5G05oGjf0fnMOxsmAUdTDbtOTTeMTvDwjJdzsGUluEDbWBYPNlg5wacbimkv51/Bm4YwsGOkkUTy6eCCS3d5j8PrMbB2oNZfByga01FohhWSX9bv35KAP4nq7no9M6nXj8rQVsF0gPndPK/pgX46tpJG+pE1Ul6sSLR2jnrN6oBKzhdZJ54a2wwFSd207Zvahdx3m9JEVhccmDxWltxjKHz+zChAHsqWC9Zcqozt0mDRJNalW8fRXKcSWPGVy1rfbwltiQzij+ChCQQlUG78zW8lU7Bz6FuyDsEFpZSat7jtbdDBY0a4F0yb4lkNvu+5heg+dhlKCFj9YeRDrnvcz94OKvAZW1Gsjbs83n6wphBipxUWku7y86iYyAAYQGKs4jihhYWrFtfZhSf1m6EUKXoWX87KQ== antal.buss@gmail.com",
 				},
 			},
 
-			dotfile_manager = configs.stow({
+			dotfiles = {
+				enabled = true,
 				source_dir = "~/.dotfiles",
-				target_dir = "~/",
+				deploy_tool = "stow",
 				repo_url = "http://git.homecloud.lan/abuss/dotconfig.git",
-			}),
+			},
 
 			programs = {
 				git = {
@@ -181,18 +187,7 @@ return {
 				"ghostty",
 			},
 
-			services = {
-				syncthing = {
-					enable = false,
-					config = configs.syncthing({
-						service_name = "syncthing",
-						options = "'--no-browser' '--no-restart' '--logflags=0' '--gui-address=0.0.0.0:8384'",
-					}),
-					-- extra_packages = { "aur:syncthing-gtk" },
-				},
-			},
-
-			home = map({
+			home_config = {
 				colloid_theme = themes({
 					-- repo_url = "https://github.com/vinceliuice/Colloid-gtk-theme.git";
 					repo_url = "https://github.com/vinceliuice/WhiteSur-gtk-theme.git",
@@ -207,19 +202,15 @@ return {
 
 				-- [".config/background"] = copy_file("background"),
 				-- [".face"] = copy_file("face.jpg"),
-			}),
+			},
 		},
 	},
 
 	desktop = {
-		-- display_manager = "gdm",
-		-- display_manager = "sddm",
-		-- display_manager = "lightdm",
 		display_manager = "cosmic-greeter",
-		desktop_manager = {
+		environments = {
 			gnome = {
 				enable = use_gnome,
-				-- display_manager = "gdm",
 				exclude_packages = {
 					"gnome-tour",
 					"yelp",
@@ -245,7 +236,6 @@ return {
 
 			plasma = {
 				enable = use_plasma,
-				display_manager = "sddm",
 				extra_packages = {
 					"kde-applications",
 					"kvantum",
@@ -256,12 +246,10 @@ return {
 
 			cosmic = {
 				enable = use_cosmic,
-				display_manager = "cosmic-greeter",
 			},
 
 			budgie = {
 				enable = use_budgie,
-				display_manager = "lightdm",
 				extra_packages = {
 					"lightdm-gtk-greeter",
 					"network-manager-applet",
@@ -269,7 +257,6 @@ return {
 			},
 			pantheon = {
 				enable = use_pantheon,
-				display_manager = "gdm",
 			},
 		},
 	},

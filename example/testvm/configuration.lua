@@ -80,22 +80,26 @@ return {
 
     users = {
         root = {
-            -- no_password = true,
-            password = "root",
-            shell = "/bin/bash",
+            identity = {
+                -- no_password = true,
+                password = "root",
+            },
         },
         abuss = {
-            name = "Antal Buss",
-            password = "abuss",
-            -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
-            shell = "/usr/bin/fish",
-            extra_groups = list({ "audio", "input", "network", "users", "video", "wheel" }), -- .. if_true(use_virtualization, { "docker", "podman", "libvirt" });
+            identity = {
+                name = "Antal Buss",
+                password = "abuss",
+                -- hashed_password = "$6$q5r7h6qJ8nRats.X$twRR8mUf5y/oKae4doeb6.aXhPhh4Z1ZcAz5RJG38MtPRpyFjuN8eCt9GW.a20yZK1O8OvVPtJusVHZ9I8Nk/.",
+                shell = "/usr/bin/fish",
+                groups = list({ "audio", "input", "network", "users", "video", "wheel" }),
+            },
 
-            dotfile_manager = configs.stow({
+            dotfiles = {
+                enabled = true,
                 source_dir = "~/.dotfiles",
-                target_dir = "~/",
+                deploy_tool = "stow",
                 repo_url = "https://github.com/abuss/dotconfig.git",
-            }),
+            },
 
             programs = {
                 git = {
@@ -167,13 +171,10 @@ return {
     },
 
     desktop = {
-        -- display_manager = "gdm",
-        -- display_manager = "sddm",
-        -- display_manager = "lightdm",
-        desktop_manager = {
+        display_manager = "gdm",
+        environments = {
             gnome = {
                 enable = use_gnome,
-                display_manager = "gdm",
                 exclude_packages = {
                     "gnome-tour", "yelp"
                 },
@@ -195,7 +196,6 @@ return {
 
             plasma = {
                 enable = use_plasma,
-                display_manager = "sddm",
                 extra_packages = {
                     "kde-applications",
                     -- "aur:plasma5-themes-whitesur-git",
@@ -208,7 +208,6 @@ return {
 
             pantheon = {
                 enable = use_pantheon,
-                display_manager = "lightdm",
             },
         }
     },
