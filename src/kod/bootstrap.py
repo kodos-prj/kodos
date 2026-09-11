@@ -49,7 +49,7 @@ def _lua_table_to_dict(lua_table):
 
 
 def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro: str = "arch") -> List[Step]:
-    """Emit bootstrap steps via Lua module.
+    """Emit bootstrap steps via Lua module (using persistent runtime).
     
     Args:
         conf: Configuration object (dict, Lua table, or object with __dict__)
@@ -63,16 +63,16 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
         FileNotFoundError: If Lua module not found
         RuntimeError: If Lua module fails to load or execute
     """
-    from lupa import LuaRuntime
+    from kod.lua_runtime import get_lua_runtime
     
-    # Always create a fresh Lua runtime to avoid runtime mixing issues
-    lua = LuaRuntime()
+    # Get persistent Lua runtime (singleton) - avoids "cannot mix objects from different Lua runtimes"
+    lua = get_lua_runtime()
     
-    # Convert conf to dict first if it's a Lua table
-    if hasattr(conf, "keys"):  # It's a Lua table
+    # CRITICAL: Convert conf to pure Python FIRST to remove any Lua objects from previous runtimes
+    if hasattr(conf, "keys"):  # It's a Lua table (from any runtime)
         conf = _lua_table_to_dict(conf)
     
-    # Convert conf to Lua table in our runtime
+    # Now convert to Lua table in OUR persistent runtime
     if hasattr(conf, "__dict__"):
         conf_lua = _convert_to_lua_table(lua, vars(conf))
     elif isinstance(conf, dict):
