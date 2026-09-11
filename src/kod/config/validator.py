@@ -10,10 +10,35 @@ Phase 3 additions:
 """
 
 from difflib import get_close_matches
-from typing import List, Optional
+from typing import List, Optional, Dict
 
-from kod.config.schema import SCHEMA
+from kod.config.schema import SCHEMA, SECTION_HELP
 from kod.exceptions import ValidationError
+
+
+def _lookup_field_help(section_key: str, field_path: List[str]) -> Optional[Dict]:
+    """Look up help for a nested field path: ["boot", "kernel", "package"].
+    
+    Args:
+        section_key: Top-level section name (e.g., "boot")
+        field_path: List of nested field names to follow
+    
+    Returns:
+        Dict with field help info, or None if path not found
+    """
+    help_entry = SECTION_HELP.get(section_key)
+    if not help_entry:
+        return None
+    
+    current = help_entry
+    for field_name in field_path:
+        if "fields" not in current:
+            return None
+        current = current["fields"].get(field_name)
+        if not current:
+            return None
+    
+    return current
 
 
 def _suggest(key: str) -> Optional[str]:
@@ -21,6 +46,41 @@ def _suggest(key: str) -> Optional[str]:
     if match:
         return f"Did you mean '{match[0]}'?"
     return None
+
+
+def _format_error_with_help(base_message: str, section_key: str, help_info: Optional[Dict] = None) -> str:
+    """Format an error message with help text from SECTION_HELP.
+    
+    Args:
+        base_message: The base error message
+        section_key: Top-level section name
+        help_info: Optional help dict from SECTION_HELP or _lookup_field_help()
+    
+    Returns:
+        Formatted error message with help text
+    """
+    if not help_info:
+        help_info = SECTION_HELP.get(section_key, {})
+    
+    lines = [base_message]
+    
+    # Add error_help if available
+    if "error_help" in help_info:
+        lines.append("")
+        lines.append(f"  {help_info['error_help']}")
+    # Otherwise add description
+    elif "description" in help_info:
+        lines.append("")
+        lines.append(f"  {help_info['description']}")
+    
+    # Add example if available
+    if "example" in help_info:
+        lines.append("")
+        lines.append("  Example:")
+        for ex_line in help_info["example"].split("\n"):
+            lines.append(f"    {ex_line}")
+    
+    return "\n".join(lines)
 
 
 def _type_ok(value, expected) -> bool:
@@ -199,6 +259,102 @@ def _validate_programs_section(programs: dict, location: str = "system") -> List
     return errors
 
 
+def _validate_nested_fields(config: dict) -> List[ValidationError]:
+    """Validate nested field types (best-effort, optional fields only).
+    
+    Checks known nested fields like boot.kernel, locale.timezone, etc.
+    Does NOT validate enum values or dependent fields.
+    Unknown fields are silently ignored (not errors).
+    
+    Args:
+        config: The config dict
+    
+    Returns:
+        List of ValidationError objects for nested field type mismatches
+    """
+    errors: List[ValidationError] = []
+    
+    # Define nested field type checks: (section_key, [field_path], expected_type)
+    nested_checks = [
+        ("boot", ["kernel"], dict),
+        ("boot", ["kernel", "modules"], list),
+        ("boot", ["loader"], dict),
+        ("hardware", ["pipewire"], dict),
+        ("hardware", ["pipewire", "enable"], bool),
+        ("hardware", ["pipewire", "extra_packages"], list),
+        ("locale", ["locale"], dict),
+        ("locale", ["timezone"], str),
+        ("locale", ["keymap"], str),
+        ("network", ["hostname"], str),
+        ("network", ["ipv6"], bool),
+        ("services", None, dict),  # Services dict itself must be dict
+        ("users", None, dict),  # Users dict itself must be dict
+    ]
+    
+    for check in nested_checks:
+        section_key = check[0]
+        field_path = check[1]
+        expected_type = check[2]
+        
+        # Skip if section not in config
+        try:
+            has_section = section_key in config
+        except TypeError:
+            # LuaTable or similar; try get instead
+            try:
+                section_value = config.get(section_key) if hasattr(config, 'get') else None
+                has_section = section_value is not None
+            except (AttributeError, TypeError):
+                continue
+        
+        if not has_section:
+            continue
+        
+        section_value = config[section_key]
+        
+        # If field_path is None, we already checked the section type
+        if field_path is None:
+            continue
+        
+        # Navigate to the nested field
+        current = section_value
+        try:
+            for i, field_name in enumerate(field_path):
+                if isinstance(current, dict):
+                    current = current.get(field_name)
+                else:
+                    # Can't navigate further, skip this check
+                    current = None
+                    break
+                
+                if current is None:
+                    # Field not present, that's ok (optional)
+                    break
+        except (AttributeError, TypeError):
+            # Not a dict-like object, skip
+            continue
+        
+        # If we found the field, validate its type
+        if current is not None and not _type_ok(current, expected_type):
+            kind = "list" if expected_type is list else "dict" if expected_type is dict else expected_type.__name__
+            field_path_str = ".".join(field_path)
+            location = f"{section_key}.{field_path_str}"
+            
+            # Try to get help for this nested field
+            help_info = _lookup_field_help(section_key, field_path)
+            if help_info:
+                message = _format_error_with_help(
+                    f"Option '{location}' must be a {kind}, got {type(current).__name__}",
+                    section_key,
+                    help_info
+                )
+            else:
+                message = f"Option '{location}' must be a {kind}, got {type(current).__name__}"
+            
+            errors.append(ValidationError(message, location=location))
+    
+    return errors
+
 
 def validate_config(config: dict) -> List[ValidationError]:
     errors: List[ValidationError] = []
@@ -213,12 +369,11 @@ def validate_config(config: dict) -> List[ValidationError]:
         expected = SCHEMA[key]
         if not _type_ok(value, expected):
             kind = "list" if expected is list else "table"
+            base_message = f"Option '{key}' must be a {kind}, got {type(value).__name__}"
+            # Use new formatting with help info
+            message = _format_error_with_help(base_message, key)
             errors.append(
-                ValidationError(
-                    f"Option '{key}' must be a {kind}, "
-                    f"got {type(value).__name__}",
-                    location=key,
-                )
+                ValidationError(message, location=key)
             )
     
     # Phase 3: Validate programs section if present
@@ -231,5 +386,8 @@ def validate_config(config: dict) -> List[ValidationError]:
     
     if has_programs:
         errors.extend(_validate_programs_section(config["programs"]))
+    
+    # Phase 5b: Validate nested fields (best-effort)
+    errors.extend(_validate_nested_fields(config))
     
     return errors

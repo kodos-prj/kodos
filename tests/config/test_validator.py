@@ -251,3 +251,115 @@ def test_validator_service_with_optional_fields():
     
     error = _validate_program_service(program, "system")
     assert error is None
+
+
+# ===== Phase 5b: Error Messages with Help Info =====
+
+
+def test_type_error_includes_error_help():
+    """Type errors include error_help from SECTION_HELP."""
+    config = {"packages": {"vim": True}}  # Wrong type (dict instead of list)
+    errors = validate_config(config)
+    assert len(errors) > 0
+    error_msg = str(errors[0])
+    # Should include the error_help message from SECTION_HELP
+    assert "Must be a list" in error_msg
+
+
+def test_type_error_includes_description_when_no_error_help():
+    """Type errors include description when error_help is not present."""
+    config = {"boot": ["linux"]}  # Wrong type (list instead of dict)
+    errors = validate_config(config)
+    assert len(errors) > 0
+    error_msg = str(errors[0])
+    # Should include description
+    assert "Kernel and bootloader" in error_msg or "kernel" in error_msg.lower()
+
+
+def test_type_error_includes_example():
+    """Type errors include examples from SECTION_HELP."""
+    config = {"packages": {"vim": True}}
+    errors = validate_config(config)
+    assert len(errors) > 0
+    error_msg = str(errors[0])
+    # Should include Example
+    assert "Example" in error_msg or "example" in error_msg.lower()
+
+
+def test_nested_field_validation_boot_kernel():
+    """Boot kernel is validated as dict."""
+    config = {"boot": {"kernel": ["linux"]}}  # Wrong type
+    errors = validate_config(config)
+    # Should have an error for boot.kernel
+    nested_errors = [e for e in errors if "boot.kernel" in str(e)]
+    assert len(nested_errors) > 0
+
+
+def test_nested_field_validation_boot_kernel_modules():
+    """Boot kernel modules is validated as list."""
+    config = {"boot": {"kernel": {"modules": "xhci_pci"}}}  # Wrong type (string instead of list)
+    errors = validate_config(config)
+    nested_errors = [e for e in errors if "boot.kernel.modules" in str(e)]
+    assert len(nested_errors) > 0
+
+
+def test_nested_field_validation_locale_timezone():
+    """Locale timezone is validated as string."""
+    config = {"locale": {"timezone": 123}}  # Wrong type (number instead of string)
+    errors = validate_config(config)
+    nested_errors = [e for e in errors if "locale.timezone" in str(e)]
+    assert len(nested_errors) > 0
+
+
+def test_nested_field_validation_network_ipv6():
+    """Network ipv6 is validated as boolean."""
+    config = {"network": {"ipv6": "yes"}}  # Wrong type (string instead of boolean)
+    errors = validate_config(config)
+    nested_errors = [e for e in errors if "network.ipv6" in str(e)]
+    assert len(nested_errors) > 0
+
+
+def test_nested_field_validation_hardware_pipewire_enable():
+    """Hardware pipewire enable is validated as boolean."""
+    config = {"hardware": {"pipewire": {"enable": "on"}}}  # Wrong type
+    errors = validate_config(config)
+    nested_errors = [e for e in errors if "hardware.pipewire.enable" in str(e)]
+    assert len(nested_errors) > 0
+
+
+def test_nested_field_validation_optional_fields_not_required():
+    """Optional nested fields don't need to be present."""
+    config = {"boot": {}}  # Empty boot section is OK
+    errors = validate_config(config)
+    assert len(errors) == 0
+
+
+def test_nested_field_validation_unknown_fields_ignored():
+    """Unknown nested fields are silently ignored."""
+    config = {"boot": {"kernel": {"unknown_field": "value"}}}
+    errors = validate_config(config)
+    # Should not error on unknown_field
+    assert len(errors) == 0
+
+
+def test_backward_compatibility_valid_configs():
+    """Existing valid configs still validate."""
+    config = {
+        "base_distribution": "arch",
+        "packages": ["vim", "git"],
+        "boot": {
+            "kernel": {
+                "package": "linux-lts",
+                "modules": ["xhci_pci", "virtio_blk"],
+            },
+            "loader": {
+                "type": "systemd-boot",
+                "timeout": 10,
+            },
+        },
+        "locale": {
+            "timezone": "America/New_York",
+        },
+    }
+    errors = validate_config(config)
+    assert errors == []
