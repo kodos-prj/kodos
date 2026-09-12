@@ -92,11 +92,13 @@ local module = {
                      on_distro = "arch",
                  })
                  
-                 -- Configure timeout
+                 -- Configure timeout and default entry
+                 -- Writes loader.conf with default entry and timeout (console-mode keep)
+                 local entry_file = "kodos-0.conf"
                  table.insert(steps, {
                      name = "boot_loader_timeout",
                      description = "Set boot timeout to " .. timeout .. " seconds",
-                     command = "echo \"timeout " .. timeout .. "\" > /boot/loader/loader.conf",
+                     command = "echo \"default " .. entry_file .. "\" > /boot/loader/loader.conf && echo \"timeout " .. timeout .. "\" >> /boot/loader/loader.conf && echo \"console-mode keep\" >> /boot/loader/loader.conf",
                      chroot = true,
                      order = 211,
                      on_distro = "arch",
@@ -105,21 +107,28 @@ local module = {
                  
                  -- Create main boot entry for current generation
                  -- systemd-boot looks for .conf files in /boot/loader/entries/
+                 -- IMPORTANT: Use double quotes only - executor wraps chroot commands
+                 -- in single quotes (chroot /mnt sh -c '...'), so internal single
+                 -- quotes would break the shell command.
                  if config.kernel then
                      local kernel_pkg = config.kernel.package or "linux"
-                     -- Convert kernel package name to initramfs name (linux-lts → linux-lts, linux → linux)
-                     local kernel_name = kernel_pkg:match("^linux(.*)") or "linux"
-                     local initramfs_name = "initramfs-linux" .. kernel_name .. ".img"
-                     local vmlinuz_name = "vmlinuz-linux" .. kernel_name
+                     -- mkinitcpio names initramfs by kernel package: linux-lts → initramfs-linux-lts.img
+                     local kernel_suffix = kernel_pkg:match("^linux(.*)") or ""
+                     local initramfs_name = "initramfs-linux" .. kernel_suffix .. ".img"
+                     local vmlinuz_name = "vmlinuz-linux" .. kernel_suffix
                      
-                     -- Create boot entry that references the current generation's root filesystem
-                     -- Use printf to avoid shell escaping issues with echo -e
-                     local boot_entry_cmd = "mkdir -p /boot/loader/entries && printf '%s\\n%s\\n%s\\n%s\\n' " ..
-                                           "'title Kodos (Generation 0)' " ..
-                                           "'linux /" .. vmlinuz_name .. "' " ..
-                                           "'initrd /" .. initramfs_name .. "' " ..
-                                           "'options root=/dev/vda3 rw rootflags=subvol=generations/0/rootfs' " ..
-                                           "> /boot/loader/entries/kodos-0.conf"
+                     -- Write entry with multiple echo commands (avoids single quotes)
+                     -- Uses UUID lookup for root device (matches fstab, robust across device reordering)
+                     -- title Kodos (Generation 0)
+                     -- linux /vmlinuz-linux-lts
+                     -- initrd /initramfs-linux-lts.img
+                     -- options root=UUID=... rw rootflags=subvol=generations/0/rootfs
+                     local boot_entry_cmd = "mkdir -p /boot/loader/entries && " ..
+                                            "echo \"title Kodos (Generation 0)\" > /boot/loader/entries/" .. entry_file .. " && " ..
+                                            "echo \"linux /" .. vmlinuz_name .. "\" >> /boot/loader/entries/" .. entry_file .. " && " ..
+                                            "echo \"initrd /" .. initramfs_name .. "\" >> /boot/loader/entries/" .. entry_file .. " && " ..
+                                            "ROOT_UUID=$(lsblk -no UUID /dev/vda3) && " ..
+                                            "echo \"options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs\" >> /boot/loader/entries/" .. entry_file
                      
                      table.insert(steps, {
                          name = "boot_loader_create_entry_generation_0",
