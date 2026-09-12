@@ -58,7 +58,7 @@
 056 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
 057 [system] programs_install_openssh: pacman -S --noconfirm openssh
 058 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
-059 [system] programs_service_enable_cups: systemctl enable cupsd
+059 [system] programs_service_enable_cups: systemctl enable cups
 060 [system] programs_service_enable_fwupd: systemctl enable fwupd
 061 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
 062 [system] programs_service_enable_openssh: systemctl enable sshd

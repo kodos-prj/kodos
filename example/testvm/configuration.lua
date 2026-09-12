@@ -329,7 +329,8 @@ return {
             package = "cups",
             service = {
                 enable = true,
-                service_name = "cupsd",
+                -- unit is cups.service (cupsd is the daemon binary name)
+                service_name = "cups",
             },
             extra_packages = { "gutenprint", "aur:brother-dcp-l2550dw" },
         },

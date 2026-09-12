@@ -55,17 +55,20 @@ local module = {
                     -- Enable the program's service if configured (service.enable).
                     -- per_user services are skipped: user units can't be enabled from a
                     -- chroot, and the system unit may not exist (e.g. syncthing).
+                    -- The unit name defaults to the program name (original Python
+                    -- behavior); service_name overrides it when the unit differs
+                    -- (e.g. openssh -> sshd).
                     local svc = program_config.service
-                    if type(svc) == "table" and svc.enable == true and svc.service_name
-                        and svc.per_user ~= true then
+                    if type(svc) == "table" and svc.enable == true and svc.per_user ~= true then
+                        local unit = svc.service_name or program_name
                         local deps = nil
                         if program_config.package then
                             deps = {"programs_install_" .. program_name}
                         end
                         table.insert(steps, {
                             name = "programs_service_enable_" .. program_name,
-                            description = "Enable service for program " .. program_name .. ": " .. svc.service_name,
-                            command = "systemctl enable " .. svc.service_name,
+                            description = "Enable service for program " .. program_name .. ": " .. unit,
+                            command = "systemctl enable " .. unit,
                             chroot = true,
                             order = 810,
                             depends_on = deps,
