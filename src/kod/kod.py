@@ -66,7 +66,7 @@ from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
-from kod.config.schema import SCHEMA, SECTION_HELP
+from kod.config.schema import SECTION_HELP
 from kod.filesystem import create_partitions, get_partition_devices
 from kod.cli import registry_group
 

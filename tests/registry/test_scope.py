@@ -205,6 +205,7 @@ class TestValidatorScope:
         """Validator rejects system-only program at user level when scope validation is implemented."""
         # This test documents desired behavior: system-only program shouldn't be allowed at user level
         config = {
+            "base_distribution": "arch",
             "users": {
                 "alice": {
                     "name": "Alice",

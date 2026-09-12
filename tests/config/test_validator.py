@@ -6,17 +6,18 @@ from unittest.mock import Mock, MagicMock
 
 
 def test_valid_minimal_config_passes():
-    errors = validate_config({"packages": ["git", "htop"]})
+    errors = validate_config({"base_distribution": "arch", "packages": ["git", "htop"]})
     assert errors == []
 
 
-def test_empty_config_passes():
+def test_empty_config_requires_base_distribution():
     errors = validate_config({})
-    assert errors == []
+    assert len(errors) == 1
+    assert "base_distribution" in str(errors[0])
 
 
 def test_unknown_top_level_key_is_flagged_with_suggestion():
-    errors = validate_config({"packges": ["git"]})  # typo of "packages"
+    errors = validate_config({"base_distribution": "arch", "packges": ["git"]})  # typo of "packages"
     assert len(errors) == 1
     message = str(errors[0])
     assert "packges" in message
@@ -24,13 +25,13 @@ def test_unknown_top_level_key_is_flagged_with_suggestion():
 
 
 def test_wrong_type_is_flagged():
-    errors = validate_config({"packages": "git"})  # should be a list
+    errors = validate_config({"base_distribution": "arch", "packages": "git"})  # should be a list
     assert len(errors) == 1
     assert "packages" in str(errors[0])
 
 
 def test_multiple_errors_all_reported():
-    errors = validate_config({"packges": ["git"], "servics": {}})
+    errors = validate_config({"base_distribution": "arch", "packges": ["git"], "servics": {}})
     assert len(errors) == 2
 
 
@@ -46,21 +47,27 @@ class FakeLuaTable:
     def items(self):
         return self._data.items()
 
+    def __contains__(self, key):
+        return key in self._data
+
+    def __getitem__(self, key):
+        return self._data[key]
+
 
 def test_lua_table_array_passes_for_list_option():
-    config = {"packages": FakeLuaTable({1: "git", 2: "htop"})}
+    config = {"base_distribution": "arch", "packages": FakeLuaTable({1: "git", 2: "htop"})}
     errors = validate_config(config)
     assert errors == []
 
 
 def test_lua_table_hash_fails_for_list_option():
-    config = {"packages": FakeLuaTable({"foo": "bar"})}
+    config = {"base_distribution": "arch", "packages": FakeLuaTable({"foo": "bar"})}
     errors = validate_config(config)
     assert len(errors) == 1
 
 
 def test_lua_table_top_level_keys_checked():
-    config = FakeLuaTable({"packges": {}})
+    config = FakeLuaTable({"base_distribution": "arch", "packges": {}})
     errors = validate_config(config)
     assert len(errors) == 1
 
@@ -256,19 +263,20 @@ def test_validator_service_with_optional_fields():
 # ===== Phase 5b: Error Messages with Help Info =====
 
 
-def test_type_error_includes_error_help():
-    """Type errors include error_help from SECTION_HELP."""
-    config = {"packages": {"vim": True}}  # Wrong type (dict instead of list)
+def test_type_error_includes_description():
+    """Type errors include the field description from the Lua schema."""
+    config = {"base_distribution": "arch", "packages": {"vim": True}}  # Wrong type (dict instead of list)
     errors = validate_config(config)
     assert len(errors) > 0
     error_msg = str(errors[0])
-    # Should include the error_help message from SECTION_HELP
-    assert "Must be a list" in error_msg
+    assert "must be list" in error_msg
+    # Should include the description from the Lua schema
+    assert "List of system packages" in error_msg
 
 
-def test_type_error_includes_description_when_no_error_help():
-    """Type errors include description when error_help is not present."""
-    config = {"boot": ["linux"]}  # Wrong type (list instead of dict)
+def test_type_error_includes_description_for_boot():
+    """Type errors include the boot section description."""
+    config = {"base_distribution": "arch", "boot": ["linux"]}  # Wrong type (list instead of dict)
     errors = validate_config(config)
     assert len(errors) > 0
     error_msg = str(errors[0])
@@ -276,19 +284,9 @@ def test_type_error_includes_description_when_no_error_help():
     assert "Kernel and bootloader" in error_msg or "kernel" in error_msg.lower()
 
 
-def test_type_error_includes_example():
-    """Type errors include examples from SECTION_HELP."""
-    config = {"packages": {"vim": True}}
-    errors = validate_config(config)
-    assert len(errors) > 0
-    error_msg = str(errors[0])
-    # Should include Example
-    assert "Example" in error_msg or "example" in error_msg.lower()
-
-
 def test_nested_field_validation_boot_kernel():
     """Boot kernel is validated as dict."""
-    config = {"boot": {"kernel": ["linux"]}}  # Wrong type
+    config = {"base_distribution": "arch", "boot": {"kernel": ["linux"]}}  # Wrong type
     errors = validate_config(config)
     # Should have an error for boot.kernel
     nested_errors = [e for e in errors if "boot.kernel" in str(e)]
@@ -329,14 +327,14 @@ def test_nested_field_validation_hardware_pipewire_enable():
 
 def test_nested_field_validation_optional_fields_not_required():
     """Optional nested fields don't need to be present."""
-    config = {"boot": {}}  # Empty boot section is OK
+    config = {"base_distribution": "arch", "boot": {}}  # Empty boot section is OK
     errors = validate_config(config)
     assert len(errors) == 0
 
 
 def test_nested_field_validation_unknown_fields_ignored():
     """Unknown nested fields are silently ignored."""
-    config = {"boot": {"kernel": {"unknown_field": "value"}}}
+    config = {"base_distribution": "arch", "boot": {"kernel": {"unknown_field": "value"}}}
     errors = validate_config(config)
     # Should not error on unknown_field
     assert len(errors) == 0

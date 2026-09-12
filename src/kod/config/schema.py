@@ -194,8 +194,12 @@ SECTION_HELP = {
         "required": False,
         "example": '''users = {
     alice = {
-        shell = "/bin/bash",
-        groups = {"wheel"},
+        identity = {
+            name = "Alice",
+            password = "secret",  -- or hashed_password
+            shell = "/bin/bash",
+            groups = {"wheel"},
+        },
         home_programs = {neovim = true},
     },
 }''',
@@ -205,17 +209,39 @@ SECTION_HELP = {
                 "type": "dict",
                 "required": False,
                 "fields": {
-                    "shell": {
-                        "description": "Login shell (e.g., '/bin/bash', '/bin/fish').",
-                        "type": "string",
+                    "identity": {
+                        "description": "Identity block. Shell, groups and password live HERE, not at the user top level (top-level groups are ignored).",
+                        "type": "dict",
                         "required": False,
-                        "default": "/bin/bash",
-                    },
-                    "groups": {
-                        "description": "Groups to add user to (e.g., 'wheel', 'sudo').",
-                        "type": "list",
-                        "required": False,
-                        "example": '{"wheel", "docker"}',
+                        "fields": {
+                            "name": {
+                                "description": "User's full name (GECOS field).",
+                                "type": "string",
+                                "required": False,
+                            },
+                            "password": {
+                                "description": "Plaintext password.",
+                                "type": "string",
+                                "required": False,
+                            },
+                            "hashed_password": {
+                                "description": "Password hash (bcrypt, argon2, or sha512).",
+                                "type": "string",
+                                "required": False,
+                            },
+                            "shell": {
+                                "description": "Login shell (e.g., '/bin/bash', '/bin/fish').",
+                                "type": "string",
+                                "required": False,
+                                "default": "/bin/bash",
+                            },
+                            "groups": {
+                                "description": "Groups to add user to (e.g., 'wheel', 'sudo').",
+                                "type": "list",
+                                "required": False,
+                                "example": '{"wheel", "docker"}',
+                            },
+                        },
                     },
                     "home_programs": {
                         "description": "User-scoped programs to install (key = program name, value = config).",

@@ -228,14 +228,17 @@ class TestFieldPathLookup:
         assert "description" in default_field
     
     def test_users_username_shell_lookup(self):
-        """Verify users.USERNAME.shell path resolves correctly."""
+        """Verify users.USERNAME.identity.shell path resolves correctly."""
         users_help = SECTION_HELP["users"]
         assert "fields" in users_help
-        
+
         username_field = users_help["fields"].get("USERNAME")
         assert username_field is not None
-        
-        shell_field = username_field.get("fields", {}).get("shell")
+
+        identity_field = username_field.get("fields", {}).get("identity")
+        assert identity_field is not None
+
+        shell_field = identity_field.get("fields", {}).get("shell")
         assert shell_field is not None
         assert "description" in shell_field
 
@@ -360,13 +363,15 @@ class TestSpecificSections:
         assert "extra_packages" in pipewire_fields
     
     def test_users_section_complete(self):
-        """Verify users section has USERNAME placeholder."""
+        """Verify users section has USERNAME placeholder with identity block."""
         users_help = SECTION_HELP["users"]
         assert "USERNAME" in users_help["fields"]
-        
+
         username_fields = users_help["fields"]["USERNAME"]["fields"]
-        assert "shell" in username_fields
-        assert "groups" in username_fields
+        assert "identity" in username_fields
+        identity_fields = username_fields["identity"]["fields"]
+        assert "shell" in identity_fields
+        assert "groups" in identity_fields
         assert "home_programs" in username_fields
 
 

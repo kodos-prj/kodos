@@ -13,116 +13,95 @@ Phase 5c additions:
 - Python validator reads Lua schema (not duplicate SECTION_HELP)
 """
 
-import logging
 from difflib import get_close_matches
 from typing import List, Optional, Dict
 
-from kod.config.schema import SCHEMA, SECTION_HELP
 from kod.exceptions import ValidationError
-
-logger = logging.getLogger(__name__)
 
 # Lazy-loaded Lua schema (cached)
 _lua_schema_cache = None
 
 
-def _get_lua_schema() -> Optional[Dict]:
-    """Load Lua schema and cache it.
-    
-    Returns:
-        Dict with Lua schema, or None if Lua unavailable.
-        On first call, loads and caches the schema.
+def _get_lua_schema() -> Dict:
+    """Load the Lua schema (single source of truth) and cache it.
+
+    Raises:
+        RuntimeError: if the Lua runtime cannot be loaded; validation
+            cannot proceed without the schema.
     """
     global _lua_schema_cache
-    
+
     if _lua_schema_cache is not None:
         return _lua_schema_cache
-    
+
     try:
+        import os
         from kod.lua_runtime import get_lua_runtime
-        
+
         lua = get_lua_runtime()
-        schema_module = lua.require('kod.lib.schema')
-        
-        # Convert Lua schema to Python dict
-        schema = {}
-        for section_name in [
-            'base_distribution', 'repos', 'devices', 'boot', 'hardware',
-            'locale', 'network', 'users', 'desktop', 'fonts',
-            'packages', 'services', 'programs'
-        ]:
-            section_def = schema_module[section_name]
-            schema[section_name] = _lua_table_to_dict(section_def)
-        
-        _lua_schema_cache = schema
-        return schema
-    
+        # src/ dir (validator lives in src/kod/config/)
+        base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        lua.execute(f"package.path = '{base_path}/?.lua;{base_path}/?/init.lua;' .. package.path")
+        result = lua.require('kod.lib.schema')
+        schema_module = result[0] if isinstance(result, tuple) else result
     except Exception as e:
-        logger.warning(f"Failed to load Lua schema: {e}. Using fallback SECTION_HELP.")
-        return None
+        raise RuntimeError(f"Failed to load Lua schema (kod.lib.schema): {e}") from e
+
+    # Convert Lua schema to Python dict
+    schema = {}
+    for section_name in [
+        'base_distribution', 'repos', 'devices', 'boot', 'hardware',
+        'locale', 'network', 'users', 'desktop', 'fonts',
+        'packages', 'services', 'programs'
+    ]:
+        section_def = schema_module[section_name]
+        schema[section_name] = _lua_table_to_dict(section_def)
+
+    _lua_schema_cache = schema
+    return schema
 
 
 def _lua_table_to_dict(lua_table) -> Dict:
-    """Convert Lua table to Python dict recursively.
-    
+    """Convert a Lua table to plain Python dict/list recursively.
+
+    Array tables (int keys 1..n) become lists, hash tables become dicts.
+    Non-table values (str, int, bool, ...) pass through unchanged.
+
     Args:
-        lua_table: Lua table from lupa
-        
+        lua_table: Lua table from lupa (or an already-converted value)
+
     Returns:
         Python dict/list representation
     """
-    if lua_table is None:
-        return None
-    
-    if not isinstance(lua_table, dict):
+    if lua_table is None or isinstance(lua_table, (str, int, float, bool)):
         return lua_table
-    
-    result = {}
+
     try:
-        for key, value in lua_table.items():
-            if isinstance(value, dict):
-                result[key] = _lua_table_to_dict(value)
-            elif isinstance(value, (list, tuple)):
-                result[key] = [_lua_table_to_dict(v) if isinstance(v, dict) else v for v in value]
-            else:
-                result[key] = value
+        items = list(lua_table.items())
     except (AttributeError, TypeError):
-        # Not a dict-like object, return as-is
+        # Not a mapping (e.g. Python list), return as-is
         return lua_table
-    
-    return result
+
+    keys = [key for key, _ in items]
+    if keys and all(isinstance(key, int) and not isinstance(key, bool) for key in keys):
+        return [_lua_table_to_dict(value) for _, value in sorted(items)]
+    return {key: _lua_table_to_dict(value) for key, value in items}
 
 
 def _lookup_field_help(section_key: str, field_path: List[str]) -> Optional[Dict]:
     """Look up help for a nested field path: ["boot", "kernel", "package"].
-    
-    First tries Lua schema (Phase 5c), then falls back to SECTION_HELP (Phase 5b).
-    
+
     Args:
         section_key: Top-level section name (e.g., "boot")
         field_path: List of nested field names to follow
-    
+
     Returns:
         Dict with field help info, or None if path not found
     """
-    # Try Lua schema first (Phase 5c)
-    lua_schema = _get_lua_schema()
-    if lua_schema and section_key in lua_schema:
-        help_entry = lua_schema[section_key]
-        current = help_entry
-        for field_name in field_path:
-            if "fields" not in current:
-                return None
-            current = current["fields"].get(field_name)
-            if not current:
-                return None
-        return current
-    
-    # Fallback to SECTION_HELP (Phase 5b)
-    help_entry = SECTION_HELP.get(section_key)
+    help_entry = _get_lua_schema().get(section_key)
     if not help_entry:
         return None
-    
+
     current = help_entry
     for field_name in field_path:
         if "fields" not in current:
@@ -130,14 +109,12 @@ def _lookup_field_help(section_key: str, field_path: List[str]) -> Optional[Dict
         current = current["fields"].get(field_name)
         if not current:
             return None
-    
+
     return current
 
 
 def _suggest(key: str) -> Optional[str]:
-    # Use Lua schema if available, otherwise SCHEMA
-    lua_schema = _get_lua_schema()
-    available_keys = list(lua_schema.keys()) if lua_schema else list(SCHEMA.keys())
+    available_keys = list(_get_lua_schema().keys())
     match = get_close_matches(key, available_keys, n=1)
     if match:
         return f"Did you mean '{match[0]}'?"
@@ -161,12 +138,9 @@ def _validate_against_lua_schema(config: dict) -> List[ValidationError]:
         List of ValidationError objects
     """
     errors: List[ValidationError] = []
-    
+
     lua_schema = _get_lua_schema()
-    if not lua_schema:
-        # Lua unavailable, skip Lua schema validation
-        return errors
-    
+
     # Check required fields
     if 'base_distribution' not in config:
         errors.append(
@@ -175,7 +149,16 @@ def _validate_against_lua_schema(config: dict) -> List[ValidationError]:
                 location='base_distribution'
             )
         )
-    
+
+    # Unknown top-level options
+    for key, _ in config.items():
+        if key not in lua_schema:
+            suggestion = _suggest(key)
+            message = f"Unknown option '{key}'"
+            if suggestion:
+                message += f". {suggestion}"
+            errors.append(ValidationError(message, location=key))
+
     # Validate each section
     for section_name, section_schema in lua_schema.items():
         if section_name not in config:
@@ -211,57 +194,42 @@ def _validate_section_recursive(
         List of ValidationError objects
     """
     errors: List[ValidationError] = []
-    
+
+    description = schema_def.get('description')
+
+    def _append(message: str):
+        if description:
+            message = f"{message}\n\n  {description}"
+        errors.append(ValidationError(message, location=path))
+
     if value is None:
         # Optional field can be None
         if schema_def.get('required'):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' is required.",
-                    location=path
-                )
-            )
+            _append(f"Option '{path}' is required.")
         return errors
-    
+
     # Type validation
     schema_type = schema_def.get('type')
     if schema_type == 'string':
         if not isinstance(value, str):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be string, got {type(value).__name__}",
-                    location=path
-                )
-            )
+            _append(f"Option '{path}' must be string, got {type(value).__name__}")
     elif schema_type == 'number':
         if not isinstance(value, (int, float)):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be number, got {type(value).__name__}",
-                    location=path
-                )
-            )
+            _append(f"Option '{path}' must be number, got {type(value).__name__}")
     elif schema_type == 'boolean':
         if not isinstance(value, bool):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be boolean, got {type(value).__name__}",
-                    location=path
-                )
-            )
+            _append(f"Option '{path}' must be boolean, got {type(value).__name__}")
     elif schema_type == 'dict':
         if not _type_ok(value, dict):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be dict, got {type(value).__name__}",
-                    location=path
-                )
-            )
+            _append(f"Option '{path}' must be dict, got {type(value).__name__}")
         else:
-            # Validate nested fields
+            # Validate nested fields (dict or LuaTable)
             if 'fields' in schema_def:
                 for nested_field_name, nested_schema in schema_def['fields'].items():
-                    nested_value = value.get(nested_field_name) if isinstance(value, dict) else None
+                    try:
+                        nested_value = value.get(nested_field_name)
+                    except (AttributeError, TypeError):
+                        nested_value = None
                     nested_path = f"{path}.{nested_field_name}"
                     nested_errors = _validate_section_recursive(
                         nested_field_name,
@@ -272,59 +240,30 @@ def _validate_section_recursive(
                     errors.extend(nested_errors)
     elif schema_type == 'list':
         if not _type_ok(value, list):
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be list, got {type(value).__name__}",
-                    location=path
-                )
-            )
-    
+            _append(f"Option '{path}' must be list, got {type(value).__name__}")
+
     # Enum validation
     if schema_def.get('enum') and value is not None:
         if value not in schema_def['enum']:
-            errors.append(
-                ValidationError(
-                    f"Option '{path}' must be one of {schema_def['enum']}, got {value}",
-                    location=path
-                )
-            )
-    
+            _append(f"Option '{path}' must be one of {schema_def['enum']}, got {value}")
+
     return errors
 
 
-def _format_error_with_help(base_message: str, section_key: str, help_info: Optional[Dict] = None) -> str:
-    """Format an error message with help text from SECTION_HELP.
-    
+def _format_error_with_help(base_message: str, help_info: Optional[Dict] = None) -> str:
+    """Format an error message with the field's description from the Lua schema.
+
     Args:
         base_message: The base error message
-        section_key: Top-level section name
-        help_info: Optional help dict from SECTION_HELP or _lookup_field_help()
-    
+        help_info: Optional help dict from _lookup_field_help()
+
     Returns:
         Formatted error message with help text
     """
-    if not help_info:
-        help_info = SECTION_HELP.get(section_key, {})
-    
-    lines = [base_message]
-    
-    # Add error_help if available
-    if "error_help" in help_info:
-        lines.append("")
-        lines.append(f"  {help_info['error_help']}")
-    # Otherwise add description
-    elif "description" in help_info:
-        lines.append("")
-        lines.append(f"  {help_info['description']}")
-    
-    # Add example if available
-    if "example" in help_info:
-        lines.append("")
-        lines.append("  Example:")
-        for ex_line in help_info["example"].split("\n"):
-            lines.append(f"    {ex_line}")
-    
-    return "\n".join(lines)
+    if not help_info or "description" not in help_info:
+        return base_message
+
+    return f"{base_message}\n\n  {help_info['description']}"
 
 
 def _type_ok(value, expected) -> bool:
@@ -677,14 +616,10 @@ def _validate_nested_fields(config: dict) -> List[ValidationError]:
             
             # Try to get help for this nested field
             help_info = _lookup_field_help(section_key, field_path)
-            if help_info:
-                message = _format_error_with_help(
-                    f"Option '{location}' must be a {kind}, got {type(current).__name__}",
-                    section_key,
-                    help_info
-                )
-            else:
-                message = f"Option '{location}' must be a {kind}, got {type(current).__name__}"
+            message = _format_error_with_help(
+                f"Option '{location}' must be a {kind}, got {type(current).__name__}",
+                help_info
+            )
             
             errors.append(ValidationError(message, location=location))
     
@@ -693,31 +628,10 @@ def _validate_nested_fields(config: dict) -> List[ValidationError]:
 
 def validate_config(config: dict) -> List[ValidationError]:
     errors: List[ValidationError] = []
-    
-    # Phase 5c: Validate using Lua schema (if available)
-    lua_schema = _get_lua_schema()
-    if lua_schema:
-        errors.extend(_validate_against_lua_schema(config))
-    else:
-        # Fallback to Phase 5b validation (SECTION_HELP-based)
-        for key, value in config.items():
-            if key not in SCHEMA:
-                suggestion = _suggest(key)
-                message = f"Unknown option '{key}'"
-                if suggestion:
-                    message += f". {suggestion}"
-                errors.append(ValidationError(message, location=key))
-                continue
-            expected = SCHEMA[key]
-            if not _type_ok(value, expected):
-                kind = "list" if expected is list else "table"
-                base_message = f"Option '{key}' must be a {kind}, got {type(value).__name__}"
-                # Use new formatting with help info
-                message = _format_error_with_help(base_message, key)
-                errors.append(
-                    ValidationError(message, location=key)
-                )
-    
+
+    # Phase 5c: Validate using Lua schema (single source of truth)
+    errors.extend(_validate_against_lua_schema(config))
+
     # Phase 3: Validate programs section if present
     # Use try/except to handle lupa LuaTable which may not support 'in' operator
     try:

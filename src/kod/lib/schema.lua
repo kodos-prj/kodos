@@ -243,10 +243,21 @@ Schema.users = {
                     required = false,
                     description = "User's full name (GECOS field).",
                 },
+                password = {
+                    type = "string",
+                    required = false,
+                    description = "User's plaintext password.",
+                },
                 hashed_password = {
                     type = "string",
                     required = false,
                     description = "User's password hash (bcrypt, argon2, or sha512).",
+                },
+                shell = {
+                    type = "string",
+                    required = false,
+                    default = "/bin/bash",
+                    description = "Login shell (e.g., '/bin/bash', '/bin/fish').",
                 },
                 groups = {
                     type = "list",

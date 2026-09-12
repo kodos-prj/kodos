@@ -23,6 +23,6 @@ def test_broken_lua_config_catches_typo(tmp_path):
     bad.write_text('return { packges = { "git" } }\n')
     conf = load_config(str(bad))
     errors = validate_config(conf)
-    assert len(errors) == 1
-    assert "packges" in str(errors[0])
-    assert "packages" in str(errors[0])
+    typo_errors = [e for e in errors if "packges" in str(e)]
+    assert len(typo_errors) == 1
+    assert "packages" in str(typo_errors[0])

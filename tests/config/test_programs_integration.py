@@ -25,13 +25,14 @@ class TestValidatorProgramsSection:
 
     def test_config_with_empty_programs_section_passes(self):
         """Config with empty programs dict validates fine."""
-        config = {"programs": {}}
+        config = {"base_distribution": "arch", "programs": {}}
         errors = validate_config(config)
         assert errors == []
 
     def test_config_with_unknown_program_reports_error(self):
         """Config with unknown program name reports clear error."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "nonexistent_program_xyz": {"some_option": "value"}
             }
@@ -52,6 +53,7 @@ class TestValidatorProgramsSection:
     def test_error_lists_available_programs(self):
         """Error message includes list of available programs."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "bad_program_name": {}
             }
@@ -69,6 +71,7 @@ class TestValidatorProgramsSection:
     def test_config_with_valid_git_program_passes(self):
         """Config with valid git program options passes validation."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "git": {
                     "user_name": "Alice",
@@ -82,6 +85,7 @@ class TestValidatorProgramsSection:
     def test_config_with_invalid_git_program_options_fails(self):
         """Config with invalid git program options is caught."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "git": {
                     # Missing required field: email
@@ -100,6 +104,7 @@ class TestValidatorProgramsSection:
     def test_multiple_program_errors_all_reported(self):
         """Multiple program validation errors are all collected."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "git": {
                     # Missing email
@@ -138,6 +143,7 @@ class TestValidatorProgramsSection:
     def test_programs_mixed_with_invalid_config_option(self):
         """Both config and program errors are reported together."""
         config = {
+            "base_distribution": "arch",
             "invalid_option": "value",  # Config error
             "programs": {
                 "git": {
@@ -413,6 +419,7 @@ class TestValidatorCompilerIntegration:
     def test_full_workflow_invalid_config(self):
         """Full workflow: validation catches errors before compilation."""
         config = {
+            "base_distribution": "arch",
             "programs": {
                 "git": {
                     # Missing required email
@@ -444,7 +451,7 @@ class TestBackwardCompatibility:
 
     def test_validator_still_rejects_wrong_types(self):
         """Validator still rejects wrong types for other fields."""
-        config = {"packages": "should_be_a_list"}
+        config = {"base_distribution": "arch", "packages": "should_be_a_list"}
         errors = validate_config(config)
         assert len(errors) == 1
         assert "packages" in str(errors[0])
