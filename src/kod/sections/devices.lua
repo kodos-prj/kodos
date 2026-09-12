@@ -3,6 +3,16 @@
 
 local Schema = require('kod.lib.schema')
 
+-- Partition device path. Kernel/udev convention: base names ending in a
+-- digit (nvme0n1, mmcblk0) take a 'p' separator (nvme0n1p1, not nvme0n11);
+-- sda/vda-style names append the number directly.
+local function partition_path(disk, num)
+    if disk:match("%d$") then
+        return disk .. "p" .. tostring(num)
+    end
+    return disk .. tostring(num)
+end
+
 local module = {
     schema = Schema.devices,
     
@@ -99,7 +109,7 @@ local module = {
                          for part_num, partition in pairs(disk_config.partitions) do
                              if type(partition) == "table" and partition.filesystem then
                                  local fs_type = partition.filesystem
-                                 local part_device = device_path .. part_num
+                                 local part_device = partition_path(device_path, part_num)
                                  
                                  local mkfs_cmd
                                  if fs_type == "esp" or fs_type == "vfat" then
@@ -139,7 +149,7 @@ local module = {
                             -- First pass: find root partition and collect all mount steps
                             for part_num, partition in pairs(disk_config.partitions) do
                                 if type(partition) == "table" and partition.mountpoint then
-                                    local part_device = device_path .. part_num
+                                    local part_device = partition_path(device_path, part_num)
                                     local mount_path = partition.mountpoint
                                     -- For chroot installation, mount to /mnt staging area
                                     -- Root (/) mounts to /mnt, /boot mounts to /mnt/boot, etc.
@@ -221,7 +231,7 @@ local module = {
                            -- Get the root partition from config to use in mount command
                            local root_partition_device = nil
                            if disk_config.partitions and disk_config.partitions[3] then
-                               root_partition_device = device_path .. "3"
+                               root_partition_device = partition_path(device_path, "3")
                            end
                            
                            if root_partition_device then
@@ -248,7 +258,7 @@ local module = {
                                table.insert(steps, {
                                    name = "devices_mount_btrfs_boot",
                                    description = "Mount boot partition",
-                                   command = "mount " .. device_path .. "1 /mnt/boot",
+                                   command = "mount " .. partition_path(device_path, "1") .. " /mnt/boot",
                                    chroot = false,
                                    order = 38.6,
                                    depends_on = {"devices_create_mount_dirs"},
@@ -347,18 +357,18 @@ local module = {
                               -- fsck pass must be 0: btrfs has no external fsck; a failing
                               -- fsck@<uuid>.service blocks ALL systemd mounts of this device
                               -- (/kod, /home) at boot. (Root itself mounts via initramfs.)
-                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0\" >> /mnt/etc/fstab")
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0\" >> /mnt/etc/fstab")
                               
                               -- Boot partition (/boot)
                               -- fsck pass 0: dosfstools (fsck.vfat) may be absent from base;
                               -- a failing fsck@<uuid>.service would block the /boot mount.
-                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "1") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /boot vfat defaults,nofail 0 0\" >> /mnt/etc/fstab")
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "1") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /boot vfat defaults,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- /kod mount (raw btrfs root for subvolume access)
-                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /kod btrfs defaults,nofail 0 0\" >> /mnt/etc/fstab")
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /kod btrfs defaults,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- /home (store/home subvolume)
-                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0\" >> /mnt/etc/fstab")
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- Bind mounts for persistent store directories
                               -- nofail: non-critical at boot; x-systemd.after: bind source must
