@@ -344,23 +344,30 @@ local module = {
                               }
                               
                               -- Root partition (/) - generation 0 rootfs subvolume
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /mnt/etc/fstab')
+                              -- fsck pass must be 0: btrfs has no external fsck; a failing
+                              -- fsck@<uuid>.service blocks ALL systemd mounts of this device
+                              -- (/kod, /home) at boot. (Root itself mounts via initramfs.)
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0" >> /mnt/etc/fstab')
                               
                               -- Boot partition (/boot)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "$UUID /boot esp defaults 0 2" >> /mnt/etc/fstab')
+                              -- fsck pass 0: dosfstools (fsck.vfat) may be absent from base;
+                              -- a failing fsck@<uuid>.service would block the /boot mount.
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "$UUID /boot vfat defaults,nofail 0 0" >> /mnt/etc/fstab')
                               
                               -- /kod mount (raw btrfs root for subvolume access)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /kod btrfs defaults 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /kod btrfs defaults,nofail 0 0" >> /mnt/etc/fstab')
                               
                               -- /home (store/home subvolume)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /mnt/etc/fstab')
-                             
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /home btrfs defaults,subvol=store/home,nofail 0 0" >> /mnt/etc/fstab')
+                              
                               -- Bind mounts for persistent store directories
-                              table.insert(fstab_commands, 'echo "/kod/store/root /root none defaults,bind 0 0" >> /mnt/etc/fstab')
-                              table.insert(fstab_commands, 'echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /mnt/etc/fstab')
-                              table.insert(fstab_commands, 'echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /mnt/etc/fstab')
-                              table.insert(fstab_commands, 'echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /mnt/etc/fstab')
-                              table.insert(fstab_commands, 'echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /mnt/etc/fstab')
+                              -- nofail: non-critical at boot; x-systemd.after: bind source must
+                              -- exist, i.e. /kod must be mounted first (no implicit ordering).
+                              table.insert(fstab_commands, 'echo "/kod/store/root /root none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/log /var/log none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/tmp /var/tmp none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/cache /var/cache none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/kod /var/kod none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab')
                              
                               table.insert(steps, {
                                   name = "devices_generate_fstab",
