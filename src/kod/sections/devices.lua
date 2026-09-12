@@ -347,18 +347,18 @@ local module = {
                               -- fsck pass must be 0: btrfs has no external fsck; a failing
                               -- fsck@<uuid>.service blocks ALL systemd mounts of this device
                               -- (/kod, /home) at boot. (Root itself mounts via initramfs.)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0\" >> /mnt/etc/fstab")
                               
                               -- Boot partition (/boot)
                               -- fsck pass 0: dosfstools (fsck.vfat) may be absent from base;
                               -- a failing fsck@<uuid>.service would block the /boot mount.
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "UUID=$UUID /boot vfat defaults,nofail 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "1") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /boot vfat defaults,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- /kod mount (raw btrfs root for subvolume access)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /kod btrfs defaults,nofail 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /kod btrfs defaults,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- /home (store/home subvolume)
-                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. (device_path .. "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0\" >> /mnt/etc/fstab")
                               
                               -- Bind mounts for persistent store directories
                               -- nofail: non-critical at boot; x-systemd.after: bind source must

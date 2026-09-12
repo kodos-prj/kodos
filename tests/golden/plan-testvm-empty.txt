@@ -40,7 +40,7 @@
 038 [system] boot_kernel_initramfs_regenerate: mkinitcpio -p linux-lts
 039 [system] boot_loader_install_systemd: bootctl install
 040 [system] boot_loader_timeout: echo "default kodos-0.conf" > /boot/loader/loader.conf && echo "timeout 10" >> /boot/loader/loader.conf && echo "console-mode keep" >> /boot/loader/loader.conf
-041 [system] boot_loader_create_entry_generation_0: mkdir -p /mnt/boot/loader/entries && echo "title Kodos (Generation 0)" > /mnt/boot/loader/entries/kodos-0.conf && echo "linux /vmlinuz-linux-lts" >> /mnt/boot/loader/entries/kodos-0.conf && echo "initrd /initramfs-linux-lts.img" >> /mnt/boot/loader/entries/kodos-0.conf && ROOT_UUID=$(lsblk -no UUID /dev/vda3) && test -n "$ROOT_UUID" && echo "options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs" >> /mnt/boot/loader/entries/kodos-0.conf
+041 [system] boot_loader_create_entry_generation_0: mkdir -p /mnt/boot/loader/entries && echo "title Kodos (Generation 0)" > /mnt/boot/loader/entries/kodos-0.conf && echo "linux /vmlinuz-linux-lts" >> /mnt/boot/loader/entries/kodos-0.conf && echo "initrd /initramfs-linux-lts.img" >> /mnt/boot/loader/entries/kodos-0.conf && ROOT_UUID=$(awk '$2 == "/" {print $1; exit}' /mnt/etc/fstab | cut -d= -f2) && test -n "$ROOT_UUID" && echo "options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs" >> /mnt/boot/loader/entries/kodos-0.conf
 042 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
 043 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
 044 [system] hardware_pipewire_enable: systemctl enable --global pipewire

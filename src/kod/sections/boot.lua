@@ -123,10 +123,11 @@ local module = {
                      local initramfs_name = "initramfs-linux" .. kernel_suffix .. ".img"
                      local vmlinuz_name = "vmlinuz-linux" .. kernel_suffix
                      
-                      -- Write entry on the HOST (not chroot): it's plain text files on /boot,
-                      -- and lsblk needs host udev/blkid state to resolve the UUID. A chrooted
-                      -- lsblk exits 0 with EMPTY output, silently writing root=UUID= (unbootable).
-                      -- test -n makes an empty UUID fail the step instead.
+                      -- Write entry on the HOST (not chroot): it's plain text files on /boot.
+                      -- The root UUID is read from the generated fstab (single source of
+                      -- truth) so the entry works for any disk device (/dev/vda, /dev/sda...).
+                      -- test -n makes an empty UUID fail the step instead of writing
+                      -- root=UUID= (unbootable).
                       -- title Kodos (Generation 0)
                       -- linux /vmlinuz-linux-lts
                       -- initrd /initramfs-linux-lts.img
@@ -135,7 +136,7 @@ local module = {
                                              "echo \"title Kodos (Generation 0)\" > /mnt/boot/loader/entries/" .. entry_file .. " && " ..
                                              "echo \"linux /" .. vmlinuz_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
                                              "echo \"initrd /" .. initramfs_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
-                                             "ROOT_UUID=$(lsblk -no UUID /dev/vda3) && test -n \"$ROOT_UUID\" && " ..
+                                             "ROOT_UUID=$(awk '$2 == \"/\" {print $1; exit}' /mnt/etc/fstab | cut -d= -f2) && test -n \"$ROOT_UUID\" && " ..
                                              "echo \"options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs\" >> /mnt/boot/loader/entries/" .. entry_file
 
                       table.insert(steps, {
