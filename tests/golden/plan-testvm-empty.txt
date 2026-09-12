@@ -51,4 +51,6 @@
 049 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git ghostty dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
 050 [system] users_create_abuss: useradd -m -s /bin/bash abuss
 051 [system] users_create_root: true
-052 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
+052 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
+053 [system] users_password_root: echo "root:root" | chpasswd
+054 [system] programs_install_bluetooth: pacman -S --noconfirm bluez

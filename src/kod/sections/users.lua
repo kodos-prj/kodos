@@ -13,35 +13,66 @@ local module = {
             return steps
         end
         
-        -- Iterate over each user account
-         for username, user_config in pairs(config) do
-             if type(user_config) == "table" then
-                 local shell = user_config.shell or "/bin/bash"
-                 local groups = user_config.groups or {}
-                 
-                 -- Skip creating root user (already exists in base system)
-                 -- Just configure it instead
-                 if username ~= "root" then
-                     -- Create user
-                     local useradd_cmd = "useradd -m -s " .. shell .. " " .. username
-                     
-                     table.insert(steps, {
-                         name = "users_create_" .. username,
-                         description = "Create user account: " .. username,
-                         command = useradd_cmd,
-                         chroot = true,
-                         order = 600 + (tonumber(username:match("%d+")) or 0),
-                     })
-                 else
-                     -- Configure existing root user
-                     table.insert(steps, {
-                         name = "users_create_" .. username,
-                         description = "Configure root user (already exists)",
-                         command = "true",  -- No-op, root already exists
-                         chroot = true,
-                         order = 600 + (tonumber(username:match("%d+")) or 0),
-                     })
-                 end
+                  -- Iterate over each user account
+                  -- NOTE: chroot steps are wrapped in single quotes by the executor, so
+                  -- commands below may only use double quotes.
+                  for username, user_config in pairs(config) do
+                      if type(user_config) == "table" then
+                          local shell = user_config.shell or "/bin/bash"
+                          local groups = user_config.groups or {}
+
+                          -- Skip creating root user (already exists in base system)
+                          -- Just configure it instead
+                          if username ~= "root" then
+                              -- Create user
+                              local useradd_cmd = "useradd -m -s " .. shell .. " " .. username
+
+                              table.insert(steps, {
+                                  name = "users_create_" .. username,
+                                  description = "Create user account: " .. username,
+                                  command = useradd_cmd,
+                                  chroot = true,
+                                  order = 600 + (tonumber(username:match("%d+")) or 0),
+                              })
+                          else
+                              -- Configure existing root user
+                              table.insert(steps, {
+                                  name = "users_create_" .. username,
+                                  description = "Configure root user (already exists)",
+                                  command = "true",  -- No-op, root already exists
+                                  chroot = true,
+                                  order = 600 + (tonumber(username:match("%d+")) or 0),
+                              })
+                          end
+
+                          -- Set password if configured (identity.password or identity.hashed_password)
+                          -- Without this the account stays locked and the greeter rejects
+                          -- every password. Double quotes only (see note above); passwords
+                          -- containing $ or " are not supported in the plaintext form.
+                          local identity = user_config.identity
+                          if type(identity) == "table" then
+                              if identity.hashed_password then
+                                  -- escape $ so the double-quoted sh string passes it literally
+                                  local escaped_hash = identity.hashed_password:gsub("$", "\\$")
+                                  table.insert(steps, {
+                                      name = "users_password_" .. username,
+                                      description = "Set hashed password for " .. username,
+                                      command = "usermod -p \"" .. escaped_hash .. "\" " .. username,
+                                      chroot = true,
+                                      order = 600.5,
+                                      depends_on = {"users_create_" .. username},
+                                  })
+                              elseif identity.password then
+                                  table.insert(steps, {
+                                      name = "users_password_" .. username,
+                                      description = "Set password for " .. username,
+                                      command = "echo \"" .. username .. ":" .. identity.password .. "\" | chpasswd",
+                                      chroot = true,
+                                      order = 600.5,
+                                      depends_on = {"users_create_" .. username},
+                                  })
+                              end
+                          end
                  
                  -- Add user to groups (including root if needed)
                  if #groups > 0 then
