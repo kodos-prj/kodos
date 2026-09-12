@@ -172,7 +172,7 @@ return {
     },
 
     desktop = {
-        display_manager = use_cosmic and "cosmic-greeter" or nil,
+        display_manager = "cosmic-greeter",
         environments = {
             gnome = {
                 enable = use_gnome,
