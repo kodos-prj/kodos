@@ -414,18 +414,24 @@ class TestGolden:
          assert out == GOLDEN.read_text()
 
     @patch("kod.system.packages.get_base_packages", return_value={
-         "kernel": "linux-lts",
-         "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
-                  "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
-                  "mlocate", "schroot", "sudo", "whois"],
+        "kernel": "linux-lts",
+        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
+                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
+                 "mlocate", "schroot", "sudo", "whois"],
     })
     def test_testvm_preview_sanity(self, _mock):
-         from kod._core import load_config as load_lua
-         from kod.planner import plan_install
+        from kod._core import load_config as load_lua
+        from kod.planner import plan_install
 
-         conf = load_lua(str(EXAMPLE / "configuration.lua"))
-         steps = plan_install(conf)
-         assert ("disk", "wipe:/dev/vda") in [(s.kind, s.name) for s in steps]
+        conf = load_lua(str(EXAMPLE / "configuration.lua"))
+        steps = plan_install(conf)
+        # Verify disk initialization and device operations are present
+        step_names = [s.name for s in steps]
+        assert "devices_init_disk0" in step_names  # Disk init
+        assert "devices_partition_disk0_1" in step_names  # Partitioning
+        assert "devices_create_btrfs_dirs" in step_names  # Btrfs setup
+        assert "devices_bootstrap_base_system" in step_names  # Bootstrap
+        assert "boot_kernel_install" in step_names  # Kernel installation
 
 
 class TestHookVisibility:

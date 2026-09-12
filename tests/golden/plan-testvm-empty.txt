@@ -1,59 +1,53 @@
 # kod plan
 # baseline=empty config=example/testvm/configuration.lua
-001 [disk] wipe:/dev/vda: wipefs -a /dev/vda
-002 [disk] partition:Boot: sgdisk -n 0:0:+1GB -t 0:ef00 -c 0:Boot /dev/vda {"filesystem": "esp", "mountpoint": "/boot", "size": "1GB"}
-003 [disk] format:Boot: mkfs.vfat -F32 /dev/vda1 {"filesystem": "esp"}
-004 [disk] partition:Swap: sgdisk -n 0:0:+3GB -t 0:8200 -c 0:Swap /dev/vda {"filesystem": "linux-swap", "mountpoint": null, "size": "3GB"}
-005 [disk] format:Swap: mkswap /dev/vda2 {"filesystem": "linux-swap"}
-006 [disk] partition:Root: sgdisk -n 0:0:0 -t 0:8300 -c 0:Root /dev/vda {"filesystem": "btrfs", "mountpoint": null, "size": "100%"}
-007 [disk] format:Root: mkfs.btrfs -f /dev/vda3 {"filesystem": "btrfs"}
-008 [system] base-packages: {"base": ["arch-install-scripts", "base", "base-devel", "bash-completion", "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware", "mlocate", "schroot", "sudo", "whois"], "kernel": "linux-lts"}
-009 [system] repos: {"base_packages": {"flatpak": "flatpak"}, "repos": ["aur", "flatpak", "official"]}
-010 [system] configure-system:
-011 [system] bootloader:
-012 [system] kod-user:
-013 [package] broot: {"action": "install", "repo": "official"}
-014 [package] btop: {"action": "install", "repo": "official"}
-015 [package] cosmic: {"action": "install", "repo": "official"}
-016 [package] dua-cli: {"action": "install", "repo": "official"}
-017 [package] duf: {"action": "install", "repo": "official"}
-018 [package] dust: {"action": "install", "repo": "official"}
-019 [package] fzf: {"action": "install", "repo": "official"}
-020 [package] ghostty: {"action": "install", "repo": "official"}
-021 [package] git: {"action": "install", "repo": "official"}
-022 [package] github-cli: {"action": "install", "repo": "official"}
-023 [package] glow: {"action": "install", "repo": "official"}
-024 [package] gping: {"action": "install", "repo": "official"}
-025 [package] helix: {"action": "install", "repo": "official"}
-026 [package] htop: {"action": "install", "repo": "official"}
-027 [package] hyperfine: {"action": "install", "repo": "official"}
-028 [package] iw: {"action": "install", "repo": "official"}
-029 [package] lazygit: {"action": "install", "repo": "official"}
-030 [package] less: {"action": "install", "repo": "official"}
-031 [package] libgtop: {"action": "install", "repo": "official"}
-032 [package] lsd: {"action": "install", "repo": "official"}
-033 [package] lurk: {"action": "install", "repo": "official"}
-034 [package] mc: {"action": "install", "repo": "official"}
-035 [package] neofetch: {"action": "install", "repo": "official"}
-036 [package] pipewire: {"action": "install", "repo": "official"}
-037 [package] pipewire-alsa: {"action": "install", "repo": "official"}
-038 [package] pipewire-pulse: {"action": "install", "repo": "official"}
-039 [package] python-invoke: {"action": "install", "repo": "official"}
-040 [package] starship: {"action": "install", "repo": "official"}
-041 [package] stow: {"action": "install", "repo": "official"}
-042 [package] syncthing: {"action": "install", "repo": "official"}
-043 [package] tldr: {"action": "install", "repo": "official"}
-044 [package] ttf-fira-code: {"action": "install", "repo": "official"}
-045 [package] ttf-fira-sans: {"action": "install", "repo": "official"}
-046 [package] ttf-firacode-nerd: {"action": "install", "repo": "official"}
-047 [package] ttf-nerd-fonts-symbols: {"action": "install", "repo": "official"}
-048 [package] ttf-nerd-fonts-symbols-common: {"action": "install", "repo": "official"}
-049 [package] ttf-sourcecodepro-nerd: {"action": "install", "repo": "official"}
-050 [package] uv: {"action": "install", "repo": "official"}
-051 [package] wget: {"action": "install", "repo": "official"}
-052 [user] abuss:
-053 [program] abuss/git: {"deploy_config": false, "run_script": true}
-054 [program] abuss/helix: {"deploy_config": true, "run_script": false}
-055 [program] abuss/starship: {"deploy_config": true, "run_script": false}
-056 [program] abuss/syncthing: {"deploy_config": false, "run_script": true}
-057 [user] root:
+001 [system] devices_init_disk0: parted -s /dev/vda mklabel gpt
+002 [system] devices_partition_disk0_1: parted -s /dev/vda mkpart primary fat32 0 1GB
+003 [system] devices_set_esp_disk0_1: parted -s /dev/vda set 1 esp on
+004 [system] devices_partition_disk0_2: parted -s /dev/vda mkpart primary linux-swap 1GB 3GB
+005 [system] devices_partition_disk0_3: parted -s /dev/vda mkpart primary btrfs 3GB 100%
+006 [system] devices_format_disk0_1: mkfs.vfat -F 32 /dev/vda1
+007 [system] devices_format_disk0_2: mkswap /dev/vda2
+008 [system] devices_format_disk0_3: mkfs.btrfs -f /dev/vda3
+009 [system] devices_mount_disk0_3: mkdir -p /mnt && mount /dev/vda3 /mnt
+010 [system] devices_mount_disk0_1: mkdir -p /mnt/boot && mount /dev/vda1 /mnt/boot
+011 [system] devices_create_btrfs_dirs: mkdir -p /mnt/store /mnt/generations/0 /mnt/current && mkdir -p /mnt/store/root /mnt/store/var/log /mnt/store/var/tmp /mnt/store/var/cache /mnt/store/var/kod
+012 [system] devices_create_btrfs_store_home: btrfs subvolume create /mnt/store/home
+013 [system] devices_create_btrfs_generation_0: btrfs subvolume create /mnt/generations/0/rootfs
+014 [system] devices_remount_btrfs_generation: umount -R /mnt && mount -o subvol=generations/0/rootfs /dev/vda3 /mnt
+015 [system] devices_create_mount_dirs: mkdir -p /mnt/boot /mnt/kod /mnt/home /mnt/root /mnt/var/log /mnt/var/tmp /mnt/var/cache /mnt/var/kod
+016 [system] devices_mount_btrfs_boot: mount /dev/vda1 /mnt/boot
+017 [system] devices_mount_btrfs_kod: mount /dev/vda3 /mnt/kod
+018 [system] devices_mount_btrfs_home: mount -o subvol=store/home /dev/vda3 /mnt/home
+019 [system] devices_mount_btrfs_binds: mount --bind /mnt/kod/store/root /mnt/root && mount --bind /mnt/kod/store/var/log /mnt/var/log && mount --bind /mnt/kod/store/var/tmp /mnt/var/tmp && mount --bind /mnt/kod/store/var/cache /mnt/var/cache && mount --bind /mnt/kod/store/var/kod /mnt/var/kod
+020 [system] devices_write_generation_marker: echo '0' > /mnt/.generation
+021 [system] devices_bootstrap_base_system: pacstrap /mnt base linux-lts
+022 [system] devices_setup_mtab: mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && ln -sf /proc/mounts /mnt/etc/mtab
+023 [system] devices_pacman_keyring_init: pacman-key --init && pacman-key --populate archlinux
+024 [system] devices_generate_fstab: echo "# Static information about the filesystems." > /etc/fstab && echo "# See fstab(5) for details." >> /etc/fstab && echo "" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda1) && echo "$UUID /boot esp defaults 0 2" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /kod btrfs defaults 0 0" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /etc/fstab && echo "/kod/store/root /root none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /etc/fstab
+025 [system] devices_setup_dns: cp /etc/resolv.conf /mnt/etc/resolv.conf || true
+026 [system] network_hostname_set: echo "testvm" > /etc/hostname
+027 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
+028 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
+029 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+030 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
+031 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+032 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+033 [system] locale_set_extra_vars: echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf
+034 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
+035 [system] locale_hwclock_sync: hwclock --systohc
+036 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
+037 [system] boot_kernel_modules_config: mkdir -p /etc/mkinitcpio.conf.d && echo "MODULES=(xhci_pci ohci_pci ehci_pci virtio_pci ahci usbhid sr_mod virtio_blk)" > /etc/mkinitcpio.conf.d/modules.conf
+038 [system] boot_kernel_initramfs_regenerate: mkinitcpio -p linux-lts
+039 [system] boot_loader_install_systemd: bootctl install
+040 [system] boot_loader_timeout: echo "timeout 10" > /boot/loader/loader.conf
+041 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
+042 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
+043 [system] hardware_pipewire_enable: systemctl enable --global pipewire
+044 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
+045 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
+046 [system] desktop_display_manager_enable: systemctl enable cosmic-greeter
+047 [system] desktop_environments_install_cosmic: pacman -S --noconfirm cosmic
+048 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git ghostty dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
+049 [system] users_create_root: true
+050 [system] users_create_abuss: useradd -m -s /bin/bash abuss
+051 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
