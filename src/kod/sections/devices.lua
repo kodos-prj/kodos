@@ -330,39 +330,43 @@ local module = {
                                 depends_on = {"devices_setup_mtab"},
                             })
                             
-                             -- Generate /etc/fstab for system boot with btrfs subvolume support
-                             -- This must be created after all partitions are formatted and before boot
-                             -- Format: device mountpoint fstype options dump fsck_pass
-                             local fstab_commands = {
-                                 'echo "# Static information about the filesystems." > /etc/fstab',
-                                 'echo "# See fstab(5) for details." >> /etc/fstab',
-                                 'echo "" >> /etc/fstab',
-                             }
+                              -- Generate /etc/fstab for system boot with btrfs subvolume support
+                              -- This must be created after all partitions are formatted and before boot
+                              -- Format: device mountpoint fstype options dump fsck_pass
+                              -- Runs on the HOST, not in chroot: a fresh chroot has no udev/blkid
+                              -- runtime state, so `lsblk -no UUID` there exits 0 with EMPTY output,
+                              -- silently producing an unbootable fstab/boot entry. The test -n
+                              -- guard makes an empty UUID fail the step instead of writing garbage.
+                              local fstab_commands = {
+                                  'echo "# Static information about the filesystems." > /mnt/etc/fstab',
+                                  'echo "# See fstab(5) for details." >> /mnt/etc/fstab',
+                                  'echo "" >> /mnt/etc/fstab',
+                              }
+                              
+                              -- Root partition (/) - generation 0 rootfs subvolume
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /mnt/etc/fstab')
+                              
+                              -- Boot partition (/boot)
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "$UUID /boot esp defaults 0 2" >> /mnt/etc/fstab')
+                              
+                              -- /kod mount (raw btrfs root for subvolume access)
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /kod btrfs defaults 0 0" >> /mnt/etc/fstab')
+                              
+                              -- /home (store/home subvolume)
+                              table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /mnt/etc/fstab')
                              
-                             -- Root partition (/) - generation 0 rootfs subvolume
-                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /etc/fstab')
+                              -- Bind mounts for persistent store directories
+                              table.insert(fstab_commands, 'echo "/kod/store/root /root none defaults,bind 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /mnt/etc/fstab')
+                              table.insert(fstab_commands, 'echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /mnt/etc/fstab')
                              
-                             -- Boot partition (/boot)
-                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda1) && echo "$UUID /boot esp defaults 0 2" >> /etc/fstab')
-                             
-                             -- /kod mount (raw btrfs root for subvolume access)
-                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /kod btrfs defaults 0 0" >> /etc/fstab')
-                             
-                             -- /home (store/home subvolume)
-                             table.insert(fstab_commands, 'UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /etc/fstab')
-                             
-                             -- Bind mounts for persistent store directories
-                             table.insert(fstab_commands, 'echo "/kod/store/root /root none defaults,bind 0 0" >> /etc/fstab')
-                             table.insert(fstab_commands, 'echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /etc/fstab')
-                             table.insert(fstab_commands, 'echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /etc/fstab')
-                             table.insert(fstab_commands, 'echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /etc/fstab')
-                             table.insert(fstab_commands, 'echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /etc/fstab')
-                             
-                             table.insert(steps, {
-                                 name = "devices_generate_fstab",
-                                 description = "Generate /etc/fstab with btrfs subvolume and bind mount configuration",
-                                 command = table.concat(fstab_commands, ' && '),
-                                 chroot = true,
+                              table.insert(steps, {
+                                  name = "devices_generate_fstab",
+                                  description = "Generate /etc/fstab with btrfs subvolume and bind mount configuration",
+                                  command = table.concat(fstab_commands, ' && '),
+                                  chroot = false,
                                  order = 43,
                                  depends_on = {"devices_pacman_keyring_init"},
                              })

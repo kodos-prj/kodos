@@ -36,15 +36,16 @@ end
 -- Sort steps by order field, with stable sort for same-order steps
 -- If steps have depends_on, ensure dependencies come before dependents
 local function sort_steps(steps)
-    -- First pass: sort by order field
+    -- First pass: sort by order field, tie-break by name.
+    -- Lua table.sort is NOT stable, so equal-order steps need a total order
+    -- or plan output is nondeterministic (flaky golden tests, unreproducible plans).
     table.sort(steps, function(a, b)
         local order_a = a.order or 0
         local order_b = b.order or 0
         if order_a ~= order_b then
             return order_a < order_b
         end
-        -- Stable sort: preserve insertion order for same-order steps
-        return false
+        return (a.name or "") < (b.name or "")
     end)
     
     -- Second pass: handle dependencies (simple topological sort)

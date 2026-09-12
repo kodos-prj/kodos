@@ -51,11 +51,16 @@ local module = {
              end
              
              -- Set extra locale environment variables
-             if config.locale.extra_settings then
-                 local env_vars = {}
-                 for key, value in pairs(config.locale.extra_settings) do
-                     table.insert(env_vars, "echo \"" .. key .. "=" .. value .. "\" >> /etc/locale.conf")
-                 end
+              if config.locale.extra_settings then
+                  local env_vars = {}
+                  local keys = {}
+                  for key, _ in pairs(config.locale.extra_settings) do
+                      table.insert(keys, key)
+                  end
+                  table.sort(keys)  -- deterministic plan output (pairs() order is not stable)
+                  for _, key in ipairs(keys) do
+                      table.insert(env_vars, "echo \"" .. key .. "=" .. config.locale.extra_settings[key] .. "\" >> /etc/locale.conf")
+                  end
                  
                  if #env_vars > 0 then
                      table.insert(steps, {

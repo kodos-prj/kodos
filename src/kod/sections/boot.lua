@@ -33,10 +33,16 @@ local module = {
             })
             
               -- Configure kernel modules in initramfs
-               if config.kernel.modules and #config.kernel.modules > 0 then
-                   local modules_str = table.concat(config.kernel.modules, " ")
-                   
-                   table.insert(steps, {
+                if config.kernel.modules and #config.kernel.modules > 0 then
+                    local modules_str = table.concat(config.kernel.modules, " ")
+                    -- KodOS root is btrfs; the initramfs must carry the btrfs module or the
+                    -- kernel hangs on /dev/disk/by-uuid. mkinitcpio's filesystems hook only
+                    -- adds it conditionally (add_checked_modules), so pin it explicitly.
+                    if not modules_str:find("btrfs", 1, true) then
+                        modules_str = modules_str .. " btrfs"
+                    end
+
+                    table.insert(steps, {
                        name = "boot_kernel_modules_config",
                        description = "Configure kernel modules in initramfs: " .. modules_str,
                        command = "mkdir -p /etc/mkinitcpio.conf.d && echo \"MODULES=(" .. modules_str .. ")\" > /etc/mkinitcpio.conf.d/modules.conf",
@@ -117,24 +123,26 @@ local module = {
                      local initramfs_name = "initramfs-linux" .. kernel_suffix .. ".img"
                      local vmlinuz_name = "vmlinuz-linux" .. kernel_suffix
                      
-                     -- Write entry with multiple echo commands (avoids single quotes)
-                     -- Uses UUID lookup for root device (matches fstab, robust across device reordering)
-                     -- title Kodos (Generation 0)
-                     -- linux /vmlinuz-linux-lts
-                     -- initrd /initramfs-linux-lts.img
-                     -- options root=UUID=... rw rootflags=subvol=generations/0/rootfs
-                     local boot_entry_cmd = "mkdir -p /boot/loader/entries && " ..
-                                            "echo \"title Kodos (Generation 0)\" > /boot/loader/entries/" .. entry_file .. " && " ..
-                                            "echo \"linux /" .. vmlinuz_name .. "\" >> /boot/loader/entries/" .. entry_file .. " && " ..
-                                            "echo \"initrd /" .. initramfs_name .. "\" >> /boot/loader/entries/" .. entry_file .. " && " ..
-                                            "ROOT_UUID=$(lsblk -no UUID /dev/vda3) && " ..
-                                            "echo \"options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs\" >> /boot/loader/entries/" .. entry_file
-                     
-                     table.insert(steps, {
-                         name = "boot_loader_create_entry_generation_0",
-                         description = "Create systemd-boot entry for Generation 0",
-                         command = boot_entry_cmd,
-                         chroot = true,
+                      -- Write entry on the HOST (not chroot): it's plain text files on /boot,
+                      -- and lsblk needs host udev/blkid state to resolve the UUID. A chrooted
+                      -- lsblk exits 0 with EMPTY output, silently writing root=UUID= (unbootable).
+                      -- test -n makes an empty UUID fail the step instead.
+                      -- title Kodos (Generation 0)
+                      -- linux /vmlinuz-linux-lts
+                      -- initrd /initramfs-linux-lts.img
+                      -- options root=UUID=... rw rootflags=subvol=generations/0/rootfs
+                      local boot_entry_cmd = "mkdir -p /mnt/boot/loader/entries && " ..
+                                             "echo \"title Kodos (Generation 0)\" > /mnt/boot/loader/entries/" .. entry_file .. " && " ..
+                                             "echo \"linux /" .. vmlinuz_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
+                                             "echo \"initrd /" .. initramfs_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
+                                             "ROOT_UUID=$(lsblk -no UUID /dev/vda3) && test -n \"$ROOT_UUID\" && " ..
+                                             "echo \"options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs\" >> /mnt/boot/loader/entries/" .. entry_file
+
+                      table.insert(steps, {
+                          name = "boot_loader_create_entry_generation_0",
+                          description = "Create systemd-boot entry for Generation 0",
+                          command = boot_entry_cmd,
+                          chroot = false,
                          order = 212,
                          on_distro = "arch",
                          depends_on = {"boot_loader_timeout"},

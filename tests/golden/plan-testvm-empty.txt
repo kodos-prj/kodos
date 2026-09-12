@@ -2,8 +2,8 @@
 # baseline=empty config=example/testvm/configuration.lua
 001 [system] devices_init_disk0: parted -s /dev/vda mklabel gpt
 002 [system] devices_partition_disk0_1: parted -s /dev/vda mkpart primary fat32 0 1GB
-003 [system] devices_set_esp_disk0_1: parted -s /dev/vda set 1 esp on
-004 [system] devices_partition_disk0_2: parted -s /dev/vda mkpart primary linux-swap 1GB 3GB
+003 [system] devices_partition_disk0_2: parted -s /dev/vda mkpart primary linux-swap 1GB 3GB
+004 [system] devices_set_esp_disk0_1: parted -s /dev/vda set 1 esp on
 005 [system] devices_partition_disk0_3: parted -s /dev/vda mkpart primary btrfs 3GB 100%
 006 [system] devices_format_disk0_1: mkfs.vfat -F 32 /dev/vda1
 007 [system] devices_format_disk0_2: mkswap /dev/vda2
@@ -23,31 +23,32 @@
 021 [system] devices_bootstrap_base_system: pacstrap /mnt base linux-lts
 022 [system] devices_setup_mtab: mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && ln -sf /proc/mounts /mnt/etc/mtab
 023 [system] devices_pacman_keyring_init: pacman-key --init && pacman-key --populate archlinux
-024 [system] devices_generate_fstab: echo "# Static information about the filesystems." > /etc/fstab && echo "# See fstab(5) for details." >> /etc/fstab && echo "" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda1) && echo "$UUID /boot esp defaults 0 2" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /kod btrfs defaults 0 0" >> /etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /etc/fstab && echo "/kod/store/root /root none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /etc/fstab && echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /etc/fstab
+024 [system] devices_generate_fstab: echo "# Static information about the filesystems." > /mnt/etc/fstab && echo "# See fstab(5) for details." >> /mnt/etc/fstab && echo "" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID / btrfs defaults,subvol=generations/0/rootfs 0 1" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "$UUID /boot esp defaults 0 2" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /kod btrfs defaults 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "$UUID /home btrfs defaults,subvol=store/home 0 0" >> /mnt/etc/fstab && echo "/kod/store/root /root none defaults,bind 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/log /var/log none defaults,bind 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/tmp /var/tmp none defaults,bind 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/cache /var/cache none defaults,bind 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/kod /var/kod none defaults,bind 0 0" >> /mnt/etc/fstab
 025 [system] devices_setup_dns: cp /etc/resolv.conf /mnt/etc/resolv.conf || true
 026 [system] network_hostname_set: echo "testvm" > /etc/hostname
 027 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
 028 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
 029 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
 030 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
-031 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-032 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-033 [system] locale_set_extra_vars: echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf
+031 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+032 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+033 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
 034 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
 035 [system] locale_hwclock_sync: hwclock --systohc
 036 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
-037 [system] boot_kernel_modules_config: mkdir -p /etc/mkinitcpio.conf.d && echo "MODULES=(xhci_pci ohci_pci ehci_pci virtio_pci ahci usbhid sr_mod virtio_blk)" > /etc/mkinitcpio.conf.d/modules.conf
+037 [system] boot_kernel_modules_config: mkdir -p /etc/mkinitcpio.conf.d && echo "MODULES=(xhci_pci ohci_pci ehci_pci virtio_pci ahci usbhid sr_mod virtio_blk btrfs)" > /etc/mkinitcpio.conf.d/modules.conf
 038 [system] boot_kernel_initramfs_regenerate: mkinitcpio -p linux-lts
 039 [system] boot_loader_install_systemd: bootctl install
-040 [system] boot_loader_timeout: echo "timeout 10" > /boot/loader/loader.conf
-041 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
-042 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
-043 [system] hardware_pipewire_enable: systemctl enable --global pipewire
-044 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
-045 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
-046 [system] desktop_display_manager_enable: systemctl enable cosmic-greeter
-047 [system] desktop_environments_install_cosmic: pacman -S --noconfirm cosmic
-048 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git ghostty dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
-049 [system] users_create_root: true
+040 [system] boot_loader_timeout: echo "default kodos-0.conf" > /boot/loader/loader.conf && echo "timeout 10" >> /boot/loader/loader.conf && echo "console-mode keep" >> /boot/loader/loader.conf
+041 [system] boot_loader_create_entry_generation_0: mkdir -p /mnt/boot/loader/entries && echo "title Kodos (Generation 0)" > /mnt/boot/loader/entries/kodos-0.conf && echo "linux /vmlinuz-linux-lts" >> /mnt/boot/loader/entries/kodos-0.conf && echo "initrd /initramfs-linux-lts.img" >> /mnt/boot/loader/entries/kodos-0.conf && ROOT_UUID=$(lsblk -no UUID /dev/vda3) && test -n "$ROOT_UUID" && echo "options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs" >> /mnt/boot/loader/entries/kodos-0.conf
+042 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
+043 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
+044 [system] hardware_pipewire_enable: systemctl enable --global pipewire
+045 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
+046 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
+047 [system] desktop_display_manager_enable: systemctl enable cosmic-greeter
+048 [system] desktop_environments_install_cosmic: pacman -S --noconfirm cosmic
+049 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git ghostty dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
 050 [system] users_create_abuss: useradd -m -s /bin/bash abuss
-051 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
+051 [system] users_create_root: true
+052 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
