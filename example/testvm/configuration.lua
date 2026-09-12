@@ -83,6 +83,7 @@ return {
             identity = {
                 -- no_password = true,
                 password = "root",
+                shell = "/bin/bash"
             },
         },
         abuss = {
@@ -116,7 +117,7 @@ return {
                 },
 
                 zsh = {
-                    enable = true,
+                    enable = false,
                 },
 
                 neovim = {
