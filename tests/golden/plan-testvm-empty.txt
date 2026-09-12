@@ -53,9 +53,12 @@
 051 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
 052 [system] users_password_root: echo "root:root" | chpasswd
 053 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
-054 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
-055 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
-056 [system] programs_service_enable_cups: systemctl enable cupsd
-057 [system] programs_service_enable_fwupd: systemctl enable fwupd
-058 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
-059 [system] programs_service_enable_openssh: systemctl enable sshd
+054 [system] programs_install_cups: pacman -S --noconfirm cups
+055 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
+056 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
+057 [system] programs_install_openssh: pacman -S --noconfirm openssh
+058 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
+059 [system] programs_service_enable_cups: systemctl enable cupsd
+060 [system] programs_service_enable_fwupd: systemctl enable fwupd
+061 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
+062 [system] programs_service_enable_openssh: systemctl enable sshd

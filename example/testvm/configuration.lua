@@ -287,6 +287,7 @@ return {
         -- ====================================================================
         fwupd = {
             enable = true,
+            package = "fwupd",
             service = {
                 enable = true,
                 service_name = "fwupd",
@@ -310,6 +311,7 @@ return {
         -- ====================================================================
         openssh = {
             enable = true,
+            package = "openssh",
             service = {
                 enable = true,
                 service_name = "sshd",
@@ -324,6 +326,7 @@ return {
         -- ====================================================================
         cups = {
             enable = true,
+            package = "cups",
             service = {
                 enable = true,
                 service_name = "cupsd",
