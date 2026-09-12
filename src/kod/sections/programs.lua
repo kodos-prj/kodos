@@ -32,27 +32,47 @@ local module = {
                             table.insert(steps, step)
                         end
                     end
-                else
-                    -- Fallback: generate generic install step if package name is provided
-                    if program_config.package then
-                        local pkg_name = program_config.package
-                        
-                        local install_cmd = Repos.install_cmd(distro, pkg_name)
-                        if not install_cmd then
-                            goto continue
+                    else
+                        -- Fallback: generate generic install step if package name is provided
+                        if program_config.package then
+                            local pkg_name = program_config.package
+
+                            local install_cmd = Repos.install_cmd(distro, pkg_name)
+                            if not install_cmd then
+                                goto continue
+                            end
+
+                            table.insert(steps, {
+                                name = "programs_install_" .. program_name,
+                                description = "Install program: " .. program_name,
+                                command = install_cmd,
+                                chroot = true,
+                                order = 800,
+                            })
                         end
-                        
+                    end
+
+                    -- Enable the program's service if configured (service.enable).
+                    -- per_user services are skipped: user units can't be enabled from a
+                    -- chroot, and the system unit may not exist (e.g. syncthing).
+                    local svc = program_config.service
+                    if type(svc) == "table" and svc.enable == true and svc.service_name
+                        and svc.per_user ~= true then
+                        local deps = nil
+                        if program_config.package then
+                            deps = {"programs_install_" .. program_name}
+                        end
                         table.insert(steps, {
-                            name = "programs_install_" .. program_name,
-                            description = "Install program: " .. program_name,
-                            command = install_cmd,
+                            name = "programs_service_enable_" .. program_name,
+                            description = "Enable service for program " .. program_name .. ": " .. svc.service_name,
+                            command = "systemctl enable " .. svc.service_name,
                             chroot = true,
-                            order = 800,
+                            order = 810,
+                            depends_on = deps,
                         })
                     end
-                end
-                
-                ::continue::
+
+                    ::continue::
             end
         end
         

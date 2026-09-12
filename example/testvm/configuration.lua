@@ -10,7 +10,7 @@ local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = true
+local use_cosmic = false
 local use_pantheon = false
 
 return {
@@ -241,6 +241,7 @@ return {
             "uv",
             "python-invoke",
             "git",
+            "sudo",
             -- "poetry",
             -- "neofetch",
             -- "helix",
@@ -256,7 +257,7 @@ return {
             -- "aur:quickemu",
             -- "aur:uxplay",
             -- "aur:megasync",
-
+            "zsh",
             -- "firefox",
             -- "aur:brave-bin",
             -- "vulkan-virtio",
@@ -297,6 +298,7 @@ return {
         -- ====================================================================
         networkmanager = {
             enable = true,
+            package = "networkmanager",
             service = {
                 enable = true,
                 service_name = "NetworkManager",

@@ -47,9 +47,15 @@
 045 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
 046 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
 047 [system] desktop_display_manager_enable: systemctl enable cosmic-greeter
-048 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git ghostty zsh dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
+048 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git sudo ghostty zsh dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
 049 [system] users_create_abuss: useradd -m -s /bin/bash abuss
 050 [system] users_create_root: true
 051 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
 052 [system] users_password_root: echo "root:root" | chpasswd
 053 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
+054 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
+055 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
+056 [system] programs_service_enable_cups: systemctl enable cupsd
+057 [system] programs_service_enable_fwupd: systemctl enable fwupd
+058 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
+059 [system] programs_service_enable_openssh: systemctl enable sshd
