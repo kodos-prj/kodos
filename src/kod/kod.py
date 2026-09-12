@@ -330,8 +330,8 @@ def install(config: Optional[str], mount_point: str) -> None:
         executor = Executor(env=env)
         results = executor.execute(steps, {"mount_point": mount_point, "use_chroot": True}, hooks=hooks_dict)
         
-        # Check for failures
-        failures = [r for r in results if not r.success]
+        # Check for critical failures (ignore on_error='warn' steps)
+        failures = [r for r in results if not r.success and not r.is_warning]
         if failures:
             print(f"\n❌ Install failed at {len(failures)} step(s):", file=sys.stderr)
             for r in failures:

@@ -29,6 +29,7 @@ class StepResult:
     error: Optional[str] = None
     stdout: Optional[str] = None
     stderr: Optional[str] = None
+    is_warning: bool = False  # True if this is on_error='warn' failure
 
 
 class Executor:
@@ -83,7 +84,7 @@ class Executor:
                     raise
                 else:  # warn
                     self.logger_fn(f"Step '{step.name}' failed (on_error=warn): {str(e)}")
-                    results.append(StepResult(step, success=False, error=str(e)))
+                    results.append(StepResult(step, success=False, error=str(e), is_warning=True))
                     continue
             
             # Fire post:kind hooks (error → log and continue)
