@@ -52,13 +52,15 @@
 050 [system] users_create_root: true
 051 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
 052 [system] users_password_root: echo "root:root" | chpasswd
-053 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
-054 [system] programs_install_cups: pacman -S --noconfirm cups
-055 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
-056 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
-057 [system] programs_install_openssh: pacman -S --noconfirm openssh
-058 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
-059 [system] programs_service_enable_cups: systemctl enable cups
-060 [system] programs_service_enable_fwupd: systemctl enable fwupd
-061 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
-062 [system] programs_service_enable_openssh: systemctl enable sshd
+053 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
+054 [system] users_sudoers_wheel_abuss: sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su
+055 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
+056 [system] programs_install_cups: pacman -S --noconfirm cups
+057 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
+058 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
+059 [system] programs_install_openssh: pacman -S --noconfirm openssh
+060 [system] programs_service_enable_bluetooth: systemctl enable bluetooth
+061 [system] programs_service_enable_cups: systemctl enable cups
+062 [system] programs_service_enable_fwupd: systemctl enable fwupd
+063 [system] programs_service_enable_networkmanager: systemctl enable NetworkManager
+064 [system] programs_service_enable_openssh: systemctl enable sshd

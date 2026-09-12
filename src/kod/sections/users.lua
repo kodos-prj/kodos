@@ -18,8 +18,10 @@ local module = {
                   -- commands below may only use double quotes.
                   for username, user_config in pairs(config) do
                       if type(user_config) == "table" then
-                          local shell = user_config.shell or "/bin/bash"
-                          local groups = user_config.groups or {}
+                           local identity = user_config.identity
+                           local shell = (identity and identity.shell) or user_config.shell or "/bin/bash"
+                           -- groups live under identity (see schema), not at the top level
+                           local groups = (identity and identity.groups) or {}
 
                           -- Skip creating root user (already exists in base system)
                           -- Just configure it instead
@@ -88,7 +90,28 @@ local module = {
                      })
                  end
                  
-                 -- Configure home directory (home_programs)
+                  -- Arch ships %wheel commented out in /etc/sudoers, so group
+                  -- membership alone grants no sudo access. Uncomment the
+                  -- %wheel line (and pam_wheel for su), as the original Python
+                  -- installer did.
+                  if #groups > 0 then
+                      local has_wheel = false
+                      for _, g in ipairs(groups) do
+                          if g == "wheel" then has_wheel = true end
+                      end
+                      if has_wheel then
+                          table.insert(steps, {
+                              name = "users_sudoers_wheel_" .. username,
+                              description = "Enable %wheel sudo access for " .. username,
+                              command = "sed -i \"s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/\" /etc/sudoers && sed -i \"s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/\" /etc/pam.d/su",
+                              chroot = true,
+                              order = 602 + (tonumber(username:match("%d+")) or 0),
+                              depends_on = {"users_groups_" .. username},
+                          })
+                      end
+                  end
+
+                  -- Configure home directory (home_programs)
                  if user_config.home_programs and type(user_config.home_programs) == "table" then
                      for program_name, program_config in pairs(user_config.home_programs) do
                          if type(program_config) == "table" then
