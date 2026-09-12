@@ -552,8 +552,9 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             "enable_services": enable_services,
             "disable_services": disable_services,
             "update_all_packages": update_all_packages,
-            "update_kernel_hook": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
-            "update_initramfs_hook": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
+            # Executor dispatches system steps by name (see executor.py)
+            "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
+            "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
         }
 
         # Collect hooks from program definitions

@@ -150,6 +150,13 @@ class Executor:
                     raise StepError(f"Unknown service action: {action}")
             
             elif step.kind == "system":
+                # Named system steps (kernel-update, initramfs-update) dispatch
+                # to env callables; the rest run as subprocess or no-op.
+                fn = self.env.get(step.name)
+                if callable(fn):
+                    fn(step.meta.get("kernel"), ctx.get("mount_point", "/"))
+                    return StepResult(step, success=True)
+
                 # System steps can be metadata-only (empty program) or subprocess-based
                 if step.program == "":
                     # Metadata-only step (no execution needed)

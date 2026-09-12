@@ -25,6 +25,22 @@ def test_executor_dispatch_package_install():
     assert executed == [("manage", "install", ["vim"])]
 
 
+def test_executor_system_step_named_env_dispatch():
+    """System steps whose name is in env dispatch to that callable."""
+    executed = []
+
+    def mock_kernel_update(kernel, mount_point):
+        executed.append((kernel, mount_point))
+
+    env = {"kernel-update": mock_kernel_update}
+    step = Step("system", "kernel-update", meta={"kernel": "linux-lts"})
+    executor = Executor(env=env)
+    results = executor.execute([step], {"mount_point": "/rootfs"})
+
+    assert results[0].success is True
+    assert executed == [("linux-lts", "/rootfs")]
+
+
 def test_executor_on_error_abort():
     """on_error='abort' raises StepError on step failure."""
     def mock_fail(mount_point, repos, action, packages, chroot=False):
