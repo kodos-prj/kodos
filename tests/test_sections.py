@@ -711,8 +711,8 @@ class TestDesktopEnvironments:
         result_list = _lua_table_to_list(result); step_names = [step['name'] for step in result_list]
         assert any('environments' in name for name in step_names)
     
-    def test_desktop_display_manager(self, lua):
-        """Test explicit display manager configuration."""
+    def test_desktop_display_manager_requires_enabled_environment(self, lua):
+        """DM alone (no enabled environment) installs nothing."""
         lua.execute("""
             local desk = require('kod.sections.desktop')
             config = {display_manager = "sddm"}
@@ -720,7 +720,7 @@ class TestDesktopEnvironments:
         """)
         result = lua.eval("result")
         result_list = _lua_table_to_list(result); step_names = [step['name'] for step in result_list]
-        assert any('display_manager' in name for name in step_names)
+        assert not any('display_manager' in name for name in step_names)
     
     def test_desktop_environments_and_dm(self, lua):
         """Test environments with explicit display manager."""

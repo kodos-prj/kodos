@@ -112,8 +112,20 @@ local module = {
              end
          end
         
-        -- Display manager configuration (if specified separately)
-        if config.display_manager then
+        -- Display manager configuration (if specified separately).
+        -- Only install when at least one environment is enabled; a display
+        -- manager with no desktop to greet is useless.
+        local any_env_enabled = false
+        if config.environments and type(config.environments) == "table" then
+            for _, env_config in pairs(config.environments) do
+                if type(env_config) == "table" and env_config.enable ~= false then
+                    any_env_enabled = true
+                    break
+                end
+            end
+        end
+
+        if config.display_manager and any_env_enabled then
             local dm_service = config.display_manager:lower()
             
             -- Install display manager packages if needed
