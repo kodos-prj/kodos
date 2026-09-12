@@ -81,27 +81,56 @@ local module = {
             local loader_type = config.loader.type or "systemd-boot"
             local timeout = config.loader.timeout or 10
             
-            if loader_type == "systemd-boot" then
-                -- Install systemd-boot
-                table.insert(steps, {
-                    name = "boot_loader_install_systemd",
-                    description = "Install systemd-boot bootloader",
-                    command = "bootctl install",
-                    chroot = true,
-                    order = 210,
-                    on_distro = "arch",
-                })
-                
-                -- Configure timeout
-                table.insert(steps, {
-                    name = "boot_loader_timeout",
-                    description = "Set boot timeout to " .. timeout .. " seconds",
-                    command = "echo \"timeout " .. timeout .. "\" > /boot/loader/loader.conf",
-                    chroot = true,
-                    order = 211,
-                    on_distro = "arch",
-                    depends_on = {"boot_loader_install_systemd"},
-                })
+             if loader_type == "systemd-boot" then
+                 -- Install systemd-boot
+                 table.insert(steps, {
+                     name = "boot_loader_install_systemd",
+                     description = "Install systemd-boot bootloader",
+                     command = "bootctl install",
+                     chroot = true,
+                     order = 210,
+                     on_distro = "arch",
+                 })
+                 
+                 -- Configure timeout
+                 table.insert(steps, {
+                     name = "boot_loader_timeout",
+                     description = "Set boot timeout to " .. timeout .. " seconds",
+                     command = "echo \"timeout " .. timeout .. "\" > /boot/loader/loader.conf",
+                     chroot = true,
+                     order = 211,
+                     on_distro = "arch",
+                     depends_on = {"boot_loader_install_systemd"},
+                 })
+                 
+                 -- Create main boot entry for current generation
+                 -- systemd-boot looks for .conf files in /boot/loader/entries/
+                 if config.kernel then
+                     local kernel_pkg = config.kernel.package or "linux"
+                     -- Convert kernel package name to initramfs name (linux-lts → linux-lts, linux → linux)
+                     local kernel_name = kernel_pkg:match("^linux(.*)") or "linux"
+                     local initramfs_name = "initramfs-linux" .. kernel_name .. ".img"
+                     local vmlinuz_name = "vmlinuz-linux" .. kernel_name
+                     
+                     -- Create boot entry that references the current generation's root filesystem
+                     -- Use printf to avoid shell escaping issues with echo -e
+                     local boot_entry_cmd = "mkdir -p /boot/loader/entries && printf '%s\\n%s\\n%s\\n%s\\n' " ..
+                                           "'title Kodos (Generation 0)' " ..
+                                           "'linux /" .. vmlinuz_name .. "' " ..
+                                           "'initrd /" .. initramfs_name .. "' " ..
+                                           "'options root=/dev/vda3 rw rootflags=subvol=generations/0/rootfs' " ..
+                                           "> /boot/loader/entries/kodos-0.conf"
+                     
+                     table.insert(steps, {
+                         name = "boot_loader_create_entry_generation_0",
+                         description = "Create systemd-boot entry for Generation 0",
+                         command = boot_entry_cmd,
+                         chroot = true,
+                         order = 212,
+                         on_distro = "arch",
+                         depends_on = {"boot_loader_timeout"},
+                     })
+                 end
             elseif loader_type == "grub" then
                   -- Install GRUB
                   local grub_pkg = distro == "arch" and "grub" or "grub-pc"
@@ -126,22 +155,22 @@ local module = {
                 })
             end
             
-            -- Loader include files
-            if config.loader.include and #config.loader.include > 0 then
-                for i, include_entry in ipairs(config.loader.include) do
-                     -- Clean entry name for step naming (remove .conf extension if present)
-                     local entry_name = include_entry:gsub("%.conf$", ""):gsub("[/-]", "_")
-                     
-                     table.insert(steps, {
-                         name = "boot_loader_include_" .. entry_name,
-                         description = "Add loader include: " .. include_entry,
-                         command = "echo \"include " .. include_entry .. "\" >> /boot/loader/loader.conf",
-                         chroot = true,
-                         order = 212 + i,
-                         depends_on = {"boot_loader_timeout"} or {"boot_loader_grub_timeout"},
-                     })
-                 end
-             end
+             -- Loader include files
+             if config.loader.include and #config.loader.include > 0 then
+                 for i, include_entry in ipairs(config.loader.include) do
+                      -- Clean entry name for step naming (remove .conf extension if present)
+                      local entry_name = include_entry:gsub("%.conf$", ""):gsub("[/-]", "_")
+                      
+                      table.insert(steps, {
+                          name = "boot_loader_include_" .. entry_name,
+                          description = "Add loader include: " .. include_entry,
+                          command = "echo \"include " .. include_entry .. "\" >> /boot/loader/loader.conf",
+                          chroot = true,
+                          order = 213 + i,
+                          depends_on = {"boot_loader_timeout"} or {"boot_loader_grub_timeout"},
+                      })
+                  end
+              end
          end
         
         return steps
