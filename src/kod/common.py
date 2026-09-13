@@ -148,9 +148,10 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
         raise OSError(f"Chroot mount point does not exist: {mount_point}")
 
     # Raw chroot on any host; target shell interprets the command so
-    # redirections/pipes apply inside the chroot. No /dev, /proc or /sys
-    # bind mounts - fine for offline install commands; add specific mounts
-    # back if a command needs live devices (e.g. hwclock wants /dev/rtc0).
+    # redirections/pipes apply inside the chroot. No mounts done here - the
+    # plan bind-mounts host /dev (and proc/sys) before chroot steps, so
+    # device nodes follow the host's own /dev (e.g. /dev/rtc0 exists iff
+    # the host kernel exposes an RTC device).
     safe_mount_point = shlex.quote(str(mount_point))
     chroot_cmd = f"chroot {safe_mount_point} /bin/sh -c {shlex.quote(cmd)}"
     return exec(chroot_cmd, get_output=get_output, **kwargs)
