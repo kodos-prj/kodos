@@ -66,7 +66,6 @@ from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
-from kod.config.schema import SECTION_HELP
 from kod.filesystem import create_partitions, get_partition_devices
 from kod.cli import registry_group
 
@@ -162,9 +161,9 @@ def _print_section_text(name: str, data: dict, level: int = 0) -> None:
             if 'example' in field_data:
                 click.echo(f"{field_indent}Example: {field_data['example']}")
             
-            # Print valid_values if present
-            if 'valid_values' in field_data:
-                click.echo(f"{field_indent}Valid values: {', '.join(field_data['valid_values'])}")
+            # Print enum (valid values) if present
+            if 'enum' in field_data:
+                click.echo(f"{field_indent}Valid values: {', '.join(str(v) for v in field_data['enum'])}")
             
             # Print subfields
             subfields = field_data.get('fields', {})
@@ -229,15 +228,18 @@ def config_compile(config: Optional[str]) -> None:
 @click.option("--format", type=click.Choice(["text", "json"]), default="text", help="Output format")
 def config_schema(section: Optional[str], format: str) -> None:
     "Display configuration schema with descriptions and field documentation."
-    
+
+    from kod.config.schema import get_lua_schema
+    schema = get_lua_schema()
+
     # Validate section name if provided
-    if section and section not in SECTION_HELP:
+    if section and section not in schema:
         click.echo(f"Error: Section '{section}' not found", err=True)
-        click.echo(f"Valid sections: {', '.join(sorted(SECTION_HELP.keys()))}", err=True)
+        click.echo(f"Valid sections: {', '.join(sorted(schema.keys()))}", err=True)
         sys.exit(1)
-    
+
     # Determine which sections to display
-    sections_to_display = {section: SECTION_HELP[section]} if section else SECTION_HELP
+    sections_to_display = {section: schema[section]} if section else schema
     
     if format == "json":
         # Output as JSON

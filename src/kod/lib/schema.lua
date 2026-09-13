@@ -12,6 +12,7 @@ Schema.base_distribution = {
     required = true,
     description = "Base Linux distribution to install.",
     enum = {"arch", "debian"},
+    example = 'base_distribution = "arch"',
 }
 
 -- ============================================================================
@@ -21,6 +22,10 @@ Schema.repos = {
     type = "dict",
     required = false,
     description = "Repository definitions (package sources).",
+    example = [[repos = {
+    official = repos.arch_repo("https://mirror.example.com/archlinux"),
+    aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay.git"),
+}]],
     fields = {
         -- REPO_NAME is a dynamic key, each value is created by repos.* functions
         -- This is a placeholder showing the structure
@@ -34,6 +39,9 @@ Schema.devices = {
     type = "dict",
     required = false,
     description = "Disk and partition definitions for system installation.",
+    example = [[devices = {
+    disk0 = disk.disk_definition("/dev/sda", "50GB"),
+}]],
     fields = {
         -- DISK_NAME is a dynamic key, each value is created by disk.disk_definition()
         -- This is a placeholder showing the structure
@@ -47,7 +55,17 @@ Schema.boot = {
     type = "dict",
     required = false,
     description = "Kernel and bootloader configuration.",
-    
+    example = [[boot = {
+    kernel = {
+        package = "linux-lts",
+        modules = {"xhci_pci", "virtio_blk"},
+    },
+    loader = {
+        type = "systemd-boot",
+        timeout = 10,
+    },
+}]],
+
     fields = {
         kernel = {
             type = "dict",
@@ -65,6 +83,7 @@ Schema.boot = {
                     type = "list",
                     required = false,
                     description = "List of kernel modules to load at boot (for initramfs).",
+                    example = '{"xhci_pci", "virtio_blk", "ahci"}',
                 }
             }
         },
@@ -105,7 +124,13 @@ Schema.hardware = {
     type = "dict",
     required = false,
     description = "Hardware features and configurations.",
-    
+    example = [[hardware = {
+    pipewire = {
+        enable = true,
+        extra_packages = {"pipewire-alsa", "pipewire-pulse"},
+    },
+}]],
+
     fields = {
         pipewire = {
             type = "dict",
@@ -123,6 +148,7 @@ Schema.hardware = {
                     type = "list",
                     required = false,
                     description = "Additional PipeWire packages (e.g., ALSA/PulseAudio compatibility).",
+                    example = '{"pipewire-alsa", "pipewire-pulse"}',
                 }
             }
         },
@@ -156,7 +182,15 @@ Schema.locale = {
     type = "dict",
     required = false,
     description = "Localization settings (language, timezone, environment variables).",
-    
+    example = [[locale = {
+    locale = {
+        default = "en_US.UTF-8 UTF-8",
+        extra_generate = {"en_GB.UTF-8 UTF-8"},
+    },
+    timezone = "America/New_York",
+    keymap = "us",
+}]],
+
     fields = {
         locale = {
             type = "dict",
@@ -183,11 +217,12 @@ Schema.locale = {
             }
         },
         
-        timezone = {
-            type = "string",
-            required = false,
-            description = "System timezone (IANA format: 'America/New_York', 'Europe/London').",
-        },
+                timezone = {
+                    type = "string",
+                    required = false,
+                    description = "System timezone (IANA format: 'America/New_York', 'Europe/London').",
+                    example = '"America/New_York"',
+                },
         
         keymap = {
             type = "string",
@@ -205,7 +240,11 @@ Schema.network = {
     type = "dict",
     required = false,
     description = "Network configuration (hostname, IPv6).",
-    
+    example = [[network = {
+    hostname = "mycomputer",
+    ipv6 = true,
+}]],
+
     fields = {
         hostname = {
             type = "string",
@@ -229,7 +268,18 @@ Schema.users = {
     type = "dict",
     required = false,
     description = "User accounts (login, shell, groups, home configuration).",
-    
+    example = [[users = {
+    alice = {
+        identity = {
+            name = "Alice",
+            password = "secret",  -- or hashed_password
+            shell = "/bin/bash",
+            groups = {"wheel"},
+        },
+        home_programs = {neovim = true},
+    },
+}]],
+
     fields = {
         -- USERNAME is dynamic key; inside each user config are optional nested blocks:
         identity = {
@@ -263,6 +313,7 @@ Schema.users = {
                     type = "list",
                     required = false,
                     description = "List of groups the user belongs to.",
+                    example = '{"wheel", "docker"}',
                 }
             }
         },
@@ -346,7 +397,11 @@ Schema.desktop = {
     type = "dict",
     required = false,
     description = "Desktop environment selection (GNOME, KDE Plasma, XFCE, etc.).",
-    
+    example = [[desktop = {
+    environment = "plasma",
+    enable = true,
+}]],
+
     fields = {
         environment = {
             type = "string",
@@ -414,12 +469,17 @@ Schema.fonts = {
     type = "dict",
     required = false,
     description = "Font packages to install (monospace, sans-serif, CJK, emoji).",
-    
+    example = [[fonts = {
+    monospace = {"noto-fonts-cjk"},
+    enable = true,
+}]],
+
     fields = {
         monospace = {
             type = "list",
             required = false,
             description = "Monospace font packages.",
+            example = '{"noto-fonts-cjk", "liberation-fonts"}',
         },
         
         sans_serif = {
@@ -462,6 +522,7 @@ Schema.packages = {
     type = "list",
     required = false,
     description = "List of system packages to install (package manager names).",
+    example = 'packages = {"vim", "tmux", "git", "htop", "neofetch"}',
 }
 
 -- ============================================================================
@@ -471,7 +532,11 @@ Schema.services = {
     type = "dict",
     required = false,
     description = "System services to enable/start (e.g., ssh, nginx, docker).",
-    
+    example = [[services = {
+    ssh = { enable = true },
+    nginx = { enable = true, start = true },
+}]],
+
     fields = {
         -- SERVICE_NAME is dynamic key; inside each service config:
         --   enable: boolean (optional, enable on boot)
@@ -547,7 +612,11 @@ Schema.programs = {
     type = "dict",
     required = false,
     description = "Program configurations at system level (custom programs with install logic).",
-    
+    example = [[programs = {
+    neovim = { enable = true },
+    git = { enable = true, config = {} },
+}]],
+
     fields = {
         -- PROGRAM_NAME is dynamic key; inside each program config:
         -- enable: boolean (optional)
