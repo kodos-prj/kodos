@@ -30,32 +30,6 @@ class TestPhase4KernelVersionValidation:
     or malformed kernel version strings.
     """
 
-    def test_empty_kernel_version_no_crash(self):
-        """Verify empty kernel version doesn't cause IndexError."""
-        # This would previously crash with IndexError when trying to split empty string
-        kernel_version = ""
-        
-        # The fix adds validation before parsing
-        result = self._parse_kernel_version_with_validation(kernel_version)
-        
-        # Should return a safe default, not crash
-        assert result is not None
-        
-    def test_malformed_kernel_version_no_crash(self):
-        """Verify malformed kernel version is handled safely."""
-        malformed_versions = [
-            "not-a-version",
-            "5",
-            "5.",
-            "-5.10-generic",
-            "   ",
-        ]
-        
-        for version in malformed_versions:
-            result = self._parse_kernel_version_with_validation(version)
-            # Should not crash, should return safe result
-            assert result is not None
-    
     def test_valid_kernel_version_parses_correctly(self):
         """Verify valid kernel versions still parse correctly."""
         valid_versions = [

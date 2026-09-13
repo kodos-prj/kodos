@@ -33,8 +33,19 @@ def make_lua_config(**sections):
 
 
 def make_conf(**sections):
-    """Build a simple dict config for testing."""
-    return sections
+    """Build a LuaTable conf, same shape as production (nil for missing keys)."""
+    from kod.lua_runtime import get_lua_runtime
+    lua = get_lua_runtime()
+    t = lua.table()
+    for k, v in sections.items():
+        if isinstance(v, list):
+            arr = lua.table()
+            for i, item in enumerate(v, 1):
+                arr[i] = item
+            t[k] = arr
+        else:
+            t[k] = v
+    return t
 
 
 class TestLuaStepConversion:

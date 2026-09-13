@@ -362,7 +362,18 @@ class TestPlanCli:
         from kod.kod import cli
 
         mock_load.return_value = make_conf()
-        result = CliRunner().invoke(cli, ["plan"])  # default baseline=current
+
+        # Hermetic: force the "no generation on this system" path even when
+        # running on a KodOS host that has /.generation.
+        real_open = open
+
+        def fake_open(file, *args, **kwargs):
+            if str(file) == "/.generation":
+                raise FileNotFoundError(file)
+            return real_open(file, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=fake_open):
+            result = CliRunner().invoke(cli, ["plan"])  # default baseline=current
         assert result.exit_code != 0
         assert "--baseline empty" in result.output
 

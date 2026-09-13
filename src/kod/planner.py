@@ -146,6 +146,8 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
             logger.warning(f"Lua planner warnings: {error_msg}")
         
         if not lua_steps:
+            if error_msg:
+                raise RuntimeError(f"Lua planner failed: {error_msg}")
             logger.warning("Lua planner returned no steps")
             return []
         

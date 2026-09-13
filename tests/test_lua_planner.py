@@ -61,6 +61,9 @@ def _from_lua(value):
         result = {}
         for key in value.keys():
             result[key] = _from_lua(value[key])
+        keys = list(result)
+        if all(isinstance(k, int) and not isinstance(k, bool) for k in keys):
+            return [result[k] for k in sorted(keys)]
         return result
     elif isinstance(value, list):
         return [_from_lua(v) for v in value]
@@ -118,9 +121,9 @@ class TestPlannerComposition:
             config = {base_distribution = "arch"}
             steps, err = Planner:compose(config, "arch")
         """)
-        steps = lua_with_path.eval("steps")
+        steps = _from_lua(lua_with_path.eval("steps"))
         err = lua_with_path.eval("err")
-        
+
         # Should return a table (could be empty or have steps)
         assert isinstance(steps, list)
         assert err is None
@@ -135,13 +138,13 @@ class TestPlannerComposition:
             }
             steps, err = Planner:compose(config, "arch")
         """)
-        steps = lua_with_path.eval("steps")
+        steps = _from_lua(lua_with_path.eval("steps"))
         err = lua_with_path.eval("err")
-        
+
         assert isinstance(steps, list)
         assert err is None
         assert len(steps) > 0
-        
+
         # Check that we got package-related steps
         step_names = [step.get("name") for step in steps]
         assert any("package" in name for name in step_names if name)
@@ -320,9 +323,9 @@ class TestMissingConfigSections:
             config = {base_distribution = "arch"}  -- no packages
             steps, err = Planner:compose(config, "arch")
         """)
-        steps = lua_with_path.eval("steps")
+        steps = _from_lua(lua_with_path.eval("steps"))
         err = lua_with_path.eval("err")
-        
+
         # Should succeed, just with no package steps
         assert isinstance(steps, list)
         assert err is None
@@ -360,11 +363,11 @@ class TestSectionModuleLoading:
             lua_with_path.execute(f"""
                 success = false
                 err_msg = nil
-                sec, err = pcall(require, 'kod.sections.{section}')
-                if not sec then
-                    err_msg = err
-                else
+                ok, sec = pcall(require, 'kod.sections.{section}')
+                if ok and type(sec) == 'table' then
                     success = sec.emit_steps ~= nil
+                else
+                    err_msg = tostring(sec)
                 end
             """)
             success = lua_with_path.eval("success")
