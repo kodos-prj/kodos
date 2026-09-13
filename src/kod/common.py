@@ -12,8 +12,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from chorut import ChrootManager
-
 use_debug: bool = True
 use_verbose: bool = False
 problems: list[dict] = []
@@ -145,32 +143,14 @@ def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, *
     Raises:
         OSError: If chroot environment is not accessible.
     """
-    # # Validate that mount_point exists and is accessible
-    # mount_path = Path(mount_point)
-    # if not mount_path.is_dir():
-    #     raise OSError(f"Chroot mount point does not exist: {mount_point}")
+    mount_path = Path(mount_point)
+    if not mount_path.is_dir():
+        raise OSError(f"Chroot mount point does not exist: {mount_point}")
 
-    # # Validate that essential chroot components exist
-    # essential_paths = ["/bin", "/usr", "/etc"]
-    # for path in essential_paths:
-    #     full_path = mount_path / path.lstrip("/")
-    #     if not full_path.exists():
-    #         logger.warning(f"Chroot environment may be incomplete, missing: {full_path}")
-
-    # try:
-    #     # print(f"###({get_output})>", cmd)
-    #     result = chroot(str(mount_point), cmd, get_output=get_output)
-    #     # print("###~", result)
-    #     return result if result is not None else ""
-    # Escape the mount point to prevent injection
-    # safe_mount_point = shlex.quote(str(mount_point))
-    # Construct chroot command - using arch-chroot for Arch-specific functionality
-    # chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
-
-    # return exec(chroot_cmd, get_output=get_output, **kwargs)
-    with ChrootManager(mount_point) as chroot:
-        result = chroot.execute(cmd, capture_output=get_output)
-        return result.stdout if get_output is not None else ""
+    # arch-chroot handles /dev, /proc and /sys bind mounts natively
+    safe_mount_point = shlex.quote(str(mount_point))
+    chroot_cmd = f"arch-chroot {safe_mount_point} {cmd}"
+    return exec(chroot_cmd, get_output=get_output, **kwargs)
 
 
 def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:

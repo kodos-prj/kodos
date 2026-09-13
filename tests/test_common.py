@@ -119,8 +119,7 @@ def test_exec_warn_failure():
 
 def test_exec_chroot_invalid_mount_point():
     """Test that exec_chroot handles invalid mount points correctly."""
-    from chorut import ChrootError
-    with pytest.raises(ChrootError) as exc_info:
+    with pytest.raises(OSError) as exc_info:
         exec_chroot("echo test", "/nonexistent/path")
 
     assert "does not exist" in str(exc_info.value)
