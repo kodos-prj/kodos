@@ -41,7 +41,7 @@ def test_no_dm_when_all_environments_disabled(lua):
 def test_dm_installed_when_an_environment_is_enabled(lua):
     names = _dm_step_names(lua, "gnome = { enable = true }, plasma = { enable = false }")
     assert "desktop_display_manager_install" in names
-    assert "desktop_display_manager_enable" in names
+    assert "lightdm" in names  # typed service step: name is the unit
 
 
 def test_dm_enabled_by_default_when_environment_has_no_enable_key(lua):

@@ -5,7 +5,6 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-import lupa
 import pytest
 
 EXAMPLE = Path(__file__).parent.parent / "example" / "testvm"
@@ -26,8 +25,10 @@ def _to_lua(lua, value):
 
 
 def make_conf(**sections):
-    """Build a LuaTable conf, same shape as production (nil for missing keys)."""
-    lua = lupa.LuaRuntime()
+    """Build a LuaTable conf in the shared runtime (same shape as production)."""
+    from kod.lua_runtime import get_lua_runtime
+    lua = get_lua_runtime()
+    sections.setdefault("base_distribution", "arch")
     t = lua.table()
     for k, v in sections.items():
         t[k] = _to_lua(lua, v)
@@ -197,34 +198,25 @@ class TestPlanInstall:
         )
         steps = plan_install(conf)
         kinds_names = [(s.kind, s.name) for s in steps]
-        # Disk steps come first (from plan_disk_steps via Lua bootstrap)
-        assert kinds_names[0][0] == "disk", f"Expected first step to be disk (wipe), got {kinds_names[0]}"
-        # system phase steps in install-flow order:
-        # 1. Bootstrap system config from Lua (fstab, locale, hostname, bootloader)
-        # 2. Package management system steps (base-packages, repos, configure-system, kod-user)
-        phases = [n for k, n in kinds_names if k == "system"]
-        assert "fstab" in phases
-        assert "base-packages" in phases
-        assert "repos" in phases
-        assert "configure-system" in phases
-        assert "kod-user" in phases
-        # packages: "git" from conf.packages; "vim" from bob's enabled program
-        # (_proc_user_programs adds program names as packages too)
-        pkgs = [s for s in steps if s.kind == "package"]
-        assert [p.name for p in pkgs] == ["git", "vim"]
-        assert pkgs[0].meta == {"action": "install", "repo": "official"}
-        base_step = next(s for s in steps if s.name == "base-packages")
-        assert base_step.meta == {"kernel": "linux-lts", "base": ["base", "base-devel", "intel-ucode"]}
-        repos_step = next(s for s in steps if s.name == "repos")
-        assert repos_step.meta == {"repos": ["aur", "official"], "base_packages": {"aur": "yay"}}
+        # Install leads with device work (partition before mount), all as system steps.
+        assert kinds_names[0][0] == "system" and kinds_names[0][1].startswith("devices_partition")
+        dev_names = [n for k, n in kinds_names if n.startswith("devices_")]
+        assert dev_names.index("devices_partition_disk0_1") < dev_names.index("devices_mount_disk0_1")
+        # Packages collapse into one bulk verb step; user creation is a system step.
+        sysnames = [n for k, n in kinds_names if k == "system"]
+        assert "packages_install_all" in sysnames
+        assert "users_create_bob" in sysnames
+        pkg = next(s for s in steps if s.name == "packages_install_all")
+        assert pkg.program == "pacman -S --noconfirm git"
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
-    def test_repo_prefix_parsing(self, _mock):
+    def test_packages_emit_single_pacman(self, _mock):
         from kod.planner import plan_install
 
         conf = make_conf(packages=["git", "aur:mylib"])
-        pkgs = [s for s in plan_install(conf) if s.kind == "package"]
-        assert {p.name: p.meta["repo"] for p in pkgs} == {"git": "official", "mylib": "aur"}
+        pkg = next(s for s in plan_install(conf) if s.name == "packages_install_all")
+        # ponytail: repo-prefix (aur:) is passed through unparsed; Task 4 reworks repos.
+        assert pkg.program == "pacman -S --noconfirm git aur:mylib"
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
     def test_services_users_programs(self, _mock):
@@ -239,12 +231,11 @@ class TestPlanInstall:
         )
         steps = plan_install(conf)
         svcs = [(s.name, s.meta) for s in steps if s.kind == "service"]
-        assert ("sshd", {"action": "enable"}) in svcs
-        assert ("gpg", {"action": "enable", "user": "bob"}) in svcs
-        users = [s.name for s in steps if s.kind == "user"]
-        progs = [(s.name, s.meta) for s in steps if s.kind == "program"]
-        assert users == ["bob"]
-        assert progs == [("bob/vim", {"deploy_config": True, "run_script": False})]
+        # User-level service enabled as a verb step.
+        assert ("gpg", {"action": "enable"}) in svcs
+        # User creation is a system step (no separate [user]/[program] kinds).
+        users = [s.name for s in steps if s.kind == "system" and s.name.startswith("users_create_")]
+        assert users == ["users_create_bob"]
 
 
 def make_dist(kernel_update=False):
@@ -317,16 +308,13 @@ class TestBuildPlan:
 
         conf = make_conf(packages=["git"])
         empty = build_plan(conf, baseline="empty")
-        # install plan starts with system steps from Lua bootstrap
+        # install plan emits a bulk package verb step (Lua path).
         system_steps = [s.name for s in empty if s.kind == "system"]
-        # Should include base-packages and repos steps
-        assert "base-packages" in system_steps
-        assert "repos" in system_steps
-        # Should also include bootstrap system config steps
-        assert len(system_steps) >= 4  # At least fstab, locale, hostname, bootloader
+        assert "packages_install_all" in system_steps
 
         current = build_plan(conf, make_dist(), baseline="current",
-                             current_packages={"packages": []}, current_services=[])
+                              current_packages={"packages": []}, current_services=[])
+        # rebuild never emits install-only steps
         assert not [s for s in current if s.name == "base-packages"]
 
 

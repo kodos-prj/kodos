@@ -63,10 +63,11 @@ local module = {
             end
             
             table.insert(steps, {
-                name = "desktop_dm_enable",
+                kind = "service",
+                name = dm_service,
                 description = "Enable display manager " .. dm_service,
-                command = "systemctl enable " .. dm_service,
-                chroot = true,
+                command = "",
+                meta = { action = "enable" },
                 order = 451,
                 depends_on = {"desktop_install_" .. de_name},
             })
@@ -152,10 +153,11 @@ local module = {
             })
             
             table.insert(steps, {
-                name = "desktop_display_manager_enable",
+                kind = "service",
+                name = dm_service,
                 description = "Enable display manager " .. dm_service,
-                command = "systemctl enable " .. dm_service,
-                chroot = true,
+                command = "",
+                meta = { action = "enable" },
                 order = 456,
                 depends_on = {"desktop_display_manager_install"},
             })

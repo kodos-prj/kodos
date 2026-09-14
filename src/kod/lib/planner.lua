@@ -173,7 +173,7 @@ function Planner:compose(config, distro)
             local section = section_or_error
             
             -- Call emit_steps to get steps from this section
-            success = pcall(function()
+            local ok, err = pcall(function()
                 local section_steps = section.emit_steps(config[section_name], distro)
                 if section_steps and type(section_steps) == "table" then
                     for _, step in ipairs(section_steps) do
@@ -181,9 +181,9 @@ function Planner:compose(config, distro)
                     end
                 end
             end)
-            
-            if not success then
-                table.insert(errors, "Section '" .. section_name .. "' emit_steps failed")
+
+            if not ok then
+                table.insert(errors, "Section '" .. section_name .. "' emit_steps failed: " .. tostring(err))
             end
         end
         

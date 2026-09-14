@@ -4,7 +4,7 @@ Handles bootloader configuration, kernel selection, and boot entry management.
 """
 
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Callable
 
 from kod.arch import get_kernel_file
 from kod.common import exec, exec_chroot
@@ -24,116 +24,56 @@ def get_kernel_version(mount_point: str) -> str:
     return kernel_version
 
 
-def create_boot_entry(
-    generation: int,
-    partition_list: List,
-    boot_options: Optional[List[str]] = None,
-    is_current: bool = False,
-    mount_point: str = "/mnt",
-    kver: Optional[str] = None,
-) -> None:
+def _read_root_device(fstab_path: str) -> str:
+    """Return the device field (e.g. 'UUID=...') of the '/' entry in an fstab."""
+    with open(fstab_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            fields = line.split()
+            if len(fields) >= 2 and fields[1] == "/":
+                return fields[0]
+    raise RuntimeError(f"No '/' entry found in {fstab_path}")
+
+
+def create_boot_entry_hook(generation: int, kernel_package: str, mount_point: str) -> Callable[[], None]:
+    """Create a hook that writes a systemd-boot entry + loader.conf for a generation.
+
+    Self-contained: kver is derived from the installed kernel package and the root
+    device UUID is read from the target fstab (single source of truth). The subvol is
+    always generations/<generation>/rootfs, so this works identically for install
+    (gen 0) and rebuild (gen N) regardless of which generation the fstab points at.
     """
-    Create a systemd-boot loader entry for the specified generation.
 
-    Args:
-        generation (int): The generation number to create an entry for.
-        partition_list (list): A list of Partition objects to use for determining the root device.
-        boot_options (list, optional): A list of additional boot options to include in the entry.
-        is_current (bool, optional): If True, the entry will be named "kodos" and set as the default.
-        mount_point (str, optional): The mount point of the chroot environment to write the entry to.
-        kver (str, optional): The kernel version to use in the entry. If not provided, the current kernel
-            version will be determined using `uname -r` in the chroot environment.
-    """
-    subvol = f"generations/{generation}/rootfs"
-    root_fs = [part for part in partition_list if part.destination in ["/"]][0]
-    root_device = root_fs.source_uuid()
-    options = " ".join(boot_options) if boot_options else ""
-    options += f" rootflags=subvol={subvol}"
-    entry_name = "kodos" if is_current else f"kodos-{generation}"
-
-    if not kver:
-        kver = get_kernel_version(mount_point)
-
-    today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
-    entry_conf = f"""
+    def hook() -> None:
+        _kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        root_device = _read_root_device(f"{mount_point}/etc/fstab")
+        subvol = f"generations/{generation}/rootfs"
+        entry_name = f"kodos-{generation}"
+        today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
+        entry_conf = f"""
 title KodOS
 sort-key kodos
 version Generation {generation} KodOS (build {today} - {kver})
 linux /vmlinuz-{kver}
 initrd /initramfs-linux-{kver}.img
-options root={root_device} rw {options}
+options root={root_device} rw rootflags=subvol={subvol}
     """
-    entries_path = Path(f"{mount_point}/boot/loader/entries/")
-    if not entries_path.is_dir():
+        entries_path = Path(f"{mount_point}/boot/loader/entries/")
         entries_path.mkdir(parents=True, exist_ok=True)
-    with open(f"{mount_point}/boot/loader/entries/{entry_name}.conf", "w") as f:
-        f.write(entry_conf)
+        with open(f"{entries_path}/{entry_name}.conf", "w") as f:
+            f.write(entry_conf)
 
-    # Update loader.conf
-    loader_conf_systemd = f"""
+        loader_conf = f"""
 default {entry_name}.conf
 timeout 10
 console-mode keep
 """
-    with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
-        f.write(loader_conf_systemd)
+        with open(f"{mount_point}/boot/loader/loader.conf", "w") as f:
+            f.write(loader_conf)
 
-
-def setup_bootloader(conf: Any, partition_list: List, dist: Any) -> None:
-    """
-    Set up the bootloader based on the configuration.
-
-    Args:
-        conf (dict): The configuration dictionary.
-        partition_list (list): A list of Partition objects to use for determining the root device.
-        dist: The distribution object.
-    """
-    boot_conf = conf.boot
-
-    if boot_conf is None:
-        print("Warning: No boot configuration, skipping bootloader setup")
-        return
-
-    loader_conf = boot_conf["loader"] if "loader" in boot_conf else {}
-
-    if "kernel" in boot_conf and "package" in boot_conf["kernel"]:
-        kernel_package = boot_conf["kernel"]["package"]
-    else:
-        kernel_package = "linux"
-
-    # Default bootloader
-    boot_type = "systemd-boot"
-
-    if "type" in loader_conf:
-        boot_type = loader_conf["type"]
-
-    # Using systemd-boot as bootloader
-    if boot_type == "systemd-boot":
-        print("==== Setting up systemd-boot ====")
-        kver = dist.setup_linux(kernel_package)
-        # if base_distribution == "arch":
-        #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-        #     exec_chroot(f"cp {kernel_file} /boot/vmlinuz-linux-{kver}")
-        # else:
-        #     kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-        exec_chroot("bootctl install")
-        print("KVER:", kver)
-        exec_chroot(f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img")
-        create_boot_entry(0, partition_list, mount_point="/mnt", kver=kver)
-
-    # Using Grub as bootloader
-    if boot_type == "grub":
-        pass
-        # pkgs_required = ["grub", "efibootmgr", "grub-btrfs"]
-        # if "include" in loader_conf:
-        #     pkgs_required += loader_conf["include"].values()
-
-        # exec_chroot(f"pacman -S --noconfirm {' '.join(pkgs_required)}")
-        # exec_chroot(
-        #     "grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB",
-        # )
-        # exec_chroot("grub-mkconfig -o /boot/grub/grub.cfg")
-        # # pkgs_installed += ["efibootmgr"]
+    return hook
 
 
 def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], None]:

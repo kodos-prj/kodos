@@ -91,7 +91,15 @@ end
 
 local function git(config)
     local command = function(context, config)
-        for field, value in pairs(config) do
+        -- pairs() order over string keys is unspecified (hash seed varies per
+        -- process); sort so captured/execution order is deterministic.
+        local fields = {}
+        for field in pairs(config) do
+            fields[#fields + 1] = field
+        end
+        table.sort(fields)
+        for _, field in ipairs(fields) do
+            local value = config[field]
             local field_name = field:gsub("_", ".")
             context:execute("git config --global ".. field_name .." \"" .. value .. "\"")
         end

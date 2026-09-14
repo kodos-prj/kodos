@@ -66,10 +66,11 @@ local module = {
                             deps = {"programs_install_" .. program_name}
                         end
                         table.insert(steps, {
-                            name = "programs_service_enable_" .. program_name,
+                            kind = "service",
+                            name = unit,
                             description = "Enable service for program " .. program_name .. ": " .. unit,
-                            command = "systemctl enable " .. unit,
-                            chroot = true,
+                            command = "",
+                            meta = { action = "enable" },
                             order = 810,
                             depends_on = deps,
                         })

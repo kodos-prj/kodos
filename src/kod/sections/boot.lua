@@ -32,54 +32,45 @@ local module = {
                 order = 200,
             })
             
-              -- Configure kernel modules in initramfs
-                if config.kernel.modules and #config.kernel.modules > 0 then
-                    local modules_str = table.concat(config.kernel.modules, " ")
-                    -- KodOS root is btrfs; the initramfs must carry the btrfs module or the
-                    -- kernel hangs on /dev/disk/by-uuid. mkinitcpio's filesystems hook only
-                    -- adds it conditionally (add_checked_modules), so pin it explicitly.
-                    if not modules_str:find("btrfs", 1, true) then
-                        modules_str = modules_str .. " btrfs"
-                    end
+            -- Pin initramfs modules via dracut conf. KodOS root is btrfs, so btrfs is
+            -- always pinned: without it the kernel hangs on /dev/disk/by-uuid at boot.
+            local modules = { "btrfs" }
+            for _, m in ipairs(config.kernel.modules or {}) do
+                if m ~= "btrfs" then
+                    table.insert(modules, m)
+                end
+            end
+            local add_lines = {}
+            for _, m in ipairs(modules) do
+                table.insert(add_lines, "add_drivers+=" .. m)
+            end
 
-                    table.insert(steps, {
-                       name = "boot_kernel_modules_config",
-                       description = "Configure kernel modules in initramfs: " .. modules_str,
-                       command = "mkdir -p /etc/mkinitcpio.conf.d && echo \"MODULES=(" .. modules_str .. ")\" > /etc/mkinitcpio.conf.d/modules.conf",
-                       chroot = true,
-                       order = 201,
-                       on_distro = "arch",
-                       depends_on = {"boot_kernel_install"},
-                   })
-               end
-              
-               -- Regenerate initramfs after kernel install and module configuration
-               -- Use distribution-specific tool:
-               -- - Arch Linux: mkinitcpio
-               -- - Debian/Ubuntu: dracut
-               if distro == "arch" then
-                   table.insert(steps, {
-                       name = "boot_kernel_initramfs_regenerate",
-                       description = "Regenerate initramfs with mkinitcpio",
-                       command = "mkinitcpio -p " .. kernel_pkg,
-                       chroot = true,
-                       order = 202,
-                       on_distro = "arch",
-                       depends_on = (config.kernel.modules and #config.kernel.modules > 0) and {"boot_kernel_modules_config"} or {"boot_kernel_install"},
-                       on_error = "warn",  -- mkinitcpio warns about missing vconsole.conf and fsck helpers (non-fatal)
-                   })
-               elseif distro == "debian" then
-                   table.insert(steps, {
-                       name = "boot_kernel_initramfs_regenerate",
-                       description = "Regenerate initramfs with dracut",
-                       command = "dracut -f",
-                       chroot = true,
-                       order = 202,
-                       on_distro = "debian",
-                       depends_on = (config.kernel.modules and #config.kernel.modules > 0) and {"boot_kernel_modules_config"} or {"boot_kernel_install"},
-                       on_error = "warn",  -- dracut may warn about missing configuration (non-fatal)
-                   })
-               end
+            table.insert(steps, {
+               name = "boot_kernel_modules_config",
+               description = "Configure initramfs modules: " .. table.concat(modules, " "),
+               command = "mkdir -p /etc/dracut.conf.d && printf \"" .. table.concat(add_lines, "\\n") .. "\" > /etc/dracut.conf.d/kodos.conf",
+               chroot = true,
+               order = 201,
+            })
+           
+            -- Kernel/initramfs updates are dispatched system steps: the executor calls
+            -- env["kernel-update"] / env["initramfs-update"], which copy vmlinuz-<kver>
+            -- into /boot and generate initramfs-linux-<kver>.img.
+            table.insert(steps, {
+                name = "kernel-update",
+                description = "Update kernel files in /boot: " .. kernel_pkg,
+                command = "",
+                meta = { kernel = kernel_pkg },
+                order = 202,
+            })
+            
+            table.insert(steps, {
+                name = "initramfs-update",
+                description = "Generate initramfs for " .. kernel_pkg,
+                command = "",
+                meta = { kernel = kernel_pkg },
+                order = 203,
+            })
         end
         
         -- Bootloader configuration
@@ -98,55 +89,18 @@ local module = {
                      on_distro = "arch",
                  })
                  
-                 -- Configure timeout and default entry
-                 -- Writes loader.conf with default entry and timeout (console-mode keep)
-                 local entry_file = "kodos-0.conf"
-                 table.insert(steps, {
-                     name = "boot_loader_timeout",
-                     description = "Set boot timeout to " .. timeout .. " seconds",
-                     command = "echo \"default " .. entry_file .. "\" > /boot/loader/loader.conf && echo \"timeout " .. timeout .. "\" >> /boot/loader/loader.conf && echo \"console-mode keep\" >> /boot/loader/loader.conf",
-                     chroot = true,
-                     order = 211,
-                     on_distro = "arch",
-                     depends_on = {"boot_loader_install_systemd"},
-                 })
-                 
-                 -- Create main boot entry for current generation
-                 -- systemd-boot looks for .conf files in /boot/loader/entries/
-                 -- IMPORTANT: Use double quotes only - executor wraps chroot commands
-                 -- in single quotes (chroot /mnt sh -c '...'), so internal single
-                 -- quotes would break the shell command.
+                 -- The boot entry (.conf + loader.conf) is written by the dispatched
+                 -- boot-entry system step: kver comes from the installed kernel and the
+                 -- root UUID from the generated fstab (single source of truth).
                  if config.kernel then
                      local kernel_pkg = config.kernel.package or "linux"
-                     -- mkinitcpio names initramfs by kernel package: linux-lts → initramfs-linux-lts.img
-                     local kernel_suffix = kernel_pkg:match("^linux(.*)") or ""
-                     local initramfs_name = "initramfs-linux" .. kernel_suffix .. ".img"
-                     local vmlinuz_name = "vmlinuz-linux" .. kernel_suffix
-                     
-                      -- Write entry on the HOST (not chroot): it's plain text files on /boot.
-                      -- The root UUID is read from the generated fstab (single source of
-                      -- truth) so the entry works for any disk device (/dev/vda, /dev/sda...).
-                      -- test -n makes an empty UUID fail the step instead of writing
-                      -- root=UUID= (unbootable).
-                      -- title Kodos (Generation 0)
-                      -- linux /vmlinuz-linux-lts
-                      -- initrd /initramfs-linux-lts.img
-                      -- options root=UUID=... rw rootflags=subvol=generations/0/rootfs
-                      local boot_entry_cmd = "mkdir -p /mnt/boot/loader/entries && " ..
-                                             "echo \"title Kodos (Generation 0)\" > /mnt/boot/loader/entries/" .. entry_file .. " && " ..
-                                             "echo \"linux /" .. vmlinuz_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
-                                             "echo \"initrd /" .. initramfs_name .. "\" >> /mnt/boot/loader/entries/" .. entry_file .. " && " ..
-                                             "ROOT_UUID=$(awk '$2 == \"/\" {print $1; exit}' /mnt/etc/fstab | cut -d= -f2) && test -n \"$ROOT_UUID\" && " ..
-                                             "echo \"options root=UUID=$ROOT_UUID rw rootflags=subvol=generations/0/rootfs\" >> /mnt/boot/loader/entries/" .. entry_file
-
-                      table.insert(steps, {
-                          name = "boot_loader_create_entry_generation_0",
-                          description = "Create systemd-boot entry for Generation 0",
-                          command = boot_entry_cmd,
-                          chroot = false,
+                     table.insert(steps, {
+                         name = "boot-entry",
+                         description = "Create systemd-boot entry for Generation 0",
+                         command = "",
+                         meta = { kernel = kernel_pkg },
                          order = 212,
                          on_distro = "arch",
-                         depends_on = {"boot_loader_timeout"},
                      })
                  end
             elseif loader_type == "grub" then
@@ -185,10 +139,9 @@ local module = {
                           command = "echo \"include " .. include_entry .. "\" >> /boot/loader/loader.conf",
                           chroot = true,
                           order = 213 + i,
-                          depends_on = {"boot_loader_timeout"} or {"boot_loader_grub_timeout"},
                       })
-                  end
-              end
+                 end
+             end
          end
         
         return steps

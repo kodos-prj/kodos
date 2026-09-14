@@ -23,28 +23,18 @@ from kod.common import (
     exec,
     set_debug,
     set_verbose,
-    report_problems,
     exec_warn,
-    exec_critical,
 )
 from kod.core import (
     Context,
     change_subvol,
-    configure_system,
     configure_user_dotfiles,
     configure_user_scripts,
-    create_boot_entry,
-    create_filesystem_hierarchy,
-    create_kod_user,
-    create_next_generation,
     disable_services,
     enable_services,
     enable_user_services,
     generate_fstab,
-    get_max_generation,
     get_packages_to_install,
-    get_packages_updates,
-    get_pending_packages,
     get_services_to_enable,
     load_config as load_config_lua_raw,
     load_fstab,
@@ -54,8 +44,6 @@ from kod.core import (
     manage_packages,
     manage_packages_shell,
     proc_user_home,
-    proc_users,
-    setup_bootloader,
     store_packages_services,
     update_all_packages,
     user_configs,
@@ -66,7 +54,8 @@ from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
-from kod.filesystem import create_partitions, get_partition_devices
+from kod.filesystem import get_partition_devices
+from kod.system.filesystem import create_next_generation, get_max_generation
 from kod.cli import registry_group
 
 # Shorthand for load_config (from kod.core, which uses Lua loader)
@@ -289,11 +278,12 @@ load_config = load_config_lua_raw
 @click.option("-m", "--mount_point", default="/mnt", help="Mount point for install")
 def install(config: Optional[str], mount_point: str) -> None:
     """Install KodOS based on configuration."""
-    from kod.planner import build_plan, render_plan
-    from kod.executor import Executor, StepError
+    from kod.planner import build_plan, render_plan, KOD_USE_LUA_PLANNER
+    from kod.executor import Executor, StepError, execute_steps_lua
     from kod.hooks import collect_hooks
     from kod._core import Context
-    
+    from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
+
     try:
         ctx_obj = Context(os.environ.get("USER", "root"), mount_point=mount_point, use_chroot=True, stage="install")
         conf = load_config(config)
@@ -317,8 +307,10 @@ def install(config: Optional[str], mount_point: str) -> None:
             "dist": dist,
             "manage_packages": manage_packages,
             "enable_services": enable_services,
-            "update_kernel_hook": lambda kernel, mp: None,  # placeholder
-            "update_initramfs_hook": lambda kernel, mp: None,  # placeholder
+            # Boot entry is a plan step (boot.lua) dispatched here; generation 0 for install.
+            "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
+            "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
+            "boot-entry": lambda kernel, mp: create_boot_entry_hook(0, kernel, mp)(),
         }
         
         try:
@@ -327,10 +319,15 @@ def install(config: Optional[str], mount_point: str) -> None:
             logger.warning(f"Failed to collect hooks: {e}")
             hooks_dict = {}
         
-        # Execute plan
+        # Execute plan (Lua runner when enabled; Python executor otherwise).
+        # No mid-execution fallback: a StepError is a real step failure and
+        # re-running the whole plan would double-execute partial work.
         print("\n=== Executing Install ===\n")
-        executor = Executor(env=env)
-        results = executor.execute(steps, {"mount_point": mount_point, "use_chroot": True}, hooks=hooks_dict)
+        if KOD_USE_LUA_PLANNER:
+            results = execute_steps_lua(steps, env, mount_point, True, hooks=hooks_dict)
+        else:
+            executor = Executor(env=env)
+            results = executor.execute(steps, {"mount_point": mount_point, "use_chroot": True}, hooks=hooks_dict)
         
         # Check for critical failures (ignore on_error='warn' steps)
         failures = [r for r in results if not r.success and not r.is_warning]
@@ -451,10 +448,10 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             dry_run: bool = False) -> None:
     "Rebuild KodOS system installation"
 
-    from kod.planner import build_plan, render_plan
-    from kod.executor import Executor
+    from kod.planner import build_plan, render_plan, KOD_USE_LUA_PLANNER
+    from kod.executor import Executor, execute_steps_lua
     from kod.hooks import collect_hooks
-    from kod.system.boot import update_kernel_hook, update_initramfs_hook
+    from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
 
     # stage = "rebuild"
     conf = load_config(config)
@@ -557,6 +554,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             # Executor dispatches system steps by name (see executor.py)
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
             "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
+            "boot-entry": lambda kernel, mp: create_boot_entry_hook(generation_id, kernel, mp)(),
         }
 
         # Collect hooks from program definitions
@@ -567,10 +565,14 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             logging.warning(f"Failed to collect hooks: {e}")
             hooks_dict = {}
 
-        # === Execute plan ===
+        # === Execute plan (Lua runner when enabled; Python executor otherwise) ===
         print("================== Executing plan ==================")
-        executor = Executor(env=env)
-        results = executor.execute(steps, ctx, hooks=hooks_dict)
+        if KOD_USE_LUA_PLANNER:
+            results = execute_steps_lua(steps, env, new_root_path, use_chroot,
+                                       repos=repos, hooks=hooks_dict)
+        else:
+            executor = Executor(env=env)
+            results = executor.execute(steps, ctx, hooks=hooks_dict)
 
         # Check for failures
         for result in results:
@@ -585,13 +587,9 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 
         partition_list = load_fstab("/")
 
-        kernel_package = packages_to_install.get("kernel") or "linux"
-        _kernel_file, kver = dist.get_kernel_file(new_root_path, package=kernel_package)
-
         print("==== Deploying new generation ====")
-        if new_generation:
-            create_boot_entry(generation_id, partition_list, mount_point=new_root_path, kver=kver)
-        else:
+        # The boot entry is written by the boot-entry plan step during execute.
+        if not new_generation:
             # Move current updated rootfs to a new generation
             exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
             # Moving the current rootfs copy to the current generation path
@@ -604,7 +602,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
                 mount_points=["/"],
             )
             generate_fstab(updated_partition_list, new_root_path)
-            create_boot_entry(generation_id, updated_partition_list, mount_point=new_root_path, kver=kver)
 
         # Write generation number
         with open(f"{next_state_path}/rootfs/.generation", "w") as f:

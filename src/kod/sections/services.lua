@@ -1,5 +1,5 @@
 -- Services section module - system service enablement and startup
--- Handles systemctl enable/start for various services, config blocks, and systemd units
+-- Handles service enablement (typed steps dispatched to enable_services), config blocks, and systemd units
 
 local Schema = require('kod.lib.schema')
 local Repos = require('kod.lib.repos')
@@ -18,30 +18,19 @@ local module = {
         for service_name, service_config in pairs(config) do
             if type(service_config) == "table" and service_name ~= "config" and service_name ~= "systemd" then
                 local enable = service_config.enable
-                local start = service_config.start
                 
-                -- Enable service on boot
+                -- Enable service on boot. Typed service step: install and rebuild
+                -- share one execution path (executor dispatches to enable_services,
+                -- chroot decided by the ctx flag). systemctl start in a chroot is a
+                -- no-op, so no separate start step is emitted.
                 if enable == true then
                     table.insert(steps, {
-                        name = "services_enable_" .. service_name,
+                        kind = "service",
+                        name = service_name,
                         description = "Enable service on boot: " .. service_name,
-                        command = "systemctl enable " .. service_name,
-                        chroot = true,
+                        command = "",
+                        meta = { action = "enable" },
                         order = 700,
-                    })
-                end
-                
-                -- Start service immediately
-                if start == true then
-                    local depend_on = enable == true and {"services_enable_" .. service_name} or nil
-                    
-                    table.insert(steps, {
-                        name = "services_start_" .. service_name,
-                        description = "Start service: " .. service_name,
-                        command = "systemctl start " .. service_name,
-                        chroot = true,
-                        order = 701,
-                        depends_on = depend_on,
                     })
                 end
             end

@@ -169,6 +169,41 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
         raise RuntimeError(f"Lua planner failed: {e}")
 
 
+def compose_rebuild_steps_lua(state: dict) -> List[Step]:
+    """Call the Lua rebuild diff planner (kod/lib/rebuild.lua).
+
+    Pure table ops in Lua; all state (package/service sets, kernel flag) is
+    passed in as plain data. Fallback to the Python diff on any failure.
+    """
+    import logging
+    from kod.lua_runtime import get_lua_runtime
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        lua = get_lua_runtime()
+
+        base_path = os.path.dirname(os.path.dirname(__file__))
+        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+        lua.execute(f"package.path = '{lua_path}' .. package.path")
+
+        from kod.bootstrap import _convert_to_lua_table
+        state_lua = _convert_to_lua_table(lua, state)
+
+        result = lua.require("kod.lib.rebuild")
+        module = result[0] if isinstance(result, tuple) else result
+
+        steps_lua = module.diff(state_lua)
+
+        steps = []
+        for idx in range(1, len(steps_lua) + 1):
+            steps.append(_convert_lua_step_to_step(steps_lua[idx]))
+        return steps
+
+    except Exception as e:
+        raise RuntimeError(f"Lua rebuild planner failed: {e}")
+
+
 def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
     """Attach hook event names to step metadata for visibility.
     
@@ -321,167 +356,52 @@ def plan_disk_steps(conf: Any) -> List[Step]:
 
 
 def plan_install(conf: Any) -> List[Step]:
-    """Full install preview over an empty baseline. Read-only.
-    
-    Integrates schema-driven Lua planner (if enabled) with package, service,
-    and user management steps. Falls back to Python planner if Lua fails.
-    """
-    import logging
-    
-    logger = logging.getLogger(__name__)
+    """Full install preview over an empty baseline. Read-only."""
     distro = conf.base_distribution or "arch"
-    
-    # Try Lua planner first if enabled (Phase 5c)
-    if KOD_USE_LUA_PLANNER:
-        try:
-            steps = compose_steps_lua(conf, distro)
-            if steps:
-                logger.debug(f"Lua planner returned {len(steps)} steps")
-                # Attach hook event names for visibility
-                from kod.hooks import collect_hooks
-                try:
-                    hooks_map = collect_hooks(conf.users or {})
-                    steps = _attach_hooks_to_steps(steps, hooks_map)
-                except Exception:
-                    pass
-                return steps
-        except Exception as e:
-            logger.warning(f"Lua planner failed: {e}; falling back to Python planner")
-    
-    # Fallback to Python planner (original implementation)
-    from kod._core import Context
-    from kod.system.packages import get_packages_to_install
-    from kod.system.services import get_services_to_enable
-    from kod.bootstrap import emit_bootstrap_steps
-    
-    steps = []
-    
-    # Step 1: Pre-compute partition list from conf
-    predicted_partition_list = predict_partition_list(conf)
-    
-    # Step 2: Emit bootstrap steps via Lua module (disk + mount + system config)
-    try:
-        bootstrap_steps = emit_bootstrap_steps(conf, predicted_partition_list, distro=distro)
-        steps.extend(bootstrap_steps)
-    except Exception as e:
-        # If Lua bootstrap fails, fall back to plan_disk_steps (backward compat)
-        logger.warning(f"Lua bootstrap failed: {e}; falling back to plan_disk_steps")
-        steps.extend(plan_disk_steps(conf))
-    
-    # Step 3: Add package management steps
-    pkgs, _remove = get_packages_to_install(conf)
-    base_info = {k: v for k, v in pkgs.items() if k != "packages"}
-    steps.append(Step("system", "base-packages",
-                      meta={k: (sorted(v) if isinstance(v, list) else v)
-                            for k, v in base_info.items()}))
-
-    repo_meta: dict = {}
-    repos_conf = conf.repos
-    if repos_conf is not None:
-        repo_meta["repos"] = sorted(repos_conf.keys())
-        base_pkgs = {r: d["package"] for r, d in repos_conf.items() if "package" in d}
-        if base_pkgs:
-            repo_meta["base_packages"] = base_pkgs
-    steps.append(Step("system", "repos", meta=repo_meta))
-    
-    # Step 4: Add system configuration steps
-    steps.append(Step("system", "configure-system"))
-    steps.append(Step("system", "kod-user"))
-
-    for pkg in sorted(pkgs["packages"]):
-        if ":" in pkg:
-            repo, name = pkg.split(":", 1)
-        else:
-            repo, name = "official", pkg
-        steps.append(Step("package", name, meta={"action": "install", "repo": repo}))
-
-    ctx = Context(user="root", stage="install")
-    for svc in get_services_to_enable(ctx, conf):
-        steps.append(Step("service", svc, meta={"action": "enable"}))
-
-    users = conf.users
-    if users is not None:
-        for user in sorted(users.keys()):
-            info = users[user]
-            steps.append(Step("user", user))
-            programs = info.programs
-            if programs:
-                for pname in sorted(programs.keys()):
-                    prog = programs[pname]
-                    if prog.enable:
-                        steps.append(Step(
-                            "program", f"{user}/{pname}",
-                            meta={"deploy_config": bool(prog.deploy_config),
-                                  "run_script": bool(prog.config and "command" in prog.config)}))
-            services = info.services
-            if services:
-                for sname in sorted(services.keys()):
-                    if services[sname].enable:
-                         steps.append(Step("service", sname,
-                                           meta={"action": "enable", "user": user}))
-    
-    # Attach hook event names for visibility in plan output
+    steps = compose_steps_lua(conf, distro)
     from kod.hooks import collect_hooks
     try:
         hooks_map = collect_hooks(conf.users or {})
         steps = _attach_hooks_to_steps(steps, hooks_map)
     except Exception:
-        # If hook collection fails, proceed without hooks (backward compat)
         pass
-    
     return steps
 
 
 def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services: List[str],
                  current_installed_packages: Optional[dict] = None, update: bool = False,
                  new_generation: bool = False, mount_point: str = "/") -> List[Step]:
-    """Rebuild preview over the current generation. Read-only.
-
-    Reuses get_packages_updates so the package diff cannot drift from what
-    rebuild actually runs (spec: one planner, two baselines).
-    """
+    """Rebuild preview over the current generation. Read-only."""
     from kod._core import Context
-    from kod.system.packages import get_packages_to_install, get_packages_updates
+    from kod.hooks import collect_hooks
+    from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable
 
-    steps: List[Step] = []
-    if update:
-        steps.append(Step("system", "update-packages"))
-
     next_packages, remove_packages = get_packages_to_install(conf)
-    to_install, to_remove, _to_update, kernel_update_required = get_packages_updates(
-        dist, current_packages, next_packages, remove_packages,
-        current_installed_packages or {}, mount_point)
-
     ctx = Context(user="root", stage="rebuild")
     next_services = get_services_to_enable(ctx, conf)
 
-    if not new_generation:
-        for svc in sorted(set(current_services) - set(next_services)):
-            steps.append(Step("service", svc, meta={"action": "disable"}))
-    for pkg in sorted(to_remove):
-        steps.append(Step("package", pkg, meta={"action": "remove"}, on_error="warn"))
-    for pkg in sorted(to_install):
-        steps.append(Step("package", pkg, meta={"action": "install"}))
-    
-    # Emit kernel update as explicit system steps instead of hooks
-    if kernel_update_required:
-        kernel = next_packages.get("kernel", "linux")
-        steps.append(Step("system", "kernel-update", meta={"kernel": kernel}))
-        steps.append(Step("system", "initramfs-update", meta={"kernel": kernel}))
-    
-    for svc in sorted(set(next_services) - set(current_services)):
-         steps.append(Step("service", svc, meta={"action": "enable"}))
-    
-    # Attach hook event names for visibility in plan output
-    from kod.hooks import collect_hooks
+    kernel_update_required = dist.kernel_update_required(
+        current_packages.get("kernel", "linux"),
+        next_packages.get("kernel", "linux"),
+        current_installed_packages or {}, mount_point)
+    steps = compose_rebuild_steps_lua({
+        "next_packages": {"packages": list(next_packages.get("packages", [])),
+                         "kernel": next_packages.get("kernel", "linux")},
+        "current_packages": {"packages": list(current_packages.get("packages", [])),
+                             "kernel": current_packages.get("kernel", "linux")},
+        "remove_packages": list(remove_packages or []),
+        "next_services": list(next_services),
+        "current_services": list(current_services or []),
+        "update": update,
+        "new_generation": new_generation,
+        "kernel_update_required": kernel_update_required,
+    })
     try:
         hooks_map = collect_hooks(conf.users or {})
         steps = _attach_hooks_to_steps(steps, hooks_map)
     except Exception:
-        # If hook collection fails, proceed without hooks (backward compat)
         pass
-    
     return steps
 
 

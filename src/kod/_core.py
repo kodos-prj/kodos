@@ -29,35 +29,16 @@ from kod.filesystem import FsEntry
 from kod.system.filesystem import (
     generate_fstab,
     load_fstab,
-    create_filesystem_hierarchy,
-    update_fstab,
     change_subvol,
-    set_ro_mount,
-    change_ro_mount,
     create_next_generation,
 )
 from kod.system.users import (
-    proc_users,
-    create_user,
     proc_user_home,
-    create_kod_user,
 )
 
 # =============================================================================
 # BACKWARD-COMPATIBILITY CONSTANTS
 # =============================================================================
-os_release = """NAME="KodOS Linux"
-VERSION="1.0"
-PRETTY_NAME="KodOS Linux"
-ID=kodos
-ANSI_COLOR="38;2;23;147;209"
-HOME_URL="https://github.com/kodos-prj/kodos/"
-DOCUMENTATION_URL="https://github.com/kodos-prj/kodos/"
-SUPPORT_URL="https://github.com/kodos-prj/kodos/"
-BUG_REPORT_URL="https://github.com/kodos-prj/kodos/issues"
-RELEASE_TYPE="experimental"
-"""
-
 base_distribution: str = "arch"
 
 
@@ -438,8 +419,7 @@ class Context:
 # GENERATION AND PACKAGE/SERVICE STATE MANAGEMENT
 # =============================================================================
 
-# get_max_generation and get_generation are now in kod.core.rebuild
-# They are re-exported via __getattr__ below
+# get_max_generation is now in kod.system.filesystem
 
 def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
     """Load the list of packages and services from state.
