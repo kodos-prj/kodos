@@ -2,7 +2,7 @@
 -- Handles DE selection and installation (GNOME, KDE Plasma, XFCE, Cosmic, etc.)
 
 local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.repos')
+local Repos = require('kod.lib.system.repos')
 
 local module = {
     schema = Schema.desktop,

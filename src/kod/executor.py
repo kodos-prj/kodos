@@ -9,7 +9,9 @@ Spec: docs/superpowers/specs/2026-09-10-kod-planner-hooks-buildcache-design.md Â
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 import logging
+import lupa
 from kod.planner import Step
+from kod.bootstrap import _convert_to_lua_table
 
 
 logger = logging.getLogger(__name__)
@@ -67,41 +69,21 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
         else:
             raise StepError(f"Unknown step kind: {kind}")
 
-    steps_lua = lua.table()
-    for i, s in enumerate(steps, 1):
-        t = lua.table()
-        t["kind"] = s.kind
-        t["name"] = s.name
-        t["program"] = s.program
-        args = lua.table()
-        for j, a in enumerate(s.args, 1):
-            args[j] = a
-        t["args"] = args
-        t["chroot"] = s.chroot
-        t["timeout_s"] = s.timeout_s
-        t["on_error"] = s.on_error
-        if s.meta:
-            meta = lua.table()
-            for k, v in s.meta.items():
-                meta[k] = v
-            t["meta"] = meta
-        steps_lua[i] = t
+    steps_lua = _convert_to_lua_table(lua, [s.to_dict() for s in steps])
 
-    ctx_lua = lua.table()
-    ctx_lua["mount_point"] = mount_point
-    ctx_lua["use_chroot"] = bool(use_chroot)
+    ctx_data = {
+        "mount_point": mount_point,
+        "use_chroot": bool(use_chroot),
+    }
     if repos is not None:
-        ctx_lua["repos"] = repos
+        ctx_data["repos"] = repos
+    ctx_lua = _convert_to_lua_table(lua, ctx_data)
 
     dispatch_lua = lua.table()
     dispatch_lua["step"] = dispatch_step
 
-    hooks_lua = lua.table()
-    for k, v in (hooks or {}).items():
-        arr = lua.table()
-        for j, h in enumerate(v, 1):
-            arr[j] = h
-        hooks_lua[k] = arr
+    hooks_data = hooks or {}
+    hooks_lua = _convert_to_lua_table(lua, hooks_data)
 
     module = lua.require("kod.lib.planning.executor")
     try:

@@ -39,8 +39,8 @@ class LuaRuntimeManager:
         try:
             self.lua = LuaRuntime()
             
-            # Preload core utility modules for backward compatibility
-            # (so unqualified `require('module')` works for moved modules)
+            # Preload modules for backward compatibility
+            # (so unqualified `require('module_name')` works for moved modules)
             from pathlib import Path
             base_path = Path(__file__).parent.parent
             lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
@@ -49,6 +49,7 @@ class LuaRuntimeManager:
             # Preload modules that were moved to subdirectories
             # so legacy `require('module_name')` calls still work
             self.lua.execute("""
+                -- Core modules
                 package.preload['utils'] = function()
                     return require('kod.lib.core.utils')
                 end
@@ -57,6 +58,22 @@ class LuaRuntimeManager:
                 end
                 package.preload['configs'] = function()
                     return require('kod.lib.core.configs')
+                end
+                
+                -- System modules
+                package.preload['repos'] = function()
+                    return require('kod.lib.system.repos')
+                end
+                package.preload['disk'] = function()
+                    return require('kod.lib.system.disk')
+                end
+                package.preload['mount'] = function()
+                    return require('kod.lib.system.mount')
+                end
+                
+                -- I/O modules
+                package.preload['dotfile_manager'] = function()
+                    return require('kod.lib.io.dotfile_manager')
                 end
             """)
             

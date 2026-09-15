@@ -2,7 +2,7 @@
 -- Handles custom program install logic defined via DSL
 
 local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.repos')
+local Repos = require('kod.lib.system.repos')
 
 local module = {
     schema = Schema.programs,

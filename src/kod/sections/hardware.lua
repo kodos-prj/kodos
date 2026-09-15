@@ -2,7 +2,7 @@
 -- Handles pipewire audio system installation and configuration
 
 local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.repos')
+local Repos = require('kod.lib.system.repos')
 
 local module = {
     schema = Schema.hardware,
