@@ -45,16 +45,18 @@ function Rebuild.diff(state)
     local next_packages = state.next_packages or {}
     local current_packages = state.current_packages or {}
     local next_kernel = next_packages.kernel or "linux"
+    local new_gen = state.new_generation
 
     if state.update then
         add("system", "update-packages")
     end
 
-    if not state.new_generation then
-        for _, svc in ipairs(sorted_diff(to_set(state.current_services), to_set(state.next_services))) do
-            add("service", svc, { action = "disable" })
-        end
+if not state.new_generation then
+    for _, svc in ipairs(sorted_diff(to_set(state.current_services), to_set(state.next_services))) do
+        table.insert(steps, { kind = "service", name = svc,
+            command = "systemctl disable --now " .. svc, chroot = false })
     end
+end
 
     local remove_set = {}
     for _, p in ipairs(sorted_diff(to_set(current_packages.packages), to_set(next_packages.packages))) do
@@ -93,9 +95,10 @@ function Rebuild.diff(state)
         add("system", "initramfs-update", { kernel = next_kernel })
     end
 
-    for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.current_services))) do
-        add("service", svc, { action = "enable" })
-    end
+for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.current_services))) do
+    table.insert(steps, { kind = "service", name = svc,
+        command = "systemctl enable" .. (new_gen and "" or " --now") .. " " .. svc, chroot = new_gen })
+end
 
     add("system", "boot-entry", { kernel = next_kernel })
 

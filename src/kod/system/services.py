@@ -184,35 +184,6 @@ def enable_services(list_of_services: List[str], mount_point: str = "/mnt",
             exec(f"systemctl enable --now {service}")
 
 
-def disable_services(list_of_services: List[str], mount_point: str = "/mnt",
-                    use_chroot: bool = False) -> None:
-    """
-    Disable a list of services in the specified mount point.
-
-    This function disables the specified list of services in the context of the
-    specified mount point. If `use_chroot` is True, it executes the disabling
-    command in a chroot environment based at `mount_point`. If `use_chroot` is
-    False (default), it executes the disabling command directly.
-
-    Args:
-        list_of_services (list): A list of service names to disable.
-        mount_point (str, optional): The mount point for chroot operations, if
-                                     applicable. Defaults to "/mnt".
-        use_chroot (bool, optional): If True, execute the disabling command in a
-                                     chroot environment based at `mount_point`.
-                                     Defaults to False.
-
-    Returns:
-        None
-    """
-    for service in list_of_services:
-        print(f"Disabling service: {service}")
-        if use_chroot:
-            exec_chroot(f"systemctl disable {service}", mount_point=mount_point)
-        else:
-            exec(f"systemctl disable --now {service}")
-
-
 def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
     """
     Enable services for a user in the specified context.

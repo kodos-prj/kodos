@@ -1,6 +1,5 @@
 """Tests for Lua planner integration in kod/planner.py (Phase 5c)."""
 
-import os
 import pytest
 import lupa
 from pathlib import Path
@@ -165,89 +164,49 @@ class TestComposeLuaSteps:
 
 class TestPlanInstallLuaIntegration:
     """Test plan_install function with Lua planner."""
-    
-    def test_plan_install_uses_lua_planner_when_enabled(self):
-        """plan_install uses Lua planner when KOD_USE_LUA_PLANNER=true."""
-        os.environ['KOD_USE_LUA_PLANNER'] = 'true'
-        
+
+    def test_plan_install_returns_steps(self):
+        """plan_install returns a list of Step objects."""
         conf = make_conf(
             base_distribution='arch',
             devices=None,
         )
-        
+
         steps = plan_install(conf)
-        
+
         assert isinstance(steps, list)
         assert all(isinstance(s, Step) for s in steps)
-    
-    def test_plan_install_fallback_when_lua_disabled(self):
-        """plan_install falls back to Python planner when KOD_USE_LUA_PLANNER=false."""
-        os.environ['KOD_USE_LUA_PLANNER'] = 'false'
-        
-        conf = make_conf(
-            base_distribution='arch',
-            devices=None,
-            repos=None,
-            packages=['base'],
-            services=None,
-            users=None,
-        )
-        
-        # Should not raise, uses Python fallback
-        steps = plan_install(conf)
-        assert isinstance(steps, list)
-    
-    def test_plan_install_fallback_on_lua_error(self):
-        """plan_install falls back to Python if Lua planner fails."""
-        os.environ['KOD_USE_LUA_PLANNER'] = 'true'
-        
-        # Config missing base_distribution - should make Lua fail
-        # But plan_install has try-except, so it should fall back to Python
-        conf = make_conf()
-        
-        # This may raise because Python fallback also needs proper config
-        # But at least it should try both paths
-        try:
-            steps = plan_install(conf)
-        except Exception:
-            # Expected if config is truly invalid
-            pass
 
 
 class TestBuildPlanLuaIntegration:
     """Test build_plan function with Lua planner."""
-    
+
     def test_build_plan_empty_baseline_uses_plan_install(self):
         """build_plan with empty baseline calls plan_install."""
-        os.environ['KOD_USE_LUA_PLANNER'] = 'true'
-        
         conf = make_conf(
             base_distribution='arch',
             devices=None,
         )
-        
+
         steps = build_plan(conf, baseline='empty')
-        
+
         assert isinstance(steps, list)
         assert all(isinstance(s, Step) for s in steps)
 
 
-class TestLuaPlannerBackwardCompat:
-    """Test backward compatibility - Python planner still works as fallback."""
-    
-    def test_python_planner_fallback_exists(self):
-        """Python fallback paths still exist for backward compatibility."""
-        os.environ['KOD_USE_LUA_PLANNER'] = 'false'
-        
+class TestPlanHelpersStillPresent:
+    """Helper functions and the Step interface remain stable."""
+
+    def test_plan_disk_steps_exists(self):
+        """plan_disk_steps helper is still importable (used by tests)."""
         from kod.planner import plan_disk_steps
-        
-        # plan_disk_steps should still exist
+
         assert callable(plan_disk_steps)
-    
+
     def test_step_class_unchanged(self):
         """Step dataclass interface unchanged."""
         step = Step(kind='package', name='git')
-        
+
         assert step.kind == 'package'
         assert step.name == 'git'
         assert step.to_dict()['kind'] == 'package'

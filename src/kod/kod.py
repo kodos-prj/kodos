@@ -30,8 +30,6 @@ from kod.core import (
     change_subvol,
     configure_user_dotfiles,
     configure_user_scripts,
-    disable_services,
-    enable_services,
     enable_user_services,
     generate_fstab,
     get_packages_to_install,
@@ -278,8 +276,8 @@ load_config = load_config_lua_raw
 @click.option("-m", "--mount_point", default="/mnt", help="Mount point for install")
 def install(config: Optional[str], mount_point: str) -> None:
     """Install KodOS based on configuration."""
-    from kod.planner import build_plan, render_plan, KOD_USE_LUA_PLANNER
-    from kod.executor import Executor, StepError, execute_steps_lua
+    from kod.planner import build_plan, render_plan
+    from kod.executor import StepError, execute_steps
     from kod.hooks import collect_hooks
     from kod._core import Context
     from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
@@ -306,7 +304,6 @@ def install(config: Optional[str], mount_point: str) -> None:
             "stage": "install",
             "dist": dist,
             "manage_packages": manage_packages,
-            "enable_services": enable_services,
             # Boot entry is a plan step (boot.lua) dispatched here; generation 0 for install.
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
             "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
@@ -323,11 +320,8 @@ def install(config: Optional[str], mount_point: str) -> None:
         # No mid-execution fallback: a StepError is a real step failure and
         # re-running the whole plan would double-execute partial work.
         print("\n=== Executing Install ===\n")
-        if KOD_USE_LUA_PLANNER:
-            results = execute_steps_lua(steps, env, mount_point, True, hooks=hooks_dict)
-        else:
-            executor = Executor(env=env)
-            results = executor.execute(steps, {"mount_point": mount_point, "use_chroot": True}, hooks=hooks_dict)
+        results = execute_steps(steps, env, mount_point,
+                                use_chroot=True, hooks=hooks_dict)
         
         # Check for critical failures (ignore on_error='warn' steps)
         failures = [r for r in results if not r.success and not r.is_warning]
@@ -448,8 +442,8 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             dry_run: bool = False) -> None:
     "Rebuild KodOS system installation"
 
-    from kod.planner import build_plan, render_plan, KOD_USE_LUA_PLANNER
-    from kod.executor import Executor, execute_steps_lua
+    from kod.planner import build_plan, render_plan
+    from kod.executor import execute_steps
     from kod.hooks import collect_hooks
     from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
 
@@ -548,8 +542,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             "generation_id": generation_id,
             "use_chroot": use_chroot,
             "manage_packages": manage_packages,
-            "enable_services": enable_services,
-            "disable_services": disable_services,
             "update_all_packages": update_all_packages,
             # Executor dispatches system steps by name (see executor.py)
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
@@ -565,14 +557,10 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             logging.warning(f"Failed to collect hooks: {e}")
             hooks_dict = {}
 
-        # === Execute plan (Lua runner when enabled; Python executor otherwise) ===
+        # === Execute plan (Lua runner) ===
         print("================== Executing plan ==================")
-        if KOD_USE_LUA_PLANNER:
-            results = execute_steps_lua(steps, env, new_root_path, use_chroot,
-                                       repos=repos, hooks=hooks_dict)
-        else:
-            executor = Executor(env=env)
-            results = executor.execute(steps, ctx, hooks=hooks_dict)
+        results = execute_steps(steps, env, new_root_path, use_chroot,
+                                repos=repos, hooks=hooks_dict)
 
         # Check for failures
         for result in results:

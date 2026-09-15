@@ -172,26 +172,25 @@ Step("service", "enable:nginx", program="systemctl", args=("enable", "nginx"))
 Step("user", "create:abuss", program="useradd", args=(...))
 ```
 
-### 5. **Executor** (Python)
+### 5. **Executor** (Lua runner + Python bridge)
 
 **Purpose:** Execute steps in order, handle errors, fire lifecycle hooks  
-**Language:** Python  
-**File:** `src/kod/executor.py`
+**Language:** Lua (`lib/executor.lua`) driven by a thin Python bridge  
+**File:** `src/kod/lib/executor.lua` (runner), `src/kod/executor.py` (bridge)
 
-**Key class:**
+**Entry point:**
 ```python
-class Executor:
-    def execute(self, steps: List[Step], ctx: Context, hooks: Dict = None) -> List[StepResult]:
-        """Execute step list, fire hooks, handle errors per on_error policy."""
+def execute_steps(steps: List[Step], env, mount_point, use_chroot,
+                  repos=None, hooks=None) -> List[StepResult]:
+    """Run steps via the Lua runner; dispatch package/service/system verbs to env."""
 ```
 
-**Dispatch logic:**
-- `kind == "disk"` → `subprocess.run(program + args)` via shell
-- `kind == "system"` → metadata-only (no-op) or subprocess
-- `kind == "package"` → call `manage_packages(step)` from env
-- `kind == "service"` → call `enable_services(step)` from env
-- `kind == "program"` → call program install hooks from env
-- `kind == "user"` → user creation via subprocess
+**Dispatch logic (in `executor.lua`):**
+- step carries a `program` → shell step (`timeout`-guarded, chroot-wrapped when set)
+- `kind == "package"` → call `manage_packages(...)` from env (Python callback)
+- `kind == "service"` → call `enable_services` / `disable_services` from env
+- `kind == "system"` → named verb: call `env[step.name]` if callable, else no-op
+- anything else → unknown-kind error
 
 **Error handling:**
 - `on_error="abort"` (default) → stop on first error
@@ -358,7 +357,7 @@ return {
                 │
                 ▼
     ┌──────────────────────────────────┐
-    │ Executor.execute(                │
+    │ execute_steps(                │
     │   steps,                         │
     │   ctx,                           │
     │   hooks=hooks_dict               │
@@ -437,7 +436,8 @@ return {
 
 **Tests** — All tests are Python:
 - `tests/test_planner.py` — Planner tests (492 passing)
-- `tests/test_executor.py` — Executor tests
+- `tests/test_executor_lua.py` — Lua runner bridge tests
+- `tests/test_hooks.py` — hook collection tests
 - `tests/test_bootstrap.py` — Bootstrap bridge tests
 - `tests/test_lua_runtime.py` — Runtime manager tests
 
@@ -496,7 +496,7 @@ Program modules              │
 | Module | Language | Purpose | Key Classes/Functions |
 |--------|----------|---------|----------------------|
 | `planner.py` | Python | Generate step list from config | `build_plan()`, `plan_install()`, `plan_rebuild()`, `render_plan()` |
-| `executor.py` | Python | Execute steps in order | `Executor`, `StepResult`, `StepError` |
+| `executor.py` + `lib/executor.lua` | Py+Lua | Execute steps in order | `execute_steps()`, `StepResult`, `StepError` |
 | `hooks.py` | Python | Lifecycle hook collection | `collect_hooks()`, `fire_hooks()`, `VALID_HOOKS` |
 | `config.py` | Python | Load Lua config | `load_config()`, config validation |
 | `bootstrap.py` | Python | Lua bootstrap bridge | `emit_bootstrap_steps()`, Lua ↔ Python conversion |
@@ -546,8 +546,8 @@ def install(config, mount_point):
        hooks = collect_hooks(conf.users)
     
     5. Execute plan
-       executor = Executor(env={...})
-       results = executor.execute(steps, ctx, hooks=hooks)
+       results = execute_steps(steps, env, mount_point, use_chroot,
+                               repos=repos, hooks=hooks)
     
     6. Report results
        if failures: exit(1)
@@ -573,8 +573,8 @@ def rebuild(config):
        print(render_plan(steps, "current", config))
     
     5. Execute plan
-       executor = Executor(env={...})
-       results = executor.execute(steps, ctx, hooks=hooks)
+       results = execute_steps(steps, env, mount_point, use_chroot,
+                               repos=repos, hooks=hooks)
     
     6. Report results
        if failures: exit(1)
@@ -611,9 +611,10 @@ def plan(config, baseline):
    - Config is data, not imperative scripts
    - Bootstrap logic is in Lua modules (distro-specific)
 
-3. **Python for Orchestration** — Planner & executor control flow
-   - Plans are generated, validated, rendered in Python
-   - Steps are executed with hooks, error handling in Python
+3. **Lua for Orchestration** — Planner & runner live in Lua
+   - Plans are composed in Lua (`lib/planner.lua`, `lib/rebuild.lua`)
+   - Steps run in the Lua runner (`lib/executor.lua`); Python is a thin host
+     that loads config, dispatches package/service/system verbs, and drives CLI
 
 4. **One Code Path** — Install & rebuild use same planner-executor
    - No divergence between preview and execution

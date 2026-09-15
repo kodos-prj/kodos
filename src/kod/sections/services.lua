@@ -28,9 +28,9 @@ local module = {
                         kind = "service",
                         name = service_name,
                         description = "Enable service on boot: " .. service_name,
-                        command = "",
-                        meta = { action = "enable" },
-                        order = 700,
+                    command = "systemctl enable " .. service_name,
+                    chroot = true,
+                    order = 700,
                     })
                 end
             end

@@ -101,7 +101,7 @@ class TestRebuildPlanAbsolute:
         lines = [l for l in render_plan(steps, "current").splitlines() if l[:1].isdigit()]
         assert lines == [
             "001 [system] update-packages:",
-            '002 [service] oldsvc: {"action": "disable"}',
+            "002 [service] oldsvc: systemctl disable --now oldsvc",
             '003 [package] extra: {"action": "remove"}',
             '004 [package] gone: {"action": "remove"}',
             '005 [package] linux-lts: {"action": "install"}',

@@ -69,8 +69,8 @@ local module = {
                             kind = "service",
                             name = unit,
                             description = "Enable service for program " .. program_name .. ": " .. unit,
-                            command = "",
-                            meta = { action = "enable" },
+                            command = "systemctl enable " .. unit,
+                            chroot = true,
                             order = 810,
                             depends_on = deps,
                         })

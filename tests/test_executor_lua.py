@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from kod.planner import Step
-from kod.executor import Executor, StepError, execute_steps_lua
+from kod.executor import StepError, execute_steps
 
 SRC_DIR = Path(__file__).parent.parent / "src"
 
@@ -100,22 +100,10 @@ class TestExecuteStepsLuaBridge:
         def fake_manage(mp, repos, action, pkgs, chroot=False):
             calls.append((mp, type(repos).__name__, action, pkgs, chroot))
 
-        results = execute_steps_lua(
+        results = execute_steps(
             [Step("package", "git", meta={"action": "install"})],
             {"manage_packages": fake_manage}, "/mnt", True)
         assert calls == [("/mnt", "NoneType", "install", ["git"], True)]
-        assert results[0].success
-
-    def test_service_dispatch(self):
-        calls = []
-
-        def fake_enable(svcs, mount_point="/mnt", use_chroot=False):
-            calls.append((svcs, mount_point, use_chroot))
-
-        results = execute_steps_lua(
-            [Step("service", "sshd", meta={"action": "enable"})],
-            {"enable_services": fake_enable}, "/mnt", False)
-        assert calls == [(["sshd"], "/mnt", False)]
         assert results[0].success
 
     def test_named_system_step_dispatch(self):
@@ -124,20 +112,20 @@ class TestExecuteStepsLuaBridge:
         def fake_kernel(kernel, mp):
             calls.append((kernel, mp))
 
-        results = execute_steps_lua(
+        results = execute_steps(
             [Step("system", "kernel-update", meta={"kernel": "linux-lts"})],
             {"kernel-update": fake_kernel}, "/mnt", True)
         assert calls == [("linux-lts", "/mnt")]
         assert results[0].success
 
     def test_shell_step_through_bridge(self):
-        results = execute_steps_lua(
+        results = execute_steps(
             [Step("system", "echo-step", program="echo", args=("hi",), timeout_s=30)],
             {}, "/", False)
         assert results[0].success
 
     def test_warn_failure_through_bridge(self):
-        results = execute_steps_lua(
+        results = execute_steps(
             [Step("system", "fail-step", program="false", timeout_s=30, on_error="warn")],
             {}, "/", False)
         assert not results[0].success
@@ -145,21 +133,42 @@ class TestExecuteStepsLuaBridge:
 
     def test_abort_failure_raises_steperror(self):
         with pytest.raises(StepError):
-            execute_steps_lua(
+            execute_steps(
                 [Step("system", "fail-step", program="false", timeout_s=30)],
                 {}, "/", False)
 
 
-class TestLuaMatchesPythonExecutor:
-    """Same steps through both runners must give the same success sequence."""
+class TestHooksThroughBridge:
+    """Pre/post hooks fire through the Lua runner (executor.lua)."""
 
-    def test_equivalence(self):
-        steps = [
-            Step("system", "ok-echo", program="echo", args=("x",), timeout_s=30),
-            Step("system", "warn-fail", program="false", timeout_s=30, on_error="warn"),
-            Step("system", "marker", program=""),
-        ]
-        py = Executor(env={}).execute(steps, {"mount_point": "/", "use_chroot": False})
-        lu = execute_steps_lua(steps, {}, "/", False)
-        assert [r.success for r in py] == [r.success for r in lu]
-        assert [r.is_warning for r in py] == [r.is_warning for r in lu]
+    def test_pre_hook_failure_aborts(self):
+        called = []
+
+        def bad_pre(step, ctx):
+            raise ValueError("pre boom")
+
+        def fake_manage(mp, repos, action, pkgs, chroot=False):
+            called.append(pkgs)
+
+        with pytest.raises(StepError):
+            execute_steps(
+                [Step("package", "git", meta={"action": "install"})],
+                {"manage_packages": fake_manage}, "/mnt", True,
+                hooks={"pre:package": [bad_pre]})
+        assert called == []
+
+    def test_post_hook_failure_is_swallowed(self):
+        called = []
+
+        def bad_post(step, ctx):
+            raise ValueError("post boom")
+
+        def fake_manage(mp, repos, action, pkgs, chroot=False):
+            called.append(pkgs)
+
+        results = execute_steps(
+            [Step("package", "git", meta={"action": "install"})],
+            {"manage_packages": fake_manage}, "/mnt", True,
+            hooks={"post:package": [bad_post]})
+        assert results[0].success
+        assert called == [["git"]]

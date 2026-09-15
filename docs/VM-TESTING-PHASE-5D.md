@@ -214,7 +214,7 @@ cd ~/Work/devel/analysis/kodos
 python3 << 'EOF'
 from kod._core import load_config
 from kod.planner import compose_steps_lua
-from kod.executor import Executor
+from kod.executor import execute_steps
 from kod.distributions.arch import manage_packages
 import logging
 
@@ -252,7 +252,7 @@ EOF
 python3 << 'EOF'
 from kod._core import load_config
 from kod.planner import compose_steps_lua
-from kod.executor import Executor
+from kod.executor import execute_steps
 
 config = load_config("example/eszkoz")
 steps = compose_steps_lua(config, "arch")
@@ -264,21 +264,13 @@ mock_env = {
     "create_users": lambda *args, **kwargs: None,
 }
 
-executor = Executor(env=mock_env)
-
-# Execute in dry-run context
-ctx = {
-    "mount_point": "/mnt/target",  # Where new root is mounted
-    "use_chroot": True,             # Enable chroot for applicable steps
-    "repos": config.get("repos", {}),
-}
-
-# This will dispatch each step but not actually run commands
+# Execute in dry-run context (mock env -> no real commands run)
 try:
-    results = executor.execute(steps, ctx, hooks={})
+    results = execute_steps(steps, mock_env, "/mnt/target", True,
+                            repos=config.get("repos", {}), hooks={})
     print(f"Executed {len(results)} steps successfully")
     for r in results[:10]:
-        print(f"  {r.name}: {r.status}")
+        print(f"  {r.step.name}: {r.success}")
 except Exception as e:
     print(f"Error: {e}")
 EOF

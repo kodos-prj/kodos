@@ -219,6 +219,16 @@ class TestPlanInstall:
         assert pkg.program == "pacman -S --noconfirm git aur:mylib"
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_service_emits_systemctl_enable(self, _mock):
+        from kod.planner import plan_install
+
+        conf = make_conf(services={"sshd": {"enable": True}})
+        svc = next(s for s in plan_install(conf) if s.name == "sshd")
+        assert svc.kind == "service"
+        assert svc.program == "systemctl enable sshd"
+        assert svc.chroot is True
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
     def test_services_users_programs(self, _mock):
         from kod.planner import plan_install
 
@@ -230,9 +240,9 @@ class TestPlanInstall:
                 "services": {"gpg": {"enable": True}}}},
         )
         steps = plan_install(conf)
-        svcs = [(s.name, s.meta) for s in steps if s.kind == "service"]
-        # User-level service enabled as a verb step.
-        assert ("gpg", {"action": "enable"}) in svcs
+        gpg = next(s for s in steps if s.kind == "service" and s.name == "gpg")
+        assert gpg.program == "systemctl enable gpg"
+        assert gpg.chroot is True
         # User creation is a system step (no separate [user]/[program] kinds).
         users = [s.name for s in steps if s.kind == "system" and s.name.startswith("users_create_")]
         assert users == ["users_create_bob"]
@@ -266,8 +276,9 @@ class TestPlanRebuild:
         steps = plan_rebuild(conf, make_dist(), current_packages, ["oldsvc"], {})
         names = [s.name for s in steps if s.kind == "service"]
         assert names == ["oldsvc", "newsvc"]  # disable before enable (kod.py:365-391)
-        acts = {s.name: s.meta["action"] for s in steps if s.kind == "service"}
-        assert acts == {"oldsvc": "disable", "newsvc": "enable"}
+        prog = {s.name: s.program for s in steps if s.kind == "service"}
+        assert prog == {"oldsvc": "systemctl disable --now oldsvc",
+                        "newsvc": "systemctl enable --now newsvc"}
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
     def test_new_generation_skips_disable(self, _mock):

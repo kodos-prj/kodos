@@ -66,8 +66,8 @@ local module = {
                 kind = "service",
                 name = dm_service,
                 description = "Enable display manager " .. dm_service,
-                command = "",
-                meta = { action = "enable" },
+                command = "systemctl enable " .. dm_service,
+                chroot = true,
                 order = 451,
                 depends_on = {"desktop_install_" .. de_name},
             })
@@ -156,8 +156,8 @@ local module = {
                 kind = "service",
                 name = dm_service,
                 description = "Enable display manager " .. dm_service,
-                command = "",
-                meta = { action = "enable" },
+                command = "systemctl enable " .. dm_service,
+                chroot = true,
                 order = 456,
                 depends_on = {"desktop_display_manager_install"},
             })

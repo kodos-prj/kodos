@@ -39,7 +39,6 @@ def __getattr__(name: str):
     # Service management functions moved to kod.system.services
     if name in {
         'enable_services',
-        'disable_services',
         'enable_user_services',
         'get_services_to_enable',
         'proc_desktop_services',
@@ -76,7 +75,6 @@ __all__ = [
     "manage_packages_shell",
     # Phase 2b re-exports from kod.system.services
     "enable_services",
-    "disable_services",
     "enable_user_services",
     "get_services_to_enable",
     "proc_desktop_services",

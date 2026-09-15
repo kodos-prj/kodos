@@ -8,7 +8,7 @@ Lifecycle hooks allow programs to run custom logic before/after rebuild steps of
 
 **Fixed event names:** `pre:<kind>` and `post:<kind>`, where `kind ∈ {package, service, program, user}`.
 
-**Where they run:** During `kod rebuild` execution only (via Executor). `kod plan` lists which hooks would fire but never executes them.
+**Where they run:** During install/rebuild execution (via the Lua runner, `execute_steps`). `kod plan` lists which hooks would fire but never executes them.
 
 **Semantics:**
 - `pre:*` hook error → step aborts (on_error becomes "abort" regardless of step's on_error field).

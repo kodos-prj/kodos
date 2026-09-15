@@ -59,8 +59,8 @@
 057 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
 058 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
 059 [system] programs_install_openssh: pacman -S --noconfirm openssh
-060 [service] NetworkManager: {"action": "enable"}
-061 [service] bluetooth: {"action": "enable"}
-062 [service] cups: {"action": "enable"}
-063 [service] fwupd: {"action": "enable"}
-064 [service] sshd: {"action": "enable"}
+060 [service] NetworkManager: systemctl enable NetworkManager
+061 [service] bluetooth: systemctl enable bluetooth
+062 [service] cups: systemctl enable cups
+063 [service] fwupd: systemctl enable fwupd
+064 [service] sshd: systemctl enable sshd

@@ -10,9 +10,6 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
-# Feature flag: enable Lua planner for install baseline
-KOD_USE_LUA_PLANNER = os.getenv('KOD_USE_LUA_PLANNER', 'true').lower() == 'true'
-
 
 @dataclass(frozen=True)
 class Step:
