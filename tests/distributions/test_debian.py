@@ -2,14 +2,14 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, call
-from src.kod.debian import kernel_update_required, install_essentials_pkgs, install_build_dependencies
+from src.kod.system.distro.debian import kernel_update_required, install_essentials_pkgs, install_build_dependencies
 
 
 class TestInstallEssentialsPackagesVerification:
     """Test install_essentials_pkgs verifies package installation."""
 
-    @patch('src.kod.debian.exec')
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_essentials_pkgs_verifies_packages_installed(self, mock_exec_chroot, mock_exec):
         """After apt install, should verify packages are actually installed."""
         # Setup: track calls to verify we check dpkg after install
@@ -41,8 +41,8 @@ class TestInstallEssentialsPackagesVerification:
         dpkg_calls = [c for c in mock_exec_chroot.call_args_list if "dpkg -l" in str(c)]
         assert len(dpkg_calls) > 0, "Should verify packages with dpkg -l after install"
 
-    @patch('src.kod.debian.exec')
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_essentials_pkgs_detects_failed_installation(self, mock_exec_chroot, mock_exec):
         """If package not in dpkg list after apt install, should raise error."""
         def side_effect(cmd, **kwargs):
@@ -82,7 +82,7 @@ class TestDebianDistribution:
 class TestKernelUpdateRequired:
     """Test kernel_update_required function with validation."""
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_kernel_update_required_validates_kernel_version(self, mock_exec):
         """Malformed kernel version (no dots) should raise RuntimeError."""
         mock_exec.return_value = "linux-image | 5"  # Malformed: no dots in version
@@ -95,7 +95,7 @@ class TestKernelUpdateRequired:
                 "/mnt/chroot"
             )
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_kernel_update_required_handles_empty_kernel_version(self, mock_exec):
         """Empty kernel version should raise RuntimeError."""
         mock_exec.return_value = "linux-image | "  # Empty version
@@ -108,7 +108,7 @@ class TestKernelUpdateRequired:
                 "/mnt/chroot"
             )
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_kernel_update_required_valid_version(self, mock_exec):
         """Valid kernel version should parse successfully."""
         mock_exec.return_value = "linux-image-amd64 | 6.1.2-1"
@@ -121,7 +121,7 @@ class TestKernelUpdateRequired:
         )
         assert result is False  # Same version
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_kernel_update_required_different_versions(self, mock_exec):
         """Different kernel versions should return True."""
         mock_exec.return_value = "linux-image-amd64 | 6.1.2-1"
@@ -138,7 +138,7 @@ class TestKernelUpdateRequired:
 class TestInstallBuildDependencies:
     """Test install_build_dependencies function for AUR builds."""
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_succeeds(self, mock_exec_chroot):
         """Build dependencies should install successfully."""
         def side_effect(cmd, **kwargs):
@@ -168,7 +168,7 @@ class TestInstallBuildDependencies:
         dpkg_calls = [c for c in mock_exec_chroot.call_args_list if "dpkg -l" in str(c)]
         assert len(dpkg_calls) > 0, "Should verify packages with dpkg -l after install"
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_detects_missing(self, mock_exec_chroot):
         """Should detect if build dependencies fail to install."""
         def side_effect(cmd, **kwargs):
@@ -188,7 +188,7 @@ class TestInstallBuildDependencies:
         with pytest.raises(RuntimeError, match="build dependencies"):
             install_build_dependencies(mount_point="/mnt")
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_detects_all_missing(self, mock_exec_chroot):
         """Should detect when no build packages are installed."""
         def side_effect(cmd, **kwargs):
@@ -204,7 +204,7 @@ class TestInstallBuildDependencies:
         with pytest.raises(RuntimeError, match="build dependencies"):
             install_build_dependencies(mount_point="/mnt")
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_install_failure_raises_error(self, mock_exec_chroot):
         """Should raise error if apt-get install fails."""
         def side_effect(cmd, **kwargs):
@@ -217,7 +217,7 @@ class TestInstallBuildDependencies:
         with pytest.raises(RuntimeError, match="Failed to install build dependencies"):
             install_build_dependencies(mount_point="/mnt")
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_partial_missing(self, mock_exec_chroot):
         """Should detect if even one build package is missing."""
         def side_effect(cmd, **kwargs):

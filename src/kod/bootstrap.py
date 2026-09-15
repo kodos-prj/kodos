@@ -4,7 +4,7 @@ Bridges Lua bootstrap-arch.lua / bootstrap-debian.lua to Python Step objects.
 Ensures plan preview and execution produce identical step lists.
 """
 
-from typing import Any, List, Optional
+from typing import Any, List
 import os
 from kod.planner import Step
 

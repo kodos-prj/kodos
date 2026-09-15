@@ -8,7 +8,7 @@ Workflow flow:
 3. Configure and enable services
 """
 
-from typing import Any, Dict
+from typing import Any
 
 
 def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngrs: Any) -> None:

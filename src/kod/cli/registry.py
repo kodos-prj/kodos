@@ -9,7 +9,7 @@ Provides four subcommands:
 
 import json
 import sys
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 import click
 

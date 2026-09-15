@@ -172,10 +172,7 @@ def compose_rebuild_steps_lua(state: dict) -> List[Step]:
     Pure table ops in Lua; all state (package/service sets, kernel flag) is
     passed in as plain data. Fallback to the Python diff on any failure.
     """
-    import logging
     from kod.lua_runtime import get_lua_runtime
-
-    logger = logging.getLogger(__name__)
 
     try:
         lua = get_lua_runtime()
@@ -295,7 +292,6 @@ def predict_partition_list(conf: Any) -> List[dict]:
         
         for pid in sorted(disk_partitions.keys()):
             part = disk_partitions[pid]
-            name = part["name"]
             fs = part["type"]
             mountpoint = part["mountpoint"]
             blockdevice = f"{device}{suffix}{pid}"
@@ -316,7 +312,7 @@ def plan_disk_steps(conf: Any) -> List[Step]:
     executing it. Divergence: fs types missing from _filesystem_type skip the
     -t flag instead of raising (preview must not crash on partial tables).
     """
-    from kod.filesystem import _filesystem_cmd, _filesystem_type
+    from kod.system.filesystem import _filesystem_cmd, _filesystem_type
 
     steps: List[Step] = []
     devices = conf.devices
@@ -369,7 +365,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
                  current_installed_packages: Optional[dict] = None, update: bool = False,
                  new_generation: bool = False, mount_point: str = "/") -> List[Step]:
     """Rebuild preview over the current generation. Read-only."""
-    from kod._core import Context
+    from kod.context import Context
     from kod.hooks import collect_hooks
     from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable

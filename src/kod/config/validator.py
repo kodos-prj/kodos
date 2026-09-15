@@ -353,7 +353,7 @@ def _validate_programs_section(programs: dict, location: str = "system") -> List
             if service_error:
                 errors.append(service_error)
                 
-        except ProgramNotFound as e:
+        except ProgramNotFound:
             # Build helpful error message with available programs
             available = loader.list_programs()
             available_str = ", ".join(available) if available else "(none)"

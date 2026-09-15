@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, Mock, call
-from src.kod.debian import proc_repos, install_build_dependencies
+from src.kod.system.distro.debian import proc_repos, install_build_dependencies
 
 
 class TestDebianProcReposBasicFunctionality:
@@ -28,8 +28,8 @@ class TestDebianProcReposBasicFunctionality:
         assert repos == {}
         assert packages == []
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_with_missing_commands_field_skips_repo(self, mock_open, mock_exec, mock_exec_chroot):
         """Repo missing 'commands' field should be skipped with warning."""
@@ -50,9 +50,9 @@ class TestDebianProcReposBasicFunctionality:
 class TestDebianProcReposAURBuilding:
     """Test proc_repos AUR building on Debian (needs build dependencies)."""
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_installs_build_deps_before_aur_build(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """Build dependencies should be installed before AUR package build."""
@@ -81,9 +81,9 @@ class TestDebianProcReposAURBuilding:
         # Should have installed build dependencies
         assert mock_install_bd.called
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_build_deps_called_with_mount_point(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """install_build_dependencies should receive correct mount_point."""
@@ -112,9 +112,9 @@ class TestDebianProcReposAURBuilding:
         # Should have been called with custom mount point
         mock_install_bd.assert_called_with(mount_point="/custom/mnt")
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_aur_build_fails_if_build_deps_fail(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """If build dependencies fail to install, AUR build should fail."""
@@ -135,9 +135,9 @@ class TestDebianProcReposAURBuilding:
         with pytest.raises(RuntimeError):
             proc_repos(config, None, False, "/mnt")
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_aur_build_clones_and_builds(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """AUR build should clone repo and execute build command."""
@@ -167,9 +167,9 @@ class TestDebianProcReposAURBuilding:
         calls_str = str(mock_exec_chroot.call_args_list)
         assert "https://aur.archlinux.org/paru.git" in calls_str
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_aur_build_fails_if_binary_not_found(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """If AUR binary not found after build, should raise error."""
@@ -200,7 +200,7 @@ class TestDebianProcReposAURBuilding:
 class TestInstallBuildDependencies:
     """Test install_build_dependencies function."""
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_installs_required_packages(self, mock_exec_chroot):
         """Should install gcc, make, autoconf, automake, pkg-config, git."""
         def mock_side_effect(cmd, **kwargs):
@@ -221,7 +221,7 @@ class TestInstallBuildDependencies:
                         if "apt-get install" in str(c) and "build-essential" in str(c)]
         assert len(install_calls) > 0
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_verifies_packages_installed(self, mock_exec_chroot):
         """Should verify each package is installed via dpkg -l."""
         def mock_side_effect(cmd, **kwargs):
@@ -235,7 +235,7 @@ class TestInstallBuildDependencies:
         with pytest.raises(RuntimeError, match="Failed to install|failed to install"):
             install_build_dependencies("/mnt")
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_detects_missing_build_essential(self, mock_exec_chroot):
         """Should detect if build-essential fails to install."""
         def mock_side_effect(cmd, **kwargs):
@@ -249,7 +249,7 @@ class TestInstallBuildDependencies:
         with pytest.raises(RuntimeError, match="build-essential|failed"):
             install_build_dependencies("/mnt")
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_with_custom_mount_point(self, mock_exec_chroot):
         """Should use provided mount_point for all operations."""
         mount_used = []
@@ -267,7 +267,7 @@ class TestInstallBuildDependencies:
         # Should have used custom mount point
         assert "/custom/mnt" in mount_used
 
-    @patch('src.kod.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec_chroot')
     def test_install_build_dependencies_is_idempotent(self, mock_exec_chroot):
         """Calling install_build_dependencies twice should succeed both times."""
         def mock_side_effect(cmd, **kwargs):
@@ -294,8 +294,8 @@ class TestInstallBuildDependencies:
 class TestDebianProcReposSystemPackages:
     """Test proc_repos handling of system packages on Debian."""
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_preserves_system_repos(self, mock_open, mock_exec, mock_exec_chroot):
         """System repos should be preserved in output."""
@@ -315,8 +315,8 @@ class TestDebianProcReposSystemPackages:
 class TestDebianProcReposStateManagement:
     """Test proc_repos state tracking on Debian."""
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_writes_repos_json_file(self, mock_open, mock_exec, mock_exec_chroot):
         """proc_repos should write repos config to /var/kod/repos.json."""
@@ -335,8 +335,8 @@ class TestDebianProcReposStateManagement:
                           if "repos.json" in str(c)]
             assert len(write_calls) > 0
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_caches_existing_repos_on_no_update(self, mock_open, mock_exec, mock_exec_chroot):
         """If update=False and repo exists in current_repos, should use cached."""
@@ -356,8 +356,8 @@ class TestDebianProcReposStateManagement:
         # Should have used cached version
         assert repos["system"]["cached"] == True
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_updates_existing_repos_on_update_flag(self, mock_open, mock_exec, mock_exec_chroot):
         """If update=True, should override existing repos."""
@@ -382,8 +382,8 @@ class TestDebianProcReposStateManagement:
 class TestDebianProcReposCommandProcessing:
     """Test command processing in repositories on Debian."""
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_copies_commands_to_output(self, mock_open, mock_exec, mock_exec_chroot):
         """All commands from config should be copied to repos output."""
@@ -409,9 +409,9 @@ class TestDebianProcReposCommandProcessing:
 class TestDebianProcReposErrorHandling:
     """Test error handling in proc_repos on Debian."""
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_provides_clear_error_on_build_failure(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """Error messages should clearly indicate AUR build failure."""
@@ -437,9 +437,9 @@ class TestDebianProcReposErrorHandling:
 class TestDebianProcReposIntegration:
     """Integration tests for Debian proc_repos."""
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_handles_multiple_repos(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """Should handle multiple repository definitions."""
@@ -475,8 +475,8 @@ class TestDebianProcReposIntegration:
 class TestDebianProcReposPackageList:
     """Test package list tracking in Debian proc_repos."""
 
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_returns_packages_list(self, mock_open, mock_exec, mock_exec_chroot):
         """proc_repos should return list of packages."""
@@ -496,9 +496,9 @@ class TestDebianProcReposPackageList:
 class TestDebianProcReposAURWithDependencies:
     """Test AUR building with dependencies on Debian."""
 
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_aur_build_succeeds_with_build_deps(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd):
         """AUR build should succeed when build dependencies are installed."""
@@ -536,9 +536,9 @@ class TestDebianProcReposParametrized:
         ("system", "system"),
         ("aur", "aur"),
     ])
-    @patch('src.kod.debian.install_build_dependencies')
-    @patch('src.kod.debian.exec_chroot')
-    @patch('src.kod.debian.exec')
+    @patch('src.kod.system.distro.debian.install_build_dependencies')
+    @patch('src.kod.system.distro.debian.exec_chroot')
+    @patch('src.kod.system.distro.debian.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_recognizes_repo_types(self, mock_open, mock_exec, mock_exec_chroot, mock_install_bd, config_name, expected_in_output):
         """proc_repos should recognize and process different repo types."""

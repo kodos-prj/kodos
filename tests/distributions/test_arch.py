@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import patch, MagicMock, Mock
-from src.kod.arch import kernel_update_required, get_list_of_dependencies, proc_repos
+from src.kod.system.distro.arch import kernel_update_required, get_list_of_dependencies, proc_repos
 
 
 class TestArchDistribution:
@@ -20,7 +20,7 @@ class TestArchDistribution:
 class TestKernelUpdateRequired:
     """Test kernel_update_required function with validation."""
 
-    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec_chroot')
     def test_kernel_update_required_validates_kernel_version(self, mock_exec):
         """Malformed kernel version (no dots) should raise RuntimeError."""
         mock_exec.return_value = "linux 5"  # Malformed: no dots in version
@@ -33,7 +33,7 @@ class TestKernelUpdateRequired:
                 "/mnt/chroot"
             )
 
-    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec_chroot')
     def test_kernel_update_required_handles_empty_kernel_version(self, mock_exec):
         """Empty kernel version should raise RuntimeError."""
         mock_exec.return_value = "linux "  # Empty version
@@ -46,7 +46,7 @@ class TestKernelUpdateRequired:
                 "/mnt/chroot"
             )
 
-    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec_chroot')
     def test_kernel_update_required_valid_version(self, mock_exec):
         """Valid kernel version should parse successfully."""
         mock_exec.return_value = "linux 6.1.2-arch1-1"
@@ -59,7 +59,7 @@ class TestKernelUpdateRequired:
         )
         assert result is False  # Same version
 
-    @patch('src.kod.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec_chroot')
     def test_kernel_update_required_different_versions(self, mock_exec):
         """Different kernel versions should return True."""
         mock_exec.return_value = "linux 6.1.2-arch1-1"
@@ -76,7 +76,7 @@ class TestKernelUpdateRequired:
 class TestGetListOfDependencies:
     """Test get_list_of_dependencies function."""
 
-    @patch('src.kod.arch.exec')
+    @patch('src.kod.system.distro.arch.exec')
     def test_get_list_of_dependencies_uses_fallback_when_group_not_found(self, mock_exec):
         """Fallback to -Si query should execute when -Sgq returns nothing."""
         def mock_exec_side_effect(cmd, **kwargs):
@@ -96,8 +96,8 @@ class TestGetListOfDependencies:
 class TestProcReposFlatpakHandling:
     """Test Flatpak pre-check before initialization."""
 
-    @patch('src.kod.arch.exec_chroot')
-    @patch('src.kod.arch.exec')
+    @patch('src.kod.system.distro.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_flatpak_not_installed_gives_clear_error(self, mock_open, mock_exec, mock_exec_chroot):
         """If flatpak command not found, should raise clear error before attempting init."""
@@ -123,8 +123,8 @@ class TestProcReposFlatpakHandling:
         with pytest.raises(RuntimeError, match="(?i)flatpak.*not found|not installed"):
             proc_repos(config, None, False, "/mnt/root")
 
-    @patch('src.kod.arch.exec_chroot')
-    @patch('src.kod.arch.exec')
+    @patch('src.kod.system.distro.arch.exec_chroot')
+    @patch('src.kod.system.distro.arch.exec')
     @patch('builtins.open', create=True)
     def test_proc_repos_flatpak_available_proceeds(self, mock_open, mock_exec, mock_exec_chroot):
         """If flatpak is available, proceed normally with initialization."""

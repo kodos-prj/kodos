@@ -7,7 +7,7 @@ Registration: optional `hooks` table in program/plugin module.
 Semantics: pre errors abort; post errors log and continue.
 """
 
-from typing import Any, Dict, List, Callable, Optional
+from typing import Any, Dict, List, Callable
 
 
 class ValidationError(Exception):

@@ -6,10 +6,143 @@ Phase 2b: moved implementations from kod._core to here.
 
 import glob
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional, Tuple, Any
 
 from kod.common import exec
-from kod.filesystem import FsEntry
+
+
+# Filesystem type mappings
+_filesystem_cmd: Dict[str, Optional[str]] = {
+    "esp": "mkfs.vfat -F32",
+    "fat32": "mkfs.vfat -F32",
+    "vfat": "mkfs.vfat",
+    "bfs": "mkfs.bfs",
+    "cramfs": "mkfs.cramfs",
+    "ext3": "mkfs.ext3",
+    "fat": "mkfs.fat",
+    "msdos": "mkfs.msdos",
+    "xfs": "mkfs.xfs",
+    "btrfs": "mkfs.btrfs -f",
+    "ext2": "mkfs.ext2",
+    "ext4": "mkfs.ext4",
+    "minix": "mkfs.minix",
+    "f2fs": "mkfs.f2fs",
+    "linux-swap": "mkswap",
+    "noformat": None,
+}
+
+_filesystem_type: Dict[str, Optional[str]] = {
+    "esp": "ef00",
+    # "vfat": "",
+    "btrfs": "8300",
+    "linux-swap": "8200",
+    "noformat": None,
+}
+
+
+class FsEntry:
+    """Represents a filesystem entry for fstab configuration.
+
+    This class encapsulates filesystem mount information including source device,
+    destination mountpoint, filesystem type, mount options, and dump/pass values
+    used in fstab entries.
+
+    Attributes:
+        source (str): Source device or UUID
+        destination (str): Mount point destination path
+        fs_type (str): Filesystem type (e.g., 'ext4', 'btrfs', 'vfat')
+        options (str): Mount options (e.g., 'defaults', 'rw,bind')
+        dump (int): Backup frequency for dump utility (usually 0 or 1)
+        pass_ (int): Filesystem check order (0=no check, 1=root, 2=other)
+    """
+
+    def __init__(
+        self, source: str, destination: str, fs_type: str, options: str, dump: int = 0, pass_: int = 0
+    ) -> None:
+        """Initialize a filesystem entry.
+
+        Args:
+            source: Source device path or UUID
+            destination: Mount point destination
+            fs_type: Filesystem type
+            options: Mount options string
+            dump: Dump backup frequency. Defaults to 0.
+            pass_: Filesystem check pass number. Defaults to 0.
+        """
+        self.source = source
+        self.destination = destination
+        self.fs_type = fs_type
+        self.options = options
+        self.dump = dump
+        self.pass_ = pass_
+
+    def __str__(self) -> str:
+        """Return a formatted string representation of the fstab entry.
+
+        Returns:
+            Formatted fstab entry with proper column alignment.
+        """
+        return (
+            f"{self.source:<25} {self.destination:<15} {self.fs_type:<10} "
+            f"{self.options:<10} {self.dump:<10} {self.pass_}"
+        )
+
+    def mount(self, install_mountpoint: str) -> str:
+        """Generate mount command for this filesystem entry.
+
+        Args:
+            install_mountpoint: Base installation mount point path.
+
+        Returns:
+            Mount command string for this filesystem entry.
+        """
+        if self.fs_type == "btrfs":
+            return f"mount -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+        if self.fs_type == "none":
+            return f"mount --bind {self.source} {install_mountpoint}{self.destination}"
+        if self.fs_type == "esp":
+            return f"mount -t vfat -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+        return f"mount -t {self.fs_type} -o {self.options} {self.source} {install_mountpoint}{self.destination}"
+
+
+def get_partition_devices(conf: Any) -> Tuple[Optional[str], Optional[str]]:
+    """Get boot and root partition device paths from configuration.
+
+    This function scans the device configuration to identify which devices
+    correspond to boot and root partitions based on partition names.
+
+    Args:
+        conf: Configuration object containing device specifications.
+
+    Returns:
+        Tuple containing (boot_partition, root_partition) device paths or None if not found.
+    """
+    devices = conf.devices
+
+    if devices is None:
+        return None, None
+
+    boot_partition = None
+    root_partition = None
+    for d_id, disk in devices.items():
+        device = disk["device"]
+        partitions = disk["partitions"]
+
+        if "nvme" in device or "mmcblk" in device:
+            device_sufix = "p"
+        else:
+            device_sufix = ""
+
+        for pid, part in partitions.items():
+            name = part["name"]
+            blockdevice = f"{device}{device_sufix}{pid}"
+
+            if name.lower() == "boot":
+                boot_partition = blockdevice
+            elif name.lower() == "root":
+                root_partition = blockdevice
+
+    return boot_partition, root_partition
 
 
 def generate_fstab(partiton_list: List, mount_point: str) -> None:

@@ -5,12 +5,10 @@ Implementations moved from kod.core into this module during Phase 2b.
 """
 
 import json
-import re
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from kod.arch import get_base_packages, get_list_of_dependencies
+from kod.system.distro.arch import get_base_packages, get_list_of_dependencies
 from kod.common import exec, exec_chroot
-from kod.system.boot import update_initramfs_hook, update_kernel_hook
 from kod.system.services import proc_services
 
 

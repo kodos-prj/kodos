@@ -4,7 +4,7 @@ Handles systemd service enablement, user services, and service configuration.
 Implementations moved from kod.core into this module during Phase 2b.
 """
 
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict
 
 from kod.common import exec, exec_chroot
 

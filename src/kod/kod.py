@@ -51,7 +51,7 @@ from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.config.compiler import compile_config
-from kod.filesystem import get_partition_devices
+from kod.system.filesystem import get_partition_devices
 from kod.system.filesystem import create_next_generation, get_max_generation
 from kod.cli import registry_group
 
@@ -278,7 +278,7 @@ def install(config: Optional[str], mount_point: str) -> None:
     from kod.planner import build_plan, render_plan
     from kod.executor import StepError, execute_steps
     from kod.hooks import collect_hooks
-    from kod._core import Context
+    from kod.context import Context
     from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
 
     try:

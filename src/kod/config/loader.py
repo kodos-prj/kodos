@@ -13,7 +13,6 @@ Example:
     >>> # config is now a Python dict with all imports resolved
 """
 
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 from kod.core import load_config as lua_load_config
@@ -83,28 +82,4 @@ def _lua_to_python(value: Any) -> Any:
         return value
 
 
-def resolve_imports(config: Dict[str, Any], base_path: Optional[str] = None) -> Dict[str, Any]:
-    """Resolve new imports = {...} syntax by injecting require() calls.
-    
-    This handles the future syntax:
-        return {
-          imports = { "modules/base", "modules/desktop" },
-          config = { ... }
-        }
-    
-    For now, this is a placeholder since the current example uses require()
-    directly in the Lua file, which is already handled by load_config().
-    
-    Args:
-        config: Loaded config dict
-        base_path: Base directory for relative imports
-    
-    Returns:
-        Config with imports resolved
-    
-    ponytail: empty impl for now since current configs use require() directly.
-             Add when new imports syntax is actually used.
-    """
-    # If config has "imports" key, we'd process it here
-    # For now, just return as-is since require() is handled by Lua runtime
-    return config
+

@@ -6,7 +6,7 @@ Handles bootloader configuration, kernel selection, and boot entry management.
 from pathlib import Path
 from typing import Callable
 
-from kod.arch import get_kernel_file
+from kod.system.distro.arch import get_kernel_file
 from kod.common import exec, exec_chroot
 
 

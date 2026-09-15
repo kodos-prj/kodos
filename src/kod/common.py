@@ -5,10 +5,8 @@ and system interaction used throughout the KodOS system.
 """
 
 import logging
-import os
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -180,7 +178,6 @@ def exec_critical(cmd: str, error_msg: str, **kwargs) -> str:
 
     # Check if new problems were added (indicating command failure)
     if len(problems) > initial_problem_count:
-        latest_problem = problems[-1]
         print(f"Error: {error_msg}")
         raise RuntimeError(error_msg)
 

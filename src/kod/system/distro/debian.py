@@ -1,60 +1,50 @@
-"""Arch Linux specific package and system management functions.
+"""Debian/Ubuntu specific package and system management functions.
 
-This module provides Arch Linux specific implementations for package installation,
-system configuration, user management, and service handling. It includes functions
-for detecting hardware-specific packages and managing Arch-specific tools.
+This module provides Debian and Ubuntu specific implementations for package installation,
+system configuration, user management, and service handling. It mirrors the functionality
+of the Arch module but uses Debian/Ubuntu specific tools and package managers.
 """
 
+import re
 from kod.common import exec_chroot, exec
 import json
 from typing import Dict, Any
 
 
-def prepare_for_installation() -> None:
-    pass
-
-
-# Arch
+# Debian
 def get_base_packages(conf: Any) -> Dict[str, Any]:
-    """Get the base packages to install for the given configuration.
+    # CPU microcode
+    """
+    Get the base packages to install for the given configuration.
 
     The function determines the right microcode package for the CPU and
     the kernel package from the configuration. It then returns a table
     with the packages to install.
 
     Args:
-        conf: The configuration object.
+        conf (table): The configuration table.
 
     Returns:
-        A dictionary with the packages to install.
+        A list with the packages to install.
     """
-    # CPU microcode
-    with open("/proc/cpuinfo") as f:
-        while True:
-            line = f.readline()
-            if "AuthenticAMD" in line:
-                microcode = "amd-ucode"
-                break
-            if "GenuineIntel" in line:
-                microcode = "intel-ucode"
-                break
-
     if conf.boot and conf.boot.kernel and conf.boot.kernel.package:
         kernel_package = conf.boot.kernel.package
     else:
-        kernel_package = "linux"
+        kernel_package = "linux-image-amd64"
 
     # TODO: add verions to each package
     packages = {
         "kernel": kernel_package,
         "base": [
-            "base",
-            "base-devel",
-            microcode,
+            # "base",
+            # "base-devel",
+            # microcode,
             "btrfs-progs",
-            "linux-firmware",
-            "bash-completion",
-            "mlocate",
+            "systemd-boot",
+            # "firmware-linux", # Requires non-free repo
+            # "bash-completion",
+            # "plocate",
+            "locales",
             "sudo",
             "schroot",
             "whois",
@@ -62,18 +52,17 @@ def get_base_packages(conf: Any) -> Dict[str, Any]:
             "git",
         ],
     }
-
     # TODO: remove this package dependency
-    packages["base"] += ["arch-install-scripts"]
+    # packages["base"] += ["arch-install-scripts"]
     return packages
 
 
-# Arch
+# Debian
 def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
     """
     Install essential packages onto the specified mount point.
 
-    This function uses the Arch pacstrap command to install a set of base
+    This function uses the Debian debootstrap command to install a set of base
     packages including the kernel and other essential packages onto a
     given mount point. The packages to be installed are determined by
     the base_pkgs dictionary, which should contain 'kernel' and 'base'
@@ -83,11 +72,50 @@ def install_essentials_pkgs(base_pkgs: Dict, mount_point: str):
         base_pkgs (Dict): A dictionary containing the packages to install,
                           with 'kernel' and 'base' keys.
         mount_point (str): The mount point where the packages will be installed.
+    
+    Raises:
+        RuntimeError: If any package fails to install or cannot be verified.
     """
-    exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
+    # exec(f"pacstrap -K {mount_point} {' '.join([base_pkgs['kernel']] + base_pkgs['base'])}")
+    exec("apt install -y debootstrap gdisk")
+    exec("debootstrap --merged-usr testing /mnt")
+    packages_to_install = [base_pkgs["kernel"]] + base_pkgs["base"]
+    packages = " ".join(packages_to_install)
+    exec_chroot(
+        f"bash -c 'yes | DEBIAN_FRONTEND=noninteractive apt-get install -y {packages}'",
+        mount_point=mount_point,
+    )
+    
+    # Verify each package is actually installed
+    installed_output = exec_chroot(
+        "dpkg -l",
+        mount_point=mount_point,
+        get_output=True
+    )
+    
+    failed_packages = []
+    for pkg in packages_to_install:
+        # dpkg -l output has format: "ii  package-name  version  arch  description"
+        # We look for lines starting with "ii " (installed status)
+        found = False
+        for line in installed_output.split("\n"):
+            if line.startswith("ii "):
+                # Extract package name from dpkg output
+                parts = re.split(r"\s+", line.strip())
+                if len(parts) >= 2 and parts[1] == pkg:
+                    found = True
+                    break
+        if not found:
+            failed_packages.append(pkg)
+    
+    if failed_packages:
+        raise RuntimeError(
+            f"The following packages failed to install: {', '.join(failed_packages)}. "
+            f"Check package names and repository status."
+        )
 
 
-# Arch
+# Debian
 def get_kernel_file(mount_point: str, package: str = "linux"):
     """
     Retrieve the kernel file path and version from the specified mount point.
@@ -99,34 +127,31 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
     """
-    kernel_file = exec_chroot(
-        f"bash -c 'pacman -Ql {package} | grep vmlinuz'", mount_point=mount_point, get_output=True
+    kernel_file_depend = exec_chroot(
+        f"apt-cache depends {package} | grep Depends", mount_point=mount_point, get_output=True
     )
-    print(f"pacman -Ql {package} | grep vmlinuz")
     
     # Validate output before parsing
-    if not kernel_file or not kernel_file.strip():
-        raise RuntimeError(f"No kernel file found for package '{package}'. Output: {kernel_file}")
+    if not kernel_file_depend or not kernel_file_depend.strip():
+        raise RuntimeError(f"No dependencies found for package '{package}'. Output: {kernel_file_depend}")
     
-    kernel_file = kernel_file.split(" ")[-1].strip()
+    # Validate format has colon separator
+    if ":" not in kernel_file_depend:
+        raise RuntimeError(f"Invalid dependency format (missing colon): {kernel_file_depend}")
     
-    # Validate kernel path format
-    if not kernel_file or "/" not in kernel_file:
-        raise RuntimeError(f"Invalid kernel file path: {kernel_file}")
+    kernel_file = kernel_file_depend.split(":")[1].strip()
     
-    kver = kernel_file.split("/")[-2]
+    # Validate kernel file exists
+    if not kernel_file or kernel_file.isspace():
+        raise RuntimeError(f"Could not extract kernel file from dependencies: {kernel_file_depend}")
+    
+    kver = kernel_file.split("-", 2)[-1]
     
     # Validate kernel version exists
     if not kver or kver.isspace():
-        raise RuntimeError(f"Could not extract kernel version from path: {kernel_file}")
+        raise RuntimeError(f"Could not extract kernel version from package name: {kernel_file}")
     
     return kernel_file, kver
-
-
-def setup_linux(kernel_package):
-    kernel_file, kver = get_kernel_file(mount_point="/mnt", package=kernel_package)
-    exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}")
-    return kver
 
 
 # Arch
@@ -145,29 +170,21 @@ def get_list_of_dependencies(pkg: str):
     Returns:
         list: A list of packages that the given package depends on.
     """
-    # Check if it is a group
-    group_output = exec(f"pacman -Sgq {pkg}", get_output=True).strip()
-    
-    # Only use group output if non-empty (filter out empty strings)
-    if group_output:
-        pkgs_list = group_output.split("\n")
-        pkgs_list = [p.strip() for p in pkgs_list if p.strip()]
-        if pkgs_list:
-            return pkgs_list + [pkg]
-    
-    # Fallback: check if it is a (meta-)package
-    try:
+    pkgs_list = [pkg]
+    # check if it is a group
+    pkgs_list = exec(f"pacman -Sgq {pkg}", get_output=True).strip().split("\n")
+    # pkgs_list = exec(f"pacman -Sgq {pkg}").strip().split("\n")
+    if len(pkgs_list) > 0:
+        pkgs_list += [pkg.strip() for pkg in pkgs_list] + [pkg]
+    else:
+        # check if it is a (meta-)package
         depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'", get_output=True).split(":")
-        if len(depend_on) >= 2:
-            deps = [p.strip() for p in depend_on[1].strip().split() if p.strip()]
-            if deps:
-                return deps
-        return [pkg]
-    except Exception:
-        return [pkg]
+        # depend_on = exec(f"pacman -Si {pkg} | grep 'Depends On'").split(":")
+        pkgs_list += [pkg.strip() for pkg in depend_on[1].strip().split()]
+    return pkgs_list
 
 
-# Arch
+# Debian
 def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
     """
     Process the repository configuration from the given config.
@@ -209,77 +226,39 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
         for action, cmd in repo_desc["commands"].items():
             repos[repo][action] = cmd
 
-        # Install base package if specified (e.g., flatpak, yay, etc.)
-        # MUST happen before AUR build, since build needs git, gcc, etc.
-        if "package" in repo_desc:
-            pkg_name = repo_desc['package']
-            print(f"Installing base package for '{repo}': {pkg_name}")
-            try:
-                exec_chroot(
-                    f"pacman -S --needed --noconfirm {pkg_name}",
-                    mount_point=mount_point,
-                )
-                packages += [pkg_name]
-                print(f"✅ Base package '{pkg_name}' installed")
-            except Exception as e:
-                print(f"❌ Failed to install base package '{pkg_name}': {e}")
-                raise
-
-        # Handle Flatpak remote initialization
-        if repo == "flatpak" and "init" in repo_desc:
-            init_cmd = repo_desc["init"]
-            
-            # Pre-check: verify flatpak is installed before attempting init
-            try:
-                flatpak_check = exec_chroot(
-                    "which flatpak",
-                    mount_point=mount_point,
-                    get_output=True
-                )
-                if not flatpak_check or "not found" in flatpak_check.lower():
-                    raise RuntimeError("Flatpak not installed. Install 'flatpak' package first.")
-            except RuntimeError:
-                # Re-raise our custom error message
-                raise
-            except Exception as e:
-                raise RuntimeError(f"Failed to check flatpak availability: {e}")
-            
-            print(f"Initializing Flatpak: {init_cmd}")
-            try:
-                exec_chroot(f"{init_cmd}", mount_point=mount_point)
-                print(f"✅ Flatpak remote initialized")
-            except Exception as e:
-                print(f"⚠️  Warning: Flatpak remote initialization failed: {e}")
-                # Don't fail completely, just warn
-
-        # Handle AUR helper build (after base packages installed)
         if "build" in repo_desc:
             build_info = repo_desc["build"]
             url = build_info["url"]
             build_cmd = build_info["build_cmd"]
             name = build_info["name"]
 
-            print(f"Building AUR helper: {name}")
-            try:
-                # Build AUR helper as kod user, install as root
-                exec_chroot(
-                    f"runuser -u kod -- /bin/bash -c 'cd && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
-                    mount_point=mount_point,
-                )
-                
-                # Verify the build was successful by checking if binary exists
-                result = exec_chroot(
-                    f"which {name}",
-                    mount_point=mount_point,
-                    get_output=True
-                )
-                if not result or "not found" in result.lower():
-                    raise RuntimeError(f"AUR helper '{name}' not found after build. Build output: {result}")
-                
-                print(f"✅ AUR helper '{name}' built successfully")
-            except Exception as e:
-                print(f"❌ Failed to build AUR helper '{name}': {e}")
-                raise
+            # Install build dependencies first (needed for AUR builds on Debian)
+            install_build_dependencies(mount_point=mount_point)
+
+            # TODO: Generalize this code to support other distros
+            # exec_chroot("pacman -S --needed --noconfirm git base-devel")
+            exec_chroot(
+                f"runuser -u kod -- /bin/bash -c 'cd && git clone {url} {name} && cd {name} && {build_cmd}'",
+                mount_point=mount_point,
+            )
+            
+            # Verify the build was successful by checking if binary exists
+            result = exec_chroot(
+                f"which {name}",
+                mount_point=mount_point,
+                get_output=True
+            )
+            if not result or "not found" in result.lower():
+                raise RuntimeError(f"AUR helper '{name}' not found after build. Build output: {result}")
+            
+            print(f"✅ AUR helper '{name}' built successfully")
+
+        # if "package" in repo_desc:
+        #     exec_chroot(
+        #         f"pacman -S --needed --noconfirm {repo_desc['package']}",
+        #         mount_point=mount_point,
+        #     )
+        #     packages += [repo_desc["package"]]
         update_repos = True
 
     if update_repos:
@@ -309,7 +288,7 @@ def refresh_package_db(mount_point, new_generation):
         exec("pacman -Syy --noconfirm")
 
 
-# Arch
+# Debian
 def kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point):
     """
     Check if a kernel update is required.
@@ -333,15 +312,15 @@ def kernel_update_required(current_kernel, next_kernel, current_installed_packag
     """
     if current_kernel != next_kernel:
         return True
-    new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
+    new_kernel = exec_chroot(f"apt-cache madison {current_kernel}", mount_point=mount_point, get_output=True)
     current_kernel_ver = current_installed_packages[current_kernel]
     
     # Validate output format before splitting
-    split_output = new_kernel.strip().split(" ")
+    split_output = new_kernel.split("|")
     if len(split_output) < 2:
         raise RuntimeError(f"Invalid kernel version output: {new_kernel}")
     
-    new_kernel_ver = split_output[1]
+    new_kernel_ver = split_output[1].strip()
 
     # Validate kernel version format before parsing
     if not new_kernel_ver or new_kernel_ver.isspace():
@@ -358,7 +337,68 @@ def kernel_update_required(current_kernel, next_kernel, current_installed_packag
     return False
 
 
-# Arch
+# Debian
+def install_build_dependencies(mount_point="/mnt"):
+    """
+    Install packages required for building (gcc, make, autoconf, etc.).
+    
+    This function installs build-essential and related packages needed when
+    building packages from source (e.g., AUR helpers on Debian systems).
+    
+    Args:
+        mount_point (str): The mount point of the chroot environment.
+    
+    Raises:
+        RuntimeError: If build dependencies fail to install or verification fails.
+    """
+    build_packages = [
+        "build-essential",      # gcc, make, basic build chain
+        "autoconf", "automake", # autotools
+        "pkg-config",           # build configuration
+        "git",                  # source control (often needed)
+    ]
+    
+    try:
+        exec_chroot(
+            f"apt-get install -y {' '.join(build_packages)}",
+            mount_point=mount_point,
+            run_as_root=True
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to install build dependencies: {e}")
+    
+    # Verify installation via dpkg
+    installed_output = exec_chroot(
+        "dpkg -l",
+        mount_point=mount_point,
+        get_output=True
+    )
+    
+    failed = []
+    for pkg in build_packages:
+        # dpkg -l output has format: "ii  package-name  version  arch  description"
+        # We look for lines starting with "ii " (installed status)
+        found = False
+        for line in installed_output.split("\n"):
+            if line.startswith("ii "):
+                # Extract package name from dpkg output
+                parts = re.split(r"\s+", line.strip())
+                if len(parts) >= 2 and parts[1] == pkg:
+                    found = True
+                    break
+        if not found:
+            failed.append(pkg)
+    
+    if failed:
+        raise RuntimeError(
+            f"Failed to install build dependencies: {', '.join(failed)}. "
+            f"System may not support package building."
+        )
+    
+    return True
+
+
+# Debian
 def generale_package_lock(mount_point, state_path):
     """
     Generate a file containing the list of installed packages and their versions.
@@ -372,6 +412,9 @@ def generale_package_lock(mount_point, state_path):
         state_path (str): The path to the state directory where the package information
             should be stored.
     """
-    installed_pakages_version = exec_chroot("pacman -Q --noconfirm", mount_point=mount_point, get_output=True)
+    installed_pakages_version = exec_chroot("dpkg -l", mount_point=mount_point, get_output=True)
     with open(f"{state_path}/packages.lock", "w") as f:
-        f.write(installed_pakages_version)
+        for line in installed_pakages_version.split("\n"):
+            if line[:2] == "ii":
+                pkg = re.split("[ ]+", line)
+                f.write(f"{pkg[1]} {pkg[2]}\n")
