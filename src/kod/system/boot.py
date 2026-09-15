@@ -6,7 +6,7 @@ Handles bootloader configuration, kernel selection, and boot entry management.
 from pathlib import Path
 from typing import Callable
 
-from kod.system.distro.arch import get_kernel_file
+from kod.system.distro.factory import get_distro_module
 from kod.common import exec, exec_chroot
 
 
@@ -47,7 +47,8 @@ def create_boot_entry_hook(generation: int, kernel_package: str, mount_point: st
     """
 
     def hook() -> None:
-        _kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        distro = get_distro_module("arch")
+        _kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
         root_device = _read_root_device(f"{mount_point}/etc/fstab")
         subvol = f"generations/{generation}/rootfs"
         entry_name = f"kodos-{generation}"
@@ -94,7 +95,8 @@ def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], No
 
     def hook() -> None:
         print(f"Update kernel ....{kernel_package}")
-        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        distro = get_distro_module("arch")
+        kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         print(f"cp {kernel_file} /boot/vmlinuz-{kver}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}", mount_point=mount_point)
@@ -120,7 +122,8 @@ def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[],
 
     def hook() -> None:
         print(f"Update initramfs ....{kernel_package}")
-        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
+        distro = get_distro_module("arch")
+        kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
         exec_chroot(
             f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img",
             mount_point=mount_point,

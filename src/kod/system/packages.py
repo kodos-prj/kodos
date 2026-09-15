@@ -7,7 +7,7 @@ Implementations moved from kod.core into this module during Phase 2b.
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from kod.system.distro.arch import get_base_packages, get_list_of_dependencies
+from kod.system.distro.factory import get_distro_module
 from kod.common import exec, exec_chroot
 from kod.system.services import proc_services
 
@@ -129,7 +129,8 @@ def _proc_desktop(conf: Any) -> Tuple[List[str], List[str]]:
                     exclude_pkg_list = []
                 if exclude_pkg_list:
                     print(f"Excluding {exclude_pkg_list}")
-                    all_pkgs_to_install = get_list_of_dependencies(desktop_mngr)
+                    distro = get_distro_module("arch")
+                    all_pkgs_to_install = distro.get_list_of_dependencies(desktop_mngr)
                     pkgs_to_install = list(set(all_pkgs_to_install) - set(exclude_pkg_list))
                     packages_to_install += pkgs_to_install
                 else:
@@ -311,7 +312,8 @@ def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]
     packages_to_remove = []
 
     # Base packages
-    base_packages = get_base_packages(conf)
+    distro = get_distro_module("arch")
+    base_packages = distro.get_base_packages(conf)
 
     # Desktop
     desktop_packages_to_install, desktop_packages_to_remove = _proc_desktop(conf)
