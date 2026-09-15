@@ -1,7 +1,7 @@
 -- Repos section module - package repository configuration
 -- Handles addition and configuration of package repositories
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 local module = {
     schema = Schema.repos,

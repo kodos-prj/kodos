@@ -11,7 +11,7 @@ class TestPhase5dSchemaExtensions:
         """boot.loader.include field exists and is a list."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.boot.fields.loader.fields.include
         return field and field.type == 'list'
         """
@@ -22,7 +22,7 @@ class TestPhase5dSchemaExtensions:
         """boot.loader.include is optional (not required)."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.boot.fields.loader.fields.include
         return field.required ~= true
         """
@@ -33,7 +33,7 @@ class TestPhase5dSchemaExtensions:
         """hardware.sane block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.hardware.fields.sane
         return block and block.type == 'dict'
         """
@@ -44,7 +44,7 @@ class TestPhase5dSchemaExtensions:
         """hardware.sane.enable field is boolean and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.hardware.fields.sane.fields.enable
         return field.type == 'boolean' and field.required ~= true
         """
@@ -55,7 +55,7 @@ class TestPhase5dSchemaExtensions:
         """hardware.sane.extra_packages field is list and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.hardware.fields.sane.fields.extra_packages
         return field.type == 'list' and field.required ~= true
         """
@@ -66,7 +66,7 @@ class TestPhase5dSchemaExtensions:
         """desktop.display_manager field exists and is optional string."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.desktop.fields.display_manager
         return field.type == 'string' and field.required ~= true
         """
@@ -77,7 +77,7 @@ class TestPhase5dSchemaExtensions:
         """desktop.environments block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.desktop.fields.environments
         return block and block.type == 'dict'
         """
@@ -88,7 +88,7 @@ class TestPhase5dSchemaExtensions:
         """desktop.environments has all required DE types."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local envs = Schema.desktop.fields.environments.fields
         return (envs.gnome ~= nil) and (envs.plasma ~= nil) and (envs.cosmic ~= nil) and (envs.budgie ~= nil) and (envs.pantheon ~= nil)
         """
@@ -99,7 +99,7 @@ class TestPhase5dSchemaExtensions:
         """fonts.font_dir field exists and is optional string."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.fonts.fields.font_dir
         return field.type == 'string' and field.required ~= true
         """
@@ -110,7 +110,7 @@ class TestPhase5dSchemaExtensions:
         """fonts.packages field exists and is optional list."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.fonts.fields.packages
         return field.type == 'list' and field.required ~= true
         """
@@ -121,7 +121,7 @@ class TestPhase5dSchemaExtensions:
         """services.systemd block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.services.fields.systemd
         return block and block.type == 'dict'
         """
@@ -132,7 +132,7 @@ class TestPhase5dSchemaExtensions:
         """services.systemd.mounts field exists and is optional dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.systemd.fields.mounts
         return field.type == 'dict' and field.required ~= true
         """
@@ -143,7 +143,7 @@ class TestPhase5dSchemaExtensions:
         """services.systemd.units field exists and is optional dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.systemd.fields.units
         return field.type == 'dict' and field.required ~= true
         """
@@ -158,7 +158,7 @@ class TestBackwardCompatibility:
         """Phase 5c boot config (without include) validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             kernel = {package = "linux"},
             loader = {type = "systemd-boot", timeout = 10}
@@ -173,7 +173,7 @@ class TestBackwardCompatibility:
         """Phase 5c hardware config (without sane) validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             pipewire = {enable = true}
         }
@@ -187,7 +187,7 @@ class TestBackwardCompatibility:
         """Phase 5c desktop config (without display_manager) validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             environment = "gnome",
             enable = true
@@ -202,7 +202,7 @@ class TestBackwardCompatibility:
         """Phase 5c fonts config (without font_dir/packages) validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             monospace = {"noto-fonts-mono"},
             enable = true
@@ -217,7 +217,7 @@ class TestBackwardCompatibility:
         """Phase 5c services config (without systemd) validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {}
         local ok, err = Schema:validate_field(Schema.services, config)
         return ok == true
@@ -233,7 +233,7 @@ class TestPhase5dValidation:
         """Phase 5d boot config with include field validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             kernel = {package = "linux"},
             loader = {
@@ -252,7 +252,7 @@ class TestPhase5dValidation:
         """Phase 5d hardware config with sane block validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             pipewire = {enable = true},
             sane = {
@@ -270,7 +270,7 @@ class TestPhase5dValidation:
         """Phase 5d desktop config with display_manager and environments validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             environment = "gnome",
             enable = true,
@@ -290,7 +290,7 @@ class TestPhase5dValidation:
         """Phase 5d fonts config with font_dir and packages validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             monospace = {"noto-fonts-mono"},
             font_dir = "/home/user/.local/share/fonts",
@@ -307,7 +307,7 @@ class TestPhase5dValidation:
         """Phase 5d services config with systemd block validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             systemd = {
                 mounts = {storage = {What = "/dev/sdb1"}},
@@ -328,7 +328,7 @@ class TestDocumentationStrings:
         """All Phase 5d fields have description strings."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         
         local fields_to_check = {
             Schema.boot.fields.loader.fields.include,
@@ -362,7 +362,7 @@ class TestUserBlocks:
         """users.identity block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.identity
         return block and block.type == 'dict'
         """
@@ -373,7 +373,7 @@ class TestUserBlocks:
         """users.identity.name field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.identity.fields.name
         return field.type == 'string' and field.required ~= true
         """
@@ -384,7 +384,7 @@ class TestUserBlocks:
         """users.identity.hashed_password field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.identity.fields.hashed_password
         return field.type == 'string' and field.required ~= true
         """
@@ -395,7 +395,7 @@ class TestUserBlocks:
         """users.identity.groups field is list and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.identity.fields.groups
         return field.type == 'list' and field.required ~= true
         """
@@ -406,7 +406,7 @@ class TestUserBlocks:
         """users.ssh_keys block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.ssh_keys
         return block and block.type == 'dict'
         """
@@ -417,7 +417,7 @@ class TestUserBlocks:
         """users.ssh_keys.enabled field is boolean and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.ssh_keys.fields.enabled
         return field.type == 'boolean' and field.required ~= true
         """
@@ -428,7 +428,7 @@ class TestUserBlocks:
         """users.ssh_keys.authorized field is list and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.ssh_keys.fields.authorized
         return field.type == 'list' and field.required ~= true
         """
@@ -439,7 +439,7 @@ class TestUserBlocks:
         """users.dotfiles block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.dotfiles
         return block and block.type == 'dict'
         """
@@ -450,7 +450,7 @@ class TestUserBlocks:
         """users.dotfiles.repo_url field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.dotfiles.fields.repo_url
         return field.type == 'string' and field.required ~= true
         """
@@ -461,7 +461,7 @@ class TestUserBlocks:
         """users.dotfiles.source_dir field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.dotfiles.fields.source_dir
         return field.type == 'string' and field.required ~= true
         """
@@ -472,7 +472,7 @@ class TestUserBlocks:
         """users.dotfiles.deploy_tool field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.dotfiles.fields.deploy_tool
         return field.type == 'string' and field.required ~= true
         """
@@ -483,7 +483,7 @@ class TestUserBlocks:
         """users.programs block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.programs
         return block and block.type == 'dict'
         """
@@ -494,7 +494,7 @@ class TestUserBlocks:
         """users.programs is optional (not required)."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.programs
         return block.required ~= true
         """
@@ -505,7 +505,7 @@ class TestUserBlocks:
         """users.services block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.services
         return block and block.type == 'dict'
         """
@@ -516,7 +516,7 @@ class TestUserBlocks:
         """users.services is optional (not required)."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.services
         return block.required ~= true
         """
@@ -527,7 +527,7 @@ class TestUserBlocks:
         """users.home_config block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.users.fields.home_config
         return block and block.type == 'dict'
         """
@@ -538,7 +538,7 @@ class TestUserBlocks:
         """users.home_config.dotfiles_repos field is list and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.users.fields.home_config.fields.dotfiles_repos
         return field.type == 'list' and field.required ~= true
         """
@@ -553,7 +553,7 @@ class TestServicesConfigBlock:
         """services.config block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.services.fields.config
         return block and block.type == 'dict'
         """
@@ -564,7 +564,7 @@ class TestServicesConfigBlock:
         """services.config is optional (not required)."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.services.fields.config
         return block.required ~= true
         """
@@ -575,7 +575,7 @@ class TestServicesConfigBlock:
         """services.config.service_name field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.config.fields.service_name
         return field.type == 'string' and field.required ~= true
         """
@@ -586,7 +586,7 @@ class TestServicesConfigBlock:
         """services.config.packages block exists and is a dict."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.services.fields.config.fields.packages
         return block and block.type == 'dict'
         """
@@ -597,7 +597,7 @@ class TestServicesConfigBlock:
         """services.config.packages is optional (not required)."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local block = Schema.services.fields.config.fields.packages
         return block.required ~= true
         """
@@ -608,7 +608,7 @@ class TestServicesConfigBlock:
         """services.config.packages.main field is string and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.config.fields.packages.fields.main
         return field.type == 'string' and field.required ~= true
         """
@@ -619,7 +619,7 @@ class TestServicesConfigBlock:
         """services.config.packages.extra field is list and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.config.fields.packages.fields.extra
         return field.type == 'list' and field.required ~= true
         """
@@ -630,7 +630,7 @@ class TestServicesConfigBlock:
         """services.config.settings field is dict and optional."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local field = Schema.services.fields.config.fields.settings
         return field.type == 'dict' and field.required ~= true
         """
@@ -645,7 +645,7 @@ class TestUserBlocksValidation:
         """User identity config validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             identity = {
                 name = "John Doe",
@@ -663,7 +663,7 @@ class TestUserBlocksValidation:
         """User ssh_keys config validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             ssh_keys = {
                 enabled = true,
@@ -680,7 +680,7 @@ class TestUserBlocksValidation:
         """User dotfiles config validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             dotfiles = {
                 repo_url = "https://github.com/user/dotfiles.git",
@@ -698,7 +698,7 @@ class TestUserBlocksValidation:
         """User home_config with dotfiles_repos validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             home_config = {
                 dotfiles_repos = {"https://github.com/user/dotfiles.git"}
@@ -718,7 +718,7 @@ class TestServicesConfigValidation:
         """Services config block validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             config = {
                 service_name = "openssh",
@@ -739,7 +739,7 @@ class TestServicesConfigValidation:
         """Services with both config and systemd validates."""
         lua = get_lua_runtime()
         code = """
-        local Schema = require('src.kod.lib.schema')
+        local Schema = require('src.kod.lib.core.schema')
         local config = {
             config = {
                 service_name = "nginx",

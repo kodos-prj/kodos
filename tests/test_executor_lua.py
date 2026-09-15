@@ -21,7 +21,7 @@ def lua():
 
 
 def _mod(lua):
-    result = lua.require("kod.lib.executor")
+    result = lua.require("kod.lib.planning.executor")
     return result[0] if isinstance(result, tuple) else result
 
 

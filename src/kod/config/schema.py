@@ -1,6 +1,6 @@
 """Configuration schema access.
 
-The Lua module kod/lib/schema.lua is the single source of truth for all
+The Lua module kod/lib/core/schema.lua is the single source of truth for all
 configuration sections. This module loads it into plain Python dicts.
 """
 
@@ -33,10 +33,10 @@ def get_lua_schema() -> Dict:
         # src/ dir (this file lives in src/kod/config/)
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         lua.execute(f"package.path = '{base_path}/?.lua;{base_path}/?/init.lua;' .. package.path")
-        result = lua.require('kod.lib.schema')
+        result = lua.require('kod.lib.core.schema')
         schema_module = result[0] if isinstance(result, tuple) else result
     except Exception as e:
-        raise RuntimeError(f"Failed to load Lua schema (kod.lib.schema): {e}") from e
+        raise RuntimeError(f"Failed to load Lua schema (kod.lib.core.schema): {e}") from e
 
     # Convert Lua schema to Python dict
     schema = {}

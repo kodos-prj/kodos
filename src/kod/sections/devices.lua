@@ -1,7 +1,7 @@
 -- Devices section module - disk and partition configuration
 -- Handles disk partitioning, formatting, and mounting
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 -- Partition device path. Kernel/udev convention: base names ending in a
 -- digit (nvme0n1, mmcblk0) take a 'p' separator (nvme0n1p1, not nvme0n11);

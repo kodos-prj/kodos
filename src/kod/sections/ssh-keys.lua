@@ -1,7 +1,7 @@
 -- SSH Keys section module - SSH key management
 -- Handles authorized SSH keys setup for users
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 local module = {
     schema = Schema.users,

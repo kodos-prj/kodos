@@ -76,20 +76,20 @@ class TestPlannerLoading:
     
     def test_planner_loads(self, lua_with_path):
         """Test planner.lua loads."""
-        lua_with_path.execute("Planner = require('kod.lib.planner')")
+        lua_with_path.execute("Planner = require('kod.lib.planning.planner')")
         assert lua_with_path.eval("type(Planner.compose)") == "function"
         assert lua_with_path.eval("type(Planner.sections)") == "table"
     
     def test_planner_has_13_sections(self, lua_with_path):
         """Test planner knows about all 13 sections."""
-        lua_with_path.execute("Planner = require('kod.lib.planner')")
+        lua_with_path.execute("Planner = require('kod.lib.planning.planner')")
         num_sections = lua_with_path.eval("#Planner.sections")
         assert num_sections == 13
     
     def test_all_sections_in_planner(self, lua_with_path):
         """Test all expected sections are in planner."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             expected = {
                 'base_distribution', 'repos', 'devices', 'boot', 'hardware',
                 'locale', 'network', 'users', 'desktop', 'fonts',
@@ -117,7 +117,7 @@ class TestPlannerComposition:
     def test_compose_with_minimal_config(self, lua_with_path):
         """Test compose with only base_distribution."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {base_distribution = "arch"}
             steps, err = Planner:compose(config, "arch")
         """)
@@ -131,7 +131,7 @@ class TestPlannerComposition:
     def test_compose_with_packages_section(self, lua_with_path):
         """Test compose with packages section."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git", "vim", "curl"}
@@ -152,7 +152,7 @@ class TestPlannerComposition:
     def test_compose_returns_array_of_steps(self, lua_with_path):
         """Test that compose returns an array of step objects."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"}
@@ -173,7 +173,7 @@ class TestPlannerComposition:
     def test_compose_with_boot_and_packages(self, lua_with_path):
         """Test compose with multiple sections."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"},
@@ -195,7 +195,7 @@ class TestPlannerOrdering:
     def test_steps_sorted_by_order_field(self, lua_with_path):
         """Test that returned steps are sorted by order field."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"},
@@ -220,7 +220,7 @@ class TestPlannerOrdering:
     def test_default_order_is_zero(self, lua_with_path):
         """Test that steps without order field default to 0."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {base_distribution = "arch"}
             steps, err = Planner:compose(config, "arch")
             
@@ -244,7 +244,7 @@ class TestDistroAwareness:
     def test_arch_distro(self, lua_with_path):
         """Test compose with arch distro."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"}
@@ -258,7 +258,7 @@ class TestDistroAwareness:
     def test_debian_distro(self, lua_with_path):
         """Test compose with debian distro."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "debian",
                 packages = {"git"}
@@ -276,7 +276,7 @@ class TestConfigValidation:
     def test_requires_base_distribution(self, lua_with_path):
         """Test that base_distribution is required."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {packages = {"git"}}  -- missing base_distribution
             steps, err = Planner:compose(config, "arch")
         """)
@@ -290,7 +290,7 @@ class TestConfigValidation:
     def test_requires_valid_distro(self, lua_with_path):
         """Test that distro parameter must be arch or debian."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {base_distribution = "arch"}
             steps, err = Planner:compose(config, "fedora")
         """)
@@ -303,7 +303,7 @@ class TestConfigValidation:
     def test_rejects_nil_config(self, lua_with_path):
         """Test that nil config is rejected."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             steps, err = Planner:compose(nil, "arch")
         """)
         steps = lua_with_path.eval("steps")
@@ -319,7 +319,7 @@ class TestMissingConfigSections:
     def test_missing_packages_section(self, lua_with_path):
         """Test compose without packages section."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {base_distribution = "arch"}  -- no packages
             steps, err = Planner:compose(config, "arch")
         """)
@@ -333,7 +333,7 @@ class TestMissingConfigSections:
     def test_multiple_sections_present(self, lua_with_path):
         """Test compose with multiple sections."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"},
@@ -377,7 +377,7 @@ class TestSectionModuleLoading:
     def test_planner_handles_all_sections_in_config(self, lua_with_path):
         """Test compose with all sections present."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 repos = {},
@@ -406,7 +406,7 @@ class TestErrorHandling:
     def test_compose_returns_errors_string(self, lua_with_path):
         """Test that compose returns errors as string."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = nil
             steps, err = Planner:compose(config, "arch")
         """)
@@ -418,7 +418,7 @@ class TestErrorHandling:
     def test_graceful_handling_of_missing_section(self, lua_with_path):
         """Test graceful handling when section module is missing."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {base_distribution = "arch"}
             steps, err = Planner:compose(config, "arch")
             -- Should not crash even though config is minimal
@@ -434,7 +434,7 @@ class TestCacheClearing:
     def test_clear_cache_method_exists(self, lua_with_path):
         """Test that planner has clear_cache method."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             has_clear_cache = type(Planner.clear_cache) == "function"
         """)
         has_clear_cache = lua_with_path.eval("has_clear_cache")
@@ -443,7 +443,7 @@ class TestCacheClearing:
     def test_clear_cache_works(self, lua_with_path):
         """Test that clear_cache can be called."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             Planner:clear_cache()
             still_works = type(Planner.compose) == "function"
         """)
@@ -457,7 +457,7 @@ class TestStepStructure:
     def test_step_has_name_and_description(self, lua_with_path):
         """Test that steps have name and description fields."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git"}
@@ -482,7 +482,7 @@ class TestStepStructure:
     def test_step_may_have_optional_fields(self, lua_with_path):
         """Test that steps may have optional fields like command, order."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 boot = {kernel = {package = "linux"}}
@@ -508,7 +508,7 @@ class TestFullInstallScenario:
     def test_full_arch_install_config(self, lua_with_path):
         """Test with full Arch Linux install configuration."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {"git", "vim", "curl"},
@@ -529,7 +529,7 @@ class TestFullInstallScenario:
     def test_full_debian_install_config(self, lua_with_path):
         """Test with full Debian install configuration."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "debian",
                 packages = {"git", "vim", "curl"},
@@ -554,7 +554,7 @@ class TestEmptyConfigSections:
     def test_empty_packages_list(self, lua_with_path):
         """Test with empty packages list."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = {}  -- empty
@@ -568,7 +568,7 @@ class TestEmptyConfigSections:
     def test_nil_section_values(self, lua_with_path):
         """Test with nil section values."""
         lua_with_path.execute("""
-            Planner = require('kod.lib.planner')
+            Planner = require('kod.lib.planning.planner')
             config = {
                 base_distribution = "arch",
                 packages = nil,

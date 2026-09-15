@@ -1,7 +1,7 @@
 -- Services section module - system service enablement and startup
 -- Handles service enablement (typed steps dispatched to enable_services), config blocks, and systemd units
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 local Repos = require('kod.lib.repos')
 
 local module = {

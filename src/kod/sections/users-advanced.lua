@@ -1,7 +1,7 @@
 -- Users Advanced section module - advanced user account features
 -- Handles user identity, SSH keys, and dotfiles configuration
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 local module = {
     schema = Schema.users,

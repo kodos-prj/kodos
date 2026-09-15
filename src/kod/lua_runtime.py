@@ -38,6 +38,28 @@ class LuaRuntimeManager:
         """Initialize the Lua runtime."""
         try:
             self.lua = LuaRuntime()
+            
+            # Preload core utility modules for backward compatibility
+            # (so unqualified `require('module')` works for moved modules)
+            from pathlib import Path
+            base_path = Path(__file__).parent.parent
+            lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+            self.lua.execute(f"package.path = '{lua_path}' .. package.path")
+            
+            # Preload modules that were moved to subdirectories
+            # so legacy `require('module_name')` calls still work
+            self.lua.execute("""
+                package.preload['utils'] = function()
+                    return require('kod.lib.core.utils')
+                end
+                package.preload['schema'] = function()
+                    return require('kod.lib.core.schema')
+                end
+                package.preload['configs'] = function()
+                    return require('kod.lib.core.configs')
+                end
+            """)
+            
             logger.debug("Lua runtime initialized")
         except Exception as e:
             logger.error(f"Failed to initialize Lua runtime: {e}")

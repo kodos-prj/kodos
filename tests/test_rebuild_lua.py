@@ -1,4 +1,4 @@
-"""Tests for the Lua rebuild diff planner (kod/lib/rebuild.lua)."""
+"""Tests for the Lua rebuild diff planner (kod/lib/planning/rebuild.lua)."""
 
 from pathlib import Path
 from unittest.mock import patch
@@ -21,7 +21,7 @@ def lua():
 
 def _diff(lua, state_lua: str):
     result = lua.execute(f"""
-        local steps = require('kod.lib.rebuild').diff({state_lua})
+        local steps = require('kod.lib.planning.rebuild').diff({state_lua})
         local out = {{}}
         for _, s in ipairs(steps) do
             table.insert(out, s.kind .. " " .. s.name)

@@ -1,7 +1,7 @@
 -- Dotfiles section module - dotfile repository deployment
 -- Handles cloning and deployment of dotfiles repositories
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 local module = {
     schema = Schema.users,

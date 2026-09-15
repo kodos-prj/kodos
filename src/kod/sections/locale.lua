@@ -1,7 +1,7 @@
 -- Locale section module - language, timezone, and keymap configuration
 -- Handles locale generation, timezone symlink, and console keymap setup
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 
 local module = {
     schema = Schema.locale,

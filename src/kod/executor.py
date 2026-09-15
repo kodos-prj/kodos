@@ -103,7 +103,7 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
             arr[j] = h
         hooks_lua[k] = arr
 
-    module = lua.require("kod.lib.executor")
+    module = lua.require("kod.lib.planning.executor")
     try:
         results_lua = module.run(steps_lua, ctx_lua, dispatch_lua, hooks_lua)
     except lupa.LuaError as e:

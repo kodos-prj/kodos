@@ -82,7 +82,7 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
     
     # Load bootstrap module
     module_name = f"bootstrap-{distro}"
-    module_path = os.path.join(os.path.dirname(__file__), "lib", f"{module_name}.lua")
+    module_path = os.path.join(os.path.dirname(__file__), "lib", "bootstrap", f"{distro}.lua")
     
     if not os.path.exists(module_path):
         raise FileNotFoundError(f"Bootstrap module not found: {module_path}")

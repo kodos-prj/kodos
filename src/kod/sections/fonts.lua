@@ -1,7 +1,7 @@
 -- Fonts section module - system font installation
 -- Handles installation of monospace, sans-serif, and emoji fonts
 
-local Schema = require('kod.lib.schema')
+local Schema = require('kod.lib.core.schema')
 local Repos = require('kod.lib.repos')
 
 local module = {

@@ -1,22 +1,22 @@
-"""Program registry and loader (Phase 3).
+"""Program definitions and error hierarchy (Phase 3).
 
 Implements Lua-based program definitions with schema validation and inheritance.
 
 Key components:
 - Error hierarchy (ProgramError, ProgramNotFound, etc.)
 - Program class: wraps Lua definitions with Python interface
-- ProgramRegistry: manages loaded programs with caching
+
+Program loading is handled by PluginLoader (in loader.py).
 
 Example:
-    >>> registry = ProgramRegistry()
-    >>> git_prog = registry.get_program("git")
+    >>> from loader import PluginLoader
+    >>> loader = PluginLoader()
+    >>> git_prog = loader.load_program("git")
     >>> git_prog.validate_config({"user_name": "Alice", "email": "alice@example.com"})
     >>> config = git_prog.generate_config({"user_name": "Alice", "email": "alice@example.com"})
 """
 
 from typing import Dict, Any, Optional, List
-from pathlib import Path
-import lupa
 
 
 # ===== Error Hierarchy =====
@@ -127,7 +127,7 @@ class Program:
             )
         self.scope = scope
         
-        # Extract and validate service field (NEW)
+        # Extract and validate service field
         self.service = self._extract_service(lua_def)
         
         # Store Lua methods
@@ -517,164 +517,11 @@ class Program:
         return self.service
 
 
-# ===== ProgramRegistry Class =====
+# ===== Backward Compatibility =====
 
-
-class ProgramRegistry:
-    """Manages loading and caching of programs from Lua definitions.
-    
-    Handles:
-    - Loading .lua files using lupa
-    - Caching programs to avoid reloading
-    - Merging user programs with builtins via _extends
-    - Validating program structure
-    """
-
-    def __init__(self):
-        """Initialize empty registry with caches."""
-        self._builtin_cache: Dict[str, Program] = {}  # name -> Program
-        self._user_cache: Dict[str, Program] = {}      # name -> Program
-        self._merged_cache: Dict[str, Program] = {}    # name -> Program (builtin + user)
-
-    def _load_lua_def(self, file_path: Path) -> Dict[str, Any]:
-        """Parse and load Lua file, return dict.
-        
-        Executes Lua code: `return {...}`
-        Returns the dict value.
-        
-        Args:
-            file_path: Path to .lua file
-            
-        Returns:
-            Dict from Lua return statement
-            
-        Raises:
-            ProgramLoadError: If Lua syntax error or return not a dict
-        """
-        try:
-            with open(file_path, "r") as f:
-                lua_code = f.read()
-        except OSError as e:
-            raise ProgramLoadError(
-                f"Failed to read program file {file_path}: {e}"
-            )
-        
-        try:
-            lua = lupa.LuaRuntime()
-            result = lua.execute(lua_code)
-            
-            # Lua return statement should return a dict/table
-            if result is None:
-                raise ProgramLoadError(
-                    f"Program file {file_path} must return a dict (got None)"
-                )
-            
-            # Convert lupa LuaTable to dict if needed
-            if isinstance(result, dict):
-                return result
-            
-            # Try to convert lupa LuaTable to dict
-            try:
-                return dict(result.items())
-            except (AttributeError, TypeError):
-                raise ProgramLoadError(
-                    f"Program file {file_path} must return a dict (got {type(result).__name__})"
-                )
-        except lupa.LuaError as e:
-            raise ProgramLoadError(
-                f"Lua syntax error in {file_path}: {e}"
-            )
-        except ProgramLoadError:
-            raise
-        except Exception as e:
-            raise ProgramLoadError(
-                f"Failed to load program from {file_path}: {e}"
-            )
-
-    def get_program(self, name: str) -> Program:
-        """Load a program by name.
-        
-        Priority:
-        1. Check merged cache
-        2. Check builtin cache, load if needed
-        3. Check user cache, load if needed
-        4. Merge if both exist (user extends builtin)
-        5. Return merged or individual program
-        
-        Args:
-            name: Program name (e.g., "git", "neovim")
-            
-        Returns:
-            Program object with full interface
-            
-        Raises:
-            ProgramNotFound: If neither builtin nor user plugin exists
-            ProgramLoadError: If Lua parsing/loading fails
-            CircularExtendError: If circular inheritance detected
-        """
-        # Check merged cache first
-        if name in self._merged_cache:
-            return self._merged_cache[name]
-        
-        # Check builtin cache
-        if name in self._builtin_cache:
-            return self._builtin_cache[name]
-        
-        # Check user cache
-        if name in self._user_cache:
-            return self._user_cache[name]
-        
-        # This is a placeholder implementation - full discovery would require
-        # scanning the filesystem for builtin and user programs.
-        # For Task 1, we focus on the Program and Registry classes themselves.
-        # The PluginLoader (Task 2) will handle filesystem discovery.
-        
-        raise ProgramNotFound(f"Program '{name}' not found")
-
-    def list_programs(self) -> List[str]:
-        """Return all available program names (builtin + user).
-        
-        Returns:
-            Sorted list of program names
-        """
-        all_names = set(self._builtin_cache.keys()) | set(self._user_cache.keys())
-        return sorted(all_names)
-
-    def get_program_info(self, name: str) -> Dict[str, Any]:
-        """Get metadata about a program.
-        
-        Args:
-            name: Program name
-            
-        Returns:
-            Dict with keys:
-            - name: program name
-            - scope: "system", "user", or "both"
-            - source: "builtin" | "user" | "merged"
-            - schema: program schema dict
-            - default_config: default config dict
-            - service: service definition dict or None
-            - extends: parent program name if inherited, else None
-            
-        Raises:
-            ProgramNotFound: If program not found
-        """
-        program = self.get_program(name)
-        
-        # Determine source
-        if name in self._merged_cache:
-            source = "merged"
-        elif name in self._builtin_cache:
-            source = "builtin"
-        else:
-            source = "user"
-        
-        return {
-            "name": program.name,
-            "scope": program.get_scope(),
-            "source": source,
-            "schema": program.get_schema(),
-            "default_config": program.lua_def.get("default_config", {}),
-            "service": program.get_service(),
-            "extends": program.lua_def.get("_extends") if program.parent else None,
-        }
+def __getattr__(name: str):
+    """Lazy import ProgramRegistry from loader to avoid circular imports."""
+    if name == "ProgramRegistry":
+        from .loader import ProgramRegistry  # noqa: F401
+        return ProgramRegistry
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
