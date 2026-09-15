@@ -4,10 +4,27 @@ Handles bootloader configuration, kernel selection, and boot entry management.
 """
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
 from kod.system.distro.factory import get_distro_module
 from kod.common import exec, exec_chroot
+
+
+# Re-export for backward compatibility with tests
+# This function was moved to distro-specific modules
+def get_kernel_file(mount_point: str, package: str = "linux") -> Tuple[str, str]:
+    """Get kernel file path and version (re-exported from distro module).
+    
+    Args:
+        mount_point: Path to mounted root filesystem
+        package: Kernel package name (default: "linux")
+        
+    Returns:
+        Tuple of (kernel_file_path, kernel_version)
+    """
+    # For tests and default usage, use Arch
+    from kod.system.distro.arch import get_kernel_file as arch_get_kernel
+    return arch_get_kernel(mount_point, package)
 
 
 def get_kernel_version(mount_point: str) -> str:
@@ -47,8 +64,7 @@ def create_boot_entry_hook(generation: int, kernel_package: str, mount_point: st
     """
 
     def hook() -> None:
-        distro = get_distro_module("arch")
-        _kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
+        _kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         root_device = _read_root_device(f"{mount_point}/etc/fstab")
         subvol = f"generations/{generation}/rootfs"
         entry_name = f"kodos-{generation}"
@@ -95,8 +111,7 @@ def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], No
 
     def hook() -> None:
         print(f"Update kernel ....{kernel_package}")
-        distro = get_distro_module("arch")
-        kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
+        kernel_file, kver = get_kernel_file(mount_point, package=kernel_package)
         print(f"{kver=}")
         print(f"cp {kernel_file} /boot/vmlinuz-{kver}")
         exec_chroot(f"cp {kernel_file} /boot/vmlinuz-{kver}", mount_point=mount_point)

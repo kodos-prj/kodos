@@ -96,7 +96,7 @@ class TestRebuildPlanAbsolute:
         )
         with patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS):
             steps = plan_rebuild(
-                make_conf(packages=["keep", "new"], services={"sshd": {}}),
+                make_conf(boot={"kernel": {"package": "linux-lts"}}, packages=["keep", "new"], services={"sshd": {}}),
                 make_dist(kernel_update=True), **kwargs)
         lines = [l for l in render_plan(steps, "current").splitlines() if l[:1].isdigit()]
         assert lines == [

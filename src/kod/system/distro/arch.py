@@ -323,6 +323,11 @@ def kernel_update_required(current_kernel, next_kernel, current_installed_packag
     """
     if current_kernel != next_kernel:
         return True
+    
+    # If we don't have current installed packages (e.g., fresh install), assume update needed
+    if not current_installed_packages or current_kernel not in current_installed_packages:
+        return True
+    
     new_kernel = exec_chroot(f"pacman -Q {current_kernel}", mount_point=mount_point, get_output=True)
     current_kernel_ver = current_installed_packages[current_kernel]
     
