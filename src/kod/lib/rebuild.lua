@@ -4,6 +4,7 @@
 -- as the Python fallback in kod/planner.py plan_rebuild.
 
 local Rebuild = {}
+local Repos = require('kod.lib.repos')
 
 local function to_set(list)
     local s = {}
@@ -46,6 +47,7 @@ function Rebuild.diff(state)
     local current_packages = state.current_packages or {}
     local next_kernel = next_packages.kernel or "linux"
     local new_gen = state.new_generation
+    local distro = state.distro
 
     if state.update then
         add("system", "update-packages")
@@ -71,7 +73,10 @@ end
     end
     table.sort(removes)
     for _, p in ipairs(removes) do
-        add("package", p, { action = "remove" }, "warn")
+        local cmd = Repos.remove_cmd(distro, p)
+        if cmd then
+            table.insert(steps, { kind = "package", name = p, command = cmd, chroot = new_gen, on_error = "warn" })
+        end
     end
 
     local install_set = {}
@@ -87,7 +92,10 @@ end
     end
     table.sort(installs)
     for _, p in ipairs(installs) do
-        add("package", p, { action = "install" })
+        local cmd = Repos.install_cmd(distro, p)
+        if cmd then
+            table.insert(steps, { kind = "package", name = p, command = cmd, chroot = new_gen })
+        end
     end
 
     if state.kernel_update_required then

@@ -39,7 +39,7 @@ class TestRebuildDiffLua:
               remove_packages = {},
               next_services = { "newsvc" },
               current_services = { "oldsvc" },
-              update = false, new_generation = false, kernel_update_required = false }
+              update = false, new_generation = false, kernel_update_required = false, distro = "arch" }
         """)
         assert steps == ["service oldsvc", "package gone", "package new",
                         "service newsvc", "system boot-entry"]
@@ -51,7 +51,7 @@ class TestRebuildDiffLua:
               remove_packages = {},
               next_services = {},
               current_services = { "oldsvc" },
-              update = false, new_generation = true, kernel_update_required = false }
+              update = false, new_generation = true, kernel_update_required = false, distro = "arch" }
         """)
         assert steps == ["system boot-entry"]
 
@@ -62,7 +62,7 @@ class TestRebuildDiffLua:
               remove_packages = {},
               next_services = {},
               current_services = {},
-              update = true, new_generation = false, kernel_update_required = true }
+              update = true, new_generation = false, kernel_update_required = true, distro = "arch" }
         """)
         assert steps == ["system update-packages", "package linux-lts",
                         "system kernel-update", "system initramfs-update",
@@ -75,7 +75,7 @@ class TestRebuildDiffLua:
               remove_packages = { "forced" },
               next_services = {},
               current_services = {},
-              update = false, new_generation = false, kernel_update_required = false }
+              update = false, new_generation = false, kernel_update_required = false, distro = "arch" }
         """)
         assert steps == ["package forced", "system boot-entry"]
 
@@ -102,10 +102,10 @@ class TestRebuildPlanAbsolute:
         assert lines == [
             "001 [system] update-packages:",
             "002 [service] oldsvc: systemctl disable --now oldsvc",
-            '003 [package] extra: {"action": "remove"}',
-            '004 [package] gone: {"action": "remove"}',
-            '005 [package] linux-lts: {"action": "install"}',
-            '006 [package] new: {"action": "install"}',
+            '003 [package] extra: pacman -Rscn --noconfirm extra',
+            '004 [package] gone: pacman -Rscn --noconfirm gone',
+            '005 [package] linux-lts: pacman -S --noconfirm linux-lts',
+            '006 [package] new: pacman -S --noconfirm new',
             '007 [system] kernel-update: {"kernel": "linux-lts"}',
             '008 [system] initramfs-update: {"kernel": "linux-lts"}',
             '009 [system] boot-entry: {"kernel": "linux-lts"}',

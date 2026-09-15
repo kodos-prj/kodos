@@ -262,10 +262,22 @@ class TestPlanRebuild:
         conf = make_conf(packages=["keep", "new"])
         current_packages = {"packages": ["keep", "gone"], "kernel": "linux"}
         steps = plan_rebuild(conf, make_dist(), current_packages, [], {})
-        acts = {s.name: s.meta["action"] for s in steps if s.kind == "package"}
-        assert acts == {"gone": "remove", "new": "install"}  # "keep" satisfied -> no step
+        prog = {s.name: s.program for s in steps if s.kind == "package"}
+        assert prog == {"gone": "pacman -Rscn --noconfirm gone",
+                        "new": "pacman -S --noconfirm new"}  # "keep" satisfied -> no step
         removed = next(s for s in steps if s.name == "gone")
         assert removed.on_error == "warn"
+
+    @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
+    def test_package_commands_official(self, _mock):
+        from kod.planner import plan_rebuild
+
+        conf = make_conf(packages=["keep", "new"])
+        current_packages = {"packages": ["keep", "gone"], "kernel": "linux"}
+        steps = plan_rebuild(conf, make_dist(), current_packages, [], {})
+        prog = {s.name: s.program for s in steps if s.kind == "package"}
+        assert prog == {"gone": "pacman -Rscn --noconfirm gone",
+                        "new": "pacman -S --noconfirm new"}
 
     @patch("kod.system.packages.get_base_packages", return_value=BASE_PKGS)
     def test_service_diff_and_order(self, _mock):

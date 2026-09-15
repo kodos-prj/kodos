@@ -24,7 +24,6 @@ def __getattr__(name: str):
     # Package management functions moved to kod.system.packages
     if name in {
         'get_packages_to_install',
-        'manage_packages',
         'load_repos',
         'load_package_lock',
         'store_packages_services',
@@ -65,7 +64,6 @@ __all__ = [
     "configure_user_scripts",
     # Phase 2b re-exports from kod.system.packages
     "get_packages_to_install",
-    "manage_packages",
     "load_repos",
     "load_package_lock",
     "store_packages_services",

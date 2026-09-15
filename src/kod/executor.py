@@ -59,17 +59,8 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
             for k in step.meta.keys():
                 meta[k] = step.meta[k]
         mp = ctx_lua.mount_point
-        uc = ctx_lua.use_chroot
 
-        if kind == "package":
-            action = meta.get("action")
-            if action not in ("install", "remove"):
-                raise StepError(f"Unknown package action: {action}")
-            fn = env.get("manage_packages")
-            if not fn:
-                raise StepError("manage_packages not in env")
-            fn(mp, repos, action, [name], chroot=uc)
-        elif kind == "system":
+        if kind == "system":
             fn = env.get(name)
             if callable(fn):
                 fn(meta.get("kernel"), mp)

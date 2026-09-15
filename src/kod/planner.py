@@ -393,6 +393,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         "update": update,
         "new_generation": new_generation,
         "kernel_update_required": kernel_update_required,
+        "distro": conf.base_distribution or "arch",
     })
     try:
         hooks_map = collect_hooks(conf.users or {})

@@ -39,7 +39,6 @@ from kod.core import (
     load_package_lock,
     load_packages_services,
     load_repos,
-    manage_packages,
     manage_packages_shell,
     proc_user_home,
     store_packages_services,
@@ -303,7 +302,6 @@ def install(config: Optional[str], mount_point: str) -> None:
             "use_chroot": True,
             "stage": "install",
             "dist": dist,
-            "manage_packages": manage_packages,
             # Boot entry is a plan step (boot.lua) dispatched here; generation 0 for install.
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
             "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
@@ -511,7 +509,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         print("==========================================")
         print("==== Processing packages and services ====")
 
-        # === Proc repos (unchanged; needed for manage_packages dispatch) ===
+        # === Proc repos (unchanged; feeds manage_packages_shell) ===
         current_repos = load_repos()
         repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
         print("repo_packages\n", repo_packages)
@@ -541,7 +539,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             "repos": repos,
             "generation_id": generation_id,
             "use_chroot": use_chroot,
-            "manage_packages": manage_packages,
             "update_all_packages": update_all_packages,
             # Executor dispatches system steps by name (see executor.py)
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
