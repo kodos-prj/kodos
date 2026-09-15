@@ -42,7 +42,6 @@ from kod.core import (
     manage_packages_shell,
     proc_user_home,
     store_packages_services,
-    update_all_packages,
     user_configs,
     user_dotfile_manager,
     user_services,
@@ -520,7 +519,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         if update:
             print("Updating packages")
             dist.refresh_package_db(new_root_path, new_generation)
-            update_all_packages(new_root_path, new_generation, repos)
+            # Full package update now happens as a plan step (system/update-packages)
 
         # === Build plan ===
         current_installed_packages = load_package_lock(current_state_path)
@@ -539,7 +538,6 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             "repos": repos,
             "generation_id": generation_id,
             "use_chroot": use_chroot,
-            "update_all_packages": update_all_packages,
             # Executor dispatches system steps by name (see executor.py)
             "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
             "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),

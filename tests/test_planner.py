@@ -321,7 +321,9 @@ class TestPlanRebuild:
 
         conf = make_conf()
         steps = plan_rebuild(conf, make_dist(), {"packages": []}, [], {}, update=True)
-        assert steps[0] == Step("system", "update-packages")
+        assert steps[0].kind == "system"
+        assert steps[0].name == "update-packages"
+        assert "pacman -Syu" in steps[0].program
 
 
 class TestBuildPlan:

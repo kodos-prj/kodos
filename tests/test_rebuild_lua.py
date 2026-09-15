@@ -100,7 +100,7 @@ class TestRebuildPlanAbsolute:
                 make_dist(kernel_update=True), **kwargs)
         lines = [l for l in render_plan(steps, "current").splitlines() if l[:1].isdigit()]
         assert lines == [
-            "001 [system] update-packages:",
+            "001 [system] update-packages: pacman -Syu --noconfirm --needed",
             "002 [service] oldsvc: systemctl disable --now oldsvc",
             '003 [package] extra: pacman -Rscn --noconfirm extra',
             '004 [package] gone: pacman -Rscn --noconfirm gone',

@@ -50,7 +50,10 @@ function Rebuild.diff(state)
     local distro = state.distro
 
     if state.update then
-        add("system", "update-packages")
+        local cmd = Repos.update_cmd(distro)
+        if cmd then
+            table.insert(steps, { kind = "system", name = "update-packages", command = cmd, chroot = new_gen })
+        end
     end
 
 if not state.new_generation then

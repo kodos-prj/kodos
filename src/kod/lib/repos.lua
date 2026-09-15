@@ -116,6 +116,18 @@ local function remove_cmd(distro, packages)
     return nil
 end
 
+local function update_cmd(distro)
+    -- Returns the full system update command for the given distro
+    -- - distro: "arch" or "debian"
+    -- Returns: update command string, or nil if distro unsupported
+    if distro == "arch" then
+        return "pacman -Syu --noconfirm --needed"
+    elseif distro == "debian" then
+        return "apt-get upgrade -y"
+    end
+    return nil
+end
+
 return {
     arch_repo = arch_repo,
     aur_repo = aur_repo,
@@ -123,4 +135,5 @@ return {
     deb_repo = deb_repo,
     install_cmd = install_cmd,
     remove_cmd = remove_cmd,
+    update_cmd = update_cmd,
 }
