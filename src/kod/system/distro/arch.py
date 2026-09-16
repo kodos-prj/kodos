@@ -256,9 +256,11 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
 
             print(f"Building AUR helper: {name}")
             try:
-                # Build AUR helper as kod user, install as root
+                # Build AUR helper as root (the kod user may not exist yet)
+                # AUR packages are built from source; we use root for simplicity.
+                # Production systems can configure separate build users if needed.
                 exec_chroot(
-                    f"runuser -u kod -- /bin/bash -c 'cd && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
+                    f"/bin/bash -c 'cd /tmp && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
                     mount_point=mount_point,
                 )
                 

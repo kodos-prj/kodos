@@ -192,8 +192,8 @@ class TestProcReposAURBuilding:
     @patch('src.kod.system.distro.arch.exec_chroot')
     @patch('src.kod.system.distro.arch.exec')
     @patch('builtins.open', create=True)
-    def test_proc_repos_aur_build_as_kod_user(self, mock_open, mock_exec, mock_exec_chroot):
-        """AUR build should run as 'kod' user, not root."""
+    def test_proc_repos_aur_build_as_root(self, mock_open, mock_exec, mock_exec_chroot):
+        """AUR build runs as root since kod user may not exist during early build phase."""
         def mock_exec_chroot_side_effect(cmd, **kwargs):
             if "which yay" in cmd and kwargs.get('get_output'):
                 return "/usr/bin/yay"
@@ -215,10 +215,10 @@ class TestProcReposAURBuilding:
         
         proc_repos(config, None, False, "/mnt")
         
-        # Should use runuser -u kod to build as non-root
+        # Should build AUR package from /tmp as root
         build_calls = [c for c in mock_exec_chroot.call_args_list 
-                      if "runuser -u kod" in str(c)]
-        assert len(build_calls) > 0, "Should build AUR package as 'kod' user"
+                      if "cd /tmp" in str(c) and "git clone" in str(c)]
+        assert len(build_calls) > 0, "Should build AUR package from /tmp as root"
 
     @patch('src.kod.system.distro.arch.exec_chroot')
     @patch('src.kod.system.distro.arch.exec')
