@@ -1,0 +1,10 @@
+kod/lib/?.lua;/home/abuss/kodos/src/kod/lib/?.lua;/home/abuss/kodos/example/testvm/?.lua;/home/abuss/kodos/src/?.lua;/home/abuss/kodos/src/?/init.lua/usr/local/share/lua/5.5/?.lua;/usr/local/share/lua/5.5/?/init.lua;/usr/local/lib/lua/5.5/?.lua;/usr/local/lib/lua/5.5/?/init.lua;./?.lua;./?/init.lua
+Demo configuration
+Config file: example/testvm/configuration.lua
+Loading default libraries
+Base distribution: arch
+========================================
+generations=[0]
+generation=0
+current_generation = 0
+Missing installed packages information
