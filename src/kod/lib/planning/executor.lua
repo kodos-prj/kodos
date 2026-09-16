@@ -20,8 +20,7 @@ function Executor.run_shell(step, mount_point)
     end
     local cmd = table.concat(parts, " ")
     if step.chroot then
-        -- Use /bin/bash explicitly; falls back to sh if bash not available
-        cmd = "chroot " .. (mount_point or "/") .. " /bin/bash -c " .. shq(cmd)
+        cmd = "chroot " .. (mount_point or "/") .. " sh -c " .. shq(cmd)
     end
     -- coreutils `timeout` guards each step; exit 124 on expiry.
     local full = "timeout " .. (step.timeout_s or 300) .. " " .. cmd

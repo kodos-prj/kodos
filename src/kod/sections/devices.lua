@@ -397,25 +397,13 @@ local module = {
                                 command = "cp /etc/resolv.conf /mnt/etc/resolv.conf || true",
                                 chroot = false,  -- Run on host, not in chroot
                                 order = 44,
-                                depends_on = {"devices_pacman_keyring_init"},
-                                on_error = "warn",  -- Non-critical if host has no resolv.conf
-                            })
-                            
-                            -- Final cleanup: unmount chroot environment
-                            -- Use lazy unmount (-l) to handle any remaining busy mounts from proc/sys/dev
-                            table.insert(steps, {
-                                name = "devices_cleanup_chroot_mounts",
-                                description = "Clean up chroot mounts (proc, sys, dev, dev/pts)",
-                                command = "umount -lR /mnt 2>/dev/null || true",
-                                chroot = false,
-                                order = 45,
-                                depends_on = {"devices_setup_dns"},
-                                on_error = "warn",  -- Non-critical; mounts may be in use
-                            })
-                        end
-                 end
-              end
-          end
+                                 depends_on = {"devices_pacman_keyring_init"},
+                                 on_error = "warn",  -- Non-critical if host has no resolv.conf
+                             })
+                         end
+                  end
+               end
+           end
           
           return steps
       end
