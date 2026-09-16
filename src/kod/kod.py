@@ -519,25 +519,33 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         print("==== Processing packages and services ====")
 
         # Ensure kod user exists for AUR helper builds (before proc_repos)
-        # The kod user is needed by proc_repos to build AUR packages as non-root.
-        # It should be created during install and persist on the system.
-        # We only need to ensure it exists for new generations (which start from snapshots
-        # but haven't had rebuild steps yet).
-        if new_generation:
-            # For new generation in chroot: create kod user with NOPASSWD sudo
-            # (it won't exist in the snapshot yet)
+        # The kod user is needed if any repos have AUR packages to build.
+        # It should persist on the system once created.
+        has_aur_repos = any(
+            "build" in repo_desc
+            for repo_desc in (conf.repos or {}).values()
+        )
+        
+        if has_aur_repos:
+            # Create kod user with NOPASSWD sudo if we need to build AUR packages
             try:
-                exec_chroot(
-                    "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
-                    mount_point=new_root_path
-                )
-                exec_chroot(
-                    "mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod",
-                    mount_point=new_root_path
-                )
+                if new_generation:
+                    # For new generation: create inside chroot
+                    exec_chroot(
+                        "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
+                        mount_point=new_root_path
+                    )
+                    exec_chroot(
+                        "mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod",
+                        mount_point=new_root_path
+                    )
+                else:
+                    # For current system: create on host (requires root)
+                    exec("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true")
+                    exec("mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
             except Exception as e:
-                # Non-critical if user creation fails (user may already exist)
-                print(f"Warning: Could not ensure kod user in new generation: {e}")
+                # Non-critical if user creation fails (user may already exist or requires root)
+                print(f"Warning: Could not ensure kod user: {e}")
 
         # === Proc repos (unchanged; feeds manage_packages_shell) ===
         current_repos = load_repos()
