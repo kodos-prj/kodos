@@ -62,8 +62,8 @@ def create_boot_entry_hook(generation: int, kernel_package: str, mount_point: st
     always generations/<generation>/rootfs, so this works identically for install
     (gen 0) and rebuild (gen N) regardless of which generation the fstab points at.
     
-    The initramfs filename follows Arch's mkinitcpio convention: initramfs-{KERNEL_NAME}.img
-    E.g., "linux" package → /initramfs-linux.img, "linux-lts" → /initramfs-linux-lts.img
+    The initramfs filename includes the full kernel version to support multiple
+    generations, each with potentially different kernel versions and initramfs.
     """
 
     def hook() -> None:
@@ -73,9 +73,9 @@ def create_boot_entry_hook(generation: int, kernel_package: str, mount_point: st
         entry_name = f"kodos-{generation}"
         today = exec("date +'%Y-%m-%d %H:%M:%S'", get_output=True).strip()
         
-        # Initramfs filename follows mkinitcpio convention: initramfs-{kernel_package}.img
-        # This is generated automatically by the kernel package's post-install hook
-        initramfs_name = f"initramfs-{kernel_package}.img"
+        # Initramfs filename includes kernel version to support multiple generations
+        # Each generation can have a different kernel version and thus different initramfs
+        initramfs_name = f"initramfs-linux-{kver}.img"
         
         entry_conf = f"""
 title KodOS
@@ -129,61 +129,65 @@ def update_kernel_hook(kernel_package: str, mount_point: str) -> Callable[[], No
 
 def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[], None]:
     """
-    Create a hook function to verify and locate the initramfs for a specified package.
+    Create a hook function to generate the initramfs using dracut.
 
-    On Arch Linux, the kernel package post-install hooks automatically generate
-    the initramfs via mkinitcpio. This hook verifies the initramfs was created
-    successfully and determines its actual filename (which varies by kernel package).
+    This function generates a hook that, when executed, creates an initramfs
+    file with the kernel version embedded in the filename. This allows multiple
+    generations to have different initramfs files if they use different kernels.
 
     Args:
-        kernel_package (str): The name of the kernel package (e.g., "linux", "linux-lts").
+        kernel_package (str): The name of the kernel package to update.
         mount_point (str): The mount point of the chroot environment.
 
     Returns:
-        function: A hook function that verifies the initramfs exists.
+        function: A hook function that generates the initramfs.
+        
+    Raises:
+        RuntimeError: If dracut is not available or generation fails.
     """
 
     def hook() -> None:
-        print(f"Verifying initramfs for {kernel_package}...")
+        print(f"Generating initramfs for {kernel_package} using dracut...")
         distro = get_distro_module("arch")
         kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
+        print(f"Kernel version: {kver}")
         
-        # On Arch, the kernel package post-install hook runs mkinitcpio automatically.
-        # mkinitcpio generates initramfs-{KERNEL_PACKAGE_NAME}.img in /boot
-        # E.g., for "linux" package → initramfs-linux.img
-        # E.g., for "linux-lts" package → initramfs-linux-lts.img
-        
-        # Map kernel package name to its initramfs filename prefix
-        # The pattern is: initramfs-{prefix-derived-from-package-name}.img
-        initramfs_prefix = kernel_package.replace("linux", "initramfs")
-        if not initramfs_prefix.startswith("initramfs"):
-            # Fallback: assume pattern like "linux-custom" → "initramfs-linux-custom"
-            initramfs_prefix = f"initramfs-{kernel_package}"
-        
-        # Check for the initramfs file
-        initramfs_path = Path(f"{mount_point}/boot/{initramfs_prefix}.img")
-        
-        if initramfs_path.exists():
-            print(f"✅ Initramfs verified: {initramfs_prefix}.img")
-            return
-        
-        # If not found, check alternative patterns
-        # Try to find any initramfs-* file for this kernel
-        boot_dir = Path(f"{mount_point}/boot")
-        if boot_dir.exists():
-            candidates = list(boot_dir.glob("initramfs-*.img"))
-            if candidates:
-                print(f"⚠️  Expected initramfs not found at {initramfs_prefix}.img")
-                print(f"    Found: {', '.join([c.name for c in candidates])}")
-                raise RuntimeError(
-                    f"Initramfs generation failed: expected {initramfs_prefix}.img "
-                    f"not found in /boot. Check mkinitcpio output during kernel package install. "
-                    f"Available files: {', '.join([c.name for c in candidates])}"
-                )
-        
-        raise RuntimeError(
-            f"Initramfs generation failed: expected {initramfs_prefix}.img "
-            f"not found in /boot. mkinitcpio may have failed during kernel package install."
+        # Verify dracut is installed before trying to use it
+        dracut_check = exec_chroot(
+            "which dracut",
+            mount_point=mount_point,
+            get_output=True
         )
+        if not dracut_check or "not found" in dracut_check.lower():
+            raise RuntimeError(
+                f"dracut not found in chroot at {mount_point}. "
+                "dracut should be installed as part of base packages. "
+                "Check that the base package installation completed successfully."
+            )
+        
+        # Generate initramfs with kernel version in filename
+        # dracut will create: /boot/initramfs-linux-<kver>.img
+        output_file = f"initramfs-linux-{kver}.img"
+        print(f"Running: dracut --kver {kver} --hostonly --force /boot/{output_file}")
+        
+        try:
+            exec_chroot(
+                f"dracut --kver {kver} --hostonly --force /boot/{output_file}",
+                mount_point=mount_point,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"dracut failed to generate initramfs: {e}. "
+                f"Check dracut logs and kernel module configuration."
+            )
+        
+        # Verify the file was created
+        boot_initramfs = Path(f"{mount_point}/boot/{output_file}")
+        if not boot_initramfs.exists():
+            raise RuntimeError(
+                f"Initramfs generation failed: expected {output_file} not found in /boot. "
+                f"dracut may have failed silently. Check chroot logs."
+            )
+        print(f"✅ Initramfs generated: {output_file}")
 
     return hook

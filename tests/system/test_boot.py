@@ -34,7 +34,7 @@ class TestBootManagement:
         entry = (tmp_path / "boot/loader/entries/kodos-7.conf").read_text()
         assert "root=UUID=root-uuid rw rootflags=subvol=generations/7/rootfs" in entry
         assert "linux /vmlinuz-6.12.0-arch1" in entry
-        # Initramfs filename follows mkinitcpio convention: initramfs-{kernel_package}.img
-        assert "initrd /initramfs-linux.img" in entry
+        # Initramfs includes kernel version to support multiple generations with different kernels
+        assert "initrd /initramfs-linux-6.12.0-arch1.img" in entry
         loader = (tmp_path / "boot/loader/loader.conf").read_text()
         assert "default kodos-7.conf" in loader
