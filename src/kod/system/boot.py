@@ -152,17 +152,18 @@ def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[],
         kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
         print(f"Kernel version: {kver}")
         
-        # Verify dracut is installed before trying to use it
-        dracut_check = exec_chroot(
-            "which dracut",
-            mount_point=mount_point,
-            get_output=True
-        )
-        if not dracut_check or "not found" in dracut_check.lower():
+        # Verify dracut is installed by checking if /usr/bin/dracut exists
+        # Don't use 'which' as it may not be in base system
+        try:
+            exec_chroot(
+                "test -x /usr/bin/dracut",
+                mount_point=mount_point,
+            )
+        except Exception as e:
             raise RuntimeError(
                 f"dracut not found in chroot at {mount_point}. "
                 "dracut should be installed as part of base packages. "
-                "Check that the base package installation completed successfully."
+                f"Error: {e}"
             )
         
         # Generate initramfs with kernel version in filename

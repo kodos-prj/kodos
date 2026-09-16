@@ -312,9 +312,8 @@ local module = {
                            table.insert(steps, {
                                name = "devices_bootstrap_base_system",
                                description = "Bootstrap base system to /mnt",
-                               -- Include dracut for initramfs generation during boot steps
-                               -- dracut is needed by update_initramfs_hook to generate version-specific initramfs
-                               command = "pacstrap /mnt base linux-lts dracut",
+                               -- Include dracut for initramfs generation and btrfs-progs for btrfs support
+                               command = "pacstrap /mnt base linux-lts dracut btrfs-progs",
                                chroot = false,
                                order = 40,
                                depends_on = {"devices_write_generation_marker"},
