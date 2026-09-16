@@ -336,13 +336,15 @@ def install(config: Optional[str], mount_point: str) -> None:
         except Exception as e:
             logger.warning(f"Failed to cleanup chroot mounts: {e}")
         
-        # Record generation 0 state so `kod rebuild` can diff against it.
-        # Rebuild only writes state for the generations it creates; without
-        # this, the first rebuild after install fails with
-        # "Missing installed packages information". Same calls as rebuild's
-        # finalization: config-derived managed set + real pacman -Q lock.
+         # Record generation 0 state so `kod rebuild` can diff against it.
+         # Rebuild only writes state for the generations it creates; without
+         # this, the first rebuild after install fails with
+         # "Missing installed packages information". Same calls as rebuild's
+         # finalization: config-derived managed set + real pacman -Q lock.
         state_path = f"{mount_point}/kod/generations/0"
         os.makedirs(state_path, exist_ok=True)
+        # Ensure /kod/generations is world-writable so rebuild can create new generations
+        Path(f"{mount_point}/kod/generations").chmod(0o777)
         next_services = get_services_to_enable(ctx_obj, conf)
         packages_to_install, _packages_to_remove = get_packages_to_install(conf)
         store_packages_services(state_path, packages_to_install, next_services)
