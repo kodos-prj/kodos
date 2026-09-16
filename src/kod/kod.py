@@ -519,15 +519,14 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         print("==== Processing packages and services ====")
 
         # Ensure kod user exists for AUR helper builds (before proc_repos)
-        # The kod user is needed by proc_repos to build AUR packages as non-root
-        if new_generation or new_root_path == "/":
-            # Create kod user if it doesn't exist (idempotent)
-            if new_root_path == "/":
-                # Current system: create directly
-                exec("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true")
-                exec("mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
-            else:
-                # New generation chroot: create inside chroot
+        # The kod user is needed by proc_repos to build AUR packages as non-root.
+        # It should be created during install and persist on the system.
+        # We only need to ensure it exists for new generations (which start from snapshots
+        # but haven't had rebuild steps yet).
+        if new_generation:
+            # For new generation in chroot: create kod user with NOPASSWD sudo
+            # (it won't exist in the snapshot yet)
+            try:
                 exec_chroot(
                     "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
                     mount_point=new_root_path
@@ -536,6 +535,9 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
                     "mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod",
                     mount_point=new_root_path
                 )
+            except Exception as e:
+                # Non-critical if user creation fails (user may already exist)
+                print(f"Warning: Could not ensure kod user in new generation: {e}")
 
         # === Proc repos (unchanged; feeds manage_packages_shell) ===
         current_repos = load_repos()
