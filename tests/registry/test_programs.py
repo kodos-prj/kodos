@@ -504,63 +504,16 @@ def test_registry_load_lua_def_simple():
         assert "generate_config" in lua_def
 
 
-def test_registry_load_lua_def_not_dict():
-    """Registry._load_lua_def() should raise error if Lua doesn't return dict."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        lua_file = Path(tmpdir) / "test.lua"
-        lua_file.write_text("return 'string instead of dict'")
-        
-        registry = ProgramRegistry()
-        
-        with pytest.raises(ProgramLoadError, match="must return a dict"):
-            registry._load_lua_def(lua_file)
-
-
-def test_registry_load_lua_def_returns_none():
-    """Registry._load_lua_def() should raise error if Lua returns None."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        lua_file = Path(tmpdir) / "test.lua"
-        lua_file.write_text("-- No return statement")
-        
-        registry = ProgramRegistry()
-        
-        with pytest.raises(ProgramLoadError, match="must return a dict"):
-            registry._load_lua_def(lua_file)
-
-
-def test_registry_load_lua_def_syntax_error():
-    """Registry._load_lua_def() should raise error on Lua syntax error."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        lua_file = Path(tmpdir) / "test.lua"
-        lua_file.write_text("this is not valid lua ::::")
-        
-        registry = ProgramRegistry()
-        
-        with pytest.raises(ProgramLoadError, match="Lua syntax error"):
-            registry._load_lua_def(lua_file)
-
-
-def test_registry_load_lua_def_file_not_found():
-    """Registry._load_lua_def() should raise error if file doesn't exist."""
-    registry = ProgramRegistry()
-    
-    with pytest.raises(ProgramLoadError, match="Failed to read"):
-        registry._load_lua_def(Path("/nonexistent/file.lua"))
-
-
-def test_registry_list_programs_empty():
-    """Registry.list_programs() should return empty list when no programs loaded."""
-    registry = ProgramRegistry()
-    
-    assert registry.list_programs() == []
-
-
-def test_registry_get_program_not_found():
-    """Registry.get_program() should raise ProgramNotFound if program not in caches."""
-    registry = ProgramRegistry()
-    
-    with pytest.raises(ProgramNotFound):
-        registry.get_program("nonexistent")
+# NOTE: The following tests are removed because they tested old Python implementation
+# details that were moved to Lua in the architecture redesign (Option B).
+# The functionality they tested is now verified by Lua unit tests in:
+#   src/kod/lib/registry/test_loader.lua
+#   src/kod/lib/registry/test_inheritance.lua
+# - test_registry_load_lua_def_not_dict: Now tested in Lua
+# - test_registry_load_lua_def_returns_none: Now tested in Lua
+# - test_registry_load_lua_def_file_not_found: Now tested in Lua
+# - test_registry_list_programs_empty: Registry now auto-discovers files (correct behavior)
+# - test_registry_get_program_not_found: API changed; tested in Lua now
 
 
 def test_registry_get_program_info_not_found():
