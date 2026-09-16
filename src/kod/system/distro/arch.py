@@ -256,11 +256,28 @@ def proc_repos(conf, current_repos=None, update=False, mount_point="/mnt"):
 
             print(f"Building AUR helper: {name}")
             try:
-                # Build AUR helper as root (the kod user may not exist yet)
-                # AUR packages are built from source; we use root for simplicity.
-                # Production systems can configure separate build users if needed.
+                # Create a temporary build user (makepkg refuses to run as root)
+                # Use _makepkg user if it doesn't exist; makepkg will set up sudo access
                 exec_chroot(
-                    f"/bin/bash -c 'cd /tmp && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
+                    "useradd -m -d /tmp/makepkg -s /bin/bash makepkg 2>/dev/null || true",
+                    mount_point=mount_point,
+                )
+                
+                # Allow makepkg user to run without password (only for this build)
+                exec_chroot(
+                    "echo 'makepkg ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/makepkg",
+                    mount_point=mount_point,
+                )
+                
+                # Build AUR helper as makepkg user
+                exec_chroot(
+                    f"sudo -u makepkg /bin/bash -c 'cd /tmp && rm -rf {name} && git clone {url} {name} && cd {name} && {build_cmd}'",
+                    mount_point=mount_point,
+                )
+                
+                # Clean up sudo rule
+                exec_chroot(
+                    "rm /etc/sudoers.d/makepkg",
                     mount_point=mount_point,
                 )
                 
