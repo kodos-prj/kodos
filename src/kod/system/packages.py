@@ -376,10 +376,15 @@ def load_repos() -> Optional[Dict[str, Any]]:
     does not exist or is not a valid JSON file.
 
     """
-    repos = None
-    with open("/var/kod/repos.json") as f:
-        repos = json.load(f)
-    return repos
+    try:
+        with open("/var/kod/repos.json") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # File doesn't exist yet (e.g., first install or repo config not written)
+        return None
+    except json.JSONDecodeError:
+        # File exists but is invalid JSON
+        return None
 
 
 def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str, Any]) -> None:
