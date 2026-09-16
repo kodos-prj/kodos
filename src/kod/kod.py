@@ -328,6 +328,14 @@ def install(config: Optional[str], mount_point: str) -> None:
                 print(f"  - {r.step.name}: {r.error}", file=sys.stderr)
             sys.exit(1)
         
+        # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
+        # These must be unmounted before we can safely unmount /mnt
+        print("Cleaning up chroot mounts...")
+        try:
+            exec("umount -R /mnt 2>/dev/null || true")  # Graceful cleanup, ignore errors
+        except Exception as e:
+            logger.warning(f"Failed to cleanup chroot mounts: {e}")
+        
         # Record generation 0 state so `kod rebuild` can diff against it.
         # Rebuild only writes state for the generations it creates; without
         # this, the first rebuild after install fails with
