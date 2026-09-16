@@ -25,42 +25,43 @@
 023 [system] devices_pacman_keyring_init: pacman-key --init && pacman-key --populate archlinux
 024 [system] devices_generate_fstab: echo "# Static information about the filesystems." > /mnt/etc/fstab && echo "# See fstab(5) for details." >> /mnt/etc/fstab && echo "" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "UUID=$UUID /boot vfat defaults,nofail 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /kod btrfs defaults,nofail 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0" >> /mnt/etc/fstab && echo "/kod/store/root /root none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/log /var/log none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/tmp /var/tmp none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/cache /var/cache none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/kod /var/kod none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab
 025 [system] devices_setup_dns: cp /etc/resolv.conf /mnt/etc/resolv.conf || true
-026 [system] network_hostname_set: echo "testvm" > /etc/hostname
-027 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
-028 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
-029 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-030 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
-031 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-032 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-033 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
-034 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
-035 [system] locale_hwclock_sync: hwclock --systohc
-036 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && printf "add_drivers+=btrfs\nadd_drivers+=xhci_pci\nadd_drivers+=ohci_pci\nadd_drivers+=ehci_pci\nadd_drivers+=virtio_pci\nadd_drivers+=ahci\nadd_drivers+=usbhid\nadd_drivers+=sr_mod\nadd_drivers+=virtio_blk" > /etc/dracut.conf.d/kodos.conf
-037 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
-038 [system] kernel-update: {"kernel": "linux-lts"}
-039 [system] initramfs-update: {"kernel": "linux-lts"}
-040 [system] boot_loader_install_systemd: bootctl install
-041 [system] boot-entry: {"kernel": "linux-lts"}
-042 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
-043 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
-044 [system] hardware_pipewire_enable: systemctl enable --global pipewire
-045 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
-046 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git sudo ghostty zsh dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
-047 [system] users_create_abuss: useradd -m -s /bin/bash abuss
-048 [system] users_create_root: true
-049 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
-050 [system] users_password_root: echo "root:root" | chpasswd
-051 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
-052 [system] users_sudoers_wheel_abuss: sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su
-053 [system] users_abuss_program_git_1: git config --global user.email "antal.buss@gmail.com"
-054 [system] users_abuss_program_git_2: git config --global user.name "Antal Buss"
-055 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
-056 [system] programs_install_cups: pacman -S --noconfirm cups
-057 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
-058 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
-059 [system] programs_install_openssh: pacman -S --noconfirm openssh
-060 [service] NetworkManager: systemctl enable NetworkManager
-061 [service] bluetooth: systemctl enable bluetooth
-062 [service] cups: systemctl enable cups
-063 [service] fwupd: systemctl enable fwupd
-064 [service] sshd: systemctl enable sshd
+026 [system] devices_cleanup_chroot_mounts: umount -lR /mnt 2>/dev/null || true
+027 [system] network_hostname_set: echo "testvm" > /etc/hostname
+028 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
+029 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
+030 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+031 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
+032 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+033 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+034 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
+035 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
+036 [system] locale_hwclock_sync: hwclock --systohc
+037 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && printf "add_drivers+=btrfs\nadd_drivers+=xhci_pci\nadd_drivers+=ohci_pci\nadd_drivers+=ehci_pci\nadd_drivers+=virtio_pci\nadd_drivers+=ahci\nadd_drivers+=usbhid\nadd_drivers+=sr_mod\nadd_drivers+=virtio_blk" > /etc/dracut.conf.d/kodos.conf
+038 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
+039 [system] kernel-update: {"kernel": "linux-lts"}
+040 [system] initramfs-update: {"kernel": "linux-lts"}
+041 [system] boot_loader_install_systemd: bootctl install
+042 [system] boot-entry: {"kernel": "linux-lts"}
+043 [system] boot_loader_include_memtest86+: echo "include memtest86+" >> /boot/loader/loader.conf
+044 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
+045 [system] hardware_pipewire_enable: systemctl enable --global pipewire
+046 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
+047 [system] packages_install_all: pacman -S --noconfirm iw stow mc less htop libgtop uv python-invoke git sudo ghostty zsh dua-cli duf dust glow gping hyperfine lazygit lurk fastfetch tldr wget fzf broot lsd btop github-cli helix
+048 [system] users_create_abuss: useradd -m -s /bin/bash abuss
+049 [system] users_create_root: true
+050 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
+051 [system] users_password_root: echo "root:root" | chpasswd
+052 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
+053 [system] users_sudoers_wheel_abuss: sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su
+054 [system] users_abuss_program_git_1: git config --global user.email "antal.buss@gmail.com"
+055 [system] users_abuss_program_git_2: git config --global user.name "Antal Buss"
+056 [system] programs_install_bluetooth: pacman -S --noconfirm bluez
+057 [system] programs_install_cups: pacman -S --noconfirm cups
+058 [system] programs_install_fwupd: pacman -S --noconfirm fwupd
+059 [system] programs_install_networkmanager: pacman -S --noconfirm networkmanager
+060 [system] programs_install_openssh: pacman -S --noconfirm openssh
+061 [service] NetworkManager: systemctl enable NetworkManager
+062 [service] bluetooth: systemctl enable bluetooth
+063 [service] cups: systemctl enable cups
+064 [service] fwupd: systemctl enable fwupd
+065 [service] sshd: systemctl enable sshd

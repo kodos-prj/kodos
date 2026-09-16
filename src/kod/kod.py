@@ -319,7 +319,7 @@ def install(config: Optional[str], mount_point: str) -> None:
         print("\n=== Executing Install ===\n")
         results = execute_steps(steps, env, mount_point,
                                 use_chroot=True, hooks=hooks_dict)
-        
+         
         # Check for critical failures (ignore on_error='warn' steps)
         failures = [r for r in results if not r.success and not r.is_warning]
         if failures:
@@ -330,16 +330,18 @@ def install(config: Optional[str], mount_point: str) -> None:
         
         # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
         # These must be unmounted before we can safely unmount /mnt
+        # Use lazy unmount (-l) to handle busy mounts
         print("Cleaning up chroot mounts...")
         try:
-            exec("umount -R /mnt 2>/dev/null || true")  # Graceful cleanup, ignore errors
+            # First try regular unmount
+            exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
         except Exception as e:
             logger.warning(f"Failed to cleanup chroot mounts: {e}")
         
-         # Record generation 0 state so `kod rebuild` can diff against it.
-         # Rebuild only writes state for the generations it creates; without
-         # this, the first rebuild after install fails with
-         # "Missing installed packages information". Same calls as rebuild's
+        # Record generation 0 state so `kod rebuild` can diff against it.
+        # Rebuild only writes state for the generations it creates; without
+        # this, the first rebuild after install fails with
+        # "Missing installed packages information". Same calls as rebuild's
          # finalization: config-derived managed set + real pacman -Q lock.
         state_path = f"{mount_point}/kod/generations/0"
         os.makedirs(state_path, exist_ok=True)
