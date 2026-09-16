@@ -125,7 +125,8 @@ def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[],
 
     This function generates a hook that, when executed, generates an initramfs
     file for the specified kernel package from the chroot environment at the
-    given mount point.
+    given mount point. It verifies the kernel version is correctly embedded in
+    the filename by checking what file was actually created.
 
     Args:
         kernel_package (str): The name of the kernel package to update.
@@ -139,9 +140,23 @@ def update_initramfs_hook(kernel_package: str, mount_point: str) -> Callable[[],
         print(f"Update initramfs ....{kernel_package}")
         distro = get_distro_module("arch")
         kernel_file, kver = distro.get_kernel_file(mount_point, package=kernel_package)
+        print(f"Kernel version extracted: {kver}")
+        
+        # Generate initramfs with kernel version in filename
+        # dracut will create: /boot/initramfs-linux-<kver>.img
+        output_file = f"initramfs-linux-{kver}.img"
         exec_chroot(
-            f"dracut --kver {kver} --hostonly /boot/initramfs-linux-{kver}.img",
+            f"dracut --kver {kver} --hostonly --force /boot/{output_file}",
             mount_point=mount_point,
         )
+        
+        # Verify the file was created with the expected name
+        boot_initramfs = Path(f"{mount_point}/boot/{output_file}")
+        if not boot_initramfs.exists():
+            raise RuntimeError(
+                f"Initramfs generation failed: expected {output_file} not found in /boot. "
+                f"Check dracut output and kernel version extraction."
+            )
+        print(f"✅ Initramfs created: {output_file}")
 
     return hook

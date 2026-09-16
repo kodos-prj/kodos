@@ -94,23 +94,28 @@ def get_kernel_file(mount_point: str, package: str = "linux"):
 
     Returns:
         tuple: A tuple containing the kernel file path as a string and the kernel version as a string.
+        
+    The kernel version is extracted from the module path directory name (e.g., 
+    /usr/lib/modules/6.10.10-arch1-1/vmlinuz → kver is "6.10.10-arch1-1").
     """
     kernel_file = exec_chroot(
         f"bash -c 'pacman -Ql {package} | grep vmlinuz'", mount_point=mount_point, get_output=True
     )
-    print(f"pacman -Ql {package} | grep vmlinuz")
+    print(f"pacman -Ql {package} | grep vmlinuz → {kernel_file.strip()}")
     
     # Validate output before parsing
     if not kernel_file or not kernel_file.strip():
         raise RuntimeError(f"No kernel file found for package '{package}'. Output: {kernel_file}")
     
     kernel_file = kernel_file.split(" ")[-1].strip()
+    print(f"  Extracted kernel file path: {kernel_file}")
     
     # Validate kernel path format
     if not kernel_file or "/" not in kernel_file:
         raise RuntimeError(f"Invalid kernel file path: {kernel_file}")
     
     kver = kernel_file.split("/")[-2]
+    print(f"  Extracted kernel version: {kver}")
     
     # Validate kernel version exists
     if not kver or kver.isspace():
