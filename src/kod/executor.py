@@ -85,7 +85,12 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
     hooks_data = hooks or {}
     hooks_lua = _convert_to_lua_table(lua, hooks_data)
 
-    module = lua.require("kod.lib.planning.executor")
+    module_result = lua.require("kod.lib.planning.executor")
+    # lupa returns a tuple (module, ...) when requiring Lua modules
+    if isinstance(module_result, tuple):
+        module = module_result[0]
+    else:
+        module = module_result
     try:
         results_lua = module.run(steps_lua, ctx_lua, dispatch_lua, hooks_lua)
     except lupa.LuaError as e:

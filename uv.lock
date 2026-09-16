@@ -3,15 +3,6 @@ revision = 3
 requires-python = ">=3.12"
 
 [[package]]
-name = "chorut"
-version = "0.1.8"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0b/67/51862c993fb974f091722f157e4ff86917ab6c0684073a572c280321419e/chorut-0.1.8.tar.gz", hash = "sha256:d27392e2b33d7e718d34144cef2ff4c7d92fc0523988f28a16f9336ad6710af4", size = 13850, upload-time = "2026-04-03T07:31:34.504Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/37/4b/8b31d2163891cf6266c184535efa6dd4927c87935975be6bd853778d8a1b/chorut-0.1.8-py3-none-any.whl", hash = "sha256:edaba9cc99fd6076c8c713b926765addb8016dd3ed23df3d2d1195713d9a50e8", size = 13965, upload-time = "2026-04-03T07:31:33.416Z" },
-]
-
-[[package]]
 name = "click"
 version = "8.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -142,7 +133,6 @@ name = "kod"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "chorut" },
     { name = "click" },
     { name = "lupa" },
 ]
@@ -156,7 +146,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chorut", specifier = ">=0.1.0" },
     { name = "click", specifier = ">=8.0" },
     { name = "lupa", specifier = ">=1.13" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
