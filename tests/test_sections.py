@@ -277,10 +277,11 @@ class TestBootSection:
             result = boot.emit_steps(config, 'arch')
         """)
         result = lua.eval("result")
-        assert len(result) >= 1
-        step = result[1]
-        assert step['name'] == 'boot_kernel_install'
-        assert 'linux-lts' in step['command']
+        assert len(result) >= 2
+        # Dracut config must come before kernel install (order 199 vs 200)
+        assert result[1]['name'] == 'boot_kernel_modules_config'
+        assert result[2]['name'] == 'boot_kernel_install'
+        assert 'linux-lts' in result[2]['command']
     
     def test_emit_steps_with_bootloader(self, lua):
         """Test emit_steps generates bootloader step."""

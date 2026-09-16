@@ -35,8 +35,8 @@
 033 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
 034 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
 035 [system] locale_hwclock_sync: hwclock --systohc
-036 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
-037 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && printf "add_drivers+=btrfs\nadd_drivers+=xhci_pci\nadd_drivers+=ohci_pci\nadd_drivers+=ehci_pci\nadd_drivers+=virtio_pci\nadd_drivers+=ahci\nadd_drivers+=usbhid\nadd_drivers+=sr_mod\nadd_drivers+=virtio_blk" > /etc/dracut.conf.d/kodos.conf
+036 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && printf "add_drivers+=btrfs\nadd_drivers+=xhci_pci\nadd_drivers+=ohci_pci\nadd_drivers+=ehci_pci\nadd_drivers+=virtio_pci\nadd_drivers+=ahci\nadd_drivers+=usbhid\nadd_drivers+=sr_mod\nadd_drivers+=virtio_blk" > /etc/dracut.conf.d/kodos.conf
+037 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
 038 [system] kernel-update: {"kernel": "linux-lts"}
 039 [system] initramfs-update: {"kernel": "linux-lts"}
 040 [system] boot_loader_install_systemd: bootctl install

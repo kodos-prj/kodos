@@ -24,16 +24,11 @@ local module = {
                  return steps
              end
             
-            table.insert(steps, {
-                name = "boot_kernel_install",
-                description = "Install kernel: " .. kernel_pkg,
-                command = install_cmd,
-                chroot = true,
-                order = 200,
-            })
-            
-            -- Pin initramfs modules via dracut conf. KodOS root is btrfs, so btrfs is
-            -- always pinned: without it the kernel hangs on /dev/disk/by-uuid at boot.
+            -- Pin initramfs modules via dracut conf BEFORE kernel install
+            -- This must run before boot_kernel_install (order 200) so that the kernel's
+            -- post-install hook can use this config when it runs dracut automatically
+            -- KodOS root is btrfs, so btrfs is always pinned: without it the kernel hangs
+            -- on /dev/disk/by-uuid at boot.
             local modules = { "btrfs" }
             for _, m in ipairs(config.kernel.modules or {}) do
                 if m ~= "btrfs" then
@@ -50,7 +45,15 @@ local module = {
                description = "Configure initramfs modules: " .. table.concat(modules, " "),
                command = "mkdir -p /etc/dracut.conf.d && printf \"" .. table.concat(add_lines, "\\n") .. "\" > /etc/dracut.conf.d/kodos.conf",
                chroot = true,
-               order = 201,
+               order = 199,
+            })
+            
+            table.insert(steps, {
+                name = "boot_kernel_install",
+                description = "Install kernel: " .. kernel_pkg,
+                command = install_cmd,
+                chroot = true,
+                order = 200,
             })
            
             -- Kernel/initramfs updates are dispatched system steps: the executor calls
