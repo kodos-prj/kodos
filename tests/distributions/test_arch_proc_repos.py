@@ -192,8 +192,8 @@ class TestProcReposAURBuilding:
     @patch('src.kod.system.distro.arch.exec_chroot')
     @patch('src.kod.system.distro.arch.exec')
     @patch('builtins.open', create=True)
-    def test_proc_repos_aur_build_as_makepkg_user(self, mock_open, mock_exec, mock_exec_chroot):
-        """AUR build uses temporary makepkg user since makepkg refuses to run as root."""
+    def test_proc_repos_aur_build_as_kod_user(self, mock_open, mock_exec, mock_exec_chroot):
+        """AUR build uses kod user (runuser -u kod) since makepkg refuses to run as root."""
         def mock_exec_chroot_side_effect(cmd, **kwargs):
             if "which yay" in cmd and kwargs.get('get_output'):
                 return "/usr/bin/yay"
@@ -215,10 +215,10 @@ class TestProcReposAURBuilding:
         
         proc_repos(config, None, False, "/mnt")
         
-        # Should create makepkg user and run build with sudo -u makepkg
+        # Should build AUR package as kod user with runuser
         build_calls = [c for c in mock_exec_chroot.call_args_list 
-                      if "sudo -u makepkg" in str(c) and "git clone" in str(c)]
-        assert len(build_calls) > 0, "Should build AUR package as makepkg user with sudo"
+                      if "runuser -u kod" in str(c) and "git clone" in str(c)]
+        assert len(build_calls) > 0, "Should build AUR package as kod user with runuser"
 
     @patch('src.kod.system.distro.arch.exec_chroot')
     @patch('src.kod.system.distro.arch.exec')

@@ -518,6 +518,25 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         print("==========================================")
         print("==== Processing packages and services ====")
 
+        # Ensure kod user exists for AUR helper builds (before proc_repos)
+        # The kod user is needed by proc_repos to build AUR packages as non-root
+        if new_generation or new_root_path == "/":
+            # Create kod user if it doesn't exist (idempotent)
+            if new_root_path == "/":
+                # Current system: create directly
+                exec("useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true")
+                exec("mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod")
+            else:
+                # New generation chroot: create inside chroot
+                exec_chroot(
+                    "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
+                    mount_point=new_root_path
+                )
+                exec_chroot(
+                    "mkdir -p /etc/sudoers.d && echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod",
+                    mount_point=new_root_path
+                )
+
         # === Proc repos (unchanged; feeds manage_packages_shell) ===
         current_repos = load_repos()
         repos, repo_packages = dist.proc_repos(conf, current_repos, update, mount_point=new_root_path)
