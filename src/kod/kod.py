@@ -492,18 +492,21 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     generation_id = int(max_generation) + 1
 
     with open("/.generation") as f:
-        current_generation = int(f.readline().strip())
-    print(f"{current_generation = }")
-
-    # Load current installed packages and enabled services
-    packages_file = Path(f"/kod/generations/{current_generation}/installed_packages")
-    if packages_file.is_file():
-        current_state_path = f"/kod/generations/{current_generation}"
-    else:
-        print("Missing installed packages information")
-        return
-
-    current_packages, current_services = load_packages_services(current_state_path)
+     current_generation = int(f.readline().strip())
+     print(f"{current_generation = }")
+ 
+     # Load current installed packages and enabled services
+     packages_file = Path(f"/kod/generations/{current_generation}/installed_packages")
+     if packages_file.is_file():
+         current_state_path = f"/kod/generations/{current_generation}"
+     else:
+         print(f"⚠️  Missing installed packages information at {packages_file}")
+         print("   Rebuild cannot determine differences from current generation")
+         print("   This can happen if generation 0 state wasn't recorded during install.")
+         print("   Skipping rebuild. To fix: manually record state or reinstall with latest kod.")
+         return
+ 
+     current_packages, current_services = load_packages_services(current_state_path)
     print(f"{current_packages = }")
     print(f"{current_services = }")
 
