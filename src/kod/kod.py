@@ -356,11 +356,22 @@ def install(config: Optional[str], mount_point: str) -> None:
         next_services = get_services_to_enable(ctx_obj, conf)
         packages_to_install, _packages_to_remove = get_packages_to_install(conf)
         
+        print(f"DEBUG: state_path = {state_path}")
+        print(f"DEBUG: packages_to_install keys: {packages_to_install.keys()}")
+        
         try:
             store_packages_services(state_path, packages_to_install, next_services)
+            print(f"DEBUG: store_packages_services succeeded")
+            if os.path.exists(state_path):
+                print(f"DEBUG: Files in {state_path}: {os.listdir(state_path)}")
+            
             dist.generale_package_lock(mount_point, state_path)
+            print(f"DEBUG: generale_package_lock succeeded")
+            if os.path.exists(state_path):
+                print(f"DEBUG: Files in {state_path} after lock: {os.listdir(state_path)}")
             print("Generation 0 state recorded successfully")
         except Exception as e:
+            print(f"ERROR: Failed to record generation 0 state: {e}")
             logger.warning(f"Failed to record generation 0 state: {e}")
             import traceback
             traceback.print_exc()
