@@ -328,21 +328,9 @@ def install(config: Optional[str], mount_point: str) -> None:
                 print(f"  - {r.step.name}: {r.error}", file=sys.stderr)
             sys.exit(1)
         
-        # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
-        # These must be unmounted before we can safely unmount /mnt
-        # Use lazy unmount (-l) to handle busy mounts
-        print("Cleaning up chroot mounts...")
-        try:
-            # First try regular unmount
-            exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
-        except Exception as e:
-            logger.warning(f"Failed to cleanup chroot mounts: {e}")
-         
-        # Record generation 0 state so `kod rebuild` can diff against it.
-        # Rebuild only writes state for the generations it creates; without
-        # this, the first rebuild after install fails with
-        # "Missing installed packages information". Same calls as rebuild's
-        # finalization: config-derived managed set + real pacman -Q lock.
+        # Record generation 0 state BEFORE unmounting /mnt
+        # This must happen while /mnt/kod/generations/0 is still accessible
+        print("Recording generation 0 state...")
         state_path = f"{mount_point}/kod/generations/0"
         os.makedirs(state_path, exist_ok=True)
         
@@ -375,6 +363,16 @@ def install(config: Optional[str], mount_point: str) -> None:
             logger.warning(f"Failed to record generation 0 state: {e}")
             import traceback
             traceback.print_exc()
+        
+        # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
+        # These must be unmounted before we can safely unmount /mnt
+        # Use lazy unmount (-l) to handle busy mounts
+        print("Cleaning up chroot mounts...")
+        try:
+            # First try regular unmount
+            exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup chroot mounts: {e}")
 
         print("\n✅ Install completed successfully")
 
