@@ -46,6 +46,8 @@ def get_base_packages(conf: Any) -> Dict[str, Any]:
         "base": [
             "base",
             "base-devel",
+            "debugedit",
+            "fakeroot",
             microcode,
             "btrfs-progs",
             "linux-firmware",
