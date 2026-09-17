@@ -509,29 +509,10 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
      if packages_file.is_file():
          current_state_path = f"/kod/generations/{current_generation}"
      else:
-         print(f"⚠️  Missing installed packages information at {packages_file}")
-         print("   Attempting to generate state from current system...")
-         current_state_path = f"/kod/generations/{current_generation}"
-         os.makedirs(current_state_path, exist_ok=True)
-         
-         # Try to generate state from current system
-         try:
-             # Get currently installed packages
-             result = exec("pacman -Q", get_output=True)
-             with open(f"{current_state_path}/packages.lock", "w") as f:
-                 f.write(result)
-             print("   Generated packages.lock from current system")
-         except Exception as e:
-             logger.warning(f"Could not generate packages.lock: {e}")
-             # Write a minimal placeholder so rebuild doesn't fail
-             with open(f"{current_state_path}/packages.lock", "w") as f:
-                 f.write("# Generated as fallback\n")
-         
-         # Create empty installed_packages file if it doesn't exist
-         if not packages_file.exists():
-             with open(f"{current_state_path}/installed_packages", "w") as f:
-                 f.write(json.dumps({"packages": []}, indent=2))
-             print("   Created minimal installed_packages placeholder")
+         print(f"❌ Missing installed packages information at {packages_file}", file=sys.stderr)
+         print("   Generation 0 state should have been recorded during install.", file=sys.stderr)
+         print("   If this appears after a fresh install, the install may have failed silently.", file=sys.stderr)
+         sys.exit(1)
  
      current_packages, current_services = load_packages_services(current_state_path)
     print(f"{current_packages = }")
