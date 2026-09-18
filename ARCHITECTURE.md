@@ -1,355 +1,253 @@
-# KodOS Architecture: Option B Implementation
-
-**Status:** Complete (Phase 1 & 2 finished)  
-**Date:** September 2026  
-**Branch:** `feat/architecture-redesign`
+# KodOS Architecture: Python Orchestration + Lua Execution
 
 ## Overview
 
-KodOS has been refactored to move program registry logic from Python into Lua, with Python acting as a thin error-handling and Step-wrapping bridge. This document describes the resulting 7-module hierarchy and the separation of concerns.
+KodOS uses a **dual-layer architecture**:
+- **Python**: Orchestration, validation, and high-level control flow
+- **Lua**: System operations, disk management, package handling, and step emission
 
-### Key Achievement
-
-- **Lua**: All compute-intensive logic (file discovery, parsing, inheritance, schema validation, planning, execution)
-- **Python**: Entry points, error handling, Step object wrapping, directory scanning (using pathlib for portability)
-- **Clear module hierarchy**: 7 distinct modules organized by responsibility
-
----
-
-## Module Structure
-
-```
-src/kod/lib/
-├── bootstrap/              # Distro initialization (2 files)
-│   ├── arch.lua            # Arch Linux bootstrap steps
-│   └── debian.lua          # Debian/Ubuntu bootstrap steps
-├── core/                   # Validation & configuration (3 files)
-│   ├── schema.lua          # JSON schema validation for sections
-│   ├── configs.lua         # Config file handling
-│   └── utils.lua           # Lua utilities (table printing, helpers)
-├── io/                     # I/O & filesystem (1 file)
-│   └── dotfile_manager.lua # Dotfile synchronization
-├── planning/               # Step planning & execution (3 files)
-│   ├── planner.lua         # Compose installation steps
-│   ├── executor.lua        # Run steps with hooks & timeouts
-│   └── rebuild.lua         # Diff-based rebuild planning
-├── registry/               # Program loading (2 files)
-│   ├── loader.lua          # File I/O, parsing, caching
-│   └── inheritance.lua     # Inheritance resolution, merging
-└── system/                 # Infrastructure (3 files)
-    ├── repos.lua           # Repository & package management
-    ├── disk.lua            # Disk utility functions
-    └── mount.lua           # Mount point handling
-```
-
-**Total: 14 Lua files, 7 modules**
+This separation provides:
+- **Clarity**: Each layer has a single responsibility
+- **Testability**: Lua steps can be previewed without execution
+- **Maintainability**: Configuration and logic co-located in one language per concern
+- **Reusability**: Lua modules work standalone; Python can call them for preview
 
 ---
 
-## Module Details
+## Layer Responsibilities
 
-### 1. Registry Module (`lib/registry/`)
+### Python (`src/kod/`)
 
-**Purpose:** Load, parse, and manage program definitions
+**Orchestration & Control**:
+- `kod.py`: CLI commands (install, rebuild, plan, config)
+- `planner.py`: Build execution plan by composing Lua modules
+- `bootstrap.py`: Bootstrap-specific step emission
+- `context.py`: Execution context (mount points, chroot, environment)
 
-- **loader.lua** (400 lines)
-  - `load_program_file(path)` → `(table, nil)` or `(nil, error)`
-  - File I/O, TOML/YAML/Lua parsing
-  - Caching layer (avoids reloading)
-  - Error handling with descriptive messages
+**Configuration & Validation**:
+- `config/loader.py`: Load Lua config files, convert to Python dicts
+- `config/validator.py`: Validate configuration against schema
+- `config/schema.py`: Load Lua schema definitions for validation
 
-- **inheritance.lua** (350 lines)
-  - `merge_definitions(parent, child)` → `(merged, nil)` or `(nil, error)`
-  - Recursive deep merging
-  - Circular dependency detection
-  - Schema validation (required fields, types)
+**System State Management**:
+- `system/generations.py`: Generation lifecycle (mount, unmount, fstab management)
+- `system/packages.py`: Package locking, service tracking
+- `system/boot.py`: Kernel/initramfs management
 
-**Python Bridge:** `src/kod/registry/loader.py`
-- `PluginLoader` class (thin wrapper)
-- Delegates all logic to Lua
-- Keeps: directory discovery (Python's `pathlib`), error wrapping, `Program` class
+**Utilities**:
+- `lua_utils.py`: Shared Lua↔Python conversion (single source of truth)
+- `common.py`: Logging, execution, problem tracking
+- `context.py`: Execution environment management
 
-### 2. Core Module (`lib/core/`)
+**Key Principle**: Python does NOT handle disk operations, formatting, or package installation.
 
-**Purpose:** Shared validation and configuration
+### Lua (`src/lua/kod/`)
 
-- **schema.lua** (25KB)
-  - JSON Schema validator
-  - 13 section schemas (base_distribution, users, packages, etc.)
-  - Type checking, required fields, constraints
-  - Recursive validation for nested objects
+**Core Modules**:
+- `core/schema.lua`: Configuration schema definitions (single source of truth)
+- `core/bootstrap.lua`: Bootstrap operations (unified for arch/debian)
+- `system/filesystem_types.lua`: Filesystem type → mkfs command mapping (single source)
+- `system/disk.lua`: Disk operations (mount, umount, partitioning helpers)
+- `system/repos.lua`: Repository and package management
 
-- **configs.lua** (7KB)
-  - Config file utilities
-  - Optional: environment variable substitution
+**Section Modules** (emits install/rebuild steps):
+- `sections/devices.lua`: Disk partitioning, formatting, mounting (sgdisk-based)
+- `sections/boot.lua`: Boot loader and kernel setup
+- `sections/packages.lua`: Package installation steps
+- `sections/services.lua`: Service enablement steps
+- `sections/users.lua`: User and group creation
+- `sections/desktop.lua`: Desktop environment setup
+- `sections/programs.lua`: Custom program setup
 
-- **utils.lua** (1KB)
-  - `dumpTable()` - debug output
-  - `list()`, `map()` - collection helpers
-  - `if_true()`, `if_else()` - conditional functions
-
-### 3. Planning Module (`lib/planning/`)
-
-**Purpose:** Compose and execute installation/rebuild steps
-
-- **planner.lua** (7KB)
-  - `compose(config, distro)` → `(steps, error_msg)`
-  - Loads all 13 section modules
-  - Collects steps from each section
-  - Sorts by `order` field, stable sort for reproducibility
-
-- **executor.lua** (3KB)
-  - `run(steps, ctx, dispatch, hooks)` → results
-  - Runs steps sequentially with timeouts
-  - Calls dispatch callbacks (e.g., "system" steps)
-  - Fires before/after hooks
-
-- **rebuild.lua** (3KB)
-  - `diff(state)` → `(steps, error_msg)`
-  - Compare current vs. desired state
-  - Generate minimal diff steps
-  - Used for: kernel updates, package changes
-
-**Python Bridge:** `src/kod/planner.py` & `src/kod/executor.py`
-- Compose steps: Lua does work, Python wraps in `Step` objects
-- Execute steps: Python converts Step→Lua, calls executor, converts results back
-- Boilerplate reduced via `_convert_to_lua_table()` helper
-
-### 4. Bootstrap Module (`lib/bootstrap/`)
-
-**Purpose:** Generate distro-specific bootstrap steps
-
-- **arch.lua** (5KB)
-  - `emit_bootstrap_steps(conf, partition_list)` → steps
-  - Partition, format, mount, chroot, bootstrap
-
-- **debian.lua** (5KB)
-  - Same interface as arch.lua
-  - Debian-specific commands (apt, debootstrap, etc.)
-
-**Python Bridge:** `src/kod/bootstrap.py`
-- Loads Lua bootstrap module based on distro
-- Converts config → Lua, calls emit_bootstrap_steps()
-- Converts Lua steps → Python `Step` objects
-
-### 5. System Module (`lib/system/`)
-
-**Purpose:** Infrastructure utilities
-
-- **repos.lua** - Repository definitions and package management
-- **disk.lua** - Disk utility functions
-- **mount.lua** - Mount point handling
-
-### 6. I/O Module (`lib/io/`)
-
-**Purpose:** File I/O and synchronization
-
-- **dotfile_manager.lua** - Dotfile sync between system and configs
-
----
-
-## Backward Compatibility
-
-All modules are available via both:
-1. **Qualified paths** (recommended): `require('kod.lib.core.schema')`
-2. **Unqualified names** (legacy): `require('schema')`
-
-Backward compat is maintained via **preload shims** in `src/kod/lua_runtime.py`:
-
-```lua
-package.preload['schema'] = function()
-    return require('kod.lib.core.schema')
-end
-```
-
-This ensures:
-- Old code continues to work without changes
-- New code uses qualified paths (clearer)
-- No breaking changes to public APIs
+**Key Principle**: Lua emits steps (not executed directly); Python decides when/how to execute them.
 
 ---
 
 ## Data Flow
 
-### Installation Plan (Preview)
-
+### Install Flow
 ```
-User Config
-    ↓
-planner.py::compose_steps_lua()
-    ↓ (Python)
-converts config → Lua table
-    ↓
-lua.require("kod.lib.planning.planner")
-    ↓ (Lua)
-planner.compose(config, distro)
-    ↓ (Lua)
-loads 13 section modules
-    ↓ (Lua)
-calls section.emit_steps(config, distro)
-    ↓ (Lua)
-collects & sorts steps
-    ↓
-returns Lua table of steps
-    ↓ (Python)
-converts Lua steps → Step objects
-    ↓
-returns List[Step]
+CLI (kod.py)
+  ↓
+planner.py: compose_steps_lua()
+  ↓ (loads Lua modules)
+Lua sections/{devices,boot,packages,...}.lua
+  ↓ (emits Step objects)
+Python: execute_steps()
+  ↓
+System execution (sgdisk, mkfs, pacman, etc.)
 ```
 
-### Program Loading
-
+### Rebuild Flow
 ```
-get_program("git")
-    ↓
-PluginLoader.load_program("git")
-    ↓ (Python)
-discovers builtin/git.lua
-    ↓ (Python)
-loads via _load_lua_def()
-    ↓ (Python)
-calls lua.require("kod.lib.registry.loader").load_program_file(path)
-    ↓ (Lua)
-parses file, handles inheritance
-    ↓ (Lua)
-returns (program_table, error)
-    ↓ (Python)
-wraps in Program object
-    ↓
-returns Program
+CLI (kod.py rebuild)
+  ↓
+Load current generation state
+  ↓
+planner.py: plan_rebuild()
+  ↓ (calls Lua)
+Lua sections/packages.lua, sections/services.lua, ...
+  ↓ (emits steps for changes)
+Python: execute_steps()
+  ↓
+chroot into new generation
+  ↓
+System execution
+```
+
+### Config Loading Flow
+```
+User: kod.json (Lua config)
+  ↓
+config/loader.py: load_config_lua()
+  ↓
+Lua runtime executes config
+  ↓
+lua_utils.py: lua_table_to_python()
+  ↓
+Python dict (validated)
 ```
 
 ---
 
-## Performance & Optimization
+## Single Sources of Truth
 
-### Code Reduction
+### 1. Filesystem Type Mappings
+**Location**: `src/lua/kod/system/filesystem_types.lua`
+- Defines mkfs commands and GPT type codes
+- Used by:
+  - `devices.lua`: Generates sgdisk partitioning steps
+  - `planner.py:plan_disk_steps()`: Generates preview steps
+- **Why Lua?** Partitioning is fundamentally a disk operation; Lua owns that domain
 
-| Component | Before | After | Change |
-|-----------|--------|-------|--------|
-| `loader.py` | 341 lines | 106 lines | -69% |
-| `programs.py` | 680 lines | 174 lines | -74% |
-| `executor.py` | 117 lines | 99 lines | -15% |
-| **Total Python registry code** | **1,458 lines** | **379 lines** | **-74%** |
+### 2. Configuration Schema
+**Location**: `src/lua/kod/core/schema.lua`
+- Defines all config sections, field types, descriptions
+- Used by:
+  - `config/validator.py`: Validates user config
+  - `planner.py`: Composes steps based on config
+- **Why Lua?** Schema is config itself; centralizing avoids duplication
 
-### Testing
-
-- **734 existing tests pass** (99.3%)
-- **33 new Lua unit tests** (for loader & inheritance)
-- **0 regressions**
-- **5 skipped tests** (old implementation-detail tests)
-
-### Memory & Speed
-
-- Lua is ~5-10x faster than equivalent Python
-- Registry loading: Lua + caching = O(1) lookups after first load
-- No separate Lua runtime per module (singleton manager)
+### 3. Lua-to-Python Conversion
+**Location**: `src/kod/lua_utils.py:lua_table_to_python()`
+- Unified function for converting lupa LuaTable → Python dict/list
+- Used by:
+  - `bootstrap.py`: Convert conf before re-Lua-fying
+  - `schema.py`: Convert schema section definitions
+  - `loader.py`: Convert loaded config
+- **Why unified?** Detection of array vs dict must be consistent; one implementation, one place
 
 ---
 
-## Development Guidelines
+## Key Architectural Decisions
 
-### Adding a New Section
+### Why Lua for Sections?
+1. **Steps are declarations**: Each section describes what to do, not how to do it
+2. **Reusability**: Sections can be called independently (preview, dry-run, execute)
+3. **Portability**: Lua is lightweight; sections don't depend on Python internals
+4. **Clarity**: Distro-specific logic (arch vs debian) stays in Lua, not if/else in Python
 
-1. Create `src/kod/sections/mymodule.lua`
-2. Implement `emit_steps(conf, distro)` function
-3. Return array of step tables with: `kind`, `name`, `program`, `args`, `meta`
-4. Add to `Planner.sections` list in `planner.lua`
-5. Add to sections directory
+### Why Python for Orchestration?
+1. **Control flow**: Rebuild, error handling, generation management needs imperative logic
+2. **State**: Tracking what's installed, enabled, current generation requires mutable state
+3. **Integration**: Python ecosystem has better tools (Click for CLI, lupa for Lua bridge)
+4. **Testing**: Easier to unit-test Python; Lua steps tested via preview comparison
 
-Example:
+### Why Both Languages?
+1. **Separation of concerns**: Disk ops (Lua) don't need to know about packages (Python)
+2. **Testability**: Dry-run and preview mode are free (Lua emits steps; Python doesn't execute)
+3. **Maintainability**: Changes to step emission don't require Python rebuilds
+4. **Performance**: Lua hot-path (step generation) is fast; Python handles orchestration overhead
 
-```lua
--- src/kod/sections/mymodule.lua
-local Schema = require('kod.lib.core.schema')
-local MyModule = {}
+---
 
-function MyModule.emit_steps(conf, distro)
-    if not conf.mymodule then
-        return {}
-    end
-    
-    local steps = {}
-    table.insert(steps, {
-        kind = "package",
-        name = "install-foo",
-        program = "pacman",
-        args = {"-S", "foo"},
-    })
-    return steps
-end
+## Module Organization
 
-return MyModule
 ```
+src/kod/
+├── kod.py                      # CLI entry point
+├── planner.py                  # Step composition
+├── bootstrap.py                # Bootstrap-specific
+├── context.py                  # Execution context
+├── common.py                   # Shared utilities
+├── lua_utils.py                # Lua↔Python conversion (unified)
+├── config/
+│   ├── loader.py              # Config file loading
+│   ├── validator.py           # Config validation
+│   └── schema.py              # Schema access
+└── system/
+    ├── generations.py         # Generation lifecycle
+    ├── packages.py            # Package state
+    ├── boot.py                # Boot management
+    ├── users.py               # User management
+    └── ...
 
-### Adding a New Utility Module
-
-1. Create `src/kod/lib/category/myutil.lua`
-2. Return table of exported functions
-3. Add preload shim if it replaces old code:
-   ```lua
-   package.preload['myutil'] = function()
-       return require('kod.lib.category.myutil')
-   end
-   ```
-
-### Debugging Lua Code
-
-Enable debug logging in Python:
-
-```python
-import logging
-logging.getLogger('kod').setLevel(logging.DEBUG)
-
-# Or set env var:
-# export KOD_DEBUG=1
-```
-
-Add prints in Lua:
-
-```lua
--- In Lua
-print("DEBUG: value =", value)
-
--- Prints to Python stderr
+src/lua/kod/
+├── core/
+│   ├── schema.lua             # Schema definitions (source of truth)
+│   └── bootstrap.lua          # Bootstrap (arch/debian unified)
+├── system/
+│   ├── filesystem_types.lua   # FS type mappings (source of truth)
+│   ├── disk.lua               # Disk helpers
+│   └── repos.lua              # Repository management
+└── sections/
+    ├── devices.lua            # Partitioning/formatting
+    ├── boot.lua               # Boot setup
+    ├── packages.lua           # Package installation
+    ├── services.lua           # Service enablement
+    ├── users.lua              # User creation
+    ├── desktop.lua            # Desktop setup
+    └── programs.lua           # Custom programs
 ```
 
 ---
 
-## Transition Path (Future)
+## Common Refactoring Patterns
 
-Current state is stable. Potential future improvements:
-
-1. **Move section modules into lib/sections/** for consistency
-2. **Create lib/schemas/** for per-section schema definitions
-3. **Lua-only bootstrap** (eliminate bootstrap.py)
-4. **Lua-only registry** (eliminate PluginLoader entirely)
-
-But these are **optional optimizations** — current architecture is production-ready.
+See [MAINTENANCE.md](MAINTENANCE.md) for:
+- How to add a new filesystem type
+- How to add a new config section
+- How to add a new installation step
+- How to split Lua/Python responsibilities
+- How to consolidate duplicated logic
 
 ---
 
-## FAQ
+## Phase Evolution
 
-**Q: Why Lua for registry but not for everything?**  
-A: Lua is fast and portable for algorithmic logic. Python's CLI, config parsing, and system integration are still valuable. The hybrid approach gets the best of both.
+This architecture evolved through phases:
+- **Phase 1-2**: Initial Python-only codebase
+- **Phase 3-4**: Lua planner section introduced
+- **Phase 5**: Full Lua section modules for install/rebuild (current)
+- **Phase 5b**: Disk partitioning unified (sgdisk everywhere)
+- **Phase 5c**: Lua-to-Python consolidation (single conversion function)
 
-**Q: What happens if a Lua module is malformed?**  
-A: `loader.lua` catches parse errors and returns `(nil, error_string)`. Python's `ProgramLoadError` exception wraps this for the user.
-
-**Q: Can I modify section modules without restarting?**  
-A: Yes. The Lua runtime is stateful but section modules are re-required on each plan, so edits are picked up immediately.
-
-**Q: How do I add a new distro?**  
-A: Create `src/kod/lib/bootstrap/mynewdistro.lua` with `emit_bootstrap_steps()` function. Call with `distro="mynewdistro"`.
-
-**Q: Is backward compatibility guaranteed?**  
-A: Yes, via preload shims. Old code using `require('schema')` will work forever. New code should use `require('kod.lib.core.schema')`.
+Current state: **Clean separation**, **single sources of truth**, **no duplication between layers**.
 
 ---
 
-## Conclusion
+## Gotchas
 
-This architecture achieves the design goal: **Lua computes, Python wraps**. The 7-module hierarchy is clear, testable, and maintainable. All tests pass, no regressions, and the codebase is significantly simpler.
+1. **Lua tables are 1-indexed**: Python arrays are 0-indexed
+   - Handled automatically by `lua_table_to_python()` via key detection
 
-Ready for production use and merging into main.
+2. **Lua nil ≠ Python None**: Lua functions may return nil for missing values
+   - Converted to None in `lua_table_to_python()`
+
+3. **Step execution order**: Steps have `order` and `depends_on` fields
+   - Planner composes them; execution engine respects ordering
+   - See `planner.py:Step` for full spec
+
+4. **Chroot context**: Many steps run in chroot during rebuild
+   - Context tracks mount points; see `context.py` for how paths are resolved
+
+---
+
+## Testing Strategy
+
+- **Dry-run**: Run planner without execution; compare generated steps
+- **Preview**: JSON output of planned steps vs actual execution
+- **Unit tests**: Individual Lua modules (via stub runner)
+- **Integration**: Full install/rebuild cycle in isolated test VM
+
+See [TEST.md](TEST.md) (when created) for full testing guide.

@@ -1,8 +1,22 @@
-"""Read-only execution plan builder for KodOS install/rebuild.
+"""Execution plan builder (step composer) for KodOS install/rebuild.
 
-Builds a flat, ordered list of Steps describing what install or rebuild would
-do, without executing anything. Consumes the same state functions the real
-flows use so preview output matches actual behavior (spec: planner section).
+Composes a flat, ordered list of Steps describing what install or rebuild would
+do, by calling Lua section modules and converting their output.
+
+Key responsibility: Transform configuration → ordered Steps (via Lua).
+Does NOT execute steps; that's planner.py's job.
+
+Step sources:
+  - devices.lua: Disk partitioning, formatting, mounting
+  - boot.lua: Boot loader setup
+  - packages.lua: Package installation
+  - services.lua: Service enablement
+  - users.lua: User creation
+  - ... (other sections)
+
+Step outputs are JSON-serializable (for preview, dry-run, logging).
+
+See ARCHITECTURE.md for system design.
 """
 
 import json

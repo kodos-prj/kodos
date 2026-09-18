@@ -1,7 +1,20 @@
 """Generation management for KodOS.
 
 Handles generation lifecycle: creation, mounting, fstab management, and subvolume operations.
-A generation is an immutable snapshot of the system state with its own rootfs, boot, and home mounts.
+
+Key responsibility: Orchestrate generation mounting/unmounting and fstab updates during rebuild.
+Does NOT emit steps; that's done by Lua sections. Works with mounted filesystems and fstab files.
+
+What this module does:
+  • create_next_generation(): Mount new generation for chroot
+  • load_fstab/generate_fstab: Read/write fstab configuration
+  • change_subvol: Update fstab subvolume paths for new generation
+  • get_partition_devices: Query boot/root partitions from config
+  • get_max_generation: Find current generation number
+
+Note: Disk partitioning/formatting is handled by Lua (devices.lua), not this module.
+
+See ARCHITECTURE.md for system design.
 """
 
 import glob

@@ -33,7 +33,6 @@ from kod.system.generations import (
     load_fstab,
     change_subvol,
 )
-from kod.system.users import proc_user_home
 from kod.system.packages import (
     get_packages_to_install,
     load_repos,

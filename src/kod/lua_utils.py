@@ -1,6 +1,24 @@
-"""Utilities for Lua-to-Python conversions.
+"""Lua-to-Python conversion utilities.
 
 Single source of truth for converting lupa LuaTable objects to Python dict/list.
+
+Key function:
+  • lua_table_to_python(): Converts Lua table → Python dict/list
+    - Detects array-ness from int keys (1-indexed in Lua → 0-indexed in Python)
+    - Recursively handles nested tables
+    - Preserves scalar values (str, int, bool, None)
+
+Used by:
+  • bootstrap.py: Convert config for re-Lua-fying
+  • schema.py: Convert schema section definitions  
+  • loader.py: Convert loaded config to Python dict
+
+This consolidation (Phase 5c) removed 3 duplicate implementations:
+  - bootstrap.py: _lua_table_to_dict (22 lines)
+  - schema.py: _lua_table_to_dict (24 lines)
+  - loader.py: _lua_to_python (36 lines)
+
+See ARCHITECTURE.md for system design.
 """
 
 from typing import Any

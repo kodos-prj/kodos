@@ -1,7 +1,14 @@
-"""Bootstrap step emission via Lua modules.
+"""Bootstrap step emission from unified Lua module.
 
-Bridges unified Lua bootstrap.lua (supports arch/debian) to Python Step objects.
-Ensures plan preview and execution produce identical step lists.
+Bridges Lua bootstrap.lua (architecture-agnostic, supports arch/debian) to Python Step objects.
+Works like other sections (devices.lua, packages.lua, ...) but is called separately for bootstrap phase.
+
+Key responsibility: Call Lua bootstrap module, convert output Steps to Python.
+Does NOT execute; execution is handled by execute_steps() in kod.py.
+
+Note: Ensures plan preview and execution produce identical step lists.
+
+See ARCHITECTURE.md for system design.
 """
 
 from typing import Any, List
