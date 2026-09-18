@@ -180,7 +180,7 @@ def _compile_programs(config: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Compiled config with programs compiled at system and user levels
     """
-    from kod.registry.loader import PluginLoader
+    from kod.registry_wrapper import PluginLoader
     
     loader = PluginLoader()
     

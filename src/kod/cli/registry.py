@@ -13,8 +13,8 @@ from typing import Dict, Any
 
 import click
 
-from kod.registry.loader import PluginLoader
-from kod.registry.programs import (
+from kod.registry_wrapper import (
+    PluginLoader,
     ProgramNotFound,
     ProgramLoadError,
     ConfigValidationError,

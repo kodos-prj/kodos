@@ -321,8 +321,12 @@ def _validate_programs_section(programs: dict, location: str = "system") -> List
     errors: List[ValidationError] = []
     
     # Import here to avoid circular imports
-    from kod.registry.loader import PluginLoader
-    from kod.registry.programs import ProgramNotFound, ConfigValidationError, ProgramError
+    from kod.registry_wrapper import (
+        PluginLoader,
+        ProgramNotFound,
+        ConfigValidationError,
+        ProgramError,
+    )
     
     loader = PluginLoader()
     
