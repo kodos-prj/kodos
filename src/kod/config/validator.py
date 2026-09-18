@@ -221,165 +221,6 @@ def _type_ok(value, expected) -> bool:
     return int_keys if expected is list else not int_keys
 
 
-def _validate_program_service(program, location: str) -> Optional[ValidationError]:
-    """Validate service configuration for a program at given location.
-    
-    Service validation rules:
-    - Service field only valid at system level (not user.*)
-    - Service requires service_name (non-empty string)
-    - Service requires enable (boolean)
-    - Program scope must be "system" or "both" to have service
-    
-    Args:
-        program: Program object with get_service() method
-        location: "system" or "user.alice" etc.
-        
-    Returns:
-        ValidationError if service is invalid, None if valid
-    """
-    service = program.get_service()
-    if not service:
-        return None  # No service field, that's valid
-    
-    # Service only allowed at system level (not user level)
-    if location.startswith("user."):
-        location_suffix = f"{location}.programs.{program.name}"
-        return ValidationError(
-            f"Service configuration for '{program.name}' not allowed at user level. "
-            f"Remove service field or move to top-level 'programs' section.",
-            location=location_suffix,
-        )
-    
-    # Service only allowed for programs with system/both scope
-    scope = program.get_scope()
-    if scope not in ["system", "both"]:
-        # At system level, just use "programs.{name}"
-        if location == "system":
-            location_suffix = f"programs.{program.name}"
-        else:
-            location_suffix = f"{location}.programs.{program.name}"
-        return ValidationError(
-            f"Program '{program.name}' has service definition but scope='{scope}'. "
-            f"Service only allowed with scope='system' or scope='both'. "
-            f"Either remove service field or change scope.",
-            location=location_suffix,
-        )
-    
-    # Validate required service fields
-    required_fields = ["service_name", "enable"]
-    for field in required_fields:
-        if field not in service:
-            if location == "system":
-                location_suffix = f"programs.{program.name}"
-            else:
-                location_suffix = f"{location}.programs.{program.name}"
-            return ValidationError(
-                f"Program '{program.name}' service missing required field '{field}'.",
-                location=location_suffix,
-            )
-    
-    # service_name must be non-empty string
-    service_name = service.get("service_name")
-    if not isinstance(service_name, str) or not service_name:
-        if location == "system":
-            location_suffix = f"programs.{program.name}.service.service_name"
-        else:
-            location_suffix = f"{location}.programs.{program.name}.service.service_name"
-        return ValidationError(
-            f"Program '{program.name}' service.service_name must be a non-empty string.",
-            location=location_suffix,
-        )
-    
-    # enable must be boolean
-    enable = service.get("enable")
-    if not isinstance(enable, bool):
-        if location == "system":
-            location_suffix = f"programs.{program.name}.service.enable"
-        else:
-            location_suffix = f"{location}.programs.{program.name}.service.enable"
-        return ValidationError(
-            f"Program '{program.name}' service.enable must be boolean.",
-            location=location_suffix,
-        )
-    
-    return None
-
-
-def _validate_programs_section(programs: dict, location: str = "system") -> List[ValidationError]:
-    """Validate the 'programs' section in config.
-    
-    For each program name in the section:
-    1. Load the program via PluginLoader
-    2. Validate the program options against its schema
-    3. Validate service configuration (if present)
-    4. Collect all errors together
-    
-    Args:
-        programs: The programs dict from config
-        location: "system" or "user.alice" etc. (default: "system")
-        
-    Returns:
-        List of ValidationError objects (may be empty)
-    """
-    errors: List[ValidationError] = []
-    
-    # Import here to avoid circular imports
-    from kod.registry_wrapper import (
-        PluginLoader,
-        ProgramNotFound,
-        ConfigValidationError,
-        ProgramError,
-    )
-    
-    loader = PluginLoader()
-    
-    # Determine location suffix for error messages
-    if location == "system":
-        loc_prefix = "programs"
-    else:
-        loc_prefix = f"{location}.programs"
-    
-    for program_name, program_options in programs.items():
-        try:
-            # Try to load the program
-            program = loader.load_program(program_name)
-            
-            # Validate program options against its schema
-            try:
-                program.validate_config(program_options)
-            except ConfigValidationError as e:
-                errors.append(
-                    ValidationError(
-                        str(e),
-                        location=f"{loc_prefix}.{program_name}",
-                    )
-                )
-            
-            # Validate service configuration (NEW)
-            service_error = _validate_program_service(program, location)
-            if service_error:
-                errors.append(service_error)
-                
-        except ProgramNotFound:
-            # Build helpful error message with available programs
-            available = loader.list_programs()
-            available_str = ", ".join(available) if available else "(none)"
-            errors.append(
-                ValidationError(
-                    f"Unknown program '{program_name}'. Available: {available_str}",
-                    location=f"{loc_prefix}.{program_name}",
-                )
-            )
-        except ProgramError as e:
-            errors.append(
-                ValidationError(
-                    f"Program '{program_name}': {str(e)}",
-                    location=f"{loc_prefix}.{program_name}",
-                )
-            )
-    
-    return errors
-
 
 def _validate_users_section(users: dict) -> List[ValidationError]:
     """Validate the 'users' section in config, including nested programs/services (Task 11).
@@ -404,17 +245,10 @@ def _validate_users_section(users: dict) -> List[ValidationError]:
         if not isinstance(user_config, dict):
             continue
         
-        # Validate user-level programs (Task 11)
-        if "programs" in user_config:
-            user_programs = user_config["programs"]
-            if isinstance(user_programs, dict):
-                user_prog_errors = _validate_programs_section(
-                    user_programs,
-                    location=f"users.{username}"
-                )
-                errors.extend(user_prog_errors)
-        
-        # Validate user-level services (Task 11)
+         # Validate user-level programs (Task 11)
+         # Programs are validated at execution time by Lua, not at parse time
+         
+         # Validate user-level services (Task 11)
         if "services" in user_config:
             user_services = user_config["services"]
             if isinstance(user_services, dict):
@@ -573,14 +407,7 @@ def validate_config(config: dict) -> List[ValidationError]:
 
     # Phase 3: Validate programs section if present
     # Use try/except to handle lupa LuaTable which may not support 'in' operator
-    try:
-        has_programs = "programs" in config
-    except TypeError:
-        # LuaTable or similar object without __contains__
-        has_programs = False
-    
-    if has_programs:
-        errors.extend(_validate_programs_section(config["programs"]))
+    # Programs are validated at execution time by Lua, not at parse time
     
     # Task 11: Validate users section (including nested programs/services)
     try:

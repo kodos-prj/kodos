@@ -60,7 +60,6 @@ from kod.config.validator import validate_config
 from kod.config.loader import load_config_lua, load_config as load_config_dict
 from kod.system.filesystem import get_partition_devices
 from kod.system.filesystem import create_next_generation, get_max_generation
-from kod.cli import registry_group
 
 # Shorthand: load_config returns Lua table (raw Lua config)
 load_config = load_config_lua
@@ -246,10 +245,6 @@ def config_init(distro: str, output: Optional[str]) -> None:
         click.echo(f"Template written to {output}")
     else:
         click.echo(template)
-
-
-# Register registry commands
-cli.add_command(registry_group)
 
 
 # pkgs_installed = []
