@@ -26,7 +26,7 @@ from kod.common import (
     exec_warn,
 )
 from kod.context import Context
-from kod.core import load_config as load_config_lua_raw
+from kod.config.loader import load_config_lua
 from kod.system.distro.factory import get_distro_module
 from kod.system.filesystem import (
     generate_fstab,
@@ -57,13 +57,13 @@ from kod.system.boot import (
     update_initramfs_hook,
 )
 from kod.config.validator import validate_config
-from kod.config.loader import load_config as load_config_dict
+from kod.config.loader import load_config_lua, load_config as load_config_dict
 from kod.system.filesystem import get_partition_devices
 from kod.system.filesystem import create_next_generation, get_max_generation
 from kod.cli import registry_group
 
-# Shorthand for load_config (from kod.core, which uses Lua loader)
-load_config = load_config_lua_raw
+# Shorthand: load_config returns Lua table (raw Lua config)
+load_config = load_config_lua
 
 # from kod.core import *
 
@@ -180,7 +180,7 @@ def config() -> None:
 def config_validate(config: Optional[str]) -> None:
     "Validate a configuration file before install/rebuild"
     try:
-        conf = load_config_lua_raw(config)
+        conf = load_config_lua(config)
     except Exception as e:
         print(f"❌ Failed to load configuration: {e}", file=sys.stderr)
         sys.exit(1)
@@ -254,9 +254,6 @@ cli.add_command(registry_group)
 
 # pkgs_installed = []
 base_distribution = "arch"
-
-# Convenience alias: old code uses load_config() expecting LuaTable
-load_config = load_config_lua_raw
 
 ##############################################################################
 

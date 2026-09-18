@@ -426,7 +426,7 @@ class TestGolden:
                  "mlocate", "schroot", "sudo", "whois"],
     })
     def test_testvm_empty_baseline_golden(self, _mock):
-         from kod.core import load_config as load_lua
+         from kod.config.loader import load_config_lua as load_lua
          from kod.planner import plan_install, render_plan
 
          conf = load_lua(str(EXAMPLE / "configuration.lua"))
@@ -444,7 +444,7 @@ class TestGolden:
                  "mlocate", "schroot", "sudo", "whois"],
     })
     def test_testvm_preview_sanity(self, _mock):
-        from kod.core import load_config as load_lua
+        from kod.config.loader import load_config_lua as load_lua
         from kod.planner import plan_install
 
         conf = load_lua(str(EXAMPLE / "configuration.lua"))
