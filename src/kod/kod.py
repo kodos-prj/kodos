@@ -28,8 +28,6 @@ from kod.common import (
 from kod.core import (
     Context,
     change_subvol,
-    configure_user_dotfiles,
-    configure_user_scripts,
     enable_user_services,
     generate_fstab,
     get_packages_to_install,
@@ -42,9 +40,6 @@ from kod.core import (
     manage_packages_shell,
     proc_user_home,
     store_packages_services,
-    user_configs,
-    user_dotfile_manager,
-    user_services,
 )
 from kod.core import set_base_distribution
 from kod.config.validator import validate_config
@@ -654,33 +649,71 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
 def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
-    "Rebuild user configuration"
-    # stage = "rebuild-user"
-    ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
-    conf = load_config(config)
-    users = conf.users
-    info = users[user] if user in users else None
-    print("========================================")
-
-    # === Proc users
-    if info:
-        print("\n====== Processing users ======")
-
-        dotfile_mngrs = user_dotfile_manager(info)
-        user_configs_def = user_configs(user, info)
-
-        proc_user_home(ctx, user, info)
-
-        configure_user_dotfiles(ctx, user, user_configs_def, dotfile_mngrs)
-        configure_user_scripts(ctx, user, user_configs_def)
-
-        services_to_enable = user_services(user, info)
-        print(f"User services to enable: {services_to_enable}")
-        enable_user_services(ctx, user, services_to_enable)
-    else:
-        print(f"User {user} not found in configuration file")
-
-    print("Done")
+    """Rebuild user configuration using Lua planner system.
+    
+    Generates and executes a plan for user dotfiles, home directory setup,
+    and service configuration from the Lua sections (users, dotfiles, services).
+    """
+    from kod.planner import build_plan, render_plan
+    from kod.executor import StepError, execute_steps
+    from kod.hooks import collect_hooks
+    
+    try:
+        ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
+        conf = load_config(config)
+        
+        if not conf.users or user not in conf.users:
+            print(f"User {user} not found in configuration file")
+            return
+        
+        print("=" * 50)
+        print(f"Rebuilding user: {user}")
+        print("=" * 50)
+        
+        # Build full plan and filter to user-specific steps
+        # The Lua sections (users.lua, dotfiles.lua, services.lua) will emit
+        # steps filtered by user. We execute on current system (baseline="current").
+        steps = build_plan(conf, baseline="current", new_generation=False)
+        
+        # Filter steps to only those for this specific user
+        user_steps = [s for s in steps if s.get("user") == user or 
+                                           f"_{user}_" in s.get("name", "") or
+                                           s.get("name", "").endswith(f"_{user}")]
+        
+        if not user_steps:
+            print(f"No configuration steps found for user {user}")
+            return
+        
+        print(f"\n=== User Rebuild Plan for {user} ===\n")
+        print(render_plan(user_steps, "current", config))
+        
+        # Setup execution environment
+        env = {
+            "mount_point": "/",
+            "use_chroot": False,
+            "stage": "rebuild-user",
+            "dist": None,
+        }
+        
+        try:
+            hooks_dict = collect_hooks(conf.users or {})
+        except Exception as e:
+            exec_warn(f"Failed to collect hooks: {e}")
+            hooks_dict = {}
+        
+        # Execute user-specific plan
+        print(f"\n=== Executing User Rebuild ===\n")
+        results = execute_steps(user_steps, env, mount_point="/",
+                                use_chroot=False, hooks=hooks_dict)
+        
+        print(f"\n✅ User {user} rebuild completed")
+        
+    except StepError as e:
+        print(f"\n❌ Step failed: {e}")
+        raise SystemExit(1)
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        raise SystemExit(1)
 
 
 @cli.command()

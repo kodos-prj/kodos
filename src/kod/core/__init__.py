@@ -27,12 +27,6 @@ from kod.system.users import (
     proc_user_home,  # noqa: F401
 )
 
-# Import and re-export workflow entry points
-from kod.core.user_config import (
-    configure_user_dotfiles,
-    configure_user_scripts,
-)
-
 # Phase 2b re-exports from kod.system.packages (direct import, no lazy load)
 from kod.system.packages import (
     get_packages_to_install,
@@ -187,91 +181,6 @@ IfElse = require("utils").if_else
 
 
 # =============================================================================
-# USER CONFIGURATION PROCESSING
-# =============================================================================
-
-def user_dotfile_manager(info: Any) -> Optional[Dict[str, Any]]:
-    """Process the user dotfile manager configuration for a single user.
-
-    Args:
-        info (dict): The user information dictionary containing the dotfile manager information.
-
-    Returns:
-        dict: The dotfile manager configuration or None.
-    """
-    print("- processing user dotfile manager -----------")
-    dotfile_mngs = None
-    if info.dotfile_manager:
-        print("Processing dotfile manager")
-        dotfile_mngs = info.dotfile_manager
-
-    return dotfile_mngs
-
-
-def user_configs(user: str, info: Any) -> Dict[str, Any]:
-    """Process the user configuration to determine deployable configs and commands.
-
-    Args:
-        user (str): The user name for which configurations are being processed.
-        info (dict): A dictionary containing the user's configuration details.
-
-    Returns:
-        dict: A dictionary with "configs" and "run" keys.
-    """
-    deploy_configs = []
-    commands_to_run = []
-    if info.programs:
-        print(f"Processing programs for {user}")
-        for name, prog in info.programs.items():
-            print(name, prog.enable)
-            if prog.enable:
-                if prog.deploy_config:
-                    deploy_configs.append(name)
-
-                if "config" in prog and prog.config:
-                    prog_conf = prog.config
-                    if "command" in prog_conf:
-                        commands_to_run.append(prog_conf)
-
-    if info.deploy_configs:
-        print(f"Processing deploy configs for {user}")
-        configs = info.deploy_configs.values()
-        deploy_configs += configs
-
-    if info.services:
-        for service, desc in info.services.items():
-            if desc.enable:
-                print(f"Checking {service} service discription")
-                if desc.config:
-                    serv_conf = desc.config
-                    if "command" in serv_conf:
-                        commands_to_run.append(serv_conf)
-
-    return {"configs": deploy_configs, "run": commands_to_run}
-
-
-def user_services(user: str, info: Any) -> List[str]:
-    """Process the user services configuration to determine which services should be enabled.
-
-    Args:
-        user (str): The user name for which services are being processed.
-        info (dict): A dictionary containing the user's configuration details.
-
-    Returns:
-        list: A list of service names that need to be enabled.
-    """
-    print(f"- processing user services {user} -----------")
-    services = []
-    if info.services:
-        for service, desc in info.services.items():
-            if desc.enable:
-                print(f"Checking {service} service discription")
-                services.append(service)
-
-    return services
-
-
-# =============================================================================
 # GENERATION AND PACKAGE/SERVICE STATE MANAGEMENT
 # =============================================================================
 
@@ -301,12 +210,7 @@ def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str
 
 __all__ = [
     "Context",
-    "configure_user_dotfiles",
-    "configure_user_scripts",
     "load_config",
-    "user_configs",
-    "user_dotfile_manager",
-    "user_services",
     "load_packages_services",
     "generate_fstab",
     "load_fstab",
