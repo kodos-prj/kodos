@@ -1,8 +1,8 @@
 -- Programs section module - program installation and configuration
 -- Handles custom program install logic defined via DSL
 
-local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.system.repos')
+local Schema = require('kod.core.schema')
+local Repos = require('kod.system.repos')
 
 local module = {
     schema = Schema.programs,

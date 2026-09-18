@@ -1,8 +1,8 @@
 -- Boot section module - kernel and bootloader configuration
 -- Handles kernel package, modules, and bootloader setup
 
-local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.system.repos')
+local Schema = require('kod.core.schema')
+local Repos = require('kod.system.repos')
 
 local module = {
     schema = Schema.boot,

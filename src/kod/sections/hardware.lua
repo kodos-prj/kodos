@@ -1,8 +1,8 @@
 -- Hardware section module - configures hardware features like audio
 -- Handles pipewire audio system installation and configuration
 
-local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.system.repos')
+local Schema = require('kod.core.schema')
+local Repos = require('kod.system.repos')
 
 local module = {
     schema = Schema.hardware,

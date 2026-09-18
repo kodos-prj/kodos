@@ -1,7 +1,7 @@
 -- Network section module - hostname and IPv6 configuration
 -- Handles hostname setup and IPv6 enable/disable
 
-local Schema = require('kod.lib.core.schema')
+local Schema = require('kod.core.schema')
 
 local module = {
     schema = Schema.network,

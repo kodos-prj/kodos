@@ -1,7 +1,7 @@
 -- Base distribution section module - validates distribution choice
 -- No steps generated, only validation and storage of distro choice
 
-local Schema = require('kod.lib.core.schema')
+local Schema = require('kod.core.schema')
 
 local module = {
     schema = Schema.base_distribution,

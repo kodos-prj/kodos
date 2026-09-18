@@ -1,7 +1,7 @@
 -- Users section module - user account configuration
 -- Handles user creation, shell setup, groups, and home configuration
 
-local Schema = require('kod.lib.core.schema')
+local Schema = require('kod.core.schema')
 
 -- Run a config closure against a recording context: captures the shell
 -- commands it would execute instead of running them. Planning stays

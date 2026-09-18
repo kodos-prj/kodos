@@ -1,8 +1,8 @@
 -- Desktop section module - desktop environment installation and configuration
 -- Handles DE selection and installation (GNOME, KDE Plasma, XFCE, Cosmic, etc.)
 
-local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.system.repos')
+local Schema = require('kod.core.schema')
+local Repos = require('kod.system.repos')
 
 local module = {
     schema = Schema.desktop,

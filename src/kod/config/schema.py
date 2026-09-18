@@ -36,7 +36,7 @@ def get_lua_schema() -> Dict:
         result = lua.require('kod.core.schema')
         schema_module = result[0] if isinstance(result, tuple) else result
     except Exception as e:
-        raise RuntimeError(f"Failed to load Lua schema (kod.lib.core.schema): {e}") from e
+        raise RuntimeError(f"Failed to load Lua schema (kod.core.schema): {e}") from e
 
     # Convert Lua schema to Python dict
     schema = {}

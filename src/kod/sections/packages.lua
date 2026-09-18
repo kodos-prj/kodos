@@ -1,8 +1,8 @@
 -- Packages section module - installs system packages
 -- Emits steps to install each package from the packages list
 
-local Schema = require('kod.lib.core.schema')
-local Repos = require('kod.lib.system.repos')
+local Schema = require('kod.core.schema')
+local Repos = require('kod.system.repos')
 
 local module = {
     schema = Schema.packages,
