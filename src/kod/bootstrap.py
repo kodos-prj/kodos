@@ -1,6 +1,6 @@
 """Bootstrap step emission via Lua modules.
 
-Bridges Lua bootstrap-arch.lua / bootstrap-debian.lua to Python Step objects.
+Bridges unified Lua bootstrap.lua (supports arch/debian) to Python Step objects.
 Ensures plan preview and execution produce identical step lists.
 """
 
@@ -80,9 +80,9 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
     else:
         conf_lua = conf
     
-    # Load bootstrap module
-    module_name = f"bootstrap-{distro}"
-    module_path = os.path.join(os.path.dirname(__file__), "lib", "bootstrap", f"{distro}.lua")
+    # Load unified bootstrap module (supports both arch and debian)
+    module_name = "bootstrap"
+    module_path = os.path.join(os.path.dirname(__file__), "lib", "bootstrap", "bootstrap.lua")
     
     if not os.path.exists(module_path):
         raise FileNotFoundError(f"Bootstrap module not found: {module_path}")
@@ -101,9 +101,9 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
     except Exception as e:
         raise RuntimeError(f"Failed to convert partition list to Lua table: {e}")
     
-    # Call Lua function
+    # Call Lua function with distro parameter
     try:
-        steps_lua = bootstrap_module.emit_bootstrap_steps(conf_lua, partition_list_lua)
+        steps_lua = bootstrap_module.emit_bootstrap_steps(conf_lua, partition_list_lua, distro)
     except Exception as e:
         raise RuntimeError(f"Lua bootstrap module failed: {e}")
     

@@ -1,16 +1,16 @@
---- Debian-specific bootstrap step emission.
+--- Universal bootstrap step emission (supports both Arch and Debian).
 -- Emits: disk operations, mount, fstab, locale, hostname, bootloader steps.
--- Must produce identical output to Arch bootstrap module (disk operations are distro-agnostic).
--- Distro-specific logic (package manager, bootloader, services) deferred to later phases.
+-- Distro-specific logic is minimal (only bootloader type differs).
 
 local M = {}
 
-function M.emit_bootstrap_steps(conf, predicted_partition_list)
-    --- Emit full Debian bootstrap step sequence.
+function M.emit_bootstrap_steps(conf, predicted_partition_list, distro)
+    --- Emit full bootstrap step sequence.
     -- Args:
     --   conf (table): Configuration with conf.devices, conf.locale, conf.hostname, etc.
     --   predicted_partition_list (table): Pre-computed list of partitions
     --                                      [{device="/dev/sda1", mountpoint="/boot", filesystem="vfat"}, ...]
+    --   distro (string): Distribution type ("arch" or "debian")
     -- Returns:
     --   List of step tables: {kind, name, program, args, meta}
     
@@ -105,7 +105,16 @@ function M.emit_bootstrap_steps(conf, predicted_partition_list)
     end
     
     --- Helper: Emit system bootstrap steps (non-disk)
+    -- Distro-specific bootloader type is set here based on distro parameter
     local function emit_system_steps()
+        -- Determine bootloader type based on distro
+        local bootloader_type = "grub"  -- Default
+        if distro == "arch" then
+            bootloader_type = "systemd-boot"
+        elseif distro == "debian" then
+            bootloader_type = "grub"
+        end
+        
         table.insert(steps, {
             kind = "system",
             name = "fstab",
@@ -135,7 +144,7 @@ function M.emit_bootstrap_steps(conf, predicted_partition_list)
             name = "bootloader",
             program = "",
             args = {},
-            meta = {bootloader = "grub"},
+            meta = {bootloader = bootloader_type},
         })
     end
     

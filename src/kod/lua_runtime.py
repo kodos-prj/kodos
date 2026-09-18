@@ -50,14 +50,8 @@ class LuaRuntimeManager:
             # so legacy `require('module_name')` calls still work
             self.lua.execute("""
                 -- Core modules
-                package.preload['utils'] = function()
-                    return require('kod.lib.core.utils')
-                end
                 package.preload['schema'] = function()
                     return require('kod.lib.core.schema')
-                end
-                package.preload['configs'] = function()
-                    return require('kod.lib.core.configs')
                 end
                 
                 -- System modules
@@ -66,14 +60,6 @@ class LuaRuntimeManager:
                 end
                 package.preload['disk'] = function()
                     return require('kod.lib.system.disk')
-                end
-                package.preload['mount'] = function()
-                    return require('kod.lib.system.mount')
-                end
-                
-                -- I/O modules
-                package.preload['dotfile_manager'] = function()
-                    return require('kod.lib.io.dotfile_manager')
                 end
             """)
             

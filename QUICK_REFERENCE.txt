@@ -1,0 +1,138 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                   KODOS PYTHON CODEBASE QUICK REFERENCE                    ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+ENTRY POINT:
+  kod.py → Click CLI framework with commands:
+    • install     - Full install workflow (empty baseline)
+    • rebuild     - Rebuild with current generation or new generation
+    • plan        - Preview execution plan
+    • config      - Subcommands for validation, compilation, schema, init
+    • registry    - Subcommands for program management
+    • rebuild_user - Rebuild user dotfiles/scripts
+    • shell       - Run shell with schroot
+
+CORE WORKFLOW (INSTALL):
+  1. Load config (kod.config.loader) → Python dict
+  2. Validate (kod.config.validator) → Lua schema
+  3. Compile (kod.config.compiler) → Resolve dependencies
+  4. Build plan (kod.planner.build_plan) → List of Steps
+  5. Execute (kod.executor.execute_steps) → Lua runner
+  6. Record state (kod.system.packages.store_packages_services)
+
+CORE WORKFLOW (REBUILD):
+  1. Load current state (/.generation, /kod/generations/N/)
+  2. Load config & compile (same as install)
+  3. Build diff plan (kod.planner.plan_rebuild) against current state
+  4. Execute plan (same as install)
+  5. Finalize generation (move, update fstab, write /.generation)
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ FOUNDATION LAYER                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.common              Command execution, logging, debug flags             │
+│ kod.context             Execution context (user, mount point, stage)        │
+│ kod.exceptions          Custom exception hierarchy                          │
+│ kod.lua_runtime         Singleton Lua runtime (prevents runtime mixing)     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CONFIGURATION PIPELINE                                                      │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.config.loader      Parse Lua config files → Python dict                │
+│ kod.config.schema      Load Lua schema (single source of truth)             │
+│ kod.config.validator   Validate config against schema (collect all errors)  │
+│ kod.config.compiler    Resolve dependencies (desktop, programs, etc)        │
+│ kod.config.template    Generate starter config files                        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ EXECUTION PIPELINE                                                          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.planner            Generate Step list (read-only, no side effects)      │
+│ kod.bootstrap          Convert Lua bootstrap modules → Step objects         │
+│ kod.executor           Run Step list via Lua executor (kod/lib)             │
+│ kod.hooks              Collect and validate lifecycle hooks                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ REGISTRY SYSTEM                                                             │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.registry_wrapper   Thin orchestration (Phase 1/2 transition layer)      │
+│ kod.registry.loader    Auto-discover and load programs (builtin + user)     │
+│ kod.registry.programs  Program class, schema validation, error hierarchy    │
+│ kod.registry.util      Lua↔Python conversion helpers                        │
+│ kod.cli.registry       CLI commands: list, info, schema, generate           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ SYSTEM OPERATIONS                                                           │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.system.boot        Bootloader, kernel management, boot entries          │
+│ kod.system.filesystem  Partitioning, mounts, fstab, generation mgmt         │
+│ kod.system.packages    Package installation, updates, repos                 │
+│ kod.system.services    Service enablement and configuration                 │
+│ kod.system.users       User management, home config, dotfiles               │
+│ kod.system.distro.*    Distro-specific (Arch, Debian)                       │
+│ kod.core               Central hub (re-exports from system modules)         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ KEY CLASSES & TYPES                                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Step                   Immutable execution step (kind, name, program, args) │
+│ StepResult             Step execution result (success, error, stdout)       │
+│ Context                Execution context (user, mount_point, chroot, stage) │
+│ FsEntry                Filesystem entry for fstab                           │
+│ Program                Program definition (schema, generation, hooks)       │
+│ LuaRuntimeManager      Singleton for persistent Lua runtime                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ DEPENDENCY HIERARCHY                                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.common
+│   ↓ (used by)
+│ kod.context, kod.bootstrap, kod.planner, kod.executor, kod.system.*
+│   ↓ (depends on)
+│ kod.lua_runtime (singleton - all Lua integration goes through here)
+│   ↓ (enables)
+│ kod.bootstrap, kod.planner, kod.executor, kod.config.schema, kod.registry
+│   ↓ (used by)
+│ kod.kod (main CLI) + kod.core (orchestration)
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ CRITICAL GLOBAL STATE                                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ kod.common.use_debug       Debug mode (if True, exec() doesn't run commands)│
+│ kod.common.use_verbose     Verbose output flag                              │
+│ kod.common.problems        Accumulated execution problems                   │
+│ kod.lua_runtime._manager   Global Lua runtime singleton                     │
+│ kod.config.schema._cache   Cached Lua schema (lazy-loaded)                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+DESIGN PATTERNS:
+  • Singleton:       LuaRuntimeManager (prevents runtime mixing)
+  • Strategy:        distro.factory (runtime distro selection)
+  • Immutable:       Step (frozen dataclass, converted to_dict for Lua)
+  • Re-export Hub:   kod.core (clean API, consolidates system operations)
+  • Hook Pattern:    collect_hooks before exec, fire during steps
+  • Error Aggregate: validator collects all errors, reports once
+
+WORKFLOW STAGES:
+  • install       Creates generation 0 from empty baseline
+  • rebuild       Updates current generation or creates new generation N
+  • plan          Preview (read-only, no execution, matches actual behavior)
+  • rebuild_user  Updates user dotfiles/scripts without full rebuild
+
+MODULE SIZES (lines of code):
+  kod.py                    748 lines  (main CLI)
+  kod.system.packages       582 lines  (package management)
+  kod.registry.programs     527 lines  (program definitions)
+  kod.planner               412 lines  (plan builder)
+  kod.registry.loader       254 lines  (plugin loading)
+  kod.config.validator      595 lines  (validation + programs loading)
+  kod.config.compiler       260 lines  (dependency resolution)
+  Others                    ~1500 lines (utilities, system ops, config)
+
