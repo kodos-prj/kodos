@@ -33,7 +33,7 @@ from .programs import (
 class PluginLoader:
     """Load and manage programs from builtin and user plugin directories.
     
-    Delegates logic to Lua registry modules (loader.lua, inheritance.lua).
+    Delegates logic to unified Lua registry module (loader-inheritance.lua).
     Python handles:
     - Directory discovery (pathlib is more portable)
     - Error wrapping (convert Lua errors to Python exceptions)
@@ -61,20 +61,17 @@ class PluginLoader:
         else:
             self._lua = lupa.LuaRuntime()
             
-            # Load loader.lua and store as global
-            loader_code = (Path(__file__).parent.parent / "lib/registry/loader.lua").read_text()
-            self._lua.globals().loader = self._lua.execute(loader_code)
+            # Load unified loader-inheritance module
+            # This consolidates loader.lua + inheritance.lua into single module
+            lib_code = (Path(__file__).parent.parent / "lib/registry/loader-inheritance.lua").read_text()
+            self._lua.globals().lib = self._lua.execute(lib_code)
             
-            # Make loader available as package for require()
+            # Make lib available as package for require()
             self._lua.execute("""
                 package.preload['lib.registry.loader'] = function()
-                    return loader
+                    return lib
                 end
             """)
-            
-            # Load inheritance.lua
-            inheritance_code = (Path(__file__).parent.parent / "lib/registry/inheritance.lua").read_text()
-            self._lua.execute(inheritance_code)
         
         # Caches to avoid reloading
         self._merged_cache: Dict[str, Program] = {}    # name -> Program
@@ -106,11 +103,11 @@ class PluginLoader:
         """Parse and load a Lua file, return dict (backward compat method).
         
         This method is kept for backward compatibility with tests.
-        Internally, loading is delegated to Lua's loader.load_program_file.
+        Internally, loading is delegated to Lua's lib.load_program_file.
         """
         if self._lua is None:
             raise ProgramLoadError("Lua runtime not initialized (lupa is mocked for testing)")
-        result, error = self._lua.globals().loader.load_program_file(str(file_path))
+        result, error = self._lua.globals().lib.load_program_file(str(file_path))
         if error:
             raise ProgramLoadError(f"Failed to load program from {file_path}: {error}")
         return dict(result.items()) if result else {}
@@ -135,14 +132,14 @@ class PluginLoader:
         # Load Lua defs via Lua functions
         user_lua_def = None
         if name in user_programs:
-            result, error = self._lua.globals().loader.load_program_file(str(user_programs[name]))
+            result, error = self._lua.globals().lib.load_program_file(str(user_programs[name]))
             if error:
                 raise ProgramLoadError(f"Failed to load user program '{name}': {error}")
             user_lua_def = dict(result.items()) if result else None
         
         builtin_lua_def = None
         if name in builtin_programs:
-            result, error = self._lua.globals().loader.load_program_file(str(builtin_programs[name]))
+            result, error = self._lua.globals().lib.load_program_file(str(builtin_programs[name]))
             if error:
                 raise ProgramLoadError(f"Failed to load builtin program '{name}': {error}")
             builtin_lua_def = dict(result.items()) if result else None
