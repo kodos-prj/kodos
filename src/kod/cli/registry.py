@@ -19,6 +19,7 @@ from kod.registry_wrapper import (
     ProgramLoadError,
     ConfigValidationError,
 )
+from kod.registry.util import lua_to_dict
 
 
 @click.group("registry")
@@ -98,14 +99,13 @@ def info_program(name: str):
         
         # Show schema
         click.echo("\nSchema:")
-        from kod.registry.programs import Program as ProgramClass
         schema = program.get_schema()
-        schema_dict = ProgramClass._lua_to_dict(schema)
+        schema_dict = lua_to_dict(schema)
         _display_schema(schema_dict, indent=2)
         
         # Show default config
         default_config_raw = program.lua_def.get("default_config", {})
-        default_config = ProgramClass._lua_to_dict(default_config_raw)
+        default_config = lua_to_dict(default_config_raw)
         if default_config:
             click.echo("\nDefault Config:")
             for key, value in default_config.items():
@@ -121,12 +121,11 @@ def info_program(name: str):
 
 def _display_schema(schema: Dict[str, Any], indent: int = 0) -> None:
     """Display schema in a readable format."""
-    from kod.registry.programs import Program as ProgramClass
     
     prefix = " " * indent
     
     # Convert Lua tables to dicts
-    schema = ProgramClass._lua_to_dict(schema)
+    schema = lua_to_dict(schema)
     
     # Handle allOf (merged schema from inheritance)
     if isinstance(schema, dict) and "allOf" in schema:
@@ -181,9 +180,8 @@ def schema_program(name: str):
             sys.exit(1)
         
         # Get schema and convert from Lua to dict
-        from kod.registry.programs import Program as ProgramClass
         schema = program.get_schema()
-        schema_dict = ProgramClass._lua_to_dict(schema)
+        schema_dict = lua_to_dict(schema)
         click.echo(json.dumps(schema_dict, indent=2))
     
     except ProgramLoadError as e:

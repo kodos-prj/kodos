@@ -23,7 +23,51 @@
 local registry = {}
 
 -- ============================================================================
--- Global Caches (persistent across calls)
+-- Helper: Safe table access (works with lupa-converted dicts)
+-- ============================================================================
+
+--- Safely get value from table (handles lupa Python dict conversion)
+-- @param tbl table - table to access
+-- @param key string - key to look up
+-- @return value at key, or nil if not found
+local function _safe_get(tbl, key)
+    if not tbl then return nil end
+    
+    -- Try direct indexing first
+    local value = tbl[key]
+    if value ~= nil then return value end
+    
+    -- If direct indexing fails, iterate with pairs()
+    -- This handles lupa's Python dict conversion better
+    for k, v in pairs(tbl) do
+        if k == key then
+            return v
+        end
+    end
+    
+    return nil
+end
+
+--- Check if key exists in table
+-- @param tbl table - table to check
+-- @param key string - key to look for
+-- @return boolean true if key exists
+local function _has_key(tbl, key)
+    if not tbl then return false end
+    
+    -- Try direct indexing first
+    if tbl[key] ~= nil then return true end
+    
+    -- If that fails, iterate with pairs()
+    for k, _ in pairs(tbl) do
+        if k == key then return true end
+    end
+    
+    return false
+end
+
+-- ============================================================================
+-- File Discovery
 -- ============================================================================
 
 local _builtin_cache = {}  -- {program_name: program_def}
@@ -279,16 +323,18 @@ function registry.resolve_program(program_name, builtin_programs, user_programs,
     local builtin_def = nil
     local user_def = nil
     
-    if builtin_programs and builtin_programs[program_name] then
-        builtin_def, err = registry.load_program_file(builtin_programs[program_name])
+    if builtin_programs and _has_key(builtin_programs, program_name) then
+        local builtin_path = _safe_get(builtin_programs, program_name)
+        builtin_def, err = registry.load_program_file(builtin_path)
         if not builtin_def then
             return nil, err
         end
         registry.set_builtin_cache(program_name, builtin_def)
     end
     
-    if user_programs and user_programs[program_name] then
-        user_def, err = registry.load_program_file(user_programs[program_name])
+    if user_programs and _has_key(user_programs, program_name) then
+        local user_path = _safe_get(user_programs, program_name)
+        user_def, err = registry.load_program_file(user_path)
         if not user_def then
             return nil, err
         end
