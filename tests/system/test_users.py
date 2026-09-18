@@ -1,13 +1,7 @@
-"""Tests for kod/system/users.py (Phase 2)."""
+"""Tests for kod/system/users.py (Phase 2).
 
-import pytest
+User management and aggregation tested via Lua (src/lua/kod/sections/users.lua).
+This module currently has minimal runtime operations.
+"""
 
-
-class TestUserManagement:
-    """Test user operations."""
-
-    def test_proc_user_home_callable(self):
-        """proc_user_home() is callable."""
-        from kod.system.users import proc_user_home
-        
-        assert callable(proc_user_home)
+# User tests deferred; Lua section testing sufficient for Phase 5c.
