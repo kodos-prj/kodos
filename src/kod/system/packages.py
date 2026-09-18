@@ -580,3 +580,26 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
         else:
             # Use schroot without root escalation
             exec(f"schroot -r -c {chroot} -- {privileged_cmd}")
+
+
+def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
+    """Load the list of packages and services from state.
+
+    Reads system state from a directory containing installed packages and enabled
+    services information. Used for rebuild operations to determine delta.
+
+    Args:
+        state_path: The path to the state directory where package and service
+                    information is stored.
+
+    Returns:
+        A tuple containing:
+        - packages (dict): A dictionary of installed packages by repository.
+        - services (list): A list of system services that are enabled.
+    """
+    with open(f"{state_path}/installed_packages", "r") as f:
+        packages = json.load(f)
+    with open(f"{state_path}/enabled_services", "r") as f:
+        services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
+    return packages, services
+

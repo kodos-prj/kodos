@@ -28,3 +28,22 @@ def get_distro_module(distro_name: str) -> Any:
     # Use importlib to dynamically import the distro module
     module = importlib.import_module(f"kod.system.distro.{distro_name}")
     return module
+
+
+def set_base_distribution(distro_name: str) -> Any:
+    """Set the base distribution and return the distro module.
+    
+    Selects the distribution-specific implementation (Arch, Debian, etc.)
+    to use for system operations. Currently defaults to Arch.
+    
+    Args:
+        distro_name: The base distribution name ("arch", "debian", etc.)
+        
+    Returns:
+        The distribution-specific module.
+        
+    Raises:
+        ValueError: If distro_name is not supported.
+    """
+    return get_distro_module(distro_name)
+

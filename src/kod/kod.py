@@ -25,23 +25,37 @@ from kod.common import (
     set_verbose,
     exec_warn,
 )
-from kod.core import (
-    Context,
-    change_subvol,
-    enable_user_services,
+from kod.context import Context
+from kod.core import load_config as load_config_lua_raw
+from kod.system.distro.factory import set_base_distribution
+from kod.system.filesystem import (
     generate_fstab,
-    get_packages_to_install,
-    get_services_to_enable,
-    load_config as load_config_lua_raw,
     load_fstab,
-    load_package_lock,
-    load_packages_services,
-    load_repos,
-    manage_packages_shell,
-    proc_user_home,
-    store_packages_services,
+    change_subvol,
 )
-from kod.core import set_base_distribution
+from kod.system.users import proc_user_home
+from kod.system.packages import (
+    get_packages_to_install,
+    load_repos,
+    load_package_lock,
+    store_packages_services,
+    load_packages_services,
+    manage_packages_shell,
+)
+from kod.system.services import (
+    enable_services,
+    enable_user_services,
+    get_services_to_enable,
+    proc_desktop_services,
+    proc_services,
+    proc_services_to_enable,
+)
+from kod.system.boot import (
+    create_boot_entry_hook,
+    get_kernel_version,
+    update_kernel_hook,
+    update_initramfs_hook,
+)
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
 from kod.system.filesystem import get_partition_devices
