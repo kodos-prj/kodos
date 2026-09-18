@@ -27,7 +27,7 @@ from kod.common import (
 )
 from kod.context import Context
 from kod.core import load_config as load_config_lua_raw
-from kod.system.distro.factory import set_base_distribution
+from kod.system.distro.factory import get_distro_module
 from kod.system.filesystem import (
     generate_fstab,
     load_fstab,
@@ -276,7 +276,7 @@ def install(config: Optional[str], mount_point: str) -> None:
         ctx_obj = Context(os.environ.get("USER", "root"), mount_point=mount_point, use_chroot=True, stage="install")
         conf = load_config(config)
         base_distribution = conf.base_distribution or "arch"
-        dist = set_base_distribution(base_distribution)
+        dist = get_distro_module(base_distribution)
         
         print("-------------------------------")
         print(f"Base distribution: {base_distribution}")
@@ -445,7 +445,7 @@ def plan(config: Optional[str], baseline: str) -> None:
     conf = load_config(config)
     base_distribution = conf.base_distribution
     base_distribution = "arch" if base_distribution is None else base_distribution
-    dist = set_base_distribution(base_distribution)
+    dist = get_distro_module(base_distribution)
 
     kwargs: dict = {}
     if baseline == "current":
@@ -476,7 +476,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     base_distribution = "arch" if base_distribution is None else base_distribution
     print("Base distribution:", base_distribution)
 
-    dist = set_base_distribution(base_distribution)
+    dist = get_distro_module(base_distribution)
 
     if dry_run:
         _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
