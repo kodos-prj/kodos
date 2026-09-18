@@ -43,7 +43,8 @@ class LuaRuntimeManager:
             # (so unqualified `require('module_name')` works for moved modules)
             from pathlib import Path
             base_path = Path(__file__).parent.parent
-            lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+            # Include both src/ (for kod.* modules) and src/lua/ (for Lua implementations)
+            lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua;{base_path}/lua/?.lua;{base_path}/lua/?/init.lua"
             self.lua.execute(f"package.path = '{lua_path}' .. package.path")
             
             # Preload modules that were moved to subdirectories
