@@ -33,7 +33,7 @@ def get_lua_schema() -> Dict:
         # src/ dir (this file lives in src/kod/config/)
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         lua.execute(f"package.path = '{base_path}/?.lua;{base_path}/?/init.lua;' .. package.path")
-        result = lua.require('kod.lib.core.schema')
+        result = lua.require('kod.core.schema')
         schema_module = result[0] if isinstance(result, tuple) else result
     except Exception as e:
         raise RuntimeError(f"Failed to load Lua schema (kod.lib.core.schema): {e}") from e

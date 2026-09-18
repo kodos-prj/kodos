@@ -133,7 +133,7 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
         
         # Load and call Lua planner
         # lua.require() returns (module, filename) tuple
-        result = lua.require("kod.lib.planning.planner")
+        result = lua.require("kod.planning.planner")
         planner_module = result[0] if isinstance(result, tuple) else result
         
         # Call the compose method on the planner object
@@ -184,7 +184,7 @@ def compose_rebuild_steps_lua(state: dict) -> List[Step]:
         from kod.bootstrap import _convert_to_lua_table
         state_lua = _convert_to_lua_table(lua, state)
 
-        result = lua.require("kod.lib.planning.rebuild")
+        result = lua.require("kod.planning.rebuild")
         module = result[0] if isinstance(result, tuple) else result
 
         steps_lua = module.diff(state_lua)

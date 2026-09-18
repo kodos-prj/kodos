@@ -51,15 +51,15 @@ class LuaRuntimeManager:
             self.lua.execute("""
                 -- Core modules
                 package.preload['schema'] = function()
-                    return require('kod.lib.core.schema')
+                    return require('kod.core.schema')
                 end
                 
                 -- System modules
                 package.preload['repos'] = function()
-                    return require('kod.lib.system.repos')
+                    return require('kod.system.repos')
                 end
                 package.preload['disk'] = function()
-                    return require('kod.lib.system.disk')
+                    return require('kod.system.disk')
                 end
             """)
             

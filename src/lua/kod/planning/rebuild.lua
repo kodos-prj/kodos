@@ -4,7 +4,7 @@
 -- as the Python fallback in kod/planner.py plan_rebuild.
 
 local Rebuild = {}
-local Repos = require('kod.lib.system.repos')
+local Repos = require('kod.system.repos')
 
 local function to_set(list)
     local s = {}
