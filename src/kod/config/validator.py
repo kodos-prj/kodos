@@ -3,6 +3,9 @@
 Validates a loaded Kodos configuration against the Lua schema.
 Returns a list of ValidationError objects; empty list means valid.
 
+The Lua schema (kod.core.schema in src/lua/kod/core/schema.lua) is the single 
+source of truth for configuration validation.
+
 Phase 3 additions:
 - Validates 'programs' section if present
 - Loads each program and validates its options

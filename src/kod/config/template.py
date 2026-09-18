@@ -2,7 +2,7 @@
 
 This module provides functions to generate starter Lua configuration templates
 with all sections documented as comments, using descriptions from the
-Lua schema (kod/lib/schema.lua).
+Lua schema (kod.core.schema in src/lua/kod/core/schema.lua).
 """
 
 from kod.config.schema import get_lua_schema
