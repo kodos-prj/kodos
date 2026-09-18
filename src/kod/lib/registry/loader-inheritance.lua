@@ -126,32 +126,6 @@ function lib.get_cache_info()
     }
 end
 
--- Backward compatibility aliases for old two-tier cache interface
-function lib.get_builtin_cache(name)
-    return _merged_cache[name]
-end
-
-function lib.get_user_cache(name)
-    return _merged_cache[name]
-end
-
-function lib.set_builtin_cache(name, program_def)
-    _merged_cache[name] = program_def
-end
-
-function lib.set_user_cache(name, program_def)
-    _merged_cache[name] = program_def
-end
-
-function lib.get_cached_names()
-    local names = {}
-    for name, _ in pairs(_merged_cache) do
-        table.insert(names, name)
-    end
-    table.sort(names)
-    return names
-end
-
 -- ============================================================================
 -- Circular Inheritance Detection
 -- ============================================================================
@@ -360,30 +334,5 @@ end
 --- Validate program definition structure
 -- @param program_def table - program definition to validate
 -- @return nil, nil on success; nil, error_msg on failure
-function lib.validate_program_def(program_def)
-    if type(program_def) ~= "table" then
-        return nil, "Program definition must be a table"
-    end
-    
-    -- Basic structure validation
-    if program_def.name and type(program_def.name) ~= "string" then
-        return nil, "Program name must be a string"
-    end
-    
-    if program_def.scope and type(program_def.scope) ~= "string" then
-        return nil, "Program scope must be a string"
-    end
-    
-    if program_def.scope and program_def.scope ~= "system" and 
-       program_def.scope ~= "user" and program_def.scope ~= "both" then
-        return nil, "Program scope must be 'system', 'user', or 'both'"
-    end
-    
-    if program_def.schema and type(program_def.schema) ~= "table" then
-        return nil, "Program schema must be a table"
-    end
-    
-    return true, nil
-end
 
 return lib
