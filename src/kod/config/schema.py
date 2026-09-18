@@ -1,7 +1,8 @@
 """Configuration schema access.
 
-The Lua module kod/lib/core/schema.lua is the single source of truth for all
-configuration sections. This module loads it into plain Python dicts.
+The Lua module kod.core.schema (in src/lua/kod/core/schema.lua) is the single 
+source of truth for all configuration sections. This module loads it into 
+plain Python dicts for validation and documentation.
 """
 
 import os
