@@ -404,8 +404,8 @@ from kod.lua_runtime import get_lua_runtime
 from kod.planner import build_plan
 
 lua = get_lua_runtime()
-schema = lua.require('kod.lib.core.schema')
-planner = lua.require('kod.lib.planning.planner')
+schema = lua.require('kod.core.schema')
+planner = lua.require('kod.planning.planner')
 
 # Load config and see steps generated
 steps, err = planner.compose(config, "arch")
@@ -415,16 +415,16 @@ for step in steps:
 
 ### Adding a Lua Module
 
-1. Create file in `src/kod/lib/<category>/`
-2. Ensure valid Lua syntax: `luac -o /dev/null src/kod/lib/<category>/my_module.lua`
+1. Create file in `src/lua/kod/<category>/`
+2. Ensure valid Lua syntax: `luac -o /dev/null src/lua/kod/<category>/my_module.lua`
 3. Return module table: `return { function1, function2, ... }`
-4. Import in Python: `lua.require('kod.lib.<category>.my_module')`
+4. Import in Python: `lua.require('kod.<category>.my_module')`
 
 ### Modifying Bootstrap Logic
 
-Bootstrap logic is in `src/kod/lib/bootstrap/bootstrap.lua` and bridges to Python via `emit_bootstrap_steps()`.
+Bootstrap logic is in `src/lua/kod/bootstrap/bootstrap.lua` and bridges to Python via `emit_bootstrap_steps()`.
 
-- Edit Lua logic: `src/kod/lib/bootstrap/bootstrap.lua`
+- Edit Lua logic: `src/lua/kod/bootstrap/bootstrap.lua`
 - Update Python bridge: `src/kod/bootstrap.py`
 - Test: `pytest tests/config/test_compiler.py -v`
 

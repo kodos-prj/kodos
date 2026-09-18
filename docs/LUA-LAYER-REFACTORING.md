@@ -148,7 +148,7 @@ grep -r 'registry.validate_config\|registry.validate_program_def' src/
 **Rationale:**
 - Python loads schema.lua **ONLY for data** (iterates over schema definitions)
 - Python does NOT call any Schema methods
-- Example Python usage: `for name in lua.require('kod.lib.core.schema').base_distribution:`
+- Example Python usage: `for name in lua.require('kod.core.schema').base_distribution:`
 - All validation in Python (source of truth)
 - Speculative methods ("just in case") violate YAGNI
 

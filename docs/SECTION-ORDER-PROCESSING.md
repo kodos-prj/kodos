@@ -175,7 +175,7 @@ table.insert(steps, {
 
 ## How Planner Sorts Steps
 
-**File:** `src/kod/lib/planner.lua:sort_steps()`
+**File:** `src/lua/kod/planning/planner.lua:sort_steps()`
 
 ```lua
 local function sort_steps(steps)
@@ -367,7 +367,7 @@ table.insert(steps, {
 
 Run planner with test config:
 ```lua
-local planner = require('kod.lib.planner')
+local planner = require('kod.planning.planner')
 local steps = planner:compose(config, "arch")
 
 -- Verify steps are in correct order
@@ -732,7 +732,7 @@ Then user programs that reference dotfiles (via `deploy_config = true`) run afte
 
 ## Files Reference
 
-- **Planner:** `src/kod/lib/planner.lua` (lines 7-79 for sorting)
+- **Planner:** `src/lua/kod/planning/planner.lua` (lines 7-79 for sorting)
 - **Boot section:** `src/kod/sections/boot.lua` (example step ordering)
 - **Users section:** `src/kod/sections/users.lua` (Phase 5d: user programs/services merge)
 - **Other sections:** `src/kod/sections/*.lua` (follow same pattern)
