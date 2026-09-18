@@ -70,8 +70,6 @@ end
 -- File Discovery
 -- ============================================================================
 
-local _builtin_cache = {}  -- {program_name: program_def}
-local _user_cache = {}     -- {program_name: program_def}
 local _merged_cache = {}   -- {program_name: merged_program_def}
 
 -- ============================================================================
@@ -161,24 +159,8 @@ end
 -- Caching
 -- ============================================================================
 
-function registry.get_builtin_cache(name)
-    return _builtin_cache[name]
-end
-
-function registry.get_user_cache(name)
-    return _user_cache[name]
-end
-
 function registry.get_merged_cache(name)
     return _merged_cache[name]
-end
-
-function registry.set_builtin_cache(name, program_def)
-    _builtin_cache[name] = program_def
-end
-
-function registry.set_user_cache(name, program_def)
-    _user_cache[name] = program_def
 end
 
 function registry.set_merged_cache(name, program_def)
@@ -186,15 +168,11 @@ function registry.set_merged_cache(name, program_def)
 end
 
 function registry.clear_cache()
-    _builtin_cache = {}
-    _user_cache = {}
     _merged_cache = {}
 end
 
 function registry.get_cache_info()
     return {
-        builtin = _builtin_cache,
-        user = _user_cache,
         merged = _merged_cache,
     }
 end
@@ -319,7 +297,7 @@ function registry.resolve_program(program_name, builtin_programs, user_programs,
         return cached, nil
     end
     
-    -- Load builtin and user definitions
+     -- Load builtin and user definitions
     local builtin_def = nil
     local user_def = nil
     
@@ -329,7 +307,6 @@ function registry.resolve_program(program_name, builtin_programs, user_programs,
         if not builtin_def then
             return nil, err
         end
-        registry.set_builtin_cache(program_name, builtin_def)
     end
     
     if user_programs and _has_key(user_programs, program_name) then
@@ -396,7 +373,6 @@ function registry.resolve_program(program_name, builtin_programs, user_programs,
     
     -- Cache and return
     registry.set_merged_cache(program_name, merged)
-    registry.set_user_cache(program_name, merged)  -- For backward compat
     return merged, nil
 end
 
