@@ -1,11 +1,123 @@
--- Services section module - system service enablement and startup
--- Handles service enablement (typed steps dispatched to enable_services), config blocks, and systemd units
+-- Services section module - aggregates and enables system services
+-- Emits steps to enable services and configure service-related packages
 
 local Schema = require('kod.core.schema')
 local Repos = require('kod.system.repos')
 
+-- ============================================================================
+-- AGGREGATION: Collect services from config sections
+-- ============================================================================
+
+local function aggregate_desktop_services(config)
+    local services = {}
+    
+    if not config.desktop then
+        return services
+    end
+    
+    local desktop = config.desktop
+    
+    -- Display manager service
+    if desktop.display_manager then
+        table.insert(services, desktop.display_manager)
+    end
+    
+    -- Display managers from desktop environments
+    if desktop.desktop_manager then
+        local found_display_manager = false
+        for _, dm_conf in pairs(desktop.desktop_manager) do
+            if dm_conf.enable and dm_conf.display_manager and not found_display_manager then
+                table.insert(services, dm_conf.display_manager)
+                found_display_manager = true
+            end
+        end
+    end
+    
+    return services
+end
+
+local function aggregate_system_services(config)
+    local services = {}
+    
+    if not config.services then
+        return services
+    end
+    
+    -- System services with enable=true
+    for service_name, service_conf in pairs(config.services) do
+        if service_conf.enable then
+            table.insert(services, service_name)
+        end
+    end
+    
+    return services
+end
+
+local function aggregate_user_services(config)
+    local services = {}
+    
+    if not config.users then
+        return services
+    end
+    
+    -- User services
+    for user_name, user_conf in pairs(config.users) do
+        if user_conf.services then
+            for service_name, service_conf in pairs(user_conf.services) do
+                if service_conf.enable then
+                    table.insert(services, service_name)
+                end
+            end
+        end
+    end
+    
+    return services
+end
+
+local function deduplicate_services(services)
+    local seen = {}
+    local unique = {}
+    
+    for _, svc in ipairs(services) do
+        if not seen[svc] then
+            seen[svc] = true
+            table.insert(unique, svc)
+        end
+    end
+    
+    return unique
+end
+
+local function aggregate_all_services(config)
+    local services = {}
+    
+    -- Collect from all sources
+    local sources = {
+        aggregate_desktop_services(config),
+        aggregate_system_services(config),
+        aggregate_user_services(config),
+    }
+    
+    -- Flatten
+    for _, source_services in ipairs(sources) do
+        for _, svc in ipairs(source_services) do
+            table.insert(services, svc)
+        end
+    end
+    
+    -- Remove duplicates while preserving order
+    return deduplicate_services(services)
+end
+
+-- ============================================================================
+-- STEP EMISSION
+-- ============================================================================
+
 local module = {
     schema = Schema.services,
+    
+    -- Export aggregation function for Python to call
+    aggregate_services = aggregate_all_services,
     
     emit_steps = function(config, distro)
         local steps = {}
@@ -14,26 +126,19 @@ local module = {
             return steps
         end
         
-        -- Iterate over each service
-        for service_name, service_config in pairs(config) do
-            if type(service_config) == "table" and service_name ~= "config" and service_name ~= "systemd" then
-                local enable = service_config.enable
-                
-                -- Enable service on boot. Typed service step: install and rebuild
-                -- share one execution path (executor dispatches to enable_services,
-                -- chroot decided by the ctx flag). systemctl start in a chroot is a
-                -- no-op, so no separate start step is emitted.
-                if enable == true then
-                    table.insert(steps, {
-                        kind = "service",
-                        name = service_name,
-                        description = "Enable service on boot: " .. service_name,
-                    command = "systemctl enable " .. service_name,
-                    chroot = true,
-                    order = 700,
-                    })
-                end
-            end
+        -- Aggregate services from all config sections
+        local services = aggregate_all_services(config)
+        
+        -- Emit enable steps for each service
+        for _, service_name in ipairs(services) do
+            table.insert(steps, {
+                kind = "service",
+                name = service_name,
+                description = "Enable service on boot: " .. service_name,
+                command = "systemctl enable " .. service_name,
+                chroot = true,
+                order = 700,
+            })
         end
         
         -- Service config block (Task 9 extension)
@@ -138,4 +243,3 @@ local module = {
 }
 
 return module
-
