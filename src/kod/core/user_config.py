@@ -2,7 +2,7 @@
 
 Manages user dotfiles, scripts, and service configuration.
 
-Workflow flow:
+Workflow:
 1. Load user-specific configurations
 2. Deploy dotfiles
 3. Configure and enable services
@@ -12,33 +12,21 @@ from typing import Any
 
 
 def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngrs: Any) -> None:
-    """
-    Configure user dotfiles using a specified dotfile manager.
+    """Configure user dotfiles using a specified dotfile manager.
 
-    This function sets up the dotfiles for a user by executing the commands
-    from the user's dotfile manager. It temporarily changes the context user
-    to the specified user for the duration of the configuration process.
+    Sets up the dotfiles for a user by executing the commands from the user's 
+    dotfile manager. Temporarily sets the context user to ensure any logging or 
+    permission checks within the dotfile manager use the correct user context.
 
     Args:
-        ctx (Context): The context object used for executing commands.
-        user (str): The username for which to configure dotfiles.
-        user_configs (dict): A dictionary containing user configuration details,
-                             including deployable configurations.
-        dotfile_mngrs: The dotfile manager object responsible for handling
-                       dotfile operations.
-
-    Note:
-        The context user is temporarily changed to the specified user for the
-        configuration process and is restored to the original user afterward.
+        ctx: The context object used for executing commands.
+        user: The username for which to configure dotfiles.
+        user_configs: Dict containing user configuration details.
+        dotfile_mngrs: The dotfile manager object responsible for dotfile operations.
     """
-
-    print(f"{dotfile_mngrs=}")
-    print(f"Configuring user {user}")
     old_user = ctx.user
-    ctx.user = user  # TODO: <-- evaluate if this is still needed
-    # Calling dotfile_mngrs
-    if user_configs["configs"] and dotfile_mngrs:
-        # print("\nUSER:",os.environ['USER'],'\n')
+    ctx.user = user  # Set context to current user (needed by dotfile_mngrs)
+    if user_configs.get("configs") and dotfile_mngrs:
         call_init = True
         for config in user_configs["configs"]:
             command = dotfile_mngrs.command
@@ -49,30 +37,20 @@ def configure_user_dotfiles(ctx: Any, user: str, user_configs: Any, dotfile_mngr
 
 
 def configure_user_scripts(ctx: Any, user: str, user_configs: Any) -> None:
-    """
-    Configure user scripts based on user configuration.
+    """Configure user scripts based on user configuration.
 
-    This function executes the command configurations specified in the
-    user's configuration for the current context stage. It temporarily
-    changes the context user to the specified user for the execution of
-    these commands and restores it afterward.
+    Executes the command configurations specified in the user's configuration 
+    for the current context stage. Temporarily sets the context user to ensure 
+    correct user context during script execution.
 
     Args:
-        ctx (Context): The context object used for executing commands.
-        user (str): The username for which to configure scripts.
-        user_configs (dict): A dictionary containing user configuration
-                             details, including executable commands.
-
-    Note:
-        The context user is temporarily changed to the specified user for
-        the script execution process and is restored to the original user
-        afterward.
+        ctx: The context object used for executing commands.
+        user: The username for which to configure scripts.
+        user_configs: Dict containing user configuration details.
     """
-    print(f"Configuring user {user}")
     old_user = ctx.user
-    ctx.user = user  # TODO: <-- evaluate if this is still needed
-    # Calling program's config commands
-    if user_configs["run"]:
+    ctx.user = user  # Set context to current user (needed by prog_config.command)
+    if user_configs.get("run"):
         for prog_config in user_configs["run"]:
             command = prog_config.command
             config = prog_config.config
