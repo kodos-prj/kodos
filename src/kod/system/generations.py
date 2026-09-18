@@ -1,7 +1,7 @@
-"""Filesystem operations (Phase 2).
+"""Generation management for KodOS.
 
-Handles partitioning, mount point management, fstab, and subvolume operations.
-Phase 2b: moved implementations from kod._core to here.
+Handles generation lifecycle: creation, mounting, fstab management, and subvolume operations.
+A generation is an immutable snapshot of the system state with its own rootfs, boot, and home mounts.
 """
 
 import glob

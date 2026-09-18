@@ -28,7 +28,7 @@ from kod.common import (
 from kod.context import Context
 from kod.config.loader import load_config_lua
 from kod.system.distro.factory import get_distro_module
-from kod.system.filesystem import (
+from kod.system.generations import (
     generate_fstab,
     load_fstab,
     change_subvol,
@@ -58,8 +58,8 @@ from kod.system.boot import (
 )
 from kod.config.validator import validate_config
 from kod.config.loader import load_config_lua, load_config as load_config_dict
-from kod.system.filesystem import get_partition_devices
-from kod.system.filesystem import create_next_generation, get_max_generation
+from kod.system.generations import get_partition_devices
+from kod.system.generations import create_next_generation, get_max_generation
 
 # Shorthand: load_config returns Lua table (raw Lua config)
 load_config = load_config_lua
