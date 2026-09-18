@@ -49,7 +49,6 @@ from kod.core import (
 from kod.core import set_base_distribution
 from kod.config.validator import validate_config
 from kod.config.loader import load_config as load_config_dict
-from kod.config.compiler import compile_config
 from kod.system.filesystem import get_partition_devices
 from kod.system.filesystem import create_next_generation, get_max_generation
 from kod.cli import registry_group
@@ -190,22 +189,6 @@ def config_validate(config: Optional[str]) -> None:
     if conf:
         sections = ", ".join(sorted(conf.keys()))
         print(f"   Sections: {sections}")
-
-
-@config.command(name="compile")
-@click.option("-c", "--config", default=None, help="System configuration file or directory")
-def config_compile(config: Optional[str]) -> None:
-    "Compile configuration and resolve dependencies"
-    conf = load_config_dict(config)
-    errors = validate_config(conf)
-    if errors:
-        for error in errors:
-            print(f"Error: {error}")
-        sys.exit(1)
-    
-    compiled = compile_config(conf)
-    print("Configuration compiled successfully")
-    print(f"Compiled config has {len(compiled)} top-level options")
 
 
 @config.command(name="schema")
