@@ -1,34 +1,16 @@
 """Package management operations (Phase 2b refactored).
 
 Handles package installation, updates, caching, and repository management.
-Implementations moved from kod.core into this module during Phase 2b.
+Aggregation logic moved to Lua (src/lua/kod/sections/packages.lua).
 """
 
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from kod.system.distro.factory import get_distro_module
 from kod.common import exec, exec_chroot
-from kod.system.services import proc_services
 
 # Re-exports for backward compatibility with tests
-# These functions were moved to distro-specific modules but tests expect them here
-def get_base_packages(conf: Any) -> Dict[str, Any]:
-    """Get base packages for the distro (re-exported from distro module)."""
-    distro = get_distro_module(conf)
-    return distro.get_base_packages(conf)
-
-
-def get_list_of_dependencies(pkg: str) -> List[str]:
-    """Get dependency list for a package (re-exported from distro module).
-    
-    Note: This is a distro-specific operation. In real usage, the distro
-    module should be obtained first. This re-export provides compatibility.
-    """
-    # For tests, use Arch as default; production code gets distro from config
-    from kod.system.distro.arch import get_list_of_dependencies as arch_deps
-    return arch_deps(pkg)
-
+# Note: Aggregation helpers moved to Lua (src/lua/kod/sections/packages.lua)
 
 # ============================================================================
 # PRIVILEGE LEVEL MANAGEMENT
@@ -102,206 +84,9 @@ def _build_privilege_command(base_cmd: str, privilege_level: str) -> str:
         return base_cmd
 
 
-# ============================================================================
-# HELPER FUNCTIONS (internal to package management)
-# ============================================================================
 
-
-def _proc_desktop(conf: Any) -> Tuple[List[str], List[str]]:
-    """
-    Process the desktop configuration and generate the list of packages to install
-    and remove. This function will iterate over the desktop manager options and
-    process the packages to install and remove based on the configuration.
-
-    Args:
-        conf (dict): The configuration dictionary containing the desktop configuration.
-
-    Returns:
-        tuple: A tuple containing two lists: packages to install and packages to remove.
-    """
-    packages_to_install = []
-    packages_to_remove = []
-    desktop = conf.desktop
-
-    if desktop is None:
-        return packages_to_install, packages_to_remove
-
-    display_manager = desktop.display_manager
-    if display_manager:
-        print(f"Installing {display_manager}")
-        packages_to_install += [display_manager]
-
-    desktop_manager = desktop.desktop_manager
-    if desktop_manager:
-        for desktop_mngr, dm_conf in desktop_manager.items():
-            if dm_conf.enable:
-                print(f"Installing {desktop_mngr}")
-                if "extra_packages" in dm_conf:
-                    pkg_list = list(dm_conf.extra_packages.values())
-                    packages_to_install += pkg_list
-
-                if "exclude_packages" in dm_conf:
-                    exclude_pkg_list = list(dm_conf.exclude_packages.values())
-                    packages_to_remove += exclude_pkg_list
-                else:
-                    exclude_pkg_list = []
-                if exclude_pkg_list:
-                    print(f"Excluding {exclude_pkg_list}")
-                    distro = get_distro_module("arch")
-                    all_pkgs_to_install = distro.get_list_of_dependencies(desktop_mngr)
-                    pkgs_to_install = list(set(all_pkgs_to_install) - set(exclude_pkg_list))
-                    packages_to_install += pkgs_to_install
-                else:
-                    packages_to_install += [desktop_mngr]
-
-                if "display_manager" in dm_conf:
-                    display_mngr = dm_conf["display_manager"]
-                    packages_to_install += [display_mngr]
-
-    return packages_to_install, packages_to_remove
-
-
-def _proc_hardware(conf: Any) -> List[str]:
-    """
-    Process the hardware configuration and generate the list of packages to install.
-
-    This function iterates over the hardware configuration and generates a list of
-    packages to install based on the configuration settings.
-
-    Args:
-        conf (dict): The configuration dictionary containing the hardware settings.
-
-    Returns:
-        list: A list of package names that need to be installed.
-    """
-    packages = []
-    print("- processing hardware -----------")
-    hardware = conf.hardware
-
-    if hardware is None:
-        return packages
-
-    for name, hw in hardware.items():
-        print(name, hw.enable)
-        pkgs = []
-        if hw.enable:
-            if hw.package:
-                print("  using:", hw.package)
-                name = hw.package
-
-            pkgs.append(name)
-            if hw.extra_packages:
-                print("  extra packages:", hw.extra_packages)
-                for _, pkg in hw.extra_packages.items():
-                    pkgs.append(pkg)
-            packages += pkgs
-
-    return packages
-
-
-def _proc_system_packages(conf: Any) -> List[str]:
-    """
-    Process the system packages configuration and generate a list of packages to install.
-
-    This function extracts the system packages defined in the configuration
-    and returns them as a list.
-
-    Args:
-        conf (dict): The configuration dictionary containing the system
-                     packages information.
-
-    Returns:
-        list: A list of system package names to be installed.
-    """
-
-    print("- processing packages -----------")
-    sys_packages = conf.packages
-
-    if sys_packages is None:
-        return []
-
-    return list(sys_packages.values())
-
-
-def _proc_user_programs(conf: Any) -> List[str]:
-    """
-    Process the user programs configuration and generate a list of packages to install.
-
-    This function iterates over the user configuration and extracts the programs
-    that need to be installed. It returns a list of packages to be installed.
-
-    Args:
-        conf (dict): The configuration dictionary containing the user
-                     information.
-
-    Returns:
-        list: A list of packages to be installed.
-    """
-    packages = []
-
-    print("- processing user programs -----------")
-    users = conf.users
-
-    if users is None:
-        return packages
-
-    for user, info in users.items():
-        if info.programs:
-            print(f"Processing programs for {user}")
-            pkgs = []
-            for name, prog in info.programs.items():
-                print(name, prog.enable)
-                if prog.enable:
-                    if prog.package:
-                        print("  using:", prog.package)
-                        name = prog.package
-
-                    if prog.extra_packages:
-                        print("  extra packages:", prog.extra_packages)
-                        for _, pkg in prog.extra_packages.items():
-                            pkgs.append(pkg)
-                    pkgs.append(name)
-            packages += pkgs
-
-        # Packages required for user services
-        if info.services:
-            for service, desc in info.services.items():
-                if "enable" in desc and desc.enable:
-                    print(f"Checking {service} service discription")
-                    name = service
-                    if "package" in desc:
-                        name = desc.package
-
-                    if desc.extra_packages:
-                        print("  extra packages:", desc.extra_packages)
-                        for _, pkg in desc.extra_packages.items():
-                            packages.append(pkg)
-                    packages.append(name)
-
-    return packages
-
-
-def _proc_fonts(conf: Any) -> List[str]:
-    """
-    Process the fonts configuration and generate a list of font packages to install.
-
-    This function examines the fonts configuration and returns a list of font
-    packages specified in the configuration.
-
-    Args:
-        conf (dict): The configuration dictionary containing the fonts
-                     information.
-
-    Returns:
-        list: A list of font package names to be installed.
-    """
-
-    packages_to_install = []
-    print("- processing fonts -----------")
-    fonts = conf.fonts
-    if fonts and "packages" in fonts and fonts.packages:
-        packages_to_install += fonts.packages.values()
-    return packages_to_install
+# Remaining functions: state management, privilege handling, execution
+# Aggregation moved to Lua (src/lua/kod/sections/packages.lua)
 
 
 # ============================================================================
@@ -311,60 +96,44 @@ def _proc_fonts(conf: Any) -> List[str]:
 
 def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]:
     """
-    Determine the packages to install and remove based on the given configuration.
+    Determine the packages to install based on the given configuration.
 
-    This function aggregates various categories of packages such as base, desktop,
-    hardware, services, user programs, system packages, and fonts. It consolidates
-    these into a list of packages to install and a list of packages to remove.
+    Calls Lua's package aggregation to collect packages from all config sections
+    (desktop, hardware, fonts, user programs, system packages).
+    
+    Returns packages wrapped in a dict for compatibility with state storage.
 
     Args:
         conf (table): The configuration table containing details for package selection.
 
     Returns:
         tuple: A tuple containing two elements:
-            - packages_to_install (dict): A dictionary with a "packages" key listing
-              all the unique packages to be installed.
-            - packages_to_remove (list): A list of packages to be removed.
+            - packages_to_install (dict): A dictionary with "packages" key listing
+              all unique packages to be installed.
+            - packages_to_remove (list): Empty list (removal currently not implemented in Lua).
     """
-    packages_to_install = []
-    packages_to_remove = []
-
-    # Base packages
-    distro = get_distro_module("arch")
-    base_packages = distro.get_base_packages(conf)
-
-    # Desktop
-    desktop_packages_to_install, desktop_packages_to_remove = _proc_desktop(conf)
-
-    # Hardware
-    hw_packages_to_install = _proc_hardware(conf)
-
-    # Services
-    service_packages_to_install = proc_services(conf)
-
-    # User programs
-    user_packages_to_install = _proc_user_programs(conf)
-
-    # System packages
-    system_packages_to_install = _proc_system_packages(conf)
-
-    # Font packages
-    font_packages_to_install = _proc_fonts(conf)
-
-    packages_to_install = base_packages.copy()
-    packages_to_install["packages"] = list(
-        set(
-            desktop_packages_to_install
-            + hw_packages_to_install
-            + service_packages_to_install
-            + user_packages_to_install
-            + system_packages_to_install
-            + font_packages_to_install
-        )
-    )
-
-    packages_to_remove = list(set(desktop_packages_to_remove))
-
+    from kod.lua_runtime import get_lua_runtime
+    from kod.lua_utils import lua_table_to_python
+    
+    # Load Lua and call package aggregation
+    lua = get_lua_runtime()
+    packages_module = lua.require("kod.sections.packages")
+    
+    # Call Lua aggregation function
+    # ponytail: packages_to_remove not computed; implement when needed
+    lua_packages = packages_module.aggregate_packages(conf)
+    
+    # Convert lupa.LuaTable to Python list
+    packages_list = lua_table_to_python(lua_packages)
+    
+    # Wrap in dict matching original format
+    packages_to_install = {
+        "packages": packages_list,
+        "kernel": "linux",  # Default kernel; can be overridden in config
+    }
+    
+    packages_to_remove = []  # ponytail: desktop exclude_packages not yet implemented
+    
     return packages_to_install, packages_to_remove
 
 
