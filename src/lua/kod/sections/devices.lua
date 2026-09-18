@@ -2,6 +2,7 @@
 -- Handles disk partitioning, formatting, and mounting
 
 local Schema = require('kod.core.schema')
+local FilesystemTypes = require('kod.system.filesystem_types')
 
 -- Partition device path. Kernel/udev convention: base names ending in a
 -- digit (nvme0n1, mmcblk0) take a 'p' separator (nvme0n1p1, not nvme0n11);
@@ -26,117 +27,91 @@ local module = {
          -- Iterate over each device (disk) definition
          for disk_name, disk_config in pairs(config) do
              if type(disk_config) == "table" then
-                 -- Each disk_config should have device configuration
-                 -- Check if there's a disk_definition or similar function
-                 if disk_config.device then
-                     -- Basic disk operations
-                     local device_path = disk_config.device
-                     
-                     -- Initialize partition table if needed
-                     if disk_config.type then
-                         table.insert(steps, {
-                             name = "devices_init_" .. disk_name,
-                             description = "Initialize partition table on " .. device_path .. " as " .. disk_config.type,
-                             command = "parted -s " .. device_path .. " mklabel " .. disk_config.type,
-                             chroot = false,
-                             order = 9,
-                         })
-                     end
-                     
-                      -- Create partitions if defined
-                      if disk_config.partitions and type(disk_config.partitions) == "table" then
-                          -- Calculate partition positions based on sizes
-                          local current_pos = "0"
-                          
-                          for part_num, partition in pairs(disk_config.partitions) do
-                              if type(partition) == "table" and partition.size then
-                                  local part_name = partition.name or ("part" .. part_num)
-                                  local part_type = partition.type or "primary"
-                                  local part_size = partition.size
-                                  
-                                  -- Map partition types to parted FS types
-                                  local parted_fs_type = "ext4"  -- default
-                                  if part_type == "esp" then
-                                      parted_fs_type = "fat32"
-                                  elseif part_type == "linux-swap" then
-                                      parted_fs_type = "linux-swap"
-                                  elseif part_type == "btrfs" then
-                                      parted_fs_type = "btrfs"
-                                  elseif part_type == "xfs" then
-                                      parted_fs_type = "xfs"
-                                  end
-                                  
-                                  -- Build parted mkpart command with proper syntax
-                                  local mkpart_cmd = "parted -s " .. device_path .. " mkpart "
-                                  if disk_config.type == "gpt" then
-                                      -- GPT: mkpart PART-TYPE FS-TYPE START END
-                                      -- PART-TYPE is usually "primary" for GPT (or part name in some versions)
-                                      mkpart_cmd = mkpart_cmd .. 'primary ' .. parted_fs_type .. " " .. current_pos .. " " .. part_size
-                                  else
-                                      -- MBR: mkpart [PRIMARY|EXTENDED|LOGICAL] [FS-TYPE] START END
-                                      mkpart_cmd = mkpart_cmd .. part_type .. " " .. parted_fs_type .. " " .. current_pos .. " " .. part_size
-                                  end
-                                  
-                                  table.insert(steps, {
-                                      name = "devices_partition_" .. disk_name .. "_" .. part_num,
-                                      description = "Create " .. part_type .. " partition '" .. part_name .. "' on " .. device_path,
-                                      command = mkpart_cmd,
-                                      chroot = false,
-                                      order = 10 + part_num,
-                                      depends_on = disk_config.type and {"devices_init_" .. disk_name} or nil,
-                                  })
-                                  
-                                  -- For GPT ESP partitions, set the esp flag
-                                  if disk_config.type == "gpt" and part_type == "esp" then
-                                      table.insert(steps, {
-                                          name = "devices_set_esp_" .. disk_name .. "_" .. part_num,
-                                          description = "Mark partition " .. part_num .. " as EFI System Partition",
-                                          command = "parted -s " .. device_path .. " set " .. part_num .. " esp on",
-                                          chroot = false,
-                                          order = 11 + part_num,
-                                          depends_on = {"devices_partition_" .. disk_name .. "_" .. part_num},
-                                      })
-                                  end
-                                  
-                                  -- Update current position for next partition
-                                  current_pos = part_size
-                              end
-                          end
-                      end
+                  -- Each disk_config should have device configuration
+                  -- Check if there's a disk_definition or similar function
+                  if disk_config.device then
+                      -- Basic disk operations
+                      local device_path = disk_config.device
+                      
+                      -- Wipe disk before partitioning
+                      table.insert(steps, {
+                          name = "devices_wipe_" .. disk_name,
+                          description = "Wipe partition table on " .. device_path,
+                          command = "wipefs -a " .. device_path,
+                          chroot = false,
+                          order = 8,
+                      })
+                      
+                      -- Initialize GPT partition table (sgdisk requirement)
+                      table.insert(steps, {
+                          name = "devices_init_" .. disk_name,
+                          description = "Initialize GPT partition table on " .. device_path,
+                          command = "sgdisk -Z " .. device_path,
+                          chroot = false,
+                          order = 9,
+                          depends_on = {"devices_wipe_" .. disk_name},
+                      })
+                      
+                       -- Create partitions using sgdisk
+                       if disk_config.partitions and type(disk_config.partitions) == "table" then
+                           for part_num, partition in pairs(disk_config.partitions) do
+                               if type(partition) == "table" and partition.size then
+                                   local part_name = partition.name or ("part" .. part_num)
+                                   local part_size = partition.size
+                                   local fs_type = partition.filesystem or "ext4"
+                                   
+                                   -- Build sgdisk command: -n START:END -t SECTOR:CODE -c SECTOR:NAME
+                                   -- Sector numbers: partition number (1-based, but 0 means auto-increment)
+                                   -- Size format: +512MiB, +10GiB, or 0 for remaining space
+                                   local sgdisk_args = {"-n", "0:0:" .. part_size}
+                                   
+                                   -- Add partition type code if filesystem is mapped
+                                   local gpt_type = FilesystemTypes.get_gpt_type(fs_type)
+                                   if gpt_type then
+                                       table.insert(sgdisk_args, "-t")
+                                       table.insert(sgdisk_args, "0:" .. gpt_type)
+                                   end
+                                   
+                                   -- Add partition name
+                                   table.insert(sgdisk_args, "-c")
+                                   table.insert(sgdisk_args, "0:" .. part_name)
+                                   
+                                   -- Add device path
+                                   table.insert(sgdisk_args, device_path)
+                                   
+                                   table.insert(steps, {
+                                       name = "devices_partition_" .. disk_name .. "_" .. part_num,
+                                       description = "Create partition '" .. part_name .. "' on " .. device_path,
+                                       command = "sgdisk " .. table.concat(sgdisk_args, " "),
+                                       chroot = false,
+                                       order = 10 + part_num,
+                                       depends_on = {"devices_init_" .. disk_name},
+                                   })
+                               end
+                           end
+                       end
                     
                      -- Format partitions
                      if disk_config.partitions and type(disk_config.partitions) == "table" then
                          for part_num, partition in pairs(disk_config.partitions) do
-                             if type(partition) == "table" and partition.filesystem then
-                                 local fs_type = partition.filesystem
-                                 local part_device = partition_path(device_path, part_num)
-                                 
-                                 local mkfs_cmd
-                                 if fs_type == "esp" or fs_type == "vfat" then
-                                     mkfs_cmd = "mkfs.vfat -F 32 " .. part_device
-                                 elseif fs_type == "ext4" then
-                                     mkfs_cmd = "mkfs.ext4 -F " .. part_device
-                                 elseif fs_type == "ext3" then
-                                     mkfs_cmd = "mkfs.ext3 -F " .. part_device
-                                 elseif fs_type == "btrfs" then
-                                     mkfs_cmd = "mkfs.btrfs -f " .. part_device
-                                 elseif fs_type == "xfs" then
-                                     mkfs_cmd = "mkfs.xfs -f " .. part_device
-                                 elseif fs_type == "linux-swap" then
-                                     mkfs_cmd = "mkswap " .. part_device
-                                 else
-                                     mkfs_cmd = "mkfs." .. fs_type .. " " .. part_device
-                                 end
-                                 
-                                 table.insert(steps, {
-                                     name = "devices_format_" .. disk_name .. "_" .. part_num,
-                                     description = "Format partition " .. part_num .. " as " .. fs_type,
-                                     command = mkfs_cmd,
-                                     chroot = false,
-                                     order = 20 + part_num,
-                                     depends_on = {"devices_partition_" .. disk_name .. "_" .. part_num},
-                                 })
-                             end
+                              if type(partition) == "table" and partition.filesystem then
+                                  local fs_type = partition.filesystem
+                                  local part_device = partition_path(device_path, part_num)
+                                  
+                                  -- Get mkfs command from filesystem_types lookup table
+                                  local mkfs_cmd = FilesystemTypes.get_mkfs_cmd(fs_type)
+                                  
+                                  if mkfs_cmd then
+                                      table.insert(steps, {
+                                          name = "devices_format_" .. disk_name .. "_" .. part_num,
+                                          description = "Format partition " .. part_num .. " as " .. fs_type,
+                                          command = mkfs_cmd .. " " .. part_device,
+                                          chroot = false,
+                                          order = 20 + part_num,
+                                          depends_on = {"devices_partition_" .. disk_name .. "_" .. part_num},
+                                      })
+                                  end
+                              end
                          end
                      end
                     

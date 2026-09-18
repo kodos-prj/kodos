@@ -308,21 +308,37 @@ def predict_partition_list(conf: Any) -> List[dict]:
 def plan_disk_steps(conf: Any) -> List[Step]:
     """Emit wipe/partition/format steps from conf.devices. Read-only.
 
-    Mirrors create_disk_partitions command sequence (kod/filesystem.py) without
-    executing it. Divergence: fs types missing from _filesystem_type skip the
-    -t flag instead of raising (preview must not crash on partial tables).
+    Calls Lua filesystem_types module to get mkfs commands and GPT type codes
+    (single source of truth with devices.lua).
     """
-    from kod.system.filesystem import _filesystem_cmd, _filesystem_type
+    from kod.lua_runtime import get_lua_runtime
 
     steps: List[Step] = []
     devices = conf.devices
     if not devices:
         return steps
+    
+    # Get filesystem type tables from Lua (single source of truth with devices.lua)
+    try:
+        lua = get_lua_runtime()
+        fs_types = lua.require("kod.system.filesystem_types")
+        mkfs_commands = dict(fs_types.mkfs_commands)
+        gpt_type_codes = dict(fs_types.gpt_type_codes)
+    except Exception as e:
+        print(f"Warning: could not load filesystem_types from Lua: {e}")
+        mkfs_commands = {}
+        gpt_type_codes = {}
+    
     for d_id in sorted(devices.keys()):
         disk = devices[d_id]
         device = disk["device"]
         suffix = "p" if ("nvme" in device or "mmcblk" in device) else ""
         steps.append(Step("disk", f"wipe:{device}", program="wipefs", args=("-a", device)))
+        
+        # Initialize GPT partition table
+        steps.append(Step("disk", f"init-gpt:{device}", program="sgdisk", args=("-Z", device),
+                          meta={"device": device}))
+        
         partitions = disk["partitions"]
         if not partitions:
             continue
@@ -333,15 +349,19 @@ def plan_disk_steps(conf: Any) -> List[Step]:
             fs = part["type"]
             mountpoint = part["mountpoint"]
             blockdevice = f"{device}{suffix}{pid}"
-            end = "0" if size == "100%" else f"+{size}"
-            args = [f"-n", f"0:0:{end}"]
-            ptype = _filesystem_type.get(fs)
-            if ptype:
-                args += ["-t", f"0:{ptype}"]
+            
+            # Build sgdisk args: -n 0:0:SIZE -t 0:TYPE -c 0:NAME device
+            args = ["-n", f"0:0:{size}"]
+            gpt_type = gpt_type_codes.get(fs)
+            if gpt_type:
+                args += ["-t", f"0:{gpt_type}"]
             args += ["-c", f"0:{name}", device]
+            
             steps.append(Step("disk", f"partition:{name}", program="sgdisk", args=tuple(args),
                               meta={"size": size, "filesystem": fs, "mountpoint": mountpoint}))
-            fmt = _filesystem_cmd.get(fs)
+            
+            # Format if filesystem is defined and has a mkfs command
+            fmt = mkfs_commands.get(fs)
             if fmt:
                 steps.append(Step("disk", f"format:{name}", program=fmt, args=(blockdevice,),
                                   meta={"filesystem": fs}))

@@ -11,35 +11,6 @@ from typing import Dict, List, Optional, Tuple, Any
 from kod.common import exec
 
 
-# Filesystem type mappings
-_filesystem_cmd: Dict[str, Optional[str]] = {
-    "esp": "mkfs.vfat -F32",
-    "fat32": "mkfs.vfat -F32",
-    "vfat": "mkfs.vfat",
-    "bfs": "mkfs.bfs",
-    "cramfs": "mkfs.cramfs",
-    "ext3": "mkfs.ext3",
-    "fat": "mkfs.fat",
-    "msdos": "mkfs.msdos",
-    "xfs": "mkfs.xfs",
-    "btrfs": "mkfs.btrfs -f",
-    "ext2": "mkfs.ext2",
-    "ext4": "mkfs.ext4",
-    "minix": "mkfs.minix",
-    "f2fs": "mkfs.f2fs",
-    "linux-swap": "mkswap",
-    "noformat": None,
-}
-
-_filesystem_type: Dict[str, Optional[str]] = {
-    "esp": "ef00",
-    # "vfat": "",
-    "btrfs": "8300",
-    "linux-swap": "8200",
-    "noformat": None,
-}
-
-
 class FsEntry:
     """Represents a filesystem entry for fstab configuration.
 
