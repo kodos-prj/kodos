@@ -43,12 +43,7 @@ from kod.system.packages import (
     manage_packages_shell,
 )
 from kod.system.services import (
-    enable_services,
-    enable_user_services,
     get_services_to_enable,
-    proc_desktop_services,
-    proc_services,
-    proc_services_to_enable,
 )
 from kod.system.boot import (
     create_boot_entry_hook,
@@ -57,7 +52,7 @@ from kod.system.boot import (
     update_initramfs_hook,
 )
 from kod.config.validator import validate_config
-from kod.config.loader import load_config_lua, load_config as load_config_dict
+from kod.config.loader import load_config as load_config_dict
 from kod.system.generations import get_partition_devices
 from kod.system.generations import create_next_generation, get_max_generation
 
@@ -381,24 +376,24 @@ def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
         # Unmount if still mounted
         if new_root_path != "/":
             try:
-                exec_warn(f"umount -R {new_root_path}")
+                exec_warn(f"umount -R {new_root_path}", "Failed to unmount generation")
             except Exception:
                 pass
         
         # Remove the generation directory and its snapshots
         generation_path = f"/kod/generations/{generation_id}"
         try:
-            exec_warn(f"btrfs subvolume delete {generation_path}/rootfs")
+            exec_warn(f"btrfs subvolume delete {generation_path}/rootfs", "Failed to delete rootfs subvolume")
         except Exception:
             pass
         
         try:
-            exec_warn(f"btrfs subvolume delete {generation_path}/boot")
+            exec_warn(f"btrfs subvolume delete {generation_path}/boot", "Failed to delete boot subvolume")
         except Exception:
             pass
         
         try:
-            exec_warn(f"rm -rf {generation_path}")
+            exec_warn(f"rm -rf {generation_path}", "Failed to remove generation directory")
         except Exception:
             pass
         
@@ -704,7 +699,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
         try:
             hooks_dict = collect_hooks(conf.users or {})
         except Exception as e:
-            exec_warn(f"Failed to collect hooks: {e}")
+            exec_warn(f"Failed to collect hooks: {e}", "Hook collection failed, continuing without hooks")
             hooks_dict = {}
         
         # Execute user-specific plan

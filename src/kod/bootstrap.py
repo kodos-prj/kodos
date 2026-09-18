@@ -7,45 +7,23 @@ Ensures plan preview and execution produce identical step lists.
 from typing import Any, List
 import os
 from kod.planner import Step
+from kod.lua_utils import lua_table_to_python
 
 
 def _convert_to_lua_table(lua, value):
-    """Recursively convert Python dict/list to Lua table."""
-    if isinstance(value, dict):
-        t = lua.table()
-        for k, v in value.items():
-            t[k] = _convert_to_lua_table(lua, v)
-        return t
-    elif isinstance(value, (list, tuple)):
-        t = lua.table()
-        for i, v in enumerate(value, 1):
-            t[i] = _convert_to_lua_table(lua, v)
-        return t
-    else:
-        return value
-
-
-def _lua_table_to_dict(lua_table):
-    """Recursively convert a Lua table and all nested Lua objects to Python dict/list."""
-    if not hasattr(lua_table, "keys"):
-        # Not a Lua table, return as-is
-        return lua_table
-    
-    result = {}
-    for key in lua_table.keys():
-        val = lua_table[key]
-        if hasattr(val, "keys"):  # It's a Lua table - recurse
-            result[key] = _lua_table_to_dict(val)
-        elif isinstance(val, list):
-            # Convert lists element by element (in case they contain Lua objects)
-            result[key] = [_lua_table_to_dict(v) if hasattr(v, "keys") else v for v in val]
-        elif isinstance(val, dict):
-            # Convert dict values (in case they contain Lua objects)
-            result[key] = {k: _lua_table_to_dict(v) if hasattr(v, "keys") else v for k, v in val.items()}
-        else:
-            # Regular Python object
-            result[key] = val
-    return result
+     """Recursively convert Python dict/list to Lua table."""
+     if isinstance(value, dict):
+         t = lua.table()
+         for k, v in value.items():
+             t[k] = _convert_to_lua_table(lua, v)
+         return t
+     elif isinstance(value, (list, tuple)):
+         t = lua.table()
+         for i, v in enumerate(value, 1):
+             t[i] = _convert_to_lua_table(lua, v)
+         return t
+     else:
+         return value
 
 
 def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro: str = "arch") -> List[Step]:
@@ -70,7 +48,7 @@ def emit_bootstrap_steps(conf: Any, predicted_partition_list: List[dict], distro
     
     # CRITICAL: Convert conf to pure Python FIRST to remove any Lua objects from previous runtimes
     if hasattr(conf, "keys"):  # It's a Lua table (from any runtime)
-        conf = _lua_table_to_dict(conf)
+        conf = lua_table_to_python(conf)
     
     # Now convert to Lua table in OUR persistent runtime
     if hasattr(conf, "__dict__"):

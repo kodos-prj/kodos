@@ -6,7 +6,7 @@ A generation is an immutable snapshot of the system state with its own rootfs, b
 
 import glob
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import List, Optional, Tuple, Any
 
 from kod.common import exec
 

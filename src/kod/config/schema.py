@@ -7,6 +7,7 @@ plain Python dicts for validation and documentation.
 
 import os
 from typing import Dict
+from kod.lua_utils import lua_table_to_python
 
 # Lazy-loaded Lua schema (cached)
 _lua_schema_cache = None
@@ -47,34 +48,7 @@ def get_lua_schema() -> Dict:
         'packages', 'services', 'programs'
     ]:
         section_def = schema_module[section_name]
-        schema[section_name] = _lua_table_to_dict(section_def)
+        schema[section_name] = lua_table_to_python(section_def)
 
     _lua_schema_cache = schema
     return schema
-
-
-def _lua_table_to_dict(lua_table) -> Dict:
-    """Convert a Lua table to plain Python dict/list recursively.
-
-    Array tables (int keys 1..n) become lists, hash tables become dicts.
-    Non-table values (str, int, bool, ...) pass through unchanged.
-
-    Args:
-        lua_table: Lua table from lupa (or an already-converted value)
-
-    Returns:
-        Python dict/list representation
-    """
-    if lua_table is None or isinstance(lua_table, (str, int, float, bool)):
-        return lua_table
-
-    try:
-        items = list(lua_table.items())
-    except (AttributeError, TypeError):
-        # Not a mapping (e.g. Python list), return as-is
-        return lua_table
-
-    keys = [key for key, _ in items]
-    if keys and all(isinstance(key, int) and not isinstance(key, bool) for key in keys):
-        return [_lua_table_to_dict(value) for _, value in sorted(items)]
-    return {key: _lua_table_to_dict(value) for key, value in items}

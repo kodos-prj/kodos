@@ -39,7 +39,6 @@ local module = {
         -- Service config block (Task 9 extension)
         if config.config and type(config.config) == "table" then
             local svc_config = config.config
-            local svc_name = svc_config.service_name or "custom-service"
             
             -- Install service packages
             if svc_config.packages then
