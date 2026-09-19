@@ -19,20 +19,26 @@ def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     
     Args:
         ctx: Context object (passed through, not used in aggregation)
-        conf: The configuration table containing service configuration.
+        conf: The configuration table (Lua table or Python dict) containing service configuration.
 
     Returns:
         list: A list of service names to enable.
     """
     from kod.lua_runtime import get_lua_runtime
-    from kod.lua_utils import lua_table_to_python
+    from kod.lua_utils import lua_table_to_python, python_dict_to_lua_table
     
     # Load Lua and call service aggregation
     lua = get_lua_runtime()
     services_module = lua.require("kod.sections.services")
     
+    # Convert Python dict back to Lua table if needed
+    if isinstance(conf, dict):
+        conf_lua = python_dict_to_lua_table(lua, conf)
+    else:
+        conf_lua = conf
+    
     # Call Lua aggregation function
-    lua_services = services_module.aggregate_services(conf)
+    lua_services = services_module.aggregate_services(conf_lua)
     
     # Convert lupa.LuaTable to Python list
     services_list = lua_table_to_python(lua_services)
