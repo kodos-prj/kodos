@@ -5,6 +5,7 @@ Aggregation logic moved to Lua (src/lua/kod/sections/packages.lua).
 """
 
 import json
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from kod.common import exec, exec_chroot
@@ -207,7 +208,8 @@ def store_packages_services(
     Store the list of packages that are installed and the list of services that are enabled.
 
     Stores the list of packages that are installed in a JSON file and the list of services
-    that are enabled in a plain text file.
+    that are enabled in a plain text file. Uses atomic writes (temp + rename) to prevent
+    corruption if process is interrupted.
 
     Args:
         state_path (str): The path to the state directory where the package and service
@@ -216,12 +218,37 @@ def store_packages_services(
             The dictionary should have a single key: "packages", which is a list of
             package names.
         system_services (list): A list of system services that are enabled.
+    
+    Raises:
+        OSError: If state_path does not exist or is not writable
     """
+    if not os.path.isdir(state_path):
+        raise OSError(f"State path does not exist or is not a directory: {state_path}")
+    
+    # Write packages atomically (temp + rename)
     packahes_json = json.dumps(packages_to_install, indent=2)
-    with open(f"{state_path}/installed_packages", "w") as f:
-        f.write(packahes_json)
-    with open(f"{state_path}/enabled_services", "w") as f:
-        f.write("\n".join(system_services))
+    packages_file = f"{state_path}/installed_packages"
+    temp_packages = f"{state_path}/.tmp_packages_{os.getpid()}"
+    try:
+        with open(temp_packages, "w") as f:
+            f.write(packahes_json)
+        os.rename(temp_packages, packages_file)
+    except Exception as e:
+        if os.path.exists(temp_packages):
+            os.unlink(temp_packages)
+        raise OSError(f"Failed to write packages atomically to {packages_file}: {e}")
+    
+    # Write services atomically (temp + rename)
+    services_file = f"{state_path}/enabled_services"
+    temp_services = f"{state_path}/.tmp_services_{os.getpid()}"
+    try:
+        with open(temp_services, "w") as f:
+            f.write("\n".join(system_services))
+        os.rename(temp_services, services_file)
+    except Exception as e:
+        if os.path.exists(temp_services):
+            os.unlink(temp_services)
+        raise OSError(f"Failed to write services atomically to {services_file}: {e}")
 
 
 def load_package_lock(state_path: str) -> Optional[Dict[str, str]]:

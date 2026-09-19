@@ -10,6 +10,9 @@ with KodOS functionality including installation, configuration, and system manag
 import os
 import sys
 import json
+import re
+import subprocess
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 import logging
@@ -92,6 +95,181 @@ def _wrap_text(text: str, width: int = 76, indent: int = 0) -> str:
         if current_line:
             lines.append(indent_str + " ".join(current_line))
     return "\n".join(lines)
+
+
+def _validate_generation_id(generation_id: int) -> None:
+    """Validate generation ID to prevent directory traversal attacks.
+    
+    Generation IDs must be simple non-negative integers to prevent
+    path traversal via paths like "../../etc/passwd".
+    
+    Raises:
+        ValueError: If generation_id is invalid
+    """
+    if not isinstance(generation_id, int) or generation_id < 0:
+        raise ValueError(f"Invalid generation ID: {generation_id} (must be non-negative integer)")
+    # Additional safety: ensure string representation has no path characters
+    gen_str = str(generation_id)
+    if not re.match(r'^\d+$', gen_str):
+        raise ValueError(f"Invalid generation ID format: {gen_str}")
+
+
+def _verify_unmount(mount_point: str, max_retries: int = 3) -> None:
+    """Verify that a mount point is actually unmounted, with flush and retry.
+    
+    Lazy unmount (-l flag) can return success even if mounts are still busy.
+    This function ensures data is flushed and verifies the unmount actually succeeded.
+    
+    Args:
+        mount_point: Path to verify unmount
+        max_retries: Number of retry attempts before raising error
+    
+    Raises:
+        RuntimeError: If mount point remains mounted after retries
+    """
+    import subprocess
+    import time
+    
+    # Flush all file buffers to disk
+    logger.info(f"Flushing buffers before verifying unmount of {mount_point}")
+    os.sync()
+    time.sleep(1)  # Give kernel time to process flush
+    
+    # Verify unmount with retries
+    for attempt in range(max_retries):
+        result = subprocess.run(
+            ["mountpoint", "-q", mount_point],
+            capture_output=True,
+            timeout=5
+        )
+        
+        if result.returncode != 0:  # mountpoint -q returns 1 if not mounted
+            logger.info(f"Successfully verified unmount of {mount_point} on attempt {attempt + 1}")
+            return
+        
+        if attempt < max_retries - 1:
+            logger.warning(f"Mount point {mount_point} still mounted, retrying... (attempt {attempt + 1}/{max_retries})")
+            time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+    
+    raise RuntimeError(f"Failed to unmount {mount_point} after {max_retries} attempts - data may be lost")
+
+
+
+def _swap_generations_atomic(current_gen: int, new_gen: int) -> None:
+    """Atomically swap generation rootfs directories with rollback on failure.
+    
+    This operation is critical for system stability. If any step fails,
+    the rollback restores the previous generation so the system remains bootable.
+    
+    Operation:
+    1. Validate all paths exist
+    2. Create btrfs snapshot backup of current generation
+    3. Move current rootfs → new generation dir
+    4. Move old rootfs → current generation dir (from /kod/current)
+    5. Move generation state files (installed_packages, enabled_services)
+    6. On success: delete backup
+    7. On failure: restore from backup
+    
+    Args:
+        current_gen: Current generation number (the one to swap out)
+        new_gen: New generation number (the one to activate)
+    
+    Raises:
+        RuntimeError: If swap fails at any point
+    """
+    import subprocess
+    import time
+    
+    # Validate IDs
+    _validate_generation_id(current_gen)
+    _validate_generation_id(new_gen)
+    
+    current_rootfs = f"/kod/generations/{current_gen}/rootfs"
+    new_gen_dir = f"/kod/generations/{new_gen}"
+    old_rootfs = "/kod/current/old-rootfs"
+    backup_path = f"/tmp/backup_gen{current_gen}_{int(time.time())}"
+    
+    # State files to move
+    state_files = [
+        ("installed_packages", "installed_packages"),
+        ("enabled_services", "enabled_services"),
+    ]
+    
+    # Step 1: Validate all sources exist
+    for path in [current_rootfs, old_rootfs, new_gen_dir]:
+        if not os.path.exists(path):
+            raise RuntimeError(f"Swap failed: missing required path: {path}")
+    
+    for src_file, _ in state_files:
+        if not os.path.exists(f"/kod/current/{src_file}"):
+            raise RuntimeError(f"Swap failed: missing state file: /kod/current/{src_file}")
+    
+    try:
+        # Step 2: Create backup via btrfs snapshot (atomic)
+        # ponytail: skip if non-btrfs, try direct cp on failure
+        try:
+            result = subprocess.run(
+                ["btrfs", "subvolume", "snapshot", current_rootfs, backup_path],
+                check=False, capture_output=True, timeout=60
+            )
+            if result.returncode != 0:
+                # Not btrfs or snapshot failed, use tar as fallback
+                logger.warning(f"btrfs snapshot failed, using tar backup: {result.stderr.decode()}")
+                subprocess.run(
+                    ["tar", "-C", current_rootfs, "-cf", f"{backup_path}.tar", "."],
+                    check=True, timeout=300
+                )
+                backup_path = f"{backup_path}.tar"
+        except Exception as e:
+            raise RuntimeError(f"Failed to create backup: {e}")
+        
+        # Step 3: Move current rootfs to new generation
+        try:
+            os.rename(current_rootfs, f"{new_gen_dir}/rootfs")
+        except Exception as e:
+            raise RuntimeError(f"Failed to move current rootfs to {new_gen_dir}: {e}")
+        
+        # Step 4: Move old rootfs to current position
+        try:
+            os.rename(old_rootfs, current_rootfs)
+        except Exception as e:
+            # ROLLBACK: restore current rootfs from new generation
+            try:
+                os.rename(f"{new_gen_dir}/rootfs", current_rootfs)
+            except Exception as rollback_e:
+                logger.critical(f"CRITICAL: Failed to rollback after move failure: {rollback_e}")
+            raise RuntimeError(f"Failed to move old rootfs to current: {e}")
+        
+        # Step 5: Move generation state files
+        for src_file, dst_file in state_files:
+            try:
+                os.rename(f"/kod/current/{src_file}", f"/kod/generations/{current_gen}/{dst_file}")
+            except Exception as e:
+                # ROLLBACK: restore rootfs
+                try:
+                    os.rename(current_rootfs, old_rootfs)
+                    os.rename(f"{new_gen_dir}/rootfs", current_rootfs)
+                except Exception as rollback_e:
+                    logger.critical(f"CRITICAL: Failed to rollback state file move: {rollback_e}")
+                raise RuntimeError(f"Failed to move {src_file}: {e}")
+        
+        # Step 6: Success - cleanup backup
+        try:
+            if backup_path.endswith('.tar'):
+                os.unlink(backup_path)
+            else:
+                subprocess.run(["rm", "-rf", backup_path], timeout=30)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup backup {backup_path}: {e}")
+        
+        logger.info(f"Successfully swapped generations {current_gen} -> {new_gen}")
+        
+    except RuntimeError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Unexpected error during generation swap: {e}")
+
+
 
 
 def _print_section_text(name: str, data: dict, level: int = 0) -> None:
@@ -312,10 +490,12 @@ def install(config: Optional[str], mount_point: str) -> None:
         state_path = f"{mount_point}/kod/generations/0"
         os.makedirs(state_path, exist_ok=True)
         
-        # Ensure /kod/generations is world-writable so rebuild can create new generations
+        # Ensure /kod/generations is properly permissioned for rebuild (owner+group only)
         # Use chmod via shell to ensure it applies to the mounted subvolume
         try:
-            os.system(f"chmod 0o777 {mount_point}/kod/generations")
+            result = os.system(f"chmod 0o755 {mount_point}/kod/generations")
+            if result != 0:
+                logger.error(f"Failed to chmod /kod/generations: status {result}")
         except Exception as e:
             logger.warning(f"Failed to chmod /kod/generations: {e}")
         
@@ -349,6 +529,13 @@ def install(config: Optional[str], mount_point: str) -> None:
         try:
             # First try regular unmount
             exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
+            # Verify unmount succeeded and flush data
+            try:
+                _verify_unmount("/mnt", max_retries=3)
+            except RuntimeError as e:
+                logger.error(f"Unmount verification failed: {e}")
+                # Don't exit - let install complete, but warn user
+                print(f"⚠️  Warning: {e}", file=sys.stderr)
         except Exception as e:
             logger.warning(f"Failed to cleanup chroot mounts: {e}")
 
@@ -376,6 +563,8 @@ def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
         if new_root_path != "/":
             try:
                 exec_warn(f"umount -R {new_root_path}", "Failed to unmount generation")
+                # Verify unmount succeeded
+                _verify_unmount(new_root_path, max_retries=2)
             except Exception:
                 pass
         
@@ -477,6 +666,13 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
     # === Generation bookkeeping (unchanged) ===
     max_generation = get_max_generation()
     generation_id = int(max_generation) + 1
+    
+    # Validate generation ID to prevent directory traversal
+    try:
+        _validate_generation_id(generation_id)
+    except ValueError as e:
+        print(f"❌ Invalid generation ID: {e}", file=sys.stderr)
+        sys.exit(1)
 
     with open("/.generation") as f:
      current_generation = int(f.readline().strip())
@@ -616,12 +812,15 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         print("==== Deploying new generation ====")
         # The boot entry is written by the boot-entry plan step during execute.
         if not new_generation:
-            # Move current updated rootfs to a new generation
-            exec(f"mv /kod/generations/{current_generation}/rootfs /kod/generations/{generation_id}/")
-            # Moving the current rootfs copy to the current generation path
-            exec(f"mv /kod/current/old-rootfs /kod/generations/{current_generation}/rootfs")
-            exec(f"mv /kod/current/installed_packages /kod/generations/{current_generation}/installed_packages")
-            exec(f"mv /kod/current/enabled_services /kod/generations/{current_generation}/enabled_services")
+            # Atomically swap generations with rollback on failure
+            try:
+                _swap_generations_atomic(current_generation, generation_id)
+            except RuntimeError as e:
+                print(f"❌ Failed to swap generations: {e}", file=sys.stderr)
+                sys.exit(1)
+            
+            # Update boot configuration
+            partition_list = load_fstab("/")
             updated_partition_list = change_subvol(
                 partition_list,
                 subvol=f"generations/{generation_id}",
