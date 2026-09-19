@@ -54,6 +54,9 @@ class LuaRuntimeManager:
                 package.preload['utils'] = function()
                     return require('kod.lib.utils')
                 end
+                package.preload['configs'] = function()
+                    return require('kod.lib.configs')
+                end
                 
                 -- Core modules
                 package.preload['schema'] = function()
