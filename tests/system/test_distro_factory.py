@@ -73,7 +73,7 @@ def test_get_distro_adapter_raises_on_unsupported_distro():
     """New factory should raise on unsupported distro."""
     from kod.system.distro.factory import get_distro_adapter
     
-    with pytest.raises(ValueError, match="Unsupported distro"):
+    with pytest.raises(ValueError, match="Unknown distro"):
         get_distro_adapter("fedora")
 
 

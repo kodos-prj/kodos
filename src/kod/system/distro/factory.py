@@ -35,7 +35,7 @@ def get_distro_adapter(distro_name: str) -> DistroAdapter:
     }
     
     if distro_name not in adapters:
-        raise ValueError(f"Unsupported distro: {distro_name}. Supported: {set(adapters.keys())}")
+        raise ValueError(f"Unknown distro: {distro_name}")
     
     return adapters[distro_name]()
 
