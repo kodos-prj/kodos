@@ -46,10 +46,12 @@ local function emit_config_steps(steps, username, kind, name, pconf, order_base)
     local i = 0
     for _, cmd in ipairs(capture_commands(command, pconf.config)) do
         i = i + 1
+        -- Wrap config commands with || true to make them non-fatal
+        -- (some programs may not be installed yet or may be optional)
         table.insert(steps, {
             name = "users_" .. username .. "_" .. kind .. "_" .. name .. "_" .. i,
             description = "Deploy " .. kind .. " " .. name .. " config for " .. username,
-            command = cmd,
+            command = cmd .. " || true",
             chroot = true,
             order = order_base + i,
         })
