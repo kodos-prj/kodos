@@ -365,7 +365,9 @@ def plan_disk_steps(conf: Any) -> List[Step]:
             blockdevice = f"{device}{suffix}{pid}"
             
             # Build sgdisk args: -n 0:0:SIZE -t 0:TYPE -c 0:NAME device
-            args = ["-n", f"0:0:{size}"]
+            # Size format: +512MiB, +10GiB for relative sizing, or 0 for remaining space
+            end_sector = "0" if size == "100%" else f"+{size}"
+            args = ["-n", f"0:0:{end_sector}"]
             gpt_type = gpt_type_codes.get(fs)
             if gpt_type:
                 args += ["-t", f"0:{gpt_type}"]

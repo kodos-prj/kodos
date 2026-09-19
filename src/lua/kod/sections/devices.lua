@@ -53,17 +53,18 @@ local module = {
                       })
                       
                        -- Create partitions using sgdisk
-                       if disk_config.partitions and type(disk_config.partitions) == "table" then
-                           for part_num, partition in pairs(disk_config.partitions) do
-                               if type(partition) == "table" and partition.size then
-                                   local part_name = partition.name or ("part" .. part_num)
-                                   local part_size = partition.size
-                                   local fs_type = partition.filesystem or "ext4"
-                                   
-                                   -- Build sgdisk command: -n START:END -t SECTOR:CODE -c SECTOR:NAME
-                                   -- Sector numbers: partition number (1-based, but 0 means auto-increment)
-                                   -- Size format: +512MiB, +10GiB, or 0 for remaining space
-                                   local sgdisk_args = {"-n", "0:0:" .. part_size}
+                        if disk_config.partitions and type(disk_config.partitions) == "table" then
+                            for part_num, partition in pairs(disk_config.partitions) do
+                                if type(partition) == "table" and partition.size then
+                                    local part_name = partition.name or ("part" .. part_num)
+                                    local part_size = partition.size
+                                    local fs_type = partition.filesystem or "ext4"
+                                    
+                                    -- Build sgdisk command: -n START:END -t SECTOR:CODE -c SECTOR:NAME
+                                    -- Sector numbers: partition number (1-based, but 0 means auto-increment)
+                                    -- Size format: +512MiB, +10GiB, or 0 for remaining space
+                                    local end_sector = (part_size == "100%") and "0" or ("+" .. part_size)
+                                    local sgdisk_args = {"-n", "0:0:" .. end_sector}
                                    
                                    -- Add partition type code if filesystem is mapped
                                    local gpt_type = FilesystemTypes.get_gpt_type(fs_type)
