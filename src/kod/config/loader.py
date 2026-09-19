@@ -78,10 +78,12 @@ IfElse = require("utils").if_else
     luart.execute(default_libs)
     with open(config_filename) as f:
         config_data = f.read()
-        # Wrap config in local variable and return it
-        # This ensures the table expression is captured and returned
-        wrapped_config = f"local _config = ({config_data})\nreturn _config"
-        conf = luart.execute(wrapped_config)
+        result = luart.execute(config_data)
+        # lupa.execute() may return (status, value) tuple or just the value
+        if isinstance(result, tuple) and len(result) == 2:
+            conf = result[1]
+        else:
+            conf = result
     return conf
 
 
