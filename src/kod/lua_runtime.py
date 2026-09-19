@@ -50,6 +50,11 @@ class LuaRuntimeManager:
             # Preload modules that were moved to subdirectories
             # so legacy `require('module_name')` calls still work
             self.lua.execute("""
+                -- Utility modules
+                package.preload['utils'] = function()
+                    return require('kod.lib.utils')
+                end
+                
                 -- Core modules
                 package.preload['schema'] = function()
                     return require('kod.core.schema')

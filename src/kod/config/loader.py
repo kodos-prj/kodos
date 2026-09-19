@@ -48,9 +48,9 @@ def load_config_lua(config_filename: Optional[str]) -> Any:
     print(f"Config file: {config_filename}")
     config_path = Path(config_filename).resolve().parents[0]
     luart.execute(f"package.path = '{config_path}/?.lua;' .. package.path")
-    lib_path = Path(__file__).resolve().parents[2]  # Go up to src/kod/ directory
-    luart.execute(f"package.path = '{lib_path}/kod/lib/?.lua;' .. package.path")
-    luart.execute("package.path = 'kod/lib/?.lua;' .. package.path")
+    lib_path = Path(__file__).resolve().parents[2]  # Go up to src/ directory
+    # Add paths for Lua modules organized in src/lua/
+    luart.execute(f"package.path = '{lib_path}/lua/?.lua;{lib_path}/lua/?/init.lua;' .. package.path")
     luart.execute("print(package.path)")
     print("Loading default libraries")
 
