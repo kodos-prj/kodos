@@ -23,8 +23,9 @@ def get_kernel_file(mount_point: str, package: str = "linux") -> Tuple[str, str]
         Tuple of (kernel_file_path, kernel_version)
     """
     # For tests and default usage, use Arch
-    from kod.system.distro.arch import get_kernel_file as arch_get_kernel
-    return arch_get_kernel(mount_point, package)
+    from kod.system.distro.adapters.arch import ArchAdapter
+    arch_adapter = ArchAdapter()
+    return arch_adapter.get_kernel_file(mount_point, package)
 
 
 def get_kernel_version(mount_point: str) -> str:
