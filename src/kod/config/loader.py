@@ -78,7 +78,9 @@ IfElse = require("utils").if_else
     luart.execute(default_libs)
     with open(config_filename) as f:
         config_data = f.read()
-        conf = luart.execute(config_data)
+        # Wrap config in return statement to ensure proper return value
+        wrapped_config = f"return ({config_data})"
+        conf = luart.execute(wrapped_config)
     return conf
 
 
