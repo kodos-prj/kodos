@@ -43,7 +43,7 @@ local module = {
             table.insert(steps, {
                name = "boot_kernel_modules_config",
                description = "Configure initramfs modules: " .. table.concat(modules, " "),
-               command = "mkdir -p /etc/dracut.conf.d && printf \"" .. table.concat(add_lines, "\\n") .. "\" > /etc/dracut.conf.d/kodos.conf",
+               command = "mkdir -p /etc/dracut.conf.d && printf '%s\\n' " .. "'" .. table.concat(add_lines, "' '") .. "'" .. " > /etc/dracut.conf.d/kodos.conf",
                chroot = true,
                order = 199,
             })

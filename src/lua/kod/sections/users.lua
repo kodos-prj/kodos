@@ -152,16 +152,16 @@ local module = {
                       for _, g in ipairs(groups) do
                           if g == "wheel" then has_wheel = true end
                       end
-                      if has_wheel then
-                          table.insert(steps, {
-                              name = "users_sudoers_wheel_" .. username,
-                              description = "Enable %wheel sudo access for " .. username,
-                              command = "sed -i \"s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/\" /etc/sudoers && sed -i \"s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/\" /etc/pam.d/su",
-                              chroot = true,
-                              order = 602 + (tonumber(username:match("%d+")) or 0),
-                              depends_on = {"users_groups_" .. username},
-                          })
-                      end
+                       if has_wheel then
+                           table.insert(steps, {
+                               name = "users_sudoers_wheel_" .. username,
+                               description = "Enable %wheel sudo access for " .. username,
+                               command = "test -f /etc/sudoers && (sed -i \"s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/\" /etc/sudoers && sed -i \"s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/\" /etc/pam.d/su) || true",
+                               chroot = true,
+                               order = 602 + (tonumber(username:match("%d+")) or 0),
+                               depends_on = {"users_groups_" .. username},
+                           })
+                       end
                   end
 
                   -- Configure home directory (home_programs)
