@@ -126,44 +126,168 @@ local module = {
             end
         end
 
-        if config.display_manager and any_env_enabled then
-            local dm_service = config.display_manager:lower()
-            
-            -- Install display manager packages if needed
-            local dm_packages = {
-                gdm = "gdm",
-                sddm = "sddm",
-                lightdm = "lightdm",
-                ["cosmic-session"] = "cosmic-session",
-            }
-            
-             local dm_pkg = dm_packages[dm_service] or dm_service
+         if config.display_manager and any_env_enabled then
+             local dm_service = config.display_manager:lower()
              
-             local install_cmd = Repos.install_cmd(distro, dm_pkg)
-             if not install_cmd then
-                 return steps
+             -- Install display manager packages if needed
+             local dm_packages = {
+                 gdm = "gdm",
+                 sddm = "sddm",
+                 lightdm = "lightdm",
+                 ["cosmic-session"] = "cosmic-session",
+             }
+             
+              local dm_pkg = dm_packages[dm_service] or dm_service
+              
+              local install_cmd = Repos.install_cmd(distro, dm_pkg)
+              if not install_cmd then
+                  return steps
+              end
+             
+             table.insert(steps, {
+                 name = "desktop_display_manager_install",
+                 description = "Install display manager: " .. config.display_manager,
+                 command = install_cmd,
+                 chroot = true,
+                 order = 455,
+             })
+             
+             table.insert(steps, {
+                 kind = "service",
+                 name = dm_service,
+                 description = "Enable display manager " .. dm_service,
+                 command = "systemctl enable " .. dm_service,
+                 chroot = true,
+                 order = 456,
+                 depends_on = {"desktop_display_manager_install"},
+             })
+         end
+         
+         -- Flatpak apps installation (post-boot via systemd service)
+         -- Extract flatpak apps from packages and defer to first-boot service
+         local flatpak_apps = {}
+         
+         -- Check desktop.packages
+         if config.packages and type(config.packages) == "table" then
+             for _, pkg in ipairs(config.packages) do
+                 if type(pkg) == "string" and pkg:find("^flatpak:") then
+                     local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                     table.insert(flatpak_apps, app_name)
+                 end
              end
-            
-            table.insert(steps, {
-                name = "desktop_display_manager_install",
-                description = "Install display manager: " .. config.display_manager,
-                command = install_cmd,
-                chroot = true,
-                order = 455,
-            })
-            
-            table.insert(steps, {
-                kind = "service",
-                name = dm_service,
-                description = "Enable display manager " .. dm_service,
-                command = "systemctl enable " .. dm_service,
-                chroot = true,
-                order = 456,
-                depends_on = {"desktop_display_manager_install"},
-            })
-        end
-        
-        return steps
+         end
+         
+         -- Check desktop.environments[*].extra_packages
+         if config.environments and type(config.environments) == "table" then
+             for env_name, env_config in pairs(config.environments) do
+                 if type(env_config) == "table" and env_config.extra_packages and type(env_config.extra_packages) == "table" then
+                     for _, pkg in ipairs(env_config.extra_packages) do
+                         if type(pkg) == "string" and pkg:find("^flatpak:") then
+                             local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                             table.insert(flatpak_apps, app_name)
+                         end
+                     end
+                 end
+             end
+         end
+         
+         if #flatpak_apps > 0 then
+              -- Write flatpak apps list to config file
+              local apps_list = table.concat(flatpak_apps, "\n")
+              local write_config_cmd = "mkdir -p /etc/kod && echo '" .. apps_list:gsub("'", "'\\''") .. "' > /etc/kod/flatpak-apps.txt"
+              
+              table.insert(steps, {
+                  name = "flatpak_config_write",
+                  description = "Write flatpak apps config",
+                  command = write_config_cmd,
+                  chroot = true,
+                  order = 470,
+              })
+              
+              -- Write install script (uses printf to avoid shell variable interpolation issues)
+              -- Store script as base64 to avoid escaping nightmares
+              local install_script_content = [[#!/bin/bash
+# kod-install-flatpak-apps - Install flatpak applications on first boot
+set -e
+FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
+INSTALLED_FLAG="/var/lib/kod/flatpak-apps-installed"
+if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
+    echo "No flatpak apps configured in $FLATPAK_APPS_CONFIG"
+    exit 0
+fi
+mapfile -t APPS < "$FLATPAK_APPS_CONFIG"
+if [ ${#APPS[@]} -eq 0 ]; then
+    echo "No flatpak apps to install"
+    mkdir -p "$(dirname "$INSTALLED_FLAG")"
+    touch "$INSTALLED_FLAG"
+    exit 0
+fi
+echo "Installing flatpak applications"
+if ! flatpak remote-list | grep -q flathub; then
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+fi
+flatpak install -y flathub "${APPS[@]}"
+mkdir -p "$(dirname "$INSTALLED_FLAG")"
+touch "$INSTALLED_FLAG"
+echo "Flatpak apps installation complete"
+]]
+              
+              -- Escape single quotes for shell
+              local script_escaped = install_script_content:gsub("'", "'\\''")
+              local write_script_cmd = "mkdir -p /usr/local/bin && echo '" .. script_escaped .. "' > /usr/local/bin/kod-install-flatpak-apps && chmod +x /usr/local/bin/kod-install-flatpak-apps"
+              
+              table.insert(steps, {
+                  name = "flatpak_install_script_write",
+                  description = "Write flatpak install script",
+                  command = write_script_cmd,
+                  chroot = true,
+                  order = 471,
+                  depends_on = {"flatpak_config_write"},
+              })
+              
+              -- Write systemd service
+              local systemd_service = [[
+[Unit]
+Description=KodOS Flatpak Apps Installer
+After=multi-user.target
+ConditionPathExists=/etc/kod/flatpak-apps.txt
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/kod-install-flatpak-apps
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+]]
+              
+              local service_escaped = systemd_service:gsub("'", "'\\''")
+              local write_service_cmd = "mkdir -p /etc/systemd/system && echo '" .. service_escaped .. "' > /etc/systemd/system/kod-flatpak-install.service"
+              
+              table.insert(steps, {
+                  name = "flatpak_systemd_service_write",
+                  description = "Write flatpak installer systemd service",
+                  command = write_service_cmd,
+                  chroot = true,
+                  order = 472,
+                  depends_on = {"flatpak_install_script_write"},
+              })
+              
+              -- Enable the service to run on first boot
+              table.insert(steps, {
+                  kind = "service",
+                  name = "kod-flatpak-install",
+                  description = "Enable flatpak installer service for first boot",
+                  command = "systemctl enable kod-flatpak-install",
+                  chroot = true,
+                  order = 473,
+                  depends_on = {"flatpak_systemd_service_write"},
+              })
+          end
+         
+         return steps
     end
 }
 

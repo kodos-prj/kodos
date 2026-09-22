@@ -139,9 +139,9 @@ local function install_cmd(distro, packages)
             -- They don't break the build; just not installed. Defensive skip.
         end
         if #flatpak_pkgs > 0 then
-            -- ponytail: Skip flatpak packages silently in chroot installs.
-            -- Flatpak requires host system to be fully initialized; can't work in chroot.
-            -- Defer to post-boot configuration.
+            -- ponytail: Skip flatpak app packages during rebuild (can't initialize in chroot).
+            -- Apps are deferred to post-boot via kod-flatpak-install systemd service.
+            -- Only the flatpak package itself (installed via arch repos) is available in image.
         end
         if #commands > 0 then
             return table.concat(commands, " && ")
