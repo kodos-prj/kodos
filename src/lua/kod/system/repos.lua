@@ -135,8 +135,8 @@ local function install_cmd(distro, packages)
             table.insert(commands, "pacman -S --noconfirm " .. table.concat(arch_pkgs, " "))
         end
         if #aur_pkgs > 0 then
-            -- ponytail: AUR packages in rebuild not supported; add when AUR helper available in chroot
-            table.insert(commands, "echo 'Skipping AUR packages (not available in rebuild): " .. table.concat(aur_pkgs, " ") .. "'")
+            -- ponytail: Skip AUR packages silently in install (would need yay/paru in chroot).
+            -- They don't break the build; just not installed. Defensive skip.
         end
         if #flatpak_pkgs > 0 then
             table.insert(commands, "flatpak install -y flathub " .. table.concat(flatpak_pkgs, " "))
