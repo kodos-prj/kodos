@@ -142,9 +142,9 @@ def enable_services_from_programs(
             service_name = service["service_name"] if "service_name" in service else None
             if service_name:
                 services_to_enable.append(service_name)
-     
-     # Use existing enable_services() function
-     if services_to_enable:
-         enable_services(services_to_enable, mount_point=mount_point, use_chroot=use_chroot)
+    
+    # Use existing enable_services() function
+    if services_to_enable:
+        enable_services(services_to_enable, mount_point=mount_point, use_chroot=use_chroot)
 
 
