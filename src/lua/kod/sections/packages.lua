@@ -32,7 +32,7 @@ local function aggregate_desktop_packages(config)
         table.insert(packages, desktop.display_manager)
     end
     
-    -- Desktop environments and extra packages
+    -- Desktop environments and extra packages (legacy desktop_manager structure)
     if desktop.desktop_manager then
         for dm_name, dm_conf in pairs(desktop.desktop_manager) do
             if dm_conf.enable then
@@ -41,6 +41,23 @@ local function aggregate_desktop_packages(config)
                 -- Extra packages for this desktop
                 if dm_conf.extra_packages then
                     for _, pkg in pairs(dm_conf.extra_packages) do
+                        table.insert(packages, pkg)
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Modern desktop environments structure
+    if desktop.environments then
+        for env_name, env_conf in pairs(desktop.environments) do
+            if env_conf.enable then
+                -- Main environment package (e.g., 'gnome', 'plasma', 'cosmic')
+                table.insert(packages, env_name)
+                
+                -- Extra packages for this environment
+                if env_conf.extra_packages then
+                    for _, pkg in pairs(env_conf.extra_packages) do
                         table.insert(packages, pkg)
                     end
                 end
