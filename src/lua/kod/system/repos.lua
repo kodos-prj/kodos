@@ -141,7 +141,10 @@ local function install_cmd(distro, packages)
         if #flatpak_pkgs > 0 then
             table.insert(commands, "flatpak install -y flathub " .. table.concat(flatpak_pkgs, " "))
         end
-        return table.concat(commands, " && ") or nil
+        if #commands > 0 then
+            return table.concat(commands, " && ")
+        end
+        return nil
     elseif distro == "debian" then
         if #arch_pkgs > 0 then
             return "apt-get install -y " .. table.concat(arch_pkgs, " ")
@@ -201,7 +204,10 @@ local function remove_cmd(distro, packages)
         if #flatpak_pkgs > 0 then
             table.insert(commands, "flatpak uninstall -y " .. table.concat(flatpak_pkgs, " "))
         end
-        return table.concat(commands, " && ") or nil
+        if #commands > 0 then
+            return table.concat(commands, " && ")
+        end
+        return nil
     elseif distro == "debian" then
         if #arch_pkgs > 0 then
             return "apt-get remove -y " .. table.concat(arch_pkgs, " ")
