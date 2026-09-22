@@ -516,8 +516,8 @@ def install(config: Optional[str], mount_point: str) -> None:
             if os.path.exists(state_path):
                 print(f"DEBUG: Files in {state_path}: {os.listdir(state_path)}")
             
-            dist.generale_package_lock(mount_point, state_path)
-            print(f"DEBUG: generale_package_lock succeeded")
+            dist.generate_package_lock(mount_point, state_path)
+            print(f"DEBUG: generate_package_lock succeeded")
             if os.path.exists(state_path):
                 print(f"DEBUG: Files in {state_path} after lock: {os.listdir(state_path)}")
             print("Generation 0 state recorded successfully")
@@ -810,7 +810,7 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
         next_services = get_services_to_enable(ctx, conf)
         packages_to_install, _packages_to_remove = get_packages_to_install(conf)
         store_packages_services(next_state_path, packages_to_install, next_services)
-        dist.generale_package_lock(new_root_path, next_state_path)
+        dist.generate_package_lock(new_root_path, next_state_path)
 
         partition_list = load_fstab("/")
 
