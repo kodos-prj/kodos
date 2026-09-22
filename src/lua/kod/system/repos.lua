@@ -92,6 +92,11 @@ local function install_cmd(distro, packages)
     -- - packages: string or list of package names (may include aur:, flatpak:, etc prefixes)
     -- Returns: install command string, or nil if distro unsupported
     
+    -- ponytail: Hardcoded repo commands for aur:/flatpak: prefixes.
+    -- Better: pass config.repos registry through planning so install_cmd() can look up
+    -- actual repo.commands.install from aur_repo/flatpak_repo table definitions.
+    -- Avoid duplicating command logic in two places. Upgrade when planner passes repos context.
+    
     if not packages then
         return nil
     end
@@ -150,6 +155,8 @@ local function remove_cmd(distro, packages)
     -- - distro: "arch" or "debian"
     -- - packages: string or list of package names (may include aur:, flatpak:, etc prefixes)
     -- Returns: remove command string, or nil if distro unsupported
+    
+    -- ponytail: Hardcoded repo commands (see install_cmd for upgrade path)
     
     if not packages then
         return nil
