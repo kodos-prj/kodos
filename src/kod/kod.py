@@ -450,6 +450,11 @@ def install(config: Optional[str], mount_point: str) -> None:
         steps = build_plan(conf, dist, baseline="empty")
         print("\n=== Install Plan Preview ===\n")
         print(render_plan(steps, "empty", config))
+        print(f"\nPlan contains {len(steps)} steps", file=sys.stderr)
+        
+        if not steps:
+            print("❌ No install steps generated. Check configuration.", file=sys.stderr)
+            sys.exit(1)
         
         # Setup execution environment
         env = {

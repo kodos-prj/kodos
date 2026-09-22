@@ -40,11 +40,20 @@ local module = {
                 table.insert(add_lines, "add_drivers+=" .. m)
             end
 
-            local config_content = table.concat(add_lines, "\\n")
+            -- Build command that writes each line safely using echo -e and redirection
+            -- Convert Lua table to shell-safe format
+            local shell_lines = {}
+            for _, line in ipairs(add_lines) do
+                -- Escape any single quotes in line for shell
+                local safe_line = line:gsub("'", "'\\''")
+                table.insert(shell_lines, "echo '" .. safe_line .. "'")
+            end
+            local echo_commands = table.concat(shell_lines, " && ")
+            
             table.insert(steps, {
                name = "boot_kernel_modules_config",
                description = "Configure initramfs modules: " .. table.concat(modules, " "),
-               command = "mkdir -p /etc/dracut.conf.d && printf '%b\\n' '" .. config_content .. "' > /etc/dracut.conf.d/kodos.conf",
+               command = "mkdir -p /etc/dracut.conf.d && (" .. echo_commands .. ") > /etc/dracut.conf.d/kodos.conf",
                chroot = true,
                order = 199,
             })
