@@ -139,7 +139,9 @@ local function install_cmd(distro, packages)
             -- They don't break the build; just not installed. Defensive skip.
         end
         if #flatpak_pkgs > 0 then
-            table.insert(commands, "flatpak install -y flathub " .. table.concat(flatpak_pkgs, " "))
+            -- ponytail: Skip flatpak packages silently in chroot installs.
+            -- Flatpak requires host system to be fully initialized; can't work in chroot.
+            -- Defer to post-boot configuration.
         end
         if #commands > 0 then
             return table.concat(commands, " && ")
@@ -202,7 +204,7 @@ local function remove_cmd(distro, packages)
             -- Skip AUR packages silently (would need yay/paru)
         end
         if #flatpak_pkgs > 0 then
-            table.insert(commands, "flatpak uninstall -y " .. table.concat(flatpak_pkgs, " "))
+            -- Skip flatpak packages silently (can't work in chroot)
         end
         if #commands > 0 then
             return table.concat(commands, " && ")
