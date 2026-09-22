@@ -14,7 +14,7 @@ end
 
 -- Run a shell step (system or disk). Returns {success=...} or {success=false, error=...}.
 function Executor.run_shell(step, mount_point)
-    local parts = { step.program }
+    local parts = { step.program or step.command or "" }
     for i = 1, #(step.args or {}) do
         table.insert(parts, step.args[i])
     end
@@ -51,7 +51,7 @@ function Executor.run(steps, ctx, dispatch, hooks)
         end
 
         local result
-        if step.program and step.program ~= "" then
+        if (step.program or step.command) and (step.program or step.command) ~= "" then
             -- Any step carrying a command is a shell step (system or disk).
             result = Executor.run_shell(step, ctx.mount_point)
         elseif step.kind == "package" or step.kind == "service" or step.kind == "system" then
