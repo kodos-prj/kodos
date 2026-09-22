@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from kod.common import (
     exec,
     exec_chroot,
+    setup_chroot_mounts,
     set_debug,
     set_verbose,
     exec_warn,
@@ -712,6 +713,8 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
             exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
             use_chroot = True
             new_root_path = create_next_generation(boot_partition, root_partition, generation_id)
+            # Setup pseudo-filesystems in the new generation for chroot operations
+            setup_chroot_mounts(new_root_path)
         else:
             exec("btrfs subvolume snapshot / /kod/current/old-rootfs")
             exec(f"cp /kod/generations/{current_generation}/installed_packages /kod/current/installed_packages")

@@ -126,6 +126,40 @@ def exec(
         raise
 
 
+def setup_chroot_mounts(mount_point: str = "/mnt") -> None:
+    """Setup pseudo-filesystems for a chroot environment.
+    
+    Mounts /proc, /sys, and binds /dev inside the chroot so that commands
+    like pacman, systemd, etc. can run properly. Creates /etc/mtab as a
+    symlink to /proc/mounts for compatibility.
+    
+    Args:
+        mount_point: The chroot mount point. Defaults to "/mnt".
+    
+    Raises:
+        OSError: If mount_point does not exist or mounts fail.
+    """
+    mount_path = Path(mount_point)
+    if not mount_path.is_dir():
+        raise OSError(f"Chroot mount point does not exist: {mount_point}")
+    
+    try:
+        # Mount proc and sysfs
+        exec(f"mount -t proc proc {mount_point}/proc", warn_on_fail=True)
+        exec(f"mount -t sysfs sys {mount_point}/sys", warn_on_fail=True)
+        
+        # Bind mount /dev
+        exec(f"mount -o bind /dev {mount_point}/dev", warn_on_fail=True)
+        exec(f"mount -o bind /dev/pts {mount_point}/dev/pts", warn_on_fail=True)
+        
+        # Create mtab symlink if needed
+        if not Path(f"{mount_point}/etc/mtab").exists() and not Path(f"{mount_point}/etc/mtab").is_symlink():
+            exec(f"ln -sf /proc/mounts {mount_point}/etc/mtab", warn_on_fail=True)
+    except OSError as e:
+        logger.warning(f"Failed to setup chroot mounts at {mount_point}: {e}")
+        raise
+
+
 def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, **kwargs) -> str:
     """Execute a command within a chroot environment with error handling.
 
