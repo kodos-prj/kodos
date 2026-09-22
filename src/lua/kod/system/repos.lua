@@ -196,7 +196,7 @@ local function remove_cmd(distro, packages)
             table.insert(commands, "pacman -Rscn --noconfirm " .. table.concat(arch_pkgs, " "))
         end
         if #aur_pkgs > 0 then
-            table.insert(commands, "echo 'Skipping AUR package removal (would require AUR helper): " .. table.concat(aur_pkgs, " ") .. "'")
+            -- Skip AUR packages silently (would need yay/paru)
         end
         if #flatpak_pkgs > 0 then
             table.insert(commands, "flatpak uninstall -y " .. table.concat(flatpak_pkgs, " "))
