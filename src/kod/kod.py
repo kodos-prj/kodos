@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # from kod.arch import get_base_packages, get_kernel_file, install_essentials_pkgs, proc_repos, refresh_package_db
 from kod.common import (
     exec,
+    exec_chroot,
     set_debug,
     set_verbose,
     exec_warn,
