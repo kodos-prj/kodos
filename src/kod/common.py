@@ -144,20 +144,38 @@ def setup_chroot_mounts(mount_point: str = "/mnt") -> None:
         raise OSError(f"Chroot mount point does not exist: {mount_point}")
     
     try:
-        # Mount proc and sysfs
-        exec(f"mount -t proc proc {mount_point}/proc", warn_on_fail=True)
-        exec(f"mount -t sysfs sys {mount_point}/sys", warn_on_fail=True)
+        # Mount proc and sysfs (ignore if already mounted)
+        try:
+            exec(f"mount -t proc proc {mount_point}/proc")
+        except Exception:
+            pass
         
-        # Bind mount /dev
-        exec(f"mount -o bind /dev {mount_point}/dev", warn_on_fail=True)
-        exec(f"mount -o bind /dev/pts {mount_point}/dev/pts", warn_on_fail=True)
+        try:
+            exec(f"mount -t sysfs sys {mount_point}/sys")
+        except Exception:
+            pass
+        
+        # Bind mount /dev (ignore if already mounted)
+        try:
+            exec(f"mount -o bind /dev {mount_point}/dev")
+        except Exception:
+            pass
+        
+        try:
+            exec(f"mount -o bind /dev/pts {mount_point}/dev/pts")
+        except Exception:
+            pass
         
         # Create mtab symlink if needed
-        if not Path(f"{mount_point}/etc/mtab").exists() and not Path(f"{mount_point}/etc/mtab").is_symlink():
-            exec(f"ln -sf /proc/mounts {mount_point}/etc/mtab", warn_on_fail=True)
-    except OSError as e:
-        logger.warning(f"Failed to setup chroot mounts at {mount_point}: {e}")
-        raise
+        try:
+            mtab_path = Path(f"{mount_point}/etc/mtab")
+            if not mtab_path.exists() and not mtab_path.is_symlink():
+                exec(f"ln -sf /proc/mounts {mount_point}/etc/mtab")
+        except Exception:
+            pass
+    except Exception as e:
+        logger.warning(f"Warning: Failed to setup some chroot mounts at {mount_point}: {e}")
+        # Don't raise - allow rebuild to continue even if some mounts fail
 
 
 def exec_chroot(cmd: str, mount_point: str = "/mnt", get_output: bool = False, **kwargs) -> str:
