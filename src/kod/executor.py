@@ -73,7 +73,10 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
             if callable(fn):
                 fn(meta.get("kernel"), mp)
         else:
+            # DEBUG: Log unknown step for investigation
+            logger.error(f"DEBUG: dispatch_step called for kind={kind}, name={name}, meta={meta}")
             raise StepError(f"Unknown step kind: {kind}")
+
 
     steps_lua = _convert_to_lua_table(lua, [s.to_dict() for s in steps])
 

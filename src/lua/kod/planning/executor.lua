@@ -41,6 +41,12 @@ function Executor.run(steps, ctx, dispatch, hooks)
 
     for i = 1, #steps do
         local step = steps[i]
+        
+        -- DEBUG: Log each step to see what's being executed
+        if step.kind == "package" and not (step.program or step.command) then
+            io.stderr:write(string.format("DEBUG: Step %d: kind=%s name=%s program=%s command=%s\n", 
+                i, step.kind or "nil", step.name or "nil", step.program or "nil", step.command or "nil"))
+        end
 
         -- pre hooks: error aborts the whole run
         for _, hook in ipairs(hooks["pre:" .. step.kind] or {}) do
