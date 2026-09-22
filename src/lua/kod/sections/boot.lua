@@ -40,13 +40,13 @@ local module = {
                 table.insert(add_lines, "add_drivers+=" .. m)
             end
 
-            -- Build command that writes each line safely using echo -e and redirection
-            -- Convert Lua table to shell-safe format
+            -- Build config content as multi-line string (each driver on own line)
+            -- Use double quotes in echo to allow variable expansion (though we have none)
+            -- This avoids nested quote escaping issues when command is wrapped in sh -c
             local shell_lines = {}
             for _, line in ipairs(add_lines) do
-                -- Escape any single quotes in line for shell
-                local safe_line = line:gsub("'", "'\\''")
-                table.insert(shell_lines, "echo '" .. safe_line .. "'")
+                -- Use double quotes so no escaping needed for simple strings like add_drivers+=...
+                table.insert(shell_lines, "echo \"" .. line .. "\"")
             end
             local echo_commands = table.concat(shell_lines, " && ")
             
