@@ -56,12 +56,38 @@ function Rebuild.diff(state)
         end
     end
 
-if not state.new_generation then
-    for _, svc in ipairs(sorted_diff(to_set(state.current_services), to_set(state.next_services))) do
-        table.insert(steps, { kind = "service", name = svc,
-            command = "systemctl disable --now " .. svc, chroot = false })
+    if not state.new_generation then
+        for _, svc in ipairs(sorted_diff(to_set(state.current_services), to_set(state.next_services))) do
+            table.insert(steps, { kind = "service", name = svc,
+                command = "systemctl disable --now " .. svc, chroot = false })
+        end
     end
-end
+    
+    -- Configure dracut BEFORE kernel install if kernel will be updated
+    -- This must happen before package installs so the kernel post-install hook uses correct config
+    if state.kernel_update_required then
+        local modules = { "btrfs" }
+        -- Note: state doesn't have full config, so we only include btrfs
+        -- Full kernel.modules would require access to the config object
+        local add_lines = {}
+        for _, m in ipairs(modules) do
+            table.insert(add_lines, "add_drivers+=" .. m)
+        end
+        local shell_lines = {}
+        for _, line in ipairs(add_lines) do
+            table.insert(shell_lines, "echo \"" .. line .. "\"")
+        end
+        local echo_commands = table.concat(shell_lines, " && ")
+        
+        table.insert(steps, {
+            kind = "system",
+            name = "boot_kernel_modules_config",
+            description = "Configure initramfs modules before kernel update",
+            command = "mkdir -p /etc/dracut.conf.d && (" .. echo_commands .. ") > /etc/dracut.conf.d/kodos.conf",
+            chroot = new_gen,
+            order = 199,
+        })
+    end
 
     local remove_set = {}
     for _, p in ipairs(sorted_diff(to_set(current_packages.packages), to_set(next_packages.packages))) do
