@@ -89,14 +89,58 @@ end
 local function install_cmd(distro, packages)
     -- Returns the install command for the given distro
     -- - distro: "arch" or "debian"
-    -- - packages: string or list of package names
+    -- - packages: string or list of package names (may include aur:, flatpak:, etc prefixes)
     -- Returns: install command string, or nil if distro unsupported
-    local pkg_str = type(packages) == "string" and packages or table.concat(packages, " ")
+    
+    if not packages then
+        return nil
+    end
+    
+    -- Convert to list if string
+    local pkg_list = {}
+    if type(packages) == "string" then
+        for pkg in packages:gmatch("%S+") do
+            table.insert(pkg_list, pkg)
+        end
+    else
+        pkg_list = packages
+    end
+    
+    -- Separate packages by their source (arch/aur/flatpak)
+    local arch_pkgs = {}
+    local aur_pkgs = {}
+    local flatpak_pkgs = {}
+    
+    for _, pkg in ipairs(pkg_list) do
+        if pkg:find("^aur:") then
+            local name = pkg:sub(5)  -- Remove "aur:" prefix
+            table.insert(aur_pkgs, name)
+        elseif pkg:find("^flatpak:") then
+            local name = pkg:sub(10)  -- Remove "flatpak:" prefix
+            table.insert(flatpak_pkgs, name)
+        else
+            table.insert(arch_pkgs, pkg)
+        end
+    end
+    
+    local commands = {}
     
     if distro == "arch" then
-        return "pacman -S --noconfirm " .. pkg_str
+        if #arch_pkgs > 0 then
+            table.insert(commands, "pacman -S --noconfirm " .. table.concat(arch_pkgs, " "))
+        end
+        if #aur_pkgs > 0 then
+            -- ponytail: AUR packages in rebuild not supported; add when AUR helper available in chroot
+            table.insert(commands, "echo 'Skipping AUR packages (not available in rebuild): " .. table.concat(aur_pkgs, " ") .. "'")
+        end
+        if #flatpak_pkgs > 0 then
+            table.insert(commands, "flatpak install -y flathub " .. table.concat(flatpak_pkgs, " "))
+        end
+        return table.concat(commands, " && ") or nil
     elseif distro == "debian" then
-        return "apt-get install -y " .. pkg_str
+        if #arch_pkgs > 0 then
+            return "apt-get install -y " .. table.concat(arch_pkgs, " ")
+        end
     end
     return nil
 end
@@ -104,14 +148,57 @@ end
 local function remove_cmd(distro, packages)
     -- Returns the remove command for the given distro
     -- - distro: "arch" or "debian"
-    -- - packages: string or list of package names
+    -- - packages: string or list of package names (may include aur:, flatpak:, etc prefixes)
     -- Returns: remove command string, or nil if distro unsupported
-    local pkg_str = type(packages) == "string" and packages or table.concat(packages, " ")
-
+    
+    if not packages then
+        return nil
+    end
+    
+    -- Convert to list if string
+    local pkg_list = {}
+    if type(packages) == "string" then
+        for pkg in packages:gmatch("%S+") do
+            table.insert(pkg_list, pkg)
+        end
+    else
+        pkg_list = packages
+    end
+    
+    -- Separate packages by their source
+    local arch_pkgs = {}
+    local aur_pkgs = {}
+    local flatpak_pkgs = {}
+    
+    for _, pkg in ipairs(pkg_list) do
+        if pkg:find("^aur:") then
+            local name = pkg:sub(5)  -- Remove "aur:" prefix
+            table.insert(aur_pkgs, name)
+        elseif pkg:find("^flatpak:") then
+            local name = pkg:sub(10)  -- Remove "flatpak:" prefix
+            table.insert(flatpak_pkgs, name)
+        else
+            table.insert(arch_pkgs, pkg)
+        end
+    end
+    
+    local commands = {}
+    
     if distro == "arch" then
-        return "pacman -Rscn --noconfirm " .. pkg_str
+        if #arch_pkgs > 0 then
+            table.insert(commands, "pacman -Rscn --noconfirm " .. table.concat(arch_pkgs, " "))
+        end
+        if #aur_pkgs > 0 then
+            table.insert(commands, "echo 'Skipping AUR package removal (would require AUR helper): " .. table.concat(aur_pkgs, " ") .. "'")
+        end
+        if #flatpak_pkgs > 0 then
+            table.insert(commands, "flatpak uninstall -y " .. table.concat(flatpak_pkgs, " "))
+        end
+        return table.concat(commands, " && ") or nil
     elseif distro == "debian" then
-        return "apt-get remove -y " .. pkg_str
+        if #arch_pkgs > 0 then
+            return "apt-get remove -y " .. table.concat(arch_pkgs, " ")
+        end
     end
     return nil
 end

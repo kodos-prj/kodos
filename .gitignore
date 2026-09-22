@@ -2,3 +2,4 @@ mnt/
 .venv/
 __pycache__
 .DS_Store
+# Screen*.png
