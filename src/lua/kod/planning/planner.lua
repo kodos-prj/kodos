@@ -174,7 +174,10 @@ function Planner:compose(config, distro)
             
             -- Call emit_steps to get steps from this section
             local ok, err = pcall(function()
-                local section_steps = section.emit_steps(config[section_name], distro)
+                -- Special case: packages section needs full config to aggregate from all sections
+                -- All other sections receive their section-specific config
+                local section_config = (section_name == 'packages') and config or config[section_name]
+                local section_steps = section.emit_steps(section_config, distro)
                 if section_steps and type(section_steps) == "table" then
                     for _, step in ipairs(section_steps) do
                         table.insert(all_steps, step)
