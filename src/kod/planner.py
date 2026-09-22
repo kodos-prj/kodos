@@ -406,6 +406,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
     from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable
     import logging
+    import sys
     
     logger = logging.getLogger(__name__)
 
@@ -413,10 +414,10 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
     ctx = Context(user="root", stage="rebuild")
     next_services = get_services_to_enable(ctx, conf)
 
-    # DEBUG: Log package lists
-    logger.info(f"Rebuild plan: current_packages={current_packages.get('packages', [])}")
-    logger.info(f"Rebuild plan: next_packages={list(next_packages.get('packages', []))}")
-    logger.info(f"Rebuild plan: remove_packages={list(remove_packages or [])}")
+    # DEBUG: Print to stderr so it definitely shows up
+    print(f"DEBUG: current_packages={list(current_packages.get('packages', []))}", file=sys.stderr)
+    print(f"DEBUG: next_packages={list(next_packages.get('packages', []))}", file=sys.stderr)
+    print(f"DEBUG: remove_packages={list(remove_packages or [])}", file=sys.stderr)
 
     kernel_update_required = dist.kernel_update_required(
         current_packages.get("kernel", "linux"),
