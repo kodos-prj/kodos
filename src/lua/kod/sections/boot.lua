@@ -40,10 +40,11 @@ local module = {
                 table.insert(add_lines, "add_drivers+=" .. m)
             end
 
+            local config_content = table.concat(add_lines, "\\n")
             table.insert(steps, {
                name = "boot_kernel_modules_config",
                description = "Configure initramfs modules: " .. table.concat(modules, " "),
-               command = "mkdir -p /etc/dracut.conf.d && printf \"%s\\n\" " .. table.concat(add_lines, " ") .. " > /etc/dracut.conf.d/kodos.conf",
+               command = "mkdir -p /etc/dracut.conf.d && printf '%b\\n' '" .. config_content .. "' > /etc/dracut.conf.d/kodos.conf",
                chroot = true,
                order = 199,
             })

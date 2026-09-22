@@ -118,7 +118,9 @@ def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]
     
     # Load Lua and call package aggregation
     lua = get_lua_runtime()
-    packages_module = lua.require("kod.sections.packages")
+    result = lua.require("kod.sections.packages")
+    # lupa.require() returns (module, filename) tuple; extract module
+    packages_module = result[0] if isinstance(result, tuple) else result
     
     # Call Lua aggregation function
     # ponytail: packages_to_remove not computed; implement when needed
