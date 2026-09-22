@@ -95,18 +95,22 @@ class LuaRuntimeManager:
         
         patterns = module_patterns or ['kod\\..*']
         try:
+            # Build Lua table of patterns
+            lua_patterns = self.lua.table()
+            for i, pattern in enumerate(patterns, 1):
+                lua_patterns[i] = pattern
+            
             # Clear matching entries from Lua's package.loaded table
-            self.lua.execute(f"""
-                local patterns = {repr(patterns)}
+            self.lua.execute("""
                 for module_name in pairs(package.loaded) do
-                    for _, pattern in ipairs(patterns) do
+                    for _, pattern in ipairs(...) do
                         if module_name:match(pattern) then
                             package.loaded[module_name] = nil
                             break
                         end
                     end
                 end
-            """)
+            """, lua_patterns)
             logger.debug(f"Lua module cache cleared for patterns: {patterns}")
         except Exception as e:
             logger.warning(f"Error clearing Lua module cache: {e}")
