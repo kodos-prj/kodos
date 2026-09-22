@@ -52,6 +52,12 @@ def execute_steps(steps: List[Step], env: Dict[str, Any], mount_point: str,
     lua = get_lua_runtime()
     base_path = os.path.dirname(os.path.dirname(__file__))
     lua.execute(f"package.path = '{base_path}/?.lua;{base_path}/?/init.lua' .. package.path")
+    
+    # Force reload of planning modules to ensure we have fresh code
+    from kod.lua_runtime import LuaRuntimeManager
+    manager = LuaRuntimeManager()
+    manager.reload_modules(['kod\\.planning\\..*'])
+
 
     def dispatch_step(step, ctx_lua):
         kind = step.kind

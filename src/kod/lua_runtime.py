@@ -83,6 +83,34 @@ class LuaRuntimeManager:
             self._init_lua()
         return self.lua
     
+    def reload_modules(self, module_patterns: Optional[list] = None):
+        """Clear Lua's module cache for specified modules to force reload.
+        
+        Args:
+            module_patterns: List of module name patterns to reload (e.g., ['kod.planning.*']).
+                           If None, clears all 'kod.*' modules.
+        """
+        if self.lua is None:
+            return
+        
+        patterns = module_patterns or ['kod\\..*']
+        try:
+            # Clear matching entries from Lua's package.loaded table
+            self.lua.execute(f"""
+                local patterns = {repr(patterns)}
+                for module_name in pairs(package.loaded) do
+                    for _, pattern in ipairs(patterns) do
+                        if module_name:match(pattern) then
+                            package.loaded[module_name] = nil
+                            break
+                        end
+                    end
+                end
+            """)
+            logger.debug(f"Lua module cache cleared for patterns: {patterns}")
+        except Exception as e:
+            logger.warning(f"Error clearing Lua module cache: {e}")
+    
     def cleanup(self):
         """Clean up Lua runtime resources."""
         if self.lua is not None:
