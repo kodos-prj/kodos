@@ -213,115 +213,19 @@ end
 -- ============================================================================
 -- FLATPAK APPS EXTRACTION
 -- ============================================================================
--- Extract flatpak: prefixed packages from all enabled sections
--- Mirrors aggregate_all_packages pattern to ensure consistency
+-- Extract flatpak: prefixed packages from an already-aggregated package list
+-- Filter by prefix: no prefix = normal install, aur: = aur install, flatpak: = flatpak install
 
-local function extract_flatpak_apps_from_packages(packages)
+local function extract_flatpak_apps(packages)
     -- Extract flatpak app names from package list, removing 'flatpak:' prefix
     local apps = {}
     for _, pkg in ipairs(packages) do
         if type(pkg) == "string" and pkg:find("^flatpak:") then
-            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
+            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix (8 chars + 1)
             table.insert(apps, app_name)
         end
     end
     return apps
-end
-
-local function aggregate_flatpak_apps(config)
-    -- Aggregate flatpak apps from all config sections, respecting enable checks
-    local flatpak_apps = {}
-    
-    -- Desktop environments (with enable check)
-    if config.desktop and config.desktop.environments then
-        for env_name, env_conf in pairs(config.desktop.environments) do
-            if type(env_conf) == "table" and env_conf.enable ~= false then
-                if env_conf.extra_packages then
-                    for _, pkg in ipairs(env_conf.extra_packages) do
-                        if type(pkg) == "string" and pkg:find("^flatpak:") then
-                            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                            table.insert(flatpak_apps, app_name)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Hardware packages (with enable check)
-    if config.hardware then
-        for hw_name, hw_conf in pairs(config.hardware) do
-            if type(hw_conf) == "table" and hw_conf.enable then
-                if hw_conf.extra_packages then
-                    for _, pkg in ipairs(hw_conf.extra_packages) do
-                        if type(pkg) == "string" and pkg:find("^flatpak:") then
-                            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                            table.insert(flatpak_apps, app_name)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Font packages (from global config.fonts.packages)
-    if config.fonts and config.fonts.packages then
-        for _, pkg in ipairs(config.fonts.packages) do
-            if type(pkg) == "string" and pkg:find("^flatpak:") then
-                local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                table.insert(flatpak_apps, app_name)
-            end
-        end
-    end
-    
-    -- System packages (from global config.packages)
-    if config.packages then
-        for _, pkg in ipairs(config.packages) do
-            if type(pkg) == "string" and pkg:find("^flatpak:") then
-                local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                table.insert(flatpak_apps, app_name)
-            end
-        end
-    end
-    
-    -- User programs (with enable check)
-    if config.users then
-        for user_name, user_conf in pairs(config.users) do
-            if type(user_conf) == "table" and user_conf.programs then
-                for prog_name, prog_conf in pairs(user_conf.programs) do
-                    if type(prog_conf) == "table" and prog_conf.enable then
-                        if prog_conf.extra_packages then
-                            for _, pkg in ipairs(prog_conf.extra_packages) do
-                                if type(pkg) == "string" and pkg:find("^flatpak:") then
-                                    local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                                    table.insert(flatpak_apps, app_name)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- User services (with enable check)
-            if type(user_conf) == "table" and user_conf.services then
-                for service_name, service_conf in pairs(user_conf.services) do
-                    if type(service_conf) == "table" and service_conf.enable then
-                        if service_conf.extra_packages then
-                            for _, pkg in ipairs(service_conf.extra_packages) do
-                                if type(pkg) == "string" and pkg:find("^flatpak:") then
-                                    local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
-                                    table.insert(flatpak_apps, app_name)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Remove duplicates while preserving order
-    return deduplicate_packages(flatpak_apps)
 end
 
 -- ============================================================================
@@ -331,9 +235,10 @@ end
 local module = {
     schema = Schema.packages,
     
-    -- Export aggregation functions for Python to call
+    -- Export aggregation function for Python to call
     aggregate_packages = aggregate_all_packages,
-    aggregate_flatpak_apps = aggregate_flatpak_apps,
+    -- Export flatpak extraction for use by desktop.lua after aggregation
+    extract_flatpak_apps = extract_flatpak_apps,
     
     emit_steps = function(config, distro)
         local steps = {}

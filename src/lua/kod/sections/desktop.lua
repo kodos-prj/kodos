@@ -164,9 +164,11 @@ local module = {
          end
          
          -- Flatpak apps installation (post-boot via systemd service)
-           -- Extract flatpak apps from all enabled sections and defer to first-boot service
+           -- Aggregate all packages from config, then extract flatpak apps
+           -- This ensures flatpak apps come from the same aggregation pipeline as normal packages
            local packages_module = require('kod.sections.packages')
-           local flatpak_apps = packages_module.aggregate_flatpak_apps(config)
+           local all_packages = packages_module.aggregate_packages(config)
+           local flatpak_apps = packages_module.extract_flatpak_apps(all_packages)
           
            if #flatpak_apps > 0 then
                -- Write flatpak apps list to config file
