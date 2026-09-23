@@ -381,7 +381,7 @@ local module = {
                     -- yay can be run as kod user and will handle sudo escalation as needed
                     local build_cmd = table.concat({
                         "cd /tmp",
-                        "sudo -u kod yay -S --noconfirm --needed --makepkg-conf /tmp/makepkg.conf '" .. aur_pkg .. "'",
+                        "sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
                         "rm -rf /tmp/" .. aur_pkg,
                     }, " && ")
                     
