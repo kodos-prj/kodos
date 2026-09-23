@@ -363,6 +363,7 @@ local module = {
                 local yay_build_cmd = table.concat({
                     "cd /tmp",
                     "git clone https://aur.archlinux.org/yay-bin.git",
+                    "chown -R kod:kod yay-bin",
                     "cd yay-bin",
                     "sudo -u kod makepkg -si --noconfirm",
                     "cd /tmp",
