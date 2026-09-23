@@ -211,9 +211,8 @@ local function aggregate_all_packages(config)
 end
 
 -- ============================================================================
--- FLATPAK APPS EXTRACTION
+-- PACKAGE FILTERING BY PREFIX
 -- ============================================================================
--- Extract flatpak: prefixed packages from an already-aggregated package list
 -- Filter by prefix: no prefix = normal install, aur: = aur install, flatpak: = flatpak install
 
 local function extract_flatpak_apps(packages)
@@ -226,6 +225,29 @@ local function extract_flatpak_apps(packages)
         end
     end
     return apps
+end
+
+local function separate_packages(packages)
+    -- Separate packages by type: normal, aur, flatpak
+    local normal_pkgs = {}
+    local aur_pkgs = {}
+    local flatpak_pkgs = {}
+    
+    for _, pkg in ipairs(packages) do
+        if type(pkg) == "string" then
+            if pkg:find("^aur:") then
+                local name = pkg:sub(5)  -- Remove "aur:" prefix
+                table.insert(aur_pkgs, name)
+            elseif pkg:find("^flatpak:") then
+                local name = pkg:sub(9)  -- Remove "flatpak:" prefix
+                table.insert(flatpak_pkgs, name)
+            else
+                table.insert(normal_pkgs, pkg)
+            end
+        end
+    end
+    
+    return normal_pkgs, aur_pkgs, flatpak_pkgs
 end
 
 -- ============================================================================
@@ -254,22 +276,95 @@ local module = {
             return steps
         end
         
-        -- Install all packages together in a single step
-        local package_list = table.concat(packages, " ")
+        -- Separate packages by type: normal/aur/flatpak
+        local normal_pkgs, aur_pkgs, flatpak_pkgs = separate_packages(packages)
         
-        local install_cmd = Repos.install_cmd(distro, package_list)
-        if not install_cmd then
-            return steps
+        -- Only handle arch distro (Debian doesn't support AUR)
+        if distro == "arch" then
+            -- Step 1: Install normal packages + AUR helper as root
+            -- Combine normal packages with yay (the AUR helper)
+            local pkgs_with_helper = {}
+            for _, pkg in ipairs(normal_pkgs) do
+                table.insert(pkgs_with_helper, pkg)
+            end
+            -- Always add yay if there are AUR packages to build
+            if #aur_pkgs > 0 then
+                table.insert(pkgs_with_helper, "yay")
+            end
+            
+            if #pkgs_with_helper > 0 then
+                local install_cmd = "pacman -S --noconfirm --needed " .. table.concat(pkgs_with_helper, " ")
+                table.insert(steps, {
+                    name = "packages_install_normal_and_helper",
+                    description = "Install system packages and AUR helper (yay)",
+                    command = install_cmd,
+                    chroot = true,
+                    order = 490,
+                    timeout_s = 600,
+                })
+            end
+            
+            -- Step 2: Create kod user for AUR builds (if there are AUR packages)
+            if #aur_pkgs > 0 then
+                -- Create kod user (unprivileged, no login shell)
+                table.insert(steps, {
+                    name = "packages_create_kod_user",
+                    description = "Create kod user for AUR package builds",
+                    command = "useradd -r -s /usr/bin/nologin -m kod 2>/dev/null || true",
+                    chroot = true,
+                    order = 495,
+                    depends_on = {"packages_install_normal_and_helper"},
+                })
+                
+                -- Add kod user to sudoers with NOPASSWD for makepkg commands
+                -- This allows makepkg to use sudo without password for certain operations
+                table.insert(steps, {
+                    name = "packages_kod_sudoers",
+                    description = "Configure sudo access for kod user (makepkg operations)",
+                    command = "echo 'kod ALL=(ALL) NOPASSWD: /usr/bin/pacman' >> /etc/sudoers.d/kod",
+                    chroot = true,
+                    order = 495.1,
+                    depends_on = {"packages_create_kod_user"},
+                })
+                
+                -- Step 3: Build AUR packages as kod user
+                -- Build each AUR package individually to catch failures
+                for i, aur_pkg in ipairs(aur_pkgs) do
+                    -- Build command: clone AUR repo, makepkg, install result
+                    -- Use sudo to run as kod user, with -u flag to preserve environment
+                    local build_cmd = table.concat({
+                        "cd /tmp",
+                        "sudo -u kod git clone https://aur.archlinux.org/" .. aur_pkg .. ".git",
+                        "cd /tmp/" .. aur_pkg,
+                        "sudo -u kod makepkg -si --noconfirm",
+                        "rm -rf /tmp/" .. aur_pkg,
+                    }, " && ")
+                    
+                    table.insert(steps, {
+                        name = "packages_build_aur_" .. aur_pkg,
+                        description = "Build and install AUR package: " .. aur_pkg,
+                        command = build_cmd,
+                        chroot = true,
+                        order = 500 + i,
+                        timeout_s = 900,  -- 15 minutes per package (building can take time)
+                        depends_on = {"packages_kod_sudoers"},
+                    })
+                end
+            end
+        else
+            -- For Debian, just install normal packages (skip AUR)
+            if #normal_pkgs > 0 then
+                local install_cmd = "apt-get install -y " .. table.concat(normal_pkgs, " ")
+                table.insert(steps, {
+                    name = "packages_install_normal",
+                    description = "Install system packages",
+                    command = install_cmd,
+                    chroot = true,
+                    order = 500,
+                    timeout_s = 600,
+                })
+            end
         end
-        
-         table.insert(steps, {
-             name = "packages_install_all",
-             description = "Install system packages: " .. package_list,
-             command = install_cmd,
-             chroot = true,
-             order = 500,
-             timeout_s = 600,  -- 10 minutes for large package installation
-         })
         
         return steps
     end
