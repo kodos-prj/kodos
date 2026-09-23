@@ -8,8 +8,10 @@
 local Executor = {}
 
 -- Quote a string for embedding in sh -c '...'
+-- Uses the standard shell technique: '...' is literal, so to include a quote,
+-- close quote, add escaped quote, reopen: 'foo'"'"'bar' = foo'bar
 local function shq(s)
-    return "'" .. s:gsub("'", "\\'") .. "'"
+    return "'" .. s:gsub("'", "'\\''") .. "'"
 end
 
 -- Run a shell step (system or disk). Returns {success=...} or {success=false, error=...}.
