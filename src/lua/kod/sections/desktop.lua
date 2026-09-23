@@ -163,33 +163,23 @@ local module = {
              })
          end
          
-         -- Flatpak apps installation (post-boot via systemd service)
-         -- Extract flatpak apps from packages and defer to first-boot service
-         local flatpak_apps = {}
-         
-         -- Check desktop.packages
-         if config.packages and type(config.packages) == "table" then
-             for _, pkg in ipairs(config.packages) do
-                 if type(pkg) == "string" and pkg:find("^flatpak:") then
-                     local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
-                     table.insert(flatpak_apps, app_name)
-                 end
-             end
-         end
-         
-         -- Check desktop.environments[*].extra_packages
-         if config.environments and type(config.environments) == "table" then
-             for env_name, env_config in pairs(config.environments) do
-                 if type(env_config) == "table" and env_config.extra_packages and type(env_config.extra_packages) == "table" then
-                     for _, pkg in ipairs(env_config.extra_packages) do
-                         if type(pkg) == "string" and pkg:find("^flatpak:") then
-                             local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
-                             table.insert(flatpak_apps, app_name)
-                         end
-                     end
-                 end
-             end
-         end
+          -- Flatpak apps installation (post-boot via systemd service)
+          -- Extract flatpak apps from packages and defer to first-boot service
+          local flatpak_apps = {}
+          
+          -- Check desktop.environments[*].extra_packages
+          if config.environments and type(config.environments) == "table" then
+              for env_name, env_config in pairs(config.environments) do
+                  if type(env_config) == "table" and env_config.extra_packages and type(env_config.extra_packages) == "table" then
+                      for _, pkg in ipairs(env_config.extra_packages) do
+                          if type(pkg) == "string" and pkg:find("^flatpak:") then
+                              local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                              table.insert(flatpak_apps, app_name)
+                          end
+                      end
+                  end
+              end
+          end
          
          if #flatpak_apps > 0 then
               -- Write flatpak apps list to config file
