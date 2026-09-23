@@ -221,7 +221,7 @@ local function extract_flatpak_apps_from_packages(packages)
     local apps = {}
     for _, pkg in ipairs(packages) do
         if type(pkg) == "string" and pkg:find("^flatpak:") then
-            local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
             table.insert(apps, app_name)
         end
     end
@@ -239,7 +239,7 @@ local function aggregate_flatpak_apps(config)
                 if env_conf.extra_packages then
                     for _, pkg in ipairs(env_conf.extra_packages) do
                         if type(pkg) == "string" and pkg:find("^flatpak:") then
-                            local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                             table.insert(flatpak_apps, app_name)
                         end
                     end
@@ -255,7 +255,7 @@ local function aggregate_flatpak_apps(config)
                 if hw_conf.extra_packages then
                     for _, pkg in ipairs(hw_conf.extra_packages) do
                         if type(pkg) == "string" and pkg:find("^flatpak:") then
-                            local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                            local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                             table.insert(flatpak_apps, app_name)
                         end
                     end
@@ -268,7 +268,7 @@ local function aggregate_flatpak_apps(config)
     if config.fonts and config.fonts.packages then
         for _, pkg in ipairs(config.fonts.packages) do
             if type(pkg) == "string" and pkg:find("^flatpak:") then
-                local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                 table.insert(flatpak_apps, app_name)
             end
         end
@@ -278,7 +278,7 @@ local function aggregate_flatpak_apps(config)
     if config.packages then
         for _, pkg in ipairs(config.packages) do
             if type(pkg) == "string" and pkg:find("^flatpak:") then
-                local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                 table.insert(flatpak_apps, app_name)
             end
         end
@@ -293,7 +293,7 @@ local function aggregate_flatpak_apps(config)
                         if prog_conf.extra_packages then
                             for _, pkg in ipairs(prog_conf.extra_packages) do
                                 if type(pkg) == "string" and pkg:find("^flatpak:") then
-                                    local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                                    local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                                     table.insert(flatpak_apps, app_name)
                                 end
                             end
@@ -309,7 +309,7 @@ local function aggregate_flatpak_apps(config)
                         if service_conf.extra_packages then
                             for _, pkg in ipairs(service_conf.extra_packages) do
                                 if type(pkg) == "string" and pkg:find("^flatpak:") then
-                                    local app_name = pkg:sub(10)  -- Remove "flatpak:" prefix
+                                    local app_name = pkg:sub(9)  -- Remove "flatpak:" prefix
                                     table.insert(flatpak_apps, app_name)
                                 end
                             end
