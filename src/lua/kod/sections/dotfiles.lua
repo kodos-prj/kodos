@@ -29,6 +29,7 @@ local module = {
                         description = "Clone dotfiles repository for user " .. username .. " from " .. dotfiles.repo_url,
                         command = "git clone " .. dotfiles.repo_url .. " " .. repo_dir,
                         order = 500 + (tonumber(username:match("%d+")) or 0),
+                        timeout_s = 600,  -- 10 minutes for git clone
                     })
                     
                     -- Deploy dotfiles using specified tool
