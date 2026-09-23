@@ -5,6 +5,7 @@
 
 local Rebuild = {}
 local Repos = require('kod.system.repos')
+local Packages = require('kod.sections.packages')
 
 local function to_set(list)
     local s = {}
@@ -35,6 +36,7 @@ end
 --   update             = bool,
 --   new_generation     = bool,
 --   kernel_update_required = bool,
+--   config = {...},                   -- full config for emit_steps
 -- }
 function Rebuild.diff(state)
     local steps = {}
@@ -48,6 +50,7 @@ function Rebuild.diff(state)
     local next_kernel = next_packages.kernel or "linux"
     local new_gen = state.new_generation
     local distro = state.distro
+    local config = state.config
 
     if state.update then
         local cmd = Repos.update_cmd(distro)
@@ -108,22 +111,58 @@ function Rebuild.diff(state)
         end
     end
 
-    local install_set = {}
-    for _, p in ipairs(sorted_diff(to_set(next_packages.packages), to_set(current_packages.packages))) do
-        install_set[p] = true
-    end
-    if state.kernel_update_required then
-        install_set[next_kernel] = true
-    end
-    local installs = {}
-    for p in pairs(install_set) do
-        table.insert(installs, p)
-    end
-    table.sort(installs)
-    for _, p in ipairs(installs) do
-        local cmd = Repos.install_cmd(distro, p)
-        if cmd then
-            table.insert(steps, { kind = "package", name = p, command = cmd, chroot = new_gen })
+    -- Generate package installation steps using the packages section
+    -- This handles normal/aur/flatpak packages with proper sequencing
+    -- If config is provided, use emit_steps for proper AUR/flatpak handling
+    if config and next_packages.packages and #next_packages.packages > 0 then
+        -- Check if there are new packages to install
+        local install_set = {}
+        for _, p in ipairs(sorted_diff(to_set(next_packages.packages), to_set(current_packages.packages))) do
+            install_set[p] = true
+        end
+        if state.kernel_update_required then
+            install_set[next_kernel] = true
+        end
+        
+        if next(install_set) then
+            -- Call packages.emit_steps to generate proper steps
+            local pkg_steps = Packages.emit_steps(config, distro) or {}
+            
+            -- Convert Lua steps to rebuild step format (with kind, name, etc.)
+            for _, pstep in ipairs(pkg_steps) do
+                table.insert(steps, {
+                    kind = "package",
+                    name = pstep.name or "packages",
+                    description = pstep.description,
+                    command = pstep.command,
+                    chroot = pstep.chroot or new_gen,
+                    order = pstep.order,
+                    timeout_s = pstep.timeout_s,
+                    depends_on = pstep.depends_on,
+                    on_error = pstep.on_error,
+                })
+            end
+        end
+    else
+        -- Fallback: if no config, use simple Repos.install_cmd per-package
+        -- (this is the old behavior, but should not happen if config is passed)
+        local install_set = {}
+        for _, p in ipairs(sorted_diff(to_set(next_packages.packages), to_set(current_packages.packages))) do
+            install_set[p] = true
+        end
+        if state.kernel_update_required then
+            install_set[next_kernel] = true
+        end
+        local installs = {}
+        for p in pairs(install_set) do
+            table.insert(installs, p)
+        end
+        table.sort(installs)
+        for _, p in ipairs(installs) do
+            local cmd = Repos.install_cmd(distro, p)
+            if cmd then
+                table.insert(steps, { kind = "package", name = p, command = cmd, chroot = new_gen })
+            end
         end
     end
 

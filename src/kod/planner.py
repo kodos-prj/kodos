@@ -431,6 +431,13 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         current_packages.get("kernel", "linux"),
         next_packages.get("kernel", "linux"),
         current_installed_packages or {}, mount_point)
+    
+    # Convert conf to Lua table for rebuild planner
+    from kod.bootstrap import _convert_to_lua_table
+    from kod.lua_runtime import get_lua_runtime
+    lua = get_lua_runtime()
+    conf_lua = _convert_to_lua_table(lua, conf)
+    
     steps = compose_rebuild_steps_lua({
         "next_packages": {"packages": list(next_packages.get("packages", [])),
                          "kernel": next_packages.get("kernel", "linux")},
@@ -443,6 +450,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         "new_generation": new_generation,
         "kernel_update_required": kernel_update_required,
         "distro": conf.base_distribution or "arch",
+        "config": conf_lua,  # Pass full config for packages.emit_steps
     })
     try:
         hooks_map = collect_hooks(conf.users or {})
