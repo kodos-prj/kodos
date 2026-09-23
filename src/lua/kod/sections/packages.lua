@@ -242,13 +242,14 @@ local module = {
             return steps
         end
         
-        table.insert(steps, {
-            name = "packages_install_all",
-            description = "Install system packages: " .. package_list,
-            command = install_cmd,
-            chroot = true,
-            order = 500,
-        })
+         table.insert(steps, {
+             name = "packages_install_all",
+             description = "Install system packages: " .. package_list,
+             command = install_cmd,
+             chroot = true,
+             order = 500,
+             timeout_s = 600,  -- 10 minutes for large package installation
+         })
         
         return steps
     end
