@@ -115,6 +115,7 @@ def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]
     """
     from kod.lua_runtime import get_lua_runtime
     from kod.lua_utils import lua_table_to_python
+    from kod.bootstrap import _convert_to_lua_table
     
     # Load Lua and call package aggregation
     lua = get_lua_runtime()
@@ -122,9 +123,13 @@ def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]
     # lupa.require() returns (module, filename) tuple; extract module
     packages_module = result[0] if isinstance(result, tuple) else result
     
-    # Call Lua aggregation function
+    # Convert Python dict/object to Lua table to ensure proper iteration
+    # This handles the case where load_config returns a Python dict
+    conf_lua = _convert_to_lua_table(lua, conf)
+    
+    # Call Lua aggregation function with Lua table
     # ponytail: packages_to_remove not computed; implement when needed
-    lua_packages = packages_module.aggregate_packages(conf)
+    lua_packages = packages_module.aggregate_packages(conf_lua)
     
     # Convert lupa.LuaTable to Python list
     packages_list = lua_table_to_python(lua_packages)

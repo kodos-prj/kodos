@@ -18,7 +18,7 @@ from kod.lua_utils import lua_table_to_python
 
 
 def _convert_to_lua_table(lua, value):
-     """Recursively convert Python dict/list to Lua table."""
+     """Recursively convert Python dict/list/object to Lua table."""
      if isinstance(value, dict):
          t = lua.table()
          for k, v in value.items():
@@ -28,6 +28,12 @@ def _convert_to_lua_table(lua, value):
          t = lua.table()
          for i, v in enumerate(value, 1):
              t[i] = _convert_to_lua_table(lua, v)
+         return t
+     elif hasattr(value, '__dict__') and not isinstance(value, type):
+         # Convert objects with __dict__ (but not classes themselves)
+         t = lua.table()
+         for k, v in value.__dict__.items():
+             t[k] = _convert_to_lua_table(lua, v)
          return t
      else:
          return value

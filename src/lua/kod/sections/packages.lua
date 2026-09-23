@@ -27,14 +27,16 @@ local function aggregate_desktop_packages(config)
     
     local desktop = config.desktop
     
-    -- Display manager
-    if desktop.display_manager then
-        table.insert(packages, desktop.display_manager)
+    -- Display manager - use rawget to safely access potentially missing keys
+    local display_manager = rawget(desktop, 'display_manager')
+    if display_manager then
+        table.insert(packages, display_manager)
     end
     
     -- Desktop environments and extra packages (legacy desktop_manager structure)
-    if desktop.desktop_manager then
-        for dm_name, dm_conf in pairs(desktop.desktop_manager) do
+    local desktop_manager = rawget(desktop, 'desktop_manager')
+    if desktop_manager then
+        for dm_name, dm_conf in pairs(desktop_manager) do
             if dm_conf.enable then
                 table.insert(packages, dm_name)
                 
@@ -49,8 +51,9 @@ local function aggregate_desktop_packages(config)
     end
     
     -- Modern desktop environments structure
-    if desktop.environments then
-        for env_name, env_conf in pairs(desktop.environments) do
+    local environments = rawget(desktop, 'environments')
+    if environments then
+        for env_name, env_conf in pairs(environments) do
             if env_conf.enable then
                 -- Main environment package (e.g., 'gnome', 'plasma', 'cosmic')
                 table.insert(packages, env_name)
@@ -172,6 +175,32 @@ local function aggregate_user_program_packages(config)
     return packages
 end
 
+local function aggregate_global_program_packages(config)
+    local packages = {}
+    
+    if not config.programs then
+        return packages
+    end
+    
+    -- Global system-level programs (not per-user)
+    for prog_name, prog_conf in pairs(config.programs) do
+        if prog_conf.enable then
+            -- Use custom package name if specified, otherwise prog name
+            local pkg_name = prog_conf.package or prog_name
+            table.insert(packages, pkg_name)
+            
+            -- Extra packages for this program (e.g., printer drivers, plugins)
+            if prog_conf.extra_packages then
+                for _, pkg in pairs(prog_conf.extra_packages) do
+                    table.insert(packages, pkg)
+                end
+            end
+        end
+    end
+    
+    return packages
+end
+
 local function deduplicate_packages(packages)
     local seen = {}
     local unique = {}
@@ -196,6 +225,7 @@ local function aggregate_all_packages(config)
         aggregate_hardware_packages(config),
         aggregate_system_packages(config),
         aggregate_font_packages(config),
+        aggregate_global_program_packages(config),
         aggregate_user_program_packages(config),
     }
     
