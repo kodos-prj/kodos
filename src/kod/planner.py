@@ -121,7 +121,7 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
     Raises:
         RuntimeError: If Lua planner fails (can be caught for fallback)
     """
-    import os
+     import os
      import logging
      from kod.lua_runtime import get_lua_runtime
      
