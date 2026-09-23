@@ -10,7 +10,7 @@ local development = require("development")
 
 local use_gnome = false
 local use_plasma = false
-local use_cosmic = false
+local use_cosmic = true
 local use_pantheon = false
 
 return {
@@ -205,6 +205,10 @@ return {
             cosmic = {
                 enable = use_cosmic,
                 -- display_manager = "cosmic-greeter",
+                extra_packages = {
+                    "flatpak:com.github.Gictorbit.photoshopCCportable",
+                    "flatpak:com.mattjakeman.ExtensionManager",
+                },
             },
 
             pantheon = {
