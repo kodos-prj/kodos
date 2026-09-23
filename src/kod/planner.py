@@ -22,7 +22,7 @@ See ARCHITECTURE.md for system design.
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ def _convert_lua_step_to_step(lua_step: Any) -> Step:
     )
 
 
-def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
+def compose_steps_lua(config: Any, distro: str = "arch") -> list[Step]:
     """Call the Lua planner to compose steps from all sections.
     
     This replaces the manual Python composition in plan_install() with
@@ -121,23 +121,24 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
     Raises:
         RuntimeError: If Lua planner fails (can be caught for fallback)
     """
-     import os
-     import logging
-     from kod.lua_runtime import get_lua_runtime
-     
-     logger = logging.getLogger(__name__)
-     
-     try:
-         # Get persistent Lua runtime
-         lua = get_lua_runtime()
-         
-         # Force reload of Lua modules to pick up code changes
-         lua.reload_modules(['kod\\..*'])
-         
-         # Set Lua package.path to include src/kod/lib and src/kod/sections
-         base_path = os.path.dirname(os.path.dirname(__file__))
-         lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
-         lua.execute(f"package.path = '{lua_path}' .. package.path")
+    import logging
+    import os
+
+    from kod.lua_runtime import get_lua_runtime
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Get persistent Lua runtime
+        lua = get_lua_runtime()
+        
+        # Force reload of Lua modules to pick up code changes
+        lua.reload_modules(['kod\\..*'])
+        
+        # Set Lua package.path to include src/kod/lib and src/kod/sections
+        base_path = os.path.dirname(os.path.dirname(__file__))
+        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+        lua.execute(f"package.path = '{lua_path}' .. package.path")
         
         # Convert config to Lua table if needed
         from kod.bootstrap import _convert_to_lua_table
@@ -183,7 +184,7 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
         raise RuntimeError(f"Lua planner failed: {e}")
 
 
-def compose_rebuild_steps_lua(state: dict) -> List[Step]:
+def compose_rebuild_steps_lua(state: dict) -> list[Step]:
     """Call the Lua rebuild diff planner (kod/lib/rebuild.lua).
 
     Pure table ops in Lua; all state (package/service sets, kernel flag) is
@@ -193,6 +194,9 @@ def compose_rebuild_steps_lua(state: dict) -> List[Step]:
 
     try:
         lua = get_lua_runtime()
+        
+        # Force reload of Lua modules to pick up code changes
+        lua.reload_modules(['kod\\..*'])
 
         base_path = os.path.dirname(os.path.dirname(__file__))
         lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
@@ -215,7 +219,7 @@ def compose_rebuild_steps_lua(state: dict) -> List[Step]:
         raise RuntimeError(f"Lua rebuild planner failed: {e}")
 
 
-def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
+def _attach_hooks_to_steps(steps: list[Step], hooks_map: dict) -> list[Step]:
     """Attach hook event names to step metadata for visibility.
     
     Args:
@@ -231,7 +235,7 @@ def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
     result = []
     for step in steps:
         # Find hook events that would fire for this step's kind
-        hook_events = sorted([event for event in hooks_map.keys() if event.endswith(f":{step.kind}")])
+        hook_events = sorted([event for event in hooks_map if event.endswith(f":{step.kind}")])
         
         if hook_events:
             # Create new Step with updated meta (frozen dataclass pattern)
@@ -248,7 +252,7 @@ def _attach_hooks_to_steps(steps: List[Step], hooks_map: dict) -> List[Step]:
     return result
 
 
-def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = None) -> str:
+def render_plan(steps: list[Step], baseline: str, config_path: str | None = None) -> str:
     """Render steps as deterministic text (golden-file testable)."""
     lines = ["# kod plan", f"# baseline={baseline} config={config_path or '<default>'}"]
     for i, s in enumerate(steps, 1):
@@ -271,7 +275,7 @@ def render_plan(steps: List[Step], baseline: str, config_path: Optional[str] = N
     return "\n".join(lines) + "\n"
 
 
-def predict_partition_list(conf: Any) -> List[dict]:
+def predict_partition_list(conf: Any) -> list[dict]:
     """Predict partition_list from conf.devices without execution.
     
     Pre-computes the list of partitions that will be created, used as input
@@ -322,7 +326,7 @@ def predict_partition_list(conf: Any) -> List[dict]:
     return partitions
 
 
-def plan_disk_steps(conf: Any) -> List[Step]:
+def plan_disk_steps(conf: Any) -> list[Step]:
     """Emit wipe/partition/format steps from conf.devices. Read-only.
 
     Calls Lua filesystem_types module to get mkfs commands and GPT type codes
@@ -330,7 +334,7 @@ def plan_disk_steps(conf: Any) -> List[Step]:
     """
     from kod.lua_runtime import get_lua_runtime
 
-    steps: List[Step] = []
+    steps: list[Step] = []
     devices = conf.devices
     if not devices:
         return steps
@@ -387,7 +391,7 @@ def plan_disk_steps(conf: Any) -> List[Step]:
     return steps
 
 
-def plan_install(conf: Any) -> List[Step]:
+def plan_install(conf: Any) -> list[Step]:
     """Full install preview over an empty baseline. Read-only."""
     distro = conf.base_distribution or "arch"
     steps = compose_steps_lua(conf, distro)
@@ -400,16 +404,17 @@ def plan_install(conf: Any) -> List[Step]:
     return steps
 
 
-def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services: List[str],
-                 current_installed_packages: Optional[dict] = None, update: bool = False,
-                 new_generation: bool = False, mount_point: str = "/") -> List[Step]:
+def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services: list[str],
+                 current_installed_packages: dict | None = None, update: bool = False,
+                 new_generation: bool = False, mount_point: str = "/") -> list[Step]:
     """Rebuild preview over the current generation. Read-only."""
+    import logging
+    import sys
+
     from kod.context import Context
     from kod.hooks import collect_hooks
     from kod.system.packages import get_packages_to_install
     from kod.system.services import get_services_to_enable
-    import logging
-    import sys
     
     logger = logging.getLogger(__name__)
 
@@ -448,9 +453,9 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
 
 
 def build_plan(conf: Any, dist: Any = None, baseline: str = "current",
-               current_packages: Optional[dict] = None, current_services: Optional[List[str]] = None,
-               current_installed_packages: Optional[dict] = None, update: bool = False,
-               new_generation: bool = False) -> List[Step]:
+               current_packages: dict | None = None, current_services: list[str] | None = None,
+               current_installed_packages: dict | None = None, update: bool = False,
+               new_generation: bool = False) -> list[Step]:
     if baseline == "empty":
         return plan_install(conf)
     if baseline != "current":
