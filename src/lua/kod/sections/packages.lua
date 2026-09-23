@@ -352,19 +352,21 @@ local module = {
                 table.insert(steps, {
                     name = "packages_kod_sudoers",
                     description = "Configure sudo access for kod user (yay/makepkg operations)",
-                    command = "echo 'kod ALL=(ALL) NOPASSWD: /usr/bin/pacman, /usr/bin/makepkg' >> /etc/sudoers.d/kod",
+                    command = "echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod",
                     chroot = true,
                     order = 493,
                     depends_on = {"packages_create_kod_user"},
                 })
                 
                 -- Build yay from AUR first (so it can build other AUR packages)
+                -- yay will be installed system-wide and can then be used for other AUR packages
                 local yay_build_cmd = table.concat({
                     "cd /tmp",
-                    "sudo -u kod git clone https://aur.archlinux.org/yay-bin.git",
-                    "cd /tmp/yay-bin",
+                    "git clone https://aur.archlinux.org/yay-bin.git",
+                    "cd yay-bin",
                     "sudo -u kod makepkg -si --noconfirm",
-                    "rm -rf /tmp/yay-bin",
+                    "cd /tmp",
+                    "rm -rf yay-bin",
                 }, " && ")
                 
                 table.insert(steps, {
@@ -380,11 +382,10 @@ local module = {
                 -- Step 2: Build remaining AUR packages using yay
                 for i, aur_pkg in ipairs(aur_pkgs) do
                     -- Build command: use yay to build and install
-                    -- yay can be run as kod user and will handle sudo escalation as needed
+                    -- yay is now installed system-wide, so we can use it directly
                     local build_cmd = table.concat({
                         "cd /tmp",
-                        "sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
-                        "rm -rf /tmp/" .. aur_pkg,
+                        "yay -S --noconfirm --needed '" .. aur_pkg .. "'",
                     }, " && ")
                     
                     table.insert(steps, {
