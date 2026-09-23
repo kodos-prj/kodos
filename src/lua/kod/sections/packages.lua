@@ -346,11 +346,13 @@ local module = {
                     depends_on = {"packages_install_normal_and_base"},
                 })
                 
-                -- Add kod user to sudoers with NOPASSWD for makepkg commands
+                -- Add kod user to sudoers with NOPASSWD for yay/makepkg operations
+                -- yay will call sudo pacman -U to install built packages
+                -- makepkg may also need sudo for some operations
                 table.insert(steps, {
                     name = "packages_kod_sudoers",
-                    description = "Configure sudo access for kod user (makepkg operations)",
-                    command = "echo 'kod ALL=(ALL) NOPASSWD: /usr/bin/pacman' >> /etc/sudoers.d/kod",
+                    description = "Configure sudo access for kod user (yay/makepkg operations)",
+                    command = "echo 'kod ALL=(ALL) NOPASSWD: /usr/bin/pacman, /usr/bin/makepkg' >> /etc/sudoers.d/kod",
                     chroot = true,
                     order = 493,
                     depends_on = {"packages_create_kod_user"},
