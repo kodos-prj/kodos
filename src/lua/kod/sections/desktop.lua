@@ -181,10 +181,17 @@ local module = {
               end
           end
          
-         if #flatpak_apps > 0 then
-              -- Write flatpak apps list to config file
-              local apps_list = table.concat(flatpak_apps, "\n")
-              local write_config_cmd = "mkdir -p /etc/kod && echo '" .. apps_list:gsub("'", "'\\''") .. "' > /etc/kod/flatpak-apps.txt"
+          if #flatpak_apps > 0 then
+               -- Write flatpak apps list to config file using tee to avoid multiline echo issues
+               -- Build the content by joining apps with escaped newlines
+               local content = ""
+               for i, app in ipairs(flatpak_apps) do
+                   content = content .. app
+                   if i < #flatpak_apps then
+                       content = content .. "\\n"
+                   end
+               end
+               local write_config_cmd = "mkdir -p /etc/kod && printf '" .. content:gsub("'", "'\\''") .. "' > /etc/kod/flatpak-apps.txt"
               
               table.insert(steps, {
                   name = "flatpak_config_write",
