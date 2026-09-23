@@ -207,23 +207,23 @@ def _swap_generations_atomic(current_gen: int, new_gen: int) -> None:
             raise RuntimeError(f"Swap failed: missing state file: /kod/current/{src_file}")
     
     try:
-        # Step 2: Create backup via btrfs snapshot (atomic)
-        # ponytail: skip if non-btrfs, try direct cp on failure
-        try:
-            result = subprocess.run(
-                ["btrfs", "subvolume", "snapshot", current_rootfs, backup_path],
-                check=False, capture_output=True, timeout=60
-            )
-            if result.returncode != 0:
-                # Not btrfs or snapshot failed, use tar as fallback
-                logger.warning(f"btrfs snapshot failed, using tar backup: {result.stderr.decode()}")
-                subprocess.run(
-                    ["tar", "-C", current_rootfs, "-cf", f"{backup_path}.tar", "."],
-                    check=True, timeout=300
-                )
-                backup_path = f"{backup_path}.tar"
-        except Exception as e:
-            raise RuntimeError(f"Failed to create backup: {e}")
+         # Step 2: Create backup via btrfs snapshot (atomic)
+         # btrfs snapshot MUST work - if it fails, report the actual error
+         try:
+             result = subprocess.run(
+                 ["btrfs", "subvolume", "snapshot", current_rootfs, backup_path],
+                 check=False, capture_output=True, timeout=60
+             )
+             if result.returncode != 0:
+                 stderr = result.stderr.decode()
+                 raise RuntimeError(
+                     f"btrfs subvolume snapshot failed (this is not a safe fallback scenario):\n"
+                     f"  Command: btrfs subvolume snapshot {current_rootfs} {backup_path}\n"
+                     f"  Error: {stderr}\n"
+                     f"  Ensure btrfs is installed and the filesystem is healthy: btrfs filesystem show"
+                 )
+         except Exception as e:
+             raise RuntimeError(f"Failed to create backup: {e}")
         
         # Step 3: Move current rootfs to new generation
         try:
