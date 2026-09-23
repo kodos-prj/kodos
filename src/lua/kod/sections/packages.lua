@@ -381,12 +381,12 @@ local module = {
                 })
                 
                 -- Step 2: Build remaining AUR packages using yay
+                -- Use sudo -u kod to run yay as unprivileged user (required by makepkg safety)
                 for i, aur_pkg in ipairs(aur_pkgs) do
-                    -- Build command: use yay to build and install
-                    -- yay is now installed system-wide, so we can use it directly
+                    -- Build command: run yay as kod user
+                    -- yay must run as non-root to call makepkg safely
                     local build_cmd = table.concat({
-                        "cd /tmp",
-                        "yay -S --noconfirm --needed '" .. aur_pkg .. "'",
+                        "sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
                     }, " && ")
                     
                     table.insert(steps, {
