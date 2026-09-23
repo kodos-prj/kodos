@@ -122,19 +122,22 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> List[Step]:
         RuntimeError: If Lua planner fails (can be caught for fallback)
     """
     import os
-    import logging
-    from kod.lua_runtime import get_lua_runtime
-    
-    logger = logging.getLogger(__name__)
-    
-    try:
-        # Get persistent Lua runtime
-        lua = get_lua_runtime()
-        
-        # Set Lua package.path to include src/kod/lib and src/kod/sections
-        base_path = os.path.dirname(os.path.dirname(__file__))
-        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
-        lua.execute(f"package.path = '{lua_path}' .. package.path")
+     import logging
+     from kod.lua_runtime import get_lua_runtime
+     
+     logger = logging.getLogger(__name__)
+     
+     try:
+         # Get persistent Lua runtime
+         lua = get_lua_runtime()
+         
+         # Force reload of Lua modules to pick up code changes
+         lua.reload_modules(['kod\\..*'])
+         
+         # Set Lua package.path to include src/kod/lib and src/kod/sections
+         base_path = os.path.dirname(os.path.dirname(__file__))
+         lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+         lua.execute(f"package.path = '{lua_path}' .. package.path")
         
         # Convert config to Lua table if needed
         from kod.bootstrap import _convert_to_lua_table
