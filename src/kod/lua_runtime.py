@@ -83,6 +83,16 @@ class LuaRuntimeManager:
             self._init_lua()
         return self.lua
     
+    def __getattr__(self, name):
+        """Forward unknown attributes to the Lua runtime.
+        
+        This allows the manager to be used as a drop-in replacement for LuaRuntime,
+        while providing additional methods like reload_modules().
+        """
+        if name == "lua":
+            return object.__getattribute__(self, "lua")
+        return getattr(self.get_lua(), name)
+    
     def reload_modules(self, module_patterns: Optional[list] = None):
         """Clear Lua's module cache for specified modules to force reload.
         
@@ -130,12 +140,17 @@ class LuaRuntimeManager:
 _manager: Optional[LuaRuntimeManager] = None
 
 
-def get_lua_runtime() -> LuaRuntime:
-    """Get the global persistent Lua runtime."""
+def get_lua_runtime() -> LuaRuntimeManager:
+    """Get the global persistent Lua runtime manager.
+    
+    The manager provides both Lua methods (execute, require, table, etc.) and
+    utility methods like reload_modules(). It acts as a drop-in replacement for
+    LuaRuntime but with additional capabilities.
+    """
     global _manager
     if _manager is None:
         _manager = LuaRuntimeManager()
-    return _manager.get_lua()
+    return _manager
 
 
 def cleanup_lua_runtime():
