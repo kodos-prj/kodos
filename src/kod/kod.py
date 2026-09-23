@@ -7,15 +7,14 @@ with KodOS functionality including installation, configuration, and system manag
 @version 0.1
 """
 
-import os
-import sys
 import json
+import logging
+import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
-from typing import Optional, Tuple
-import logging
 
 import click
 
@@ -25,40 +24,39 @@ logger = logging.getLogger(__name__)
 from kod.common import (
     exec,
     exec_chroot,
-    setup_chroot_mounts,
+    exec_warn,
     set_debug,
     set_verbose,
-    exec_warn,
+    setup_chroot_mounts,
 )
-from kod.context import Context
 from kod.config.loader import load_config_lua
+from kod.config.validator import validate_config
+from kod.context import Context
+from kod.system.boot import (
+    create_boot_entry_hook,
+    update_initramfs_hook,
+    update_kernel_hook,
+)
 from kod.system.distro.factory import get_distro_module
 from kod.system.generations import (
-    generate_fstab,
-    load_fstab,
     change_subvol,
+    create_next_generation,
+    generate_fstab,
+    get_max_generation,
+    get_partition_devices,
+    load_fstab,
 )
 from kod.system.packages import (
     get_packages_to_install,
-    load_repos,
     load_package_lock,
-    store_packages_services,
     load_packages_services,
+    load_repos,
     manage_packages_shell,
+    store_packages_services,
 )
 from kod.system.services import (
     get_services_to_enable,
 )
-from kod.system.boot import (
-    create_boot_entry_hook,
-    get_kernel_version,
-    update_kernel_hook,
-    update_initramfs_hook,
-)
-from kod.config.validator import validate_config
-from kod.config.loader import load_config as load_config_dict
-from kod.system.generations import get_partition_devices
-from kod.system.generations import create_next_generation, get_max_generation
 
 # Shorthand: load_config returns Lua table (raw Lua config)
 load_config = load_config_lua
@@ -129,8 +127,6 @@ def _verify_unmount(mount_point: str, max_retries: int = 3) -> None:
     Raises:
         RuntimeError: If mount point remains mounted after retries
     """
-    import subprocess
-    import time
     
     # Flush all file buffers to disk
     logger.info(f"Flushing buffers before verifying unmount of {mount_point}")
@@ -179,8 +175,6 @@ def _swap_generations_atomic(current_gen: int, new_gen: int) -> None:
     Raises:
         RuntimeError: If swap fails at any point
     """
-    import subprocess
-    import time
     
     # Validate IDs
     _validate_generation_id(current_gen)
@@ -350,7 +344,7 @@ def config() -> None:
 
 @config.command(name="validate")
 @click.option("-c", "--config", default=None, help="System configuration file or directory")
-def config_validate(config: Optional[str]) -> None:
+def config_validate(config: str | None) -> None:
     "Validate a configuration file before install/rebuild"
     try:
         conf = load_config_lua(config)
@@ -376,7 +370,7 @@ def config_validate(config: Optional[str]) -> None:
 @config.command(name="schema")
 @click.option("--section", default=None, help="Show only this section (e.g., 'boot')")
 @click.option("--format", type=click.Choice(["text", "json"]), default="text", help="Output format")
-def config_schema(section: Optional[str], format: str) -> None:
+def config_schema(section: str | None, format: str) -> None:
     "Display configuration schema with descriptions and field documentation."
 
     from kod.config.schema import get_lua_schema
@@ -407,7 +401,7 @@ def config_schema(section: Optional[str], format: str) -> None:
               help="Target distribution")
 @click.option("--output", type=click.Path(), default=None,
               help="Write to file (default: stdout)")
-def config_init(distro: str, output: Optional[str]) -> None:
+def config_init(distro: str, output: str | None) -> None:
     """Generate a starter configuration file with all sections documented."""
     from kod.config.template import generate_config_template
     
@@ -430,13 +424,12 @@ base_distribution = "arch"
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("-m", "--mount_point", default="/mnt", help="Mount point for install")
-def install(config: Optional[str], mount_point: str) -> None:
+def install(config: str | None, mount_point: str) -> None:
     """Install KodOS based on configuration."""
-    from kod.planner import build_plan, render_plan
+    from kod.context import Context
     from kod.executor import StepError, execute_steps
     from kod.hooks import collect_hooks
-    from kod.context import Context
-    from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
+    from kod.planner import build_plan, render_plan
 
     try:
         ctx_obj = Context(os.environ.get("USER", "root"), mount_point=mount_point, use_chroot=True, stage="install")
@@ -514,12 +507,12 @@ def install(config: Optional[str], mount_point: str) -> None:
         
         try:
             store_packages_services(state_path, packages_to_install, next_services)
-            print(f"DEBUG: store_packages_services succeeded")
+            print("DEBUG: store_packages_services succeeded")
             if os.path.exists(state_path):
                 print(f"DEBUG: Files in {state_path}: {os.listdir(state_path)}")
             
             dist.generate_package_lock(mount_point, state_path)
-            print(f"DEBUG: generate_package_lock succeeded")
+            print("DEBUG: generate_package_lock succeeded")
             if os.path.exists(state_path):
                 print(f"DEBUG: Files in {state_path} after lock: {os.listdir(state_path)}")
             print("Generation 0 state recorded successfully")
@@ -597,7 +590,7 @@ def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
         print(f"⚠️  Warning: Failed to fully clean up generation {generation_id}: {e}")
 
 
-def _load_current_state() -> Tuple[str, dict, list, dict]:
+def _load_current_state() -> tuple[str, dict, list, dict]:
     """Resolve current generation state read-only. Raises ClickException with hint."""
     try:
         with open("/.generation") as f:
@@ -620,7 +613,7 @@ def _load_current_state() -> Tuple[str, dict, list, dict]:
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--baseline", type=click.Choice(["empty", "current"]), default="current",
               help="State to diff against (default: current)")
-def plan(config: Optional[str], baseline: str) -> None:
+def plan(config: str | None, baseline: str) -> None:
     "Print the execution plan; never executes"
     from kod.planner import build_plan, render_plan
 
@@ -643,14 +636,13 @@ def plan(config: Optional[str], baseline: str) -> None:
 @click.option("-n", "--new_generation", is_flag=True, help="Create a new generation")
 @click.option("-u", "--update", is_flag=True, help="Update package versions")
 @click.option("--dry-run", is_flag=True, help="Print the plan; do not execute")
-def rebuild(config: Optional[str], new_generation: bool = False, update: bool = False,
+def rebuild(config: str | None, new_generation: bool = False, update: bool = False,
             dry_run: bool = False) -> None:
     "Rebuild KodOS system installation"
 
-    from kod.planner import build_plan, render_plan
     from kod.executor import execute_steps
     from kod.hooks import collect_hooks
-    from kod.system.boot import update_kernel_hook, update_initramfs_hook, create_boot_entry_hook
+    from kod.planner import build_plan, render_plan
 
     # stage = "rebuild"
     conf = load_config(config)
@@ -856,18 +848,18 @@ def rebuild(config: Optional[str], new_generation: bool = False, update: bool = 
 @cli.command()
 @click.option("-c", "--config", default=None, help="System configuration file")
 @click.option("--user", default=os.environ["USER"], help="User to rebuild config")
-def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
+def rebuild_user(config: str | None, user: str = os.environ["USER"]) -> None:
     """Rebuild user configuration using Lua planner system.
     
     Generates and executes a plan for user dotfiles, home directory setup,
     and service configuration from the Lua sections (users, dotfiles, services).
     """
-    from kod.planner import build_plan, render_plan
     from kod.executor import StepError, execute_steps
     from kod.hooks import collect_hooks
+    from kod.planner import build_plan, render_plan
     
     try:
-        ctx = Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
+        Context(os.environ["USER"], mount_point="/", use_chroot=False, stage="rebuild-user")
         conf = load_config(config)
         
         if not conf.users or user not in conf.users:
@@ -910,8 +902,8 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
             hooks_dict = {}
         
         # Execute user-specific plan
-        print(f"\n=== Executing User Rebuild ===\n")
-        results = execute_steps(user_steps, env, mount_point="/",
+        print("\n=== Executing User Rebuild ===\n")
+        execute_steps(user_steps, env, mount_point="/",
                                 use_chroot=False, hooks=hooks_dict)
         
         print(f"\n✅ User {user} rebuild completed")
@@ -926,7 +918,7 @@ def rebuild_user(config: Optional[str], user: str = os.environ["USER"]) -> None:
 
 @cli.command()
 @click.option("-p", "--package", default=None, help="Package(s) to install", multiple=True)
-def shell(package: Optional[Tuple[str, ...]] = None) -> None:
+def shell(package: tuple[str, ...] | None = None) -> None:
     "Run shell"
 
     local_session = exec("schroot -c virtual_env -b", get_output=True).strip()
