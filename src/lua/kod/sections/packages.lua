@@ -311,22 +311,22 @@ local module = {
         
         -- Only handle arch distro (Debian doesn't support AUR)
         if distro == "arch" then
-            -- Step 1: Install normal packages + AUR helper as root
-            -- Combine normal packages with yay (the AUR helper)
+            -- Step 1: Install normal packages + base-devel (needed to build yay) as root
             local pkgs_with_helper = {}
             for _, pkg in ipairs(normal_pkgs) do
                 table.insert(pkgs_with_helper, pkg)
             end
-            -- Always add yay if there are AUR packages to build
+            -- Add base-devel if there are AUR packages (needed to build from source)
             if #aur_pkgs > 0 then
-                table.insert(pkgs_with_helper, "yay")
+                table.insert(pkgs_with_helper, "base-devel")
+                table.insert(pkgs_with_helper, "git")
             end
             
             if #pkgs_with_helper > 0 then
                 local install_cmd = "pacman -S --noconfirm --needed " .. table.concat(pkgs_with_helper, " ")
                 table.insert(steps, {
-                    name = "packages_install_normal_and_helper",
-                    description = "Install system packages and AUR helper (yay)",
+                    name = "packages_install_normal_and_base",
+                    description = "Install system packages and build dependencies",
                     command = install_cmd,
                     chroot = true,
                     order = 490,
@@ -334,39 +334,54 @@ local module = {
                 })
             end
             
-            -- Step 2: Create kod user for AUR builds (if there are AUR packages)
+            -- Step 1.5: Build yay from AUR (if there are AUR packages)
             if #aur_pkgs > 0 then
-                -- Create kod user (unprivileged, no login shell)
+                -- Create kod user for AUR builds
                 table.insert(steps, {
                     name = "packages_create_kod_user",
                     description = "Create kod user for AUR package builds",
                     command = "useradd -r -s /usr/bin/nologin -m kod 2>/dev/null || true",
                     chroot = true,
-                    order = 495,
-                    depends_on = {"packages_install_normal_and_helper"},
+                    order = 492,
+                    depends_on = {"packages_install_normal_and_base"},
                 })
                 
                 -- Add kod user to sudoers with NOPASSWD for makepkg commands
-                -- This allows makepkg to use sudo without password for certain operations
                 table.insert(steps, {
                     name = "packages_kod_sudoers",
                     description = "Configure sudo access for kod user (makepkg operations)",
                     command = "echo 'kod ALL=(ALL) NOPASSWD: /usr/bin/pacman' >> /etc/sudoers.d/kod",
                     chroot = true,
-                    order = 495.1,
+                    order = 493,
                     depends_on = {"packages_create_kod_user"},
                 })
                 
-                -- Step 3: Build AUR packages as kod user
-                -- Build each AUR package individually to catch failures
+                -- Build yay from AUR first (so it can build other AUR packages)
+                local yay_build_cmd = table.concat({
+                    "cd /tmp",
+                    "sudo -u kod git clone https://aur.archlinux.org/yay-bin.git",
+                    "cd /tmp/yay-bin",
+                    "sudo -u kod makepkg -si --noconfirm",
+                    "rm -rf /tmp/yay-bin",
+                }, " && ")
+                
+                table.insert(steps, {
+                    name = "packages_build_yay_helper",
+                    description = "Build and install yay AUR helper",
+                    command = yay_build_cmd,
+                    chroot = true,
+                    order = 494,
+                    timeout_s = 900,
+                    depends_on = {"packages_kod_sudoers"},
+                })
+                
+                -- Step 2: Build remaining AUR packages using yay
                 for i, aur_pkg in ipairs(aur_pkgs) do
-                    -- Build command: clone AUR repo, makepkg, install result
-                    -- Use sudo to run as kod user, with -u flag to preserve environment
+                    -- Build command: use yay to build and install
+                    -- yay can be run as kod user and will handle sudo escalation as needed
                     local build_cmd = table.concat({
                         "cd /tmp",
-                        "sudo -u kod git clone https://aur.archlinux.org/" .. aur_pkg .. ".git",
-                        "cd /tmp/" .. aur_pkg,
-                        "sudo -u kod makepkg -si --noconfirm",
+                        "sudo -u kod yay -S --noconfirm --needed --makepkg-conf /tmp/makepkg.conf '" .. aur_pkg .. "'",
                         "rm -rf /tmp/" .. aur_pkg,
                     }, " && ")
                     
@@ -376,8 +391,8 @@ local module = {
                         command = build_cmd,
                         chroot = true,
                         order = 500 + i,
-                        timeout_s = 900,  -- 15 minutes per package (building can take time)
-                        depends_on = {"packages_kod_sudoers"},
+                        timeout_s = 900,  -- 15 minutes per package
+                        depends_on = {"packages_build_yay_helper"},
                     })
                 end
             end
