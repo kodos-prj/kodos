@@ -337,10 +337,11 @@ local module = {
             -- Step 1.5: Build yay from AUR (if there are AUR packages)
             if #aur_pkgs > 0 then
                 -- Create kod user for AUR builds
+                -- Don't set shell to nologin since we need to run commands as this user
                 table.insert(steps, {
                     name = "packages_create_kod_user",
                     description = "Create kod user for AUR package builds",
-                    command = "useradd -r -s /usr/bin/nologin -m kod 2>/dev/null || true",
+                    command = "useradd -r -m -s /bin/bash kod 2>/dev/null || true",
                     chroot = true,
                     order = 492,
                     depends_on = {"packages_install_normal_and_base"},
@@ -382,10 +383,9 @@ local module = {
                 
                 -- Step 2: Build remaining AUR packages using yay
                 -- Run yay as kod user to allow makepkg to build AUR packages
-                -- Set HOME to kod user's home directory so yay can access its cache
                 for i, aur_pkg in ipairs(aur_pkgs) do
                     local build_cmd = table.concat({
-                        "HOME=/var/kod/.home sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
+                        "sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
                     }, " && ")
                     
                     table.insert(steps, {
