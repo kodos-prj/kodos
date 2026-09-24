@@ -447,11 +447,11 @@ def install(config: str | None, mount_point: str) -> None:
             sys.exit(1)
         
         # Setup execution environment
-         env = {
-             "use_chroot": True,
-             "stage": "install",
-             "dist": dist,
-         }
+        env = {
+            "use_chroot": True,
+            "stage": "install",
+            "dist": dist,
+        }
         
         try:
             hooks_dict = collect_hooks(conf.users or {})
@@ -465,7 +465,7 @@ def install(config: str | None, mount_point: str) -> None:
         print("\n=== Executing Install ===\n")
         results = execute_steps(steps, env, mount_point,
                                 use_chroot=True, hooks=hooks_dict)
-         
+        
         # Check for critical failures (ignore on_error='warn' steps)
         failures = [r for r in results if not r.success and not r.is_warning]
         if failures:
@@ -760,14 +760,14 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
             current_installed_packages=current_installed_packages,
             update=update,
             new_generation=new_generation
-        )
+         )
 
-         # === Setup executor environment ===
-         env = {
-             "repos": repos,
-             "generation_id": generation_id,
-             "use_chroot": use_chroot,
-         }
+        # === Setup executor environment ===
+        env = {
+            "repos": repos,
+            "generation_id": generation_id,
+            "use_chroot": use_chroot,
+        }
 
         # Collect hooks from program definitions
         try:
