@@ -1,12 +1,19 @@
 -- Generic step runner for KodOS plans (language-agnostic orchestrator).
 -- Runs steps in order, fires pre/post hooks, applies on_error policies.
 --
--- Step kinds:
+-- Step kinds and execution paths:
 --   system/disk: Run as shell commands with `timeout` guard and optional chroot wrap.
+--                Uses os.execute for direct shell invocation (no output capture; lupa disables io.popen).
 --   lua-system:  Dispatch to Lua system modules (e.g., kod.system.boot) via step.meta.operation.
+--                Lua modules call Exec.exec_chroot() wrapper, which routes to Python exec_chroot
+--                for kernel operations (distro-specific logic remains in Python for now).
 --   package/service: Dispatch to host-side callable dispatch.step(step, ctx).
+--                    May return "shell" to fall back to os.execute, or handle the step directly.
 --
--- Note: lupa disables io.popen, so no output capture — os.execute only.
+-- Architecture note:
+--   - Executor.run_shell uses os.execute: generic shell runner (no output capture, no dependencies).
+--   - Lua system modules (boot.lua) use Exec.exec_chroot: proper error handling and output capture
+--     for critical boot operations that need Python's distro integration layer.
 
 local Executor = {}
 
@@ -18,6 +25,9 @@ local function shq(s)
 end
 
 -- Run a shell step (system or disk). Returns {success=...} or {success=false, error=...}.
+-- Uses os.execute for direct shell invocation (no output capture due to lupa restrictions).
+-- For operations requiring Python integration (kernel setup, etc.), use lua-system kind instead,
+-- which dispatches to Lua system modules that call Exec.exec_chroot() wrapper.
 function Executor.run_shell(step, mount_point)
     local parts = { step.program or step.command or "" }
     for i = 1, #(step.args or {}) do
