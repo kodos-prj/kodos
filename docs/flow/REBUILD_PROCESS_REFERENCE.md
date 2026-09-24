@@ -2,15 +2,31 @@
 
 ## Overview
 
-The rebuild process updates an existing KodOS installation with configuration changes. It differs from install by:
-1. Computing **diffs** between current and target state
-2. Only generating steps for **changed packages/services**
-3. **Atomic swap** of generations instead of creating new
-4. **Rollback capability** if something fails
+The rebuild process updates an existing KodOS installation with configuration changes. 
 
-## Phase 1: Entry Point
+**Two Rebuild Modes:**
+1. **`new_generation=True`** (snapshot-based rebuild)
+   - Creates new generation snapshot at `/kod/generations/N+1/rootfs`
+   - Executes all changes in chroot environment
+   - No automatic swap (user keeps both generations)
+   - Use case: Testing, staged deployments, keeping rollback point
 
-### `kod rebuild` (kod.py:739)
+2. **`new_generation=False`** (in-place rebuild) — DEFAULT
+   - Modifies current system directly (mount_point="/")
+   - No chroot (executes on host)
+   - Creates backup snapshot before changes
+   - **Atomic swap:** After success, swaps current ↔ previous generations
+   - **Rollback capability:** If failure occurs, restores from backup
+   - Use case: Production updates, live system modifications
+
+**Both modes:**
+- Compute **diffs** between current and target state
+- Only generate steps for **changed packages/services**
+- Preserve old generation as rollback point
+
+## Phase 1: Entry Point & Mode Selection
+
+### `kod rebuild` (kod.py:639)
 
 **Signature:**
 ```python
@@ -20,17 +36,33 @@ def rebuild(config, new_generation=False, update=False, dry_run=False):
 
 **Arguments:**
 - `--config TEXT` - Path to configuration file (required)
-- `--new-generation` - Create new generation (don't swap current)
+- `--new-generation` - Create new generation snapshot (don't modify current)
 - `--update` - Update package versions before rebuild
 - `--dry-run` - Print plan without executing
 
-**Flow:**
+**Mode Selection (kod.py:703-715):**
+```python
+if new_generation:
+    # Mode 1: Snapshot-based rebuild (kod.py:704-709)
+    exec(f"btrfs subvolume snapshot / {next_state_path}/rootfs")
+    use_chroot = True                          # Execute in snapshot
+    new_root_path = create_next_generation()   # /kod/generations/N+1/rootfs
+    setup_chroot_mounts(new_root_path)         # Setup /proc, /sys, /dev
+else:
+    # Mode 2: In-place rebuild (kod.py:710-715) — DEFAULT
+    exec("btrfs subvolume snapshot / /kod/current/old-rootfs")  # Backup
+    copy_state_files()                         # Preserve package/service state
+    use_chroot = False                         # Execute on host (/)
+    new_root_path = "/"                        # Modify current system
 ```
-kod rebuild
-├─ Parse CLI args
-├─ load_config_lua(config_path)
-│  └─ Returns: dict with packages, services, hardware, desktop, etc.
-└─ Determine current generation from /kod/generations/N/
+
+**Context Creation (kod.py:717):**
+```python
+ctx = Context(
+    user=os.environ["USER"],
+    mount_point=new_root_path,      # "/" or "/kod/generations/N+1/rootfs"
+    use_chroot=use_chroot           # False or True
+)
 ```
 
 ## Phase 2: Plan Composition
@@ -501,9 +533,43 @@ def generate_package_lock(mount_point, state_path):
 }
 ```
 
-## Phase 7: Generation Swap
+## Phase 7: Finalization & Generation Deployment
 
-### `_swap_generations_atomic()` (kod.py:156)
+### Two Paths Based on Mode (kod.py:815-837)
+
+**Path 1: `new_generation=False` (In-place rebuild) — DEFAULT**
+```python
+if not new_generation:
+    # Atomically swap generations with rollback on failure
+    try:
+        _swap_generations_atomic(current_generation, generation_id)
+    except RuntimeError as e:
+        print(f"❌ Failed to swap generations: {e}")
+        sys.exit(1)
+    
+    # Update boot configuration
+    updated_partition_list = change_subvol(
+        partition_list,
+        subvol=f"generations/{generation_id}",  # Point to new generation
+        mount_points=["/"],
+    )
+    generate_fstab(updated_partition_list, new_root_path)  # Write to /etc/fstab
+```
+
+**Path 2: `new_generation=True` (Snapshot-based rebuild)**
+```python
+else:
+    # Keep new generation as separate snapshot, don't swap
+    # User can manually boot into it or test before deploying
+    pass  # Just unmount the snapshot
+    
+# Both paths: Write generation number file
+with open(f"{next_state_path}/rootfs/.generation", "w") as f:
+    f.write(str(generation_id))
+
+if new_generation:
+    exec(f"umount -R {new_root_path}")  # Unmount snapshot
+```
 
 **Signature:**
 ```python
@@ -564,49 +630,71 @@ end
 
 **Modifies:** `/etc/fstab` (mount subvolume for /)
 
-## Complete Call Sequence
+## Complete Call Sequence (Both Modes)
+
+### Mode 1: `new_generation=False` (In-place rebuild) — DEFAULT
 
 ```
-kod rebuild                           # CLI entry (kod.py:739)
-├─ load_config_lua(config_path)      # Load config
-├─ get current state                  # Read /kod/generations/N
-├─ plan_rebuild(...)                  # Compute diffs (kod.py:751)
-│  └─ build_plan(baseline='current')  # Build plan (planner.py:463)
-│     └─ compose_steps_lua(...)       # Compose steps (planner.py:108)
-│        ├─ get_lua_runtime()         # Singleton Lua (lua_runtime.py)
-│        └─ planner.compose(config, 'arch', 'current', ...)
-│           ├─ base_distribution.emit_steps()    [SKIPPED]
-│           ├─ packages.emit_steps()             [IF CHANGED]
-│           │  ├─ aggregate_all_packages()       # (packages.lua:368)
-│           │  ├─ separate_packages()            # (packages.lua:405)
-│           │  └─ emit_steps(normal, aur, ...)  # (packages.lua:419)
-│           ├─ services.emit_steps()             [IF CHANGED]
-│           └─ ... other sections
-│        └─ sort_steps()                         # Sort by order
-│           └─ Convert Lua→Python (_convert_lua_step_to_step)
+kod rebuild [--config CONFIG]          # CLI entry (kod.py:639)
+├─ load_config_lua(config_path)        # Load config
+├─ get current state from generation N # Read /kod/generations/N/installed_packages
+├─ new_generation = False              # Use current system (kod.py:703-715)
+├─   exec("btrfs subvolume snapshot / /kod/current/old-rootfs")  # Backup
+├─   use_chroot = False                # No chroot (execute on host)
+├─   new_root_path = "/"               # Modify current system
 │
-├─ execute_steps(steps, mount_point) # Execute (executor.py:36)
-│  ├─ build_env()                    # Build execution env
-│  └─ executor.run(steps, ...)       # Lua executor (planning/executor.lua:40)
-│     └─ For each step:
-│        ├─ fire_hook('pre:...')     # Pre-execution
-│        ├─ run_shell(cmd, chroot)   # Execute (executor.lua:70)
-│        │  └─ os.execute()
-│        ├─ Check return code
-│        ├─ Apply on_error policy
-│        └─ fire_hook('post:...')    # Post-execution
+├─ plan_rebuild(...)                   # Compute package/service diffs
+│  └─ build_plan(baseline='current')   # Only emit changed steps (planner.py:766)
+│     └─ compose_steps_lua(...)        # Compose steps (planner.py:108)
+│        ├─ packages.emit_steps()      # [IF PACKAGES CHANGED]
+│        ├─ services.emit_steps()      # [IF SERVICES CHANGED]
+│        └─ sort_steps()               # Sort by order
 │
-├─ store_packages_services(...)       # Write state (packages.py)
-├─ generate_package_lock(...)         # Generate lock (distro/base.py)
+├─ execute_steps(steps, "/", use_chroot=False)  # Execute on host (executor.py:797)
+│  └─ For each step:
+│     ├─ run_shell(cmd)                # Execute directly (no chroot)
+│     └─ Check return code, apply on_error policy
 │
-└─ if not new_generation:
-   └─ _swap_generations_atomic(...)   # Atomic swap (kod.py:156)
-      ├─ backup current
-      ├─ move next → current
-      ├─ move current → prev
-      ├─ restore backup → current
-      ├─ copy state files
-      └─ delete backup
+├─ store_packages_services(...)        # Write state
+├─ generate_package_lock(...)          # Generate lock file
+│
+└─ ATOMIC SWAP (only because new_generation=False) -> kod.py:815
+   ├─ _swap_generations_atomic(...)    # Atomic swap (kod.py:818)
+   │  ├─ backup current generation     # snapshot current
+   │  ├─ move next -> current          # Activate new generation
+   │  ├─ move old current -> prev       # Keep as rollback
+   │  └─ on failure: restore backup    # Rollback capability
+   │
+   └─ change_subvol()                  # Update /etc/fstab
+      └─ Point root mount to new generation
+```
+
+### Mode 2: `new_generation=True` (Snapshot-based rebuild)
+
+```
+kod rebuild --new-generation [--config CONFIG]  # CLI entry (kod.py:639)
+├─ load_config_lua(config_path)        # Load config
+├─ new_generation = True               # Create snapshot (kod.py:703-715)
+├─   exec("btrfs subvolume snapshot / /kod/generations/N+1/rootfs")
+├─   use_chroot = True                 # Use chroot to snapshot
+├─   new_root_path = "/kod/generations/N+1/rootfs"
+│
+├─ plan_rebuild(...)                   # Compute diffs (same as mode 1)
+│  └─ build_plan(baseline='current')   # Only emit changed steps
+│
+├─ execute_steps(steps, "/kod/generations/N+1/rootfs", use_chroot=True)
+│  └─ For each step:
+│     └─ chroot /kod/generations/N+1/rootfs sh -c 'cmd'
+│
+├─ store_packages_services(...)        # Write state to N+1
+├─ generate_package_lock(...)          # Generate lock in N+1
+│
+└─ NO SWAP (because new_generation=True) -> kod.py:836-837
+   └─ exec(f"umount -R {new_root_path}")  # Unmount snapshot
+      (Snapshot remains available at /kod/generations/N+1)
+      (User can manually boot into it or compare with current)
+```
+
 ```
 
 ## Diff Computation (Key Difference from Install)
