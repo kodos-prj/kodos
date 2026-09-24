@@ -471,8 +471,8 @@ def install(config: str | None, mount_point: str) -> None:
         # Record generation 0 state BEFORE unmounting /mnt
         # This must happen while /mnt/kod/generations/0 is still accessible
         print("Recording generation 0 state...")
-        state_path = f"{mount_point}/kod/generations/0"
-        os.makedirs(state_path, exist_ok=True)
+        state_path = Path(mount_point) / "kod" / "generations" / "0"
+        state_path.mkdir(parents=True, exist_ok=True)
         
         # Ensure /kod/generations is properly permissioned for rebuild (owner+group only)
         # Use chmod via shell to ensure it applies to the mounted subvolume
