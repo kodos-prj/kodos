@@ -83,7 +83,7 @@ def execute_steps(
     from kod.lua_runtime import LuaRuntimeManager
 
     manager = LuaRuntimeManager()
-    manager.reload_modules(["kod\\.planning\\..*"])
+    manager.reload_modules([r"kod\.planning\..*"])
 
     steps_lua = _convert_to_lua_table(lua, [s.to_dict() for s in steps])
 
