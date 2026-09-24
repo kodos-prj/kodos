@@ -86,52 +86,6 @@ def execute_steps(
     manager = LuaRuntimeManager()
     manager.reload_modules(["kod\\.planning\\..*"])
 
-    def dispatch_step(step, ctx_lua):
-        """Dispatch a Python-callable step to its handler.
-
-        Called by Lua executor (kod/lib/executor.lua) for steps that require
-        Python handling (currently: system steps). Python steps are identified
-        by kind='system' and dispatched by name to a callable in env dict.
-
-        Flow:
-        1. Lua executor runs shell steps (disk, package, service, program, user, build).
-        2. For each system step, Lua calls dispatch_step(step, ctx_lua).
-        3. Python looks up the handler by step.name in env dict.
-        4. If callable, invokes it with (kernel_version, mount_point).
-        5. If not callable or unknown kind, raises StepError (aborts the plan).
-
-        Args:
-            step: A Step-like object with kind, name, meta fields. Passed from Lua
-                as a table (lupa auto-converts).
-            ctx_lua: Lua table with mount_point and other context from execute_steps.
-
-        Raises:
-            StepError: If kind is not 'system' (unknown kind) or handler not found/not callable.
-
-        Note:
-            Only kind='system' is currently handled. Other kinds (disk, package, etc.)
-            are handled entirely in Lua. Once system modules migrate to Lua, this
-            function may become unnecessary.
-        """
-        kind = step.kind
-        name = step.name
-        meta = {}
-        if step.meta is not None:
-            for k in step.meta:
-                meta[k] = step.meta[k]
-        mp = ctx_lua.mount_point
-
-        if kind == "system":
-            fn = env.get(name)
-            if callable(fn):
-                fn(meta.get("kernel"), mp)
-        else:
-            # DEBUG: Log unknown step for investigation
-            logger.error(
-                f"DEBUG: dispatch_step called for kind={kind}, name={name}, meta={meta}"
-            )
-            raise StepError(f"Unknown step kind: {kind}")
-
     steps_lua = _convert_to_lua_table(lua, [s.to_dict() for s in steps])
 
     ctx_data = {
@@ -143,8 +97,7 @@ def execute_steps(
     ctx_lua = _convert_to_lua_table(lua, ctx_data)
 
     dispatch_lua = lua.table()
-    dispatch_lua["step"] = dispatch_step
-
+    
     # Inject Python exec functions for Lua system modules to call back
     # These are used by src/lua/kod/system/boot.lua
     dispatch_lua["_dispatch_python"] = lua.table()

@@ -87,7 +87,7 @@ function Executor.run(steps, ctx, dispatch, hooks)
                 result = { success = true }
             end
             
-        elseif step.kind == "package" or step.kind == "service" or step.kind == "system" then
+        elseif step.kind == "package" or step.kind == "service" then
             -- No command: a named verb. The host may run it, return "shell",
             -- or be absent (metadata-only no-op).
             if dispatch and dispatch.step then
