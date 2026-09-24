@@ -14,10 +14,14 @@ class Context:
     This class represents the context in which commands are executed. It stores
     information about the user, mount point, and execution stage used to execute commands.
     
-    The stage parameter controls behavior:
-    - "install": Fresh installation (uses chroot by default)
-    - "rebuild": System rebuild (uses chroot)
-    - "rebuild-user": User-level rebuild operations (no chroot)
+    The stage parameter and use_chroot flag control behavior:
+    
+    Stages:
+    - "install": Fresh installation (always uses chroot to new generation)
+    - "rebuild": System rebuild with two modes:
+      - new_generation=True: Create new generation snapshot, use chroot to it
+      - new_generation=False: Reuse current system, no chroot (run directly)
+    - "rebuild-user": User-level rebuild operations after swap (never uses chroot)
     """
 
     user: str
@@ -36,13 +40,19 @@ class Context:
             The mount point of the root filesystem to use for executing commands.
             Defaults to "/mnt".
         use_chroot : bool
-            If True, the command will be executed using chroot. Defaults to True.
+            If True, commands will be executed using chroot into mount_point.
+            Defaults to True. In rebuild mode:
+            - new_generation=True: use_chroot=True (execute in new snapshot)
+            - new_generation=False: use_chroot=False (execute on current system)
         stage : str
-            The stage of the installation/rebuild. Valid values:
-            - "install": Fresh installation (install CLI)
-            - "rebuild": System rebuild with chroot (rebuild CLI)
-            - "rebuild-user": User-level operations after rebuild (no chroot)
-            Defaults to "install". Used to conditionally enable user services.
+            The execution stage. Valid values:
+            - "install": Fresh installation (uses chroot=True)
+            - "rebuild": System rebuild with two modes:
+              - new_generation=True: use_chroot=True (snapshot-based rebuild)
+              - new_generation=False: use_chroot=False (in-place rebuild on current system)
+            - "rebuild-user": User-level operations after rebuild (uses chroot=False)
+            Used to conditionally enable user services (system/services.py:102).
+            Defaults to "install".
         """
         self.user = user
         self.mount_point = mount_point
