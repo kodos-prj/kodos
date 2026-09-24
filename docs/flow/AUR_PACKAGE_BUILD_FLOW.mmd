@@ -1,0 +1,59 @@
+graph TD
+    A["AUR Package Build Flow"]
+    
+    A --> B["Step 1: aggregate_all_packages<br/>src/lua/kod/sections/packages.lua:368"]
+    
+    B --> B1["collect packages from:<br/>• desktop.environments[*].extra_packages<br/>• hardware[*].extra_packages<br/>• fonts.packages<br/>• programs[*].extra_packages<br/>• users[user].programs[*].extra_packages"]
+    
+    B1 --> C["Step 2: separate_packages<br/>src/lua/kod/sections/packages.lua:405"]
+    
+    C --> C1["Input: mixed packages list<br/>aur:brother-dcp-l2550dw,<br/>aur:mission-center,<br/>flatpak:code,<br/>vim,...]
+    
+    C1 --> C2["Output:<br/>normal_pkgs,<br/>aur_pkgs: [brother-dcp-l2550dw,<br/>             mission-center],<br/>flatpak_pkgs"]
+    
+    C2 --> D["Step 3: emit_steps"]
+    
+    D --> D0["Check if #aur_pkgs > 0"]
+    
+    D0 -->|No AUR| D1["Skip AUR setup steps"]
+    D0 -->|Yes| D2["Generate AUR build sequence"]
+    
+    D1 --> D1A["install_normal_and_base<br/>order: 490<br/>pacman -S --noconfirm --needed ..."]
+    D2 --> D2A["Order 490:<br/>packages_install_normal_and_base<br/>pacman -S --noconfirm base-devel git ..."]
+    
+    D2A --> D2B["Order 492:<br/>packages_create_kod_user<br/>useradd -r -m -s /bin/bash kod<br/>depends_on: [packages_install_normal_and_base]"]
+    
+    D2B --> D2C["Order 493:<br/>packages_kod_sudoers<br/>echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod<br/>depends_on: [packages_create_kod_user]"]
+    
+    D2C --> D2D["Order 494:<br/>packages_build_yay_helper<br/>cd /tmp && git clone yay-bin &&<br/>chown -R kod:kod yay-bin &&<br/>cd yay-bin &&<br/>sudo -u kod makepkg -si --noconfirm &&<br/>cd /tmp && rm -rf yay-bin<br/>depends_on: [packages_kod_sudoers]<br/>timeout: 900s"]
+    
+    D2D --> D2E["Order 500+i:<br/>packages_build_aur_brother-dcp-l2550dw<br/>sudo -u kod yay -S --noconfirm --needed 'brother-dcp-l2550dw'<br/>depends_on: [packages_build_yay_helper]<br/>timeout: 900s"]
+    
+    D2E --> D2F["Order 501+i:<br/>packages_build_aur_mission-center<br/>sudo -u kod yay -S --noconfirm --needed 'mission-center'<br/>depends_on: [packages_build_yay_helper]<br/>timeout: 900s"]
+    
+    D1A --> E["Execution Phase"]
+    D2F --> E
+    
+    E --> E1["Step 1: Install base-devel<br/>chroot execution<br/>pacman downloads & installs base-devel packages"]
+    
+    E1 --> E2["Step 2: Create kod user<br/>chroot execution<br/>• Home: /home/kod<br/>• Shell: /bin/bash<br/>• No initial password"]
+    
+    E2 --> E3["Step 3: Configure sudoers<br/>chroot execution<br/>• kod user can run ALL commands<br/>• NOPASSWD: no password prompt<br/>• Safe in temporary chroot"]
+    
+    E3 --> E4["Step 4: Build yay-bin from AUR<br/>chroot execution<br/>1. git clone from https://aur.archlinux.org<br/>2. chown directory to kod user<br/>3. sudo -u kod makepkg -si<br/>   • Makes .pkg.tar.zst<br/>   • Installs via pacman -U"]
+    
+    E4 --> E5["Step 5A: Build brother-dcp-l2550dw<br/>chroot execution<br/>sudo -u kod yay -S<br/>• yay installed system-wide<br/>• kod user runs as non-root<br/>• makepkg safe to execute<br/>• yay uses sudo to install"]
+    
+    E5 --> E6["Step 5B: Build mission-center<br/>chroot execution<br/>sudo -u kod yay -S<br/>• Same flow as brother-dcp"]
+    
+    E6 --> F["✅ All AUR packages installed"]
+    
+    style A fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:3px
+    style D2A fill:#FFEB3B,color:#000,stroke:#F57F17,stroke-width:2px
+    style D2D fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style D2E fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style D2F fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style E4 fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style E5 fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style E6 fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style F fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px

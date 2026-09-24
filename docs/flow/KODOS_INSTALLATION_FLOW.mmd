@@ -1,0 +1,66 @@
+graph TD
+    A["CLI: kod install<br/>(kod.py:427)"]
+    B["load_config_lua<br/>(config/loader.py)"]
+    C["build_plan<br/>(planner.py:463)"]
+    D["compose_steps_lua<br/>(planner.py:108)"]
+    E["Lua Runtime<br/>get_lua_runtime"]
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    
+    E --> F1["base_distribution.lua"]
+    E --> F2["repos.lua"]
+    E --> F3["devices.lua"]
+    E --> F4["packages.lua"]
+    E --> F5["services.lua"]
+    E --> F6["other sections"]
+    
+    F4 --> G1["aggregate_all_packages<br/>desktop + hardware + fonts<br/>+ global programs + user programs"]
+    G1 --> G2["separate_packages<br/>normal | aur | flatpak"]
+    G2 --> H1["normal stream<br/>pacman -S"]
+    G2 --> H2["AUR stream<br/>build yay then yay -S"]
+    G2 --> H3["flatpak stream<br/>flatpak install"]
+    
+    H1 --> I["emit_steps<br/>order 490-550"]
+    H2 --> I
+    H3 --> I
+    
+    F1 --> I
+    F2 --> I
+    F3 --> I
+    F5 --> I
+    F6 --> I
+    
+    I --> J["Sort steps<br/>by order"]
+    J --> K["Convert Lua→Python<br/>Step objects"]
+    K --> L["execute_steps<br/>(executor.py:36)"]
+    
+    L --> M["Lua executor.run<br/>(planning/executor.lua:40)"]
+    
+    M --> N["For each step"]
+    N --> O["Pre hooks"]
+    O --> P["Run command<br/>in chroot"]
+    P --> Q["Apply on_error policy<br/>abort|warn"]
+    Q --> R["Post hooks"]
+    R --> S{More steps?}
+    S -->|Yes| N
+    S -->|No| T
+    
+    T["store_packages_services<br/>Write JSON state"]
+    T --> U["generate_package_lock<br/>JSON lock file"]
+    U --> V{Swap<br/>generations?}
+    
+    V -->|Yes| W["_swap_generations_atomic<br/>Btrfs snapshot+move"]
+    V -->|No| X["umount -R new_root"]
+    
+    W --> Y["✅ Install Complete"]
+    X --> Y
+    
+    style A fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px
+    style H1 fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style H2 fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:2px
+    style H3 fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style M fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style Y fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px

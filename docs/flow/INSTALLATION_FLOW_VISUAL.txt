@@ -1,0 +1,528 @@
+================================================================================
+                    KODOS INSTALLATION FLOW - VISUAL MAP
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          INSTALL PHASE (bash: kod install)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: CONFIG LOADING
+┌─────────────────────────┐
+│   kod install           │
+│  (kod.py:427)           │
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│ load_config_lua()       │ Returns Lua table from .lua file
+│ (config/loader.py)      │
+└──────────┬──────────────┘
+           │
+           ▼ Configuration object (Lua table or dict)
+
+
+STEP 2: PLAN COMPOSITION (Lua-driven)
+┌──────────────────────────────────┐
+│ build_plan(conf, dist,           │
+│   baseline="empty")              │  Called from kod.py:445
+│ (planner.py:463)                 │
+└──────────┬───────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│ compose_steps_lua(config, distro)│
+│ (planner.py:108)                 │
+│  ├─> lua = get_lua_runtime()     │
+│  └─> require("planning.planner") │
+└──────────┬───────────────────────┘
+           │
+           ▼ Calls: planner_module.compose(config_lua, distro)
+           │        (planning/planner.lua:140)
+           │
+    ┌──────┴────────┐
+    │               │
+    ▼               ▼
+ Section Modules (emit_steps):
+ ├─ devices.lua (disk wipe/partition/format/mount)
+ ├─ boot.lua (bootloader setup)
+ ├─ base_distribution.lua (distro config)
+ ├─ repos.lua (repo metadata)
+ ├─ packages.lua (aggregation → normal/aur/flatpak)
+ │   └─ aggregate_all_packages()
+ │      └─ extract desktop/hardware/fonts/programs/users packages
+ │      └─ separate_packages() → 3 streams
+ │   └─ emit_steps() → install steps (with yay build for AUR)
+ ├─ services.lua (systemctl enable)
+ ├─ users.lua (useradd)
+ ├─ dotfiles.lua (config sync)
+ ├─ desktop.lua (DE setup)
+ ├─ fonts.lua (font installation)
+ ├─ locale.lua (locale config)
+ ├─ network.lua (network setup)
+ └─ programs.lua (global programs)
+    │
+    └─▶ Returns: list of step tables {kind, name, program, args, order, ...}
+                  Collected into all_steps
+                  │
+                  ▼
+          sort_steps(all_steps)
+          ├─ Sort by order field
+          └─ Handle dependencies
+             │
+             ▼
+        Convert Lua steps → Python Step objects
+        for idx in range(1, len(lua_steps)):
+          ├─ Extract: kind, name, program, args, meta
+          ├─ Convert: lua.table → python tuple/dict
+          └─ Step(kind, name, program, args, ...)
+             │
+             ▼
+        Return: list[Step]
+
+
+STEP 3: EXECUTION
+┌──────────────────────────────────┐
+│ execute_steps(steps, env,        │
+│   mount_point="/mnt",            │ Called from kod.py:476
+│   use_chroot=True)               │ (executor.py:36)
+│ (executor.py:36)                 │
+└──────────┬───────────────────────┘
+           │
+           ▼ Build env dict with callbacks:
+           │ env = {
+           │   "mount_point": "/mnt",
+           │   "kernel-update": update_kernel_hook(),
+           │   "initramfs-update": update_initramfs_hook(),
+           │   "boot-entry": create_boot_entry_hook(0, kernel, mp)
+           │ }
+           │
+           ▼
+┌──────────────────────────────────┐
+│ lua.require("planning.executor") │
+│ module.run(steps, ctx, dispatch) │ planning/executor.lua:40
+│ (executor.py:104)                │
+└──────────┬───────────────────────┘
+           │
+           ▼ For each step in order:
+           │
+           ├─ Fire pre:<kind> hooks
+           │
+           ├─ if (program or command):
+           │  └─ run_shell(step)
+           │     ├─ Wrap in chroot if step.chroot=true
+           │     ├─ Guard with timeout (coreutils timeout)
+           │     └─ os.execute() via lupa
+           │
+           ├─ elif kind="system/package/service":
+           │  └─ dispatch.step(step, ctx)
+           │     └─ Call Python callback from env
+           │
+           ├─ Apply on_error policy:
+           │  ├─ "abort": raise StepError
+           │  └─ "warn": log warning, continue
+           │
+           └─ Fire post:<kind> hooks
+              │
+              ▼
+        Return: StepResult array
+
+
+STEP 4: POST-INSTALL FINALIZATION
+┌────────────────────────────────┐
+│ store_packages_services(       │ kod.py:509
+│   state_path="/kod/gen/0",     │
+│   packages_to_install,         │ packages.py:XXX
+│   next_services)               │
+│ Write JSON:                    │
+│  ├─ /kod/generations/0/        │
+│  │  installed_packages         │
+│  └─ /kod/generations/0/        │
+│     enabled_services           │
+└────────────────────────────────┘
+           │
+           ▼
+┌────────────────────────────────┐
+│ dist.generate_package_lock(    │ kod.py:514
+│   mount_point,                 │
+│   state_path)                  │ distro/base.py
+│ Write:                         │
+│  └─ /kod/generations/0/        │
+│     packages.lock (JSON)       │
+└────────────────────────────────┘
+           │
+           ▼
+┌────────────────────────────────┐
+│ Cleanup chroot mounts:         │ kod.py:531
+│ umount -R /mnt                 │
+│ (proc, sys, dev, dev/pts)      │
+│ _verify_unmount()              │
+└────────────────────────────────┘
+           │
+           ▼
+    ✅ INSTALL COMPLETE
+
+
+================================================================================
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       REBUILD PHASE (bash: kod rebuild)                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: LOAD CURRENT STATE
+┌──────────────────────────┐
+│ _load_current_state()    │ kod.py:593
+│ Read: /.generation       │
+│ Load JSON:               │
+│  ├─ installed_packages   │
+│  ├─ enabled_services     │
+│  └─ packages.lock        │ (if exists)
+│ Return: (state_path,     │
+│  current_packages,       │
+│  current_services,       │
+│  installed_lock)         │
+└──────────┬───────────────┘
+           │
+           ▼ (state_path, cur_pkgs, cur_svcs, cur_lock)
+
+
+STEP 2: GENERATION PREPARATION
+┌──────────────────────────────┐
+│ if new_generation:           │ kod.py:703
+│  ├─ generation_id++          │
+│  ├─ btrfs subvolume snapshot │
+│  │   / → /kod/gen/N/rootfs   │
+│  ├─ create_next_generation() │
+│  │   (mount at new_root_path)│
+│  └─ setup_chroot_mounts()    │
+│ else:                        │ kod.py:710
+│  ├─ snapshot old-rootfs      │
+│  ├─ copy state files         │
+│  └─ new_root_path = "/"      │
+└──────────┬───────────────────┘
+           │
+           ▼ (new_root_path, use_chroot, generation_id)
+
+
+STEP 3: REPOSITORY PROCESSING
+┌──────────────────────────────┐
+│ dist.proc_repos(             │ kod.py:753
+│   conf, current_repos,       │
+│   update, mount_point)       │ distro/adapters/*.py
+│                              │
+│ Arch:                        │
+│  ├─ Parse conf.repos         │
+│  ├─ Identify AUR repos       │
+│  └─ Ensure kod user exists   │
+│                              │
+│ Debian:                      │
+│  ├─ Parse conf.repos         │
+│  └─ Skip AUR handling        │
+│                              │
+│ Return: (repos, repo_pkgs)   │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ if update:                   │ kod.py:759
+│  dist.refresh_package_db()   │
+│  (pacman -Sy / apt update)   │
+└──────────┬───────────────────┘
+           │
+           ▼ (repos updated, new_root ready)
+
+
+STEP 4: PLAN COMPOSITION (DIFF-BASED)
+┌──────────────────────────────┐
+│ get_packages_to_install()    │ kod.py:807
+│ get_services_to_enable()     │
+│ → (next_packages,            │
+│    next_services)            │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ dist.kernel_update_required? │ kod.py:430
+│ (compare current vs next)    │ (planner.py:430)
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ build_plan(conf, dist,       │ kod.py:766
+│   baseline="current",        │ (planner.py:463)
+│   current_packages,          │
+│   current_services,          │
+│   current_installed_packages)│
+│                              │
+│ → plan_rebuild(...)          │
+│   (planner.py:407)           │
+│   ├─ get_packages_to_install │
+│   ├─ get_services_to_enable  │
+│   └─ compose_rebuild_steps   │
+│       _lua({state})          │
+│       (planner.py:187)       │
+│       │                      │
+│       ▼ lua.require(         │
+│         "planning.rebuild")  │
+│         module.diff(state)   │
+│         (planning/rebuild:41)│
+│         │                    │
+│         ├─ Compute removed   │
+│         │  services         │
+│         │  → systemctl      │
+│         │    disable --now  │
+│         │                   │
+│         ├─ Config dracut    │
+│         │  (if kernel_update)│
+│         │                   │
+│         ├─ Compute removed  │
+│         │  packages         │
+│         │  → pacman -R /    │
+│         │    apt-get remove │
+│         │                   │
+│         ├─ Compute new      │
+│         │  packages         │
+│         │  → Call:          │
+│         │    Packages       │
+│         │    .emit_steps()  │
+│         │    (install steps)│
+│         │                   │
+│         ├─ If kernel_update:│
+│         │  → kernel-update  │
+│         │  → initramfs-     │
+│         │    update         │
+│         │                   │
+│         ├─ Compute new      │
+│         │  services         │
+│         │  → systemctl      │
+│         │    enable [--now] │
+│         │                   │
+│         └─ boot-entry       │
+│            (boot.lua hook)  │
+└──────────┬───────────────────┘
+           │
+           ▼ Return: list[Step]
+
+
+STEP 5: EXECUTION
+┌──────────────────────────────┐
+│ execute_steps(steps, env,    │ kod.py:797
+│   new_root_path,             │ (executor.py:36)
+│   use_chroot)                │
+│                              │
+│ [Same as INSTALL STEP 3]     │
+│ ├─ For each step:            │
+│ │  ├─ Pre hooks              │
+│ │  ├─ Shell execution        │
+│ │  │  (chrooted if needed)   │
+│ │  ├─ Apply on_error policy  │
+│ │  └─ Post hooks             │
+│ │                            │
+│ └─ Return: StepResult array  │
+└──────────┬───────────────────┘
+           │
+           ▼ (steps executed, state changed)
+
+
+STEP 6: STATE UPDATE & GENERATION SWAP
+┌──────────────────────────────┐
+│ store_packages_services()    │ kod.py:808
+│ dist.generate_package_lock() │
+│ (same as install step 4)     │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ if not new_generation:       │ kod.py:815
+│  _swap_generations_atomic()  │
+│  (kod.py:156)                │
+│                              │
+│  1. Create btrfs backup      │
+│  2. Move rootfs to new_gen   │
+│  3. Move old_rootfs to       │
+│     current position         │
+│  4. Move state files to      │
+│     previous generation      │
+│  5. On success: rm backup    │
+│  6. On failure: rollback     │
+│     all moves                │
+│                              │
+│  7. Update fstab:            │
+│     ├─ change_subvol() →     │
+│     │  new generation        │
+│     └─ generate_fstab()      │
+└──────────┬───────────────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│ if new_generation:           │ kod.py:837
+│  umount -R new_root_path     │
+└──────────┬───────────────────┘
+           │
+           ▼
+    ✅ REBUILD COMPLETE
+
+
+================================================================================
+                     PACKAGE FLOW - AGGREGATION DETAIL
+================================================================================
+
+packages.lua:aggregate_all_packages(config)
+│
+├─ aggregate_base_packages()
+│  └─ (empty for user config)
+│
+├─ aggregate_desktop_packages()
+│  ├─ config.desktop.display_manager
+│  ├─ config.desktop.desktop_manager[*] (legacy)
+│  ├─ config.desktop.environments[*].enable
+│  └─ Add extra_packages for enabled
+│
+├─ aggregate_hardware_packages()
+│  └─ config.hardware[*].enable
+│     └─ Add extra_packages
+│
+├─ aggregate_system_packages()
+│  └─ config.packages[*]
+│
+├─ aggregate_font_packages()
+│  └─ config.fonts.packages[*]
+│
+├─ aggregate_global_program_packages()
+│  └─ config.programs[*].enable
+│     └─ Add extra_packages
+│
+├─ aggregate_user_program_packages()
+│  └─ config.users[user].programs[*].enable
+│     └─ Add extra_packages
+│  └─ config.users[user].services[*].enable
+│     └─ Add extra_packages
+│
+└─ deduplicate_packages()
+   └─ Remove duplicates, preserve order
+      │
+      ▼ ["normal-pkg", "aur:pkg-1", "flatpak:app"]
+
+
+separate_packages(packages)
+│
+├─ normal_pkgs: ["vim", "base-devel", ...]
+│  └─ Install: pacman -S --noconfirm --needed
+│
+├─ aur_pkgs: ["yay", "package-git", ...]
+│  └─ Prefix stripped from config
+│  └─ Install via: yay -S --noconfirm
+│
+└─ flatpak_pkgs: ["org.gnome.Evolution", ...]
+   └─ Prefix stripped from config
+   └─ Install via: flatpak install
+
+
+emit_steps(config, "arch")
+│
+├─ Step 1 (order: 490): Install normal packages + base-devel
+│  ├─ Name: packages_install_normal_and_base
+│  └─ Command: pacman -S --noconfirm --needed ...
+│
+├─ Step 2 (order: 492): Create kod user [if AUR packages exist]
+│  ├─ Name: packages_create_kod_user
+│  └─ Command: useradd -r -m -s /bin/bash kod
+│     └─ Depends: ["packages_install_normal_and_base"]
+│
+├─ Step 3 (order: 493): Add kod to sudoers [if AUR packages exist]
+│  ├─ Name: packages_kod_sudoers
+│  └─ Command: echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod
+│     └─ Depends: ["packages_create_kod_user"]
+│
+├─ Step 4 (order: 494): Build yay [if AUR packages exist]
+│  ├─ Name: packages_build_yay_helper
+│  ├─ Timeout: 900s
+│  └─ Command: git clone yay-bin && sudo -u kod makepkg -si
+│     └─ Depends: ["packages_kod_sudoers"]
+│
+└─ Step 5+ (order: 500+i): Build each AUR package [if AUR packages exist]
+   ├─ Name: packages_build_aur_{pkg}
+   ├─ Timeout: 900s
+   └─ Command: sudo -u kod yay -S --noconfirm 'pkg'
+      └─ Depends: ["packages_build_yay_helper"]
+
+
+================================================================================
+                    LUA-PYTHON INTERACTION ARCHITECTURE
+================================================================================
+
+Python                             Lua                        Python
+│                                  │                          │
+├─ load_config_lua()               │                          │
+│  └─ Returns: dict or object      │                          │
+│     with __dict__                │                          │
+│                                  │                          │
+├─ _convert_to_lua_table()         │                          │
+│  └─ dict → lua.table()           │                          │
+│  └─ list → lua.table(1-indexed)  │                          │
+│                                  │                          │
+├─ lua.require("kod.sections.*")   ├─ Parse + Execute        │
+│  └─ lupa auto-loads .lua file    │ .lua code                │
+│     from package.path            │                          │
+│                                  ├─ section.emit_steps()   │
+│                                  │  └─ Returns: table array │
+│                                  │     {kind, name, ...}    │
+│                                  │                          │
+├─ Receive lua_steps               │                          │
+│  └─ lupa.LuaTable                │                          │
+│                                  │                          │
+├─ _convert_lua_step_to_step()     │                          │
+│  └─ Extract fields from          │                          │
+│     lua_step.kind, .name, etc.   │                          │
+│  └─ Convert:                     │                          │
+│     ├─ lua.table args → tuple    │                          │
+│     ├─ lua.table meta → dict     │                          │
+│     └─ Scalars → pass through    │                          │
+│                                  │                          │
+└─ Step(kind, name, program, ...)  │                          │
+
+
+================================================================================
+                          KEY FILE LOCATIONS
+================================================================================
+
+Python Core:
+  ├─ src/kod/kod.py                    Main CLI entry point
+  ├─ src/kod/planner.py                Step composition logic
+  ├─ src/kod/executor.py               Step execution controller
+  ├─ src/kod/bootstrap.py              Bootstrap step emission
+  ├─ src/kod/lua_runtime.py            Lua singleton manager
+  ├─ src/kod/config/loader.py          Config loading
+  └─ src/kod/system/packages.py        Package state management
+
+Lua Sections (in order of loading):
+  ├─ src/lua/kod/sections/base_distribution.lua
+  ├─ src/lua/kod/sections/repos.lua
+  ├─ src/lua/kod/sections/devices.lua
+  ├─ src/lua/kod/sections/boot.lua
+  ├─ src/lua/kod/sections/hardware.lua
+  ├─ src/lua/kod/sections/locale.lua
+  ├─ src/lua/kod/sections/network.lua
+  ├─ src/lua/kod/sections/users.lua
+  ├─ src/lua/kod/sections/desktop.lua
+  ├─ src/lua/kod/sections/fonts.lua
+  ├─ src/lua/kod/sections/packages.lua     ← Aggregates from all sections
+  ├─ src/lua/kod/sections/services.lua
+  └─ src/lua/kod/sections/programs.lua
+
+Lua Planning:
+  ├─ src/lua/kod/planning/planner.lua       Main section loader & composer
+  ├─ src/lua/kod/planning/executor.lua      Step runner
+  └─ src/lua/kod/planning/rebuild.lua       Rebuild diff logic
+
+Distro Adapters:
+  ├─ src/kod/system/distro/factory.py
+  ├─ src/kod/system/distro/base.py          Abstract interface
+  ├─ src/kod/system/distro/adapters/arch.py
+  └─ src/kod/system/distro/adapters/debian.py
+
+State & Boot:
+  ├─ src/kod/system/packages.py
+  ├─ src/kod/system/services.py
+  ├─ src/kod/system/boot.py                Hook implementations
+  └─ src/kod/system/generations.py         Generation management
+
+================================================================================

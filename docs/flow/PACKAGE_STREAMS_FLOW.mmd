@@ -1,0 +1,56 @@
+graph LR
+    START["packages.lua<br/>aggregate_all_packages"]
+    
+    START --> COLLECT["Collect from all sources:<br/>• desktop.environments[*]<br/>• hardware[*]<br/>• programs[*]<br/>• users[user].programs[*]<br/>• fonts<br/>• system packages"]
+    
+    COLLECT --> DEDUPE["Deduplicate<br/>Preserve order"]
+    
+    DEDUPE --> SEPARATE["separate_packages<br/>Check prefix"]
+    
+    SEPARATE --> N["normal pkgs<br/>vim, git, base-devel, ...<br/>Prefix: none"]
+    SEPARATE --> A["AUR pkgs<br/>brother-dcp-l2550dw<br/>mission-center<br/>Prefix: aur:"]
+    SEPARATE --> F["flatpak apps<br/>code, obsidian, ...<br/>Prefix: flatpak:"]
+    
+    N --> NE["emit_steps<br/>order: 490"]
+    NE --> NE1["Step: packages_install_normal_and_base<br/>Command: pacman -S --noconfirm --needed ..."]
+    NE1 --> NE2["Execution (chroot):<br/>pacman downloads & installs<br/>⏱️ Timeout: none"]
+    
+    A --> AE["emit_steps<br/>order: 490-501+"]
+    AE --> AE0["Prerequisite: #aur_pkgs > 0"]
+    AE0 --> AE1["490: install base-devel + git"]
+    AE1 --> AE2["492: create kod user"]
+    AE2 --> AE3["493: kod sudoers"]
+    AE3 --> AE4["494: build yay-bin"]
+    AE4 --> AE5["500+: build each AUR package"]
+    
+    AE5 --> AE5A["brother-dcp-l2550dw: yay -S"]
+    AE5 --> AE5B["mission-center: yay -S"]
+    
+    AE2 --> AE_DETAIL["useradd -r -m -s /bin/bash kod<br/>Execution (chroot):<br/>• Creates user with bash shell<br/>• Home: /home/kod<br/>• Allows command execution"]
+    
+    AE3 --> AE_SUDO["echo 'kod ALL=(ALL) NOPASSWD: ALL'<br/>Execution (chroot):<br/>• kod can run any sudo command<br/>• No password needed<br/>• Safe in temporary chroot"]
+    
+    AE4 --> AE_YAY["git clone yay-bin && chown && makepkg<br/>Execution (chroot):<br/>1. git clone from AUR<br/>2. chown -R kod:kod (fix permissions)<br/>3. sudo -u kod makepkg -si<br/>   • Runs as non-root (required by makepkg)<br/>   • Installs via pacman -U<br/>⏱️ Timeout: 900s"]
+    
+    AE5A --> AE_BUILD["sudo -u kod yay -S --needed<br/>Execution (chroot):<br/>• yay available system-wide<br/>• Runs as kod user (non-root)<br/>• makepkg can execute safely<br/>• yay uses sudo for pacman -U<br/>• Downloads & builds AUR package<br/>⏱️ Timeout: 900s"]
+    
+    F --> FE["emit_steps<br/>order: varies"]
+    FE --> FE1["Step: packages_install_flatpak_apps<br/>Service: kod-flatpak-install.service"]
+    FE1 --> FE2["Execution:<br/>• Systemd service (not chroot)<br/>• flatpak remote-add flathub<br/>• flatpak install --app-only<br/>• Requires network connectivity"]
+    FE2 --> FE3["⚠️  Issue: Network required<br/>Error if DNS/flathub unreachable"]
+    
+    NE2 --> RESULT1["✅ Normal packages installed"]
+    AE_BUILD --> RESULT2["✅ AUR packages built & installed"]
+    FE3 --> RESULT3["Flatpak apps installed<br/>or failed (network dependent)"]
+    
+    RESULT1 --> DONE["Installation complete"]
+    RESULT2 --> DONE
+    RESULT3 --> DONE
+    
+    style START fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:3px
+    style NE1 fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style AE4 fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style AE_BUILD fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style FE2 fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style FE3 fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style DONE fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px
