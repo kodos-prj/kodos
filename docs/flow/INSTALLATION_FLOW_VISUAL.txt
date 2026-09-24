@@ -130,8 +130,8 @@ STEP 3: EXECUTION
 STEP 4: POST-INSTALL FINALIZATION
 ┌────────────────────────────────┐
 │ store_packages_services(       │ kod.py:509
-│   state_path="/kod/gen/0",     │
-│   packages_to_install,         │ packages.py:XXX
+│   state_path="/kod/gen/0",     │ system/packages.py
+│   packages_to_install,         │
 │   next_services)               │
 │ Write JSON:                    │
 │  ├─ /kod/generations/0/        │
