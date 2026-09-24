@@ -32,11 +32,6 @@ from kod.common import (
 from kod.config.loader import load_config_lua
 from kod.config.validator import validate_config
 from kod.context import Context
-from kod.system.boot import (
-    create_boot_entry_hook,
-    update_initramfs_hook,
-    update_kernel_hook,
-)
 from kod.system.distro.factory import get_distro_module
 from kod.system.generations import (
     change_subvol,
@@ -452,16 +447,11 @@ def install(config: str | None, mount_point: str) -> None:
             sys.exit(1)
         
         # Setup execution environment
-        env = {
-            "mount_point": mount_point,
-            "use_chroot": True,
-            "stage": "install",
-            "dist": dist,
-            # Boot entry is a plan step (boot.lua) dispatched here; generation 0 for install.
-            "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
-            "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
-            "boot-entry": lambda kernel, mp: create_boot_entry_hook(0, kernel, mp)(),
-        }
+         env = {
+             "use_chroot": True,
+             "stage": "install",
+             "dist": dist,
+         }
         
         try:
             hooks_dict = collect_hooks(conf.users or {})
@@ -772,17 +762,12 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
             new_generation=new_generation
         )
 
-        # === Setup executor environment ===
-        env = {
-            "mount_point": new_root_path,
-            "repos": repos,
-            "generation_id": generation_id,
-            "use_chroot": use_chroot,
-            # Executor dispatches system steps by name (see executor.py)
-            "kernel-update": lambda kernel, mp: update_kernel_hook(kernel, mp)(),
-            "initramfs-update": lambda kernel, mp: update_initramfs_hook(kernel, mp)(),
-            "boot-entry": lambda kernel, mp: create_boot_entry_hook(generation_id, kernel, mp)(),
-        }
+         # === Setup executor environment ===
+         env = {
+             "repos": repos,
+             "generation_id": generation_id,
+             "use_chroot": use_chroot,
+         }
 
         # Collect hooks from program definitions
         try:
@@ -889,7 +874,6 @@ def rebuild_user(config: str | None, user: str = os.environ["USER"]) -> None:
         
         # Setup execution environment
         env = {
-            "mount_point": "/",
             "use_chroot": False,
             "stage": "rebuild-user",
             "dist": None,
