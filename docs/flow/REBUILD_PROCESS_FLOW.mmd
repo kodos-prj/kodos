@@ -1,0 +1,140 @@
+graph TD
+    A["🔄 CLI: kod rebuild<br/>(kod.py:739)"]
+    
+    A --> B["Parse CLI args<br/>--config, --new-generation,<br/>--update, --dry-run"]
+    
+    B --> C["Load config<br/>load_config_lua<br/>(config/loader.py)"]
+    
+    C --> D["Determine current system<br/>state"]
+    
+    D --> D1["Read current generation<br/>Get current_packages<br/>Get current_services<br/>(from generation N)"]
+    
+    D1 --> E["Load distro adapter<br/>get_distro_adapter<br/>'arch' or 'debian'<br/>(distro/__init__.py:get_distro)"]
+    
+    E --> F["plan_rebuild<br/>(kod.py:751)"]
+    
+    F --> F1["Load target config"]
+    
+    F1 --> F2["Compute package<br/>differences<br/>new_packages - current_packages"]
+    
+    F2 --> F3["Compute service<br/>differences<br/>new_services - current_services"]
+    
+    F3 --> F4["Call build_plan<br/>(planner.py:463)<br/>baseline='current'<br/>packages=diff_packages<br/>services=diff_services"]
+    
+    F4 --> G["compose_steps_lua<br/>(planner.py:108)"]
+    
+    G --> G1["get_lua_runtime<br/>(lua_runtime.py)<br/>Singleton lupa interpreter"]
+    
+    G1 --> G2["lua.require<br/>'kod.planning.planner'<br/>(planning/planner.lua:1)"]
+    
+    G2 --> G3["planner_module.compose<br/>(planning/planner.lua:140)<br/>config_lua = _convert_to_lua_table"]
+    
+    G3 --> H["Lua: for each section<br/>call emit_steps<br/>(distro, config, baseline='current')"]
+    
+    H --> H1["base_distribution.lua:emit_steps"]
+    H --> H2["repos.lua:emit_steps"]
+    H --> H3["devices.lua:emit_steps<br/>(only if filesystem changes)"]
+    H --> H4["boot.lua:emit_steps"]
+    H --> H5["packages.lua:emit_steps<br/>(only if packages changed)"]
+    H --> H6["services.lua:emit_steps<br/>(only if services changed)"]
+    H --> H7["... other sections"]
+    
+    H5 --> H5A["aggregate_all_packages<br/>(packages.lua:368)<br/>Collect from config sources"]
+    
+    H5A --> H5B["separate_packages<br/>(packages.lua:405)<br/>normal | aur | flatpak"]
+    
+    H5B --> H5C["emit_steps<br/>(packages.lua:419)<br/>Generate install commands<br/>For AUR: 5-step sequence"]
+    
+    H5C --> H5D["Return:<br/>order 490: pacman -S<br/>order 492-494: yay setup<br/>order 500+: build AUR"]
+    
+    H6 --> H6A["Compute service<br/>changes<br/>systemctl enable/disable"]
+    
+    H6A --> H6B["emit_steps<br/>(services.lua)<br/>Return systemctl commands"]
+    
+    H1 --> H1A["Check if baseline='current'<br/>Skip if no changes"]
+    
+    H1A --> H1B["emit_steps<br/>Return distro config steps"]
+    
+    H --> I["Collect all steps<br/>sort_steps<br/>(planner.py:180)<br/>Sort by order field"]
+    
+    I --> J["Convert Lua→Python<br/>For each lua_step:<br/>_convert_lua_step_to_step<br/>(planner.py:205)"]
+    
+    J --> K["Return: list[Step]<br/>All steps ordered"]
+    
+    K --> L{Dry run?}
+    
+    L -->|Yes| M["Print plan<br/>Display steps<br/>Exit"]
+    
+    L -->|No| N["🚀 EXECUTION PHASE"]
+    
+    N --> N1["Create new generation<br/>Generate N+1<br/>mkdir -p /kod/generations/N+1"]
+    
+    N1 --> N2["Create btrfs snapshot<br/>snapshot / →<br/>/kod/generations/N+1/rootfs"]
+    
+    N2 --> N3["Mount new generation<br/>mount subvol<br/>to /kod/current/.next_current"]
+    
+    N3 --> N4["execute_steps<br/>(executor.py:36)<br/>steps, mount_point,<br/>use_chroot=True"]
+    
+    N4 --> N5["lua.require<br/>'kod.planning.executor'<br/>(planning/executor.lua:40)"]
+    
+    N5 --> N6["executor_module.run<br/>(executor.lua:40)<br/>steps, ctx, dispatch"]
+    
+    N6 --> N7["For each step in order:<br/>Execute step loop"]
+    
+    N7 --> N8["Fire pre hooks<br/>pre:package, pre:service, etc.<br/>(executor.lua:60)"]
+    
+    N8 --> N9{Step type?}
+    
+    N9 -->|program| N10["Run shell command<br/>(executor.lua:70)<br/>if step.chroot:<br/>  chroot /path sh -c 'cmd'<br/>else:<br/>  os.execute<br/>With timeout guard"]
+    
+    N9 -->|system/callback| N11["dispatch.step<br/>(executor.py:111)<br/>Call Python callback"]
+    
+    N10 --> N12["Check return code<br/>Apply on_error policy<br/>abort | warn"]
+    
+    N11 --> N12
+    
+    N12 --> N13["Fire post hooks<br/>post:package, post:service<br/>(executor.lua:80)"]
+    
+    N13 --> N14{More steps?}
+    
+    N14 -->|Yes| N7
+    N14 -->|No| N15
+    
+    N15["Return: StepResult[]<br/>All steps executed"]
+    
+    N15 --> O["store_packages_services<br/>(packages.py)<br/>Write next generation<br/>installed_packages.json"]
+    
+    O --> O1["Write to<br/>/kod/generations/N+1/<br/>installed_packages<br/>enabled_services"]
+    
+    O1 --> P["generate_package_lock<br/>(distro/base.py)<br/>Build lock file with<br/>actual package versions"]
+    
+    P --> P1["Call pacman/apt<br/>to get installed versions<br/>Write packages.lock.json"]
+    
+    P1 --> Q{Swap<br/>generations?}
+    
+    Q -->|new_generation=True| Q1["umount -R<br/>/kod/current/.next_current<br/>New gen stays as N+1"]
+    
+    Q -->|new_generation=False| Q2["_swap_generations_atomic<br/>(kod.py:156)<br/>Atomic swap logic"]
+    
+    Q2 --> Q2A["Create btrfs backup<br/>snapshot current →<br/>/kod/current/.backup"]
+    
+    Q2A --> Q2B["btrfs subvolume move<br/>N+1/rootfs → current"]
+    
+    Q2B --> Q2C["btrfs subvolume move<br/>old current → N"]
+    
+    Q2C --> Q2D["Move state files<br/>Copy installed_packages etc<br/>to previous generation"]
+    
+    Q2D --> Q2E["On success:<br/>delete .backup<br/>On failure: rollback"]
+    
+    Q2E --> Q3["Update fstab<br/>change_subvol<br/>generate_fstab<br/>(devices.lua)"]
+    
+    Q1 --> R["✅ REBUILD COMPLETE"]
+    Q3 --> R
+    
+    style A fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:3px
+    style F fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:2px
+    style G fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style N fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style N4 fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style Q2 fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:2px
+    style R fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:3px
