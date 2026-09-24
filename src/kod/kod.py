@@ -475,14 +475,13 @@ def install(config: str | None, mount_point: str) -> None:
         state_path.mkdir(parents=True, exist_ok=True)
         
         # Ensure /kod/generations is properly permissioned for rebuild (owner+group only)
-        # Use chmod via shell to ensure it applies to the mounted subvolume
+        # Ensure /kod/generations is properly permissioned for rebuild
         try:
-            result = os.system(f"chmod 0o755 {mount_point}/kod/generations")
-            if result != 0:
-                logger.error(f"Failed to chmod /kod/generations: status {result}")
-        except Exception as e:
+            gen_path = Path(mount_point) / "kod" / "generations"
+            gen_path.chmod(0o755)
+        except OSError as e:
             logger.warning(f"Failed to chmod /kod/generations: {e}")
-        
+
         next_services = get_services_to_enable(ctx_obj, conf)
         packages_to_install, _packages_to_remove = get_packages_to_install(conf)
         
