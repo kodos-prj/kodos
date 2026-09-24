@@ -53,7 +53,6 @@ class StepResult:
 
 def execute_steps(
     steps: list[Step],
-    env: dict[str, Any],
     mount_point: str,
     use_chroot: bool,
     repos: dict | None = None,
@@ -64,7 +63,7 @@ def execute_steps(
     Lua handles ordering, on_error policy, hooks, and chroot-wrapped shell
     steps (timeout-guarded, no output capture — lupa disables io.popen).
     Package/service/named-system steps dispatch to a Python callable built
-    from env; the system modules behind them move to Lua in a later phase.
+    from repos; the system modules behind them move to Lua in a later phase.
 
     Raises StepError on abort-step failure or unknown kind.
     """

@@ -446,12 +446,6 @@ def install(config: str | None, mount_point: str) -> None:
             print("❌ No install steps generated. Check configuration.", file=sys.stderr)
             sys.exit(1)
         
-        # Setup execution environment
-        env = {
-            "use_chroot": True,
-            "stage": "install",
-            "dist": dist,
-        }
         
         try:
             hooks_dict = collect_hooks(conf.users or {})
@@ -463,7 +457,7 @@ def install(config: str | None, mount_point: str) -> None:
         # No mid-execution fallback: a StepError is a real step failure and
         # re-running the whole plan would double-execute partial work.
         print("\n=== Executing Install ===\n")
-        results = execute_steps(steps, env, mount_point,
+        results = execute_steps(steps, mount_point,
                                 use_chroot=True, hooks=hooks_dict)
         
         # Check for critical failures (ignore on_error='warn' steps)
@@ -762,12 +756,6 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
             new_generation=new_generation
          )
 
-        # === Setup executor environment ===
-        env = {
-            "repos": repos,
-            "generation_id": generation_id,
-            "use_chroot": use_chroot,
-        }
 
         # Collect hooks from program definitions
         try:
@@ -779,7 +767,7 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
 
         # === Execute plan (Lua runner) ===
         print("================== Executing plan ==================")
-        results = execute_steps(steps, env, new_root_path, use_chroot,
+        results = execute_steps(steps, new_root_path, use_chroot,
                                 repos=repos, hooks=hooks_dict)
 
         # Check for failures
@@ -872,12 +860,6 @@ def rebuild_user(config: str | None, user: str = os.environ["USER"]) -> None:
         print(f"\n=== User Rebuild Plan for {user} ===\n")
         print(render_plan(user_steps, "current", config))
         
-        # Setup execution environment
-        env = {
-            "use_chroot": False,
-            "stage": "rebuild-user",
-            "dist": None,
-        }
         
         try:
             hooks_dict = collect_hooks(conf.users or {})
@@ -887,7 +869,7 @@ def rebuild_user(config: str | None, user: str = os.environ["USER"]) -> None:
         
         # Execute user-specific plan
         print("\n=== Executing User Rebuild ===\n")
-        execute_steps(user_steps, env, mount_point="/",
+        execute_steps(user_steps, mount_point="/",
                                 use_chroot=False, hooks=hooks_dict)
         
         print(f"\n✅ User {user} rebuild completed")
