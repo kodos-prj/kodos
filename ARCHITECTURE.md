@@ -49,6 +49,7 @@ This separation provides:
 - `system/filesystem_types.lua`: Filesystem type → mkfs command mapping (single source)
 - `system/disk.lua`: Disk operations (mount, umount, partitioning helpers)
 - `system/repos.lua`: Repository and package management
+- `system/boot.lua`: Boot operations (kernel/initramfs updates, boot entry creation)
 
 **Section Modules** (emits install/rebuild steps):
 - `sections/devices.lua`: Disk partitioning, formatting, mounting (sgdisk-based)
@@ -186,13 +187,16 @@ src/lua/kod/
 ├── core/
 │   ├── schema.lua             # Schema definitions (source of truth)
 │   └── bootstrap.lua          # Bootstrap (arch/debian unified)
+├── lib/
+│   └── exec.lua               # Lua wrapper for Python exec functions
 ├── system/
 │   ├── filesystem_types.lua   # FS type mappings (source of truth)
 │   ├── disk.lua               # Disk helpers
-│   └── repos.lua              # Repository management
+│   ├── repos.lua              # Repository management
+│   └── boot.lua               # Boot operations (kernel/initramfs/boot entry)
 └── sections/
     ├── devices.lua            # Partitioning/formatting
-    ├── boot.lua               # Boot setup
+    ├── boot.lua               # Boot setup (emits lua-system steps)
     ├── packages.lua           # Package installation
     ├── services.lua           # Service enablement
     ├── users.lua              # User creation
@@ -221,8 +225,55 @@ This architecture evolved through phases:
 - **Phase 5**: Full Lua section modules for install/rebuild (current)
 - **Phase 5b**: Disk partitioning unified (sgdisk everywhere)
 - **Phase 5c**: Lua-to-Python consolidation (single conversion function)
+- **Phase 5d**: System module migration (boot operations to Lua)
 
 Current state: **Clean separation**, **single sources of truth**, **no duplication between layers**.
+
+---
+
+## System Module Migration (Phase 5d)
+
+### Overview
+Boot operations (kernel-update, initramfs-update, boot-entry) were migrated from Python-based `dispatch_step()` callback to native Lua implementations.
+
+### Architecture
+```
+Before (Python callback):
+  Python executor → dispatch_step() → system.boot hooks (lambdas)
+
+After (Lua-native):
+  Lua executor → lua-system handler → Boot module functions
+    └─ Python exec/exec_chroot injected via _G._dispatch_python
+```
+
+### Key Components
+1. **`src/lua/kod/lib/exec.lua`**: Lua wrapper around Python exec functions
+   - Provides error handling and logging
+   - Bridges to Python's exec/exec_chroot via injection
+
+2. **`src/lua/kod/system/boot.lua`**: Native Lua boot module
+   - `read_root_device()`: Determine root partition
+   - `update_kernel()`: Kernel update with state checks
+   - `update_initramfs()`: Initramfs rebuild
+   - `create_boot_entry()`: Boot loader entry creation
+
+3. **`src/lua/kod/sections/boot.lua`**: Boot section (step emitter)
+   - Now emits steps with `kind = "lua-system"`
+   - Routes to boot.lua module functions
+
+4. **`src/kod/executor.py`**: Enhanced executor
+   - Added lua-system step handler
+   - Injects Python exec functions into Lua context
+   - Removed `dispatch_step()` callback entirely
+
+### Benefits
+- ✅ Boot operations are now Lua-native (consistency with other operations)
+- ✅ Python side is callback-free (cleaner architecture)
+- ✅ Two-layer design: Lua wrapper adds error handling
+- ✅ All tests passing (4/4 Lua + integration tests)
+
+### Migration Status
+Completed 2026-09-24. See `docs/superpowers/plans/2026-09-24-system-module-lua-migration.md` for full details.
 
 ---
 
