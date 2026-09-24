@@ -14,10 +14,10 @@ function M.read_root_device(fstab_path)
     
     for line in content:gmatch("[^\n]+") do
         -- Skip empty lines and comments
-        line = line:gsub("^%s+", ""):gsub("%s+$", "")
-        if line ~= "" and not line:match("^#") then
+        local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed ~= "" and not trimmed:match("^#") then
             local fields = {}
-            for field in line:gmatch("%S+") do
+            for field in trimmed:gmatch("%S+") do
                 table.insert(fields, field)
             end
             -- Mount point is second field; root is "/"
