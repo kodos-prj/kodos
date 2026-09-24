@@ -62,6 +62,31 @@ function Executor.run(steps, ctx, dispatch, hooks)
         if (step.program or step.command) and (step.program or step.command) ~= "" then
             -- Any step carrying a command is a shell step (system or disk).
             result = Executor.run_shell(step, ctx.mount_point)
+        elseif step.kind == "lua-system" then
+            -- Lua system module: call the appropriate function from the boot module
+            local ok, err = pcall(function()
+                local boot = require('kod.system.boot')
+                local op = step.meta and step.meta.operation
+                local kernel = step.meta and step.meta.kernel
+                local generation = step.meta and step.meta.generation
+                
+                if op == "update_kernel" then
+                    boot.update_kernel(kernel, ctx.mount_point)
+                elseif op == "update_initramfs" then
+                    boot.update_initramfs(kernel, ctx.mount_point)
+                elseif op == "create_boot_entry" then
+                    boot.create_boot_entry(generation, kernel, ctx.mount_point)
+                else
+                    error("Unknown lua-system operation: " .. tostring(op))
+                end
+            end)
+            
+            if not ok then
+                result = { success = false, error = "lua-system step failed: " .. tostring(err) }
+            else
+                result = { success = true }
+            end
+            
         elseif step.kind == "package" or step.kind == "service" or step.kind == "system" then
             -- No command: a named verb. The host may run it, return "shell",
             -- or be absent (metadata-only no-op).

@@ -66,24 +66,26 @@ local module = {
                 order = 200,
             })
            
-            -- Kernel/initramfs updates are dispatched system steps: the executor calls
-            -- env["kernel-update"] / env["initramfs-update"], which copy vmlinuz-<kver>
-            -- into /boot and generate initramfs-linux-<kver>.img.
-            table.insert(steps, {
-                name = "kernel-update",
-                description = "Update kernel files in /boot: " .. kernel_pkg,
-                command = "",
-                meta = { kernel = kernel_pkg },
-                order = 202,
-            })
+             -- Kernel/initramfs updates are lua-system steps: the executor calls
+             -- the boot module functions which copy vmlinuz-<kver>
+             -- into /boot and generate initramfs-linux-<kver>.img.
+             table.insert(steps, {
+                 name = "boot_kernel_update",
+                 description = "Update kernel files in /boot: " .. kernel_pkg,
+                 command = "kernel_update",
+                 kind = "lua-system",
+                 meta = { kernel = kernel_pkg, operation = "update_kernel" },
+                 order = 202,
+             })
             
-            table.insert(steps, {
-                name = "initramfs-update",
-                description = "Generate initramfs for " .. kernel_pkg,
-                command = "",
-                meta = { kernel = kernel_pkg },
-                order = 203,
-            })
+             table.insert(steps, {
+                 name = "boot_initramfs_update",
+                 description = "Generate initramfs for " .. kernel_pkg,
+                 command = "initramfs_update",
+                 kind = "lua-system",
+                 meta = { kernel = kernel_pkg, operation = "update_initramfs" },
+                 order = 203,
+             })
         end
         
         -- Bootloader configuration
@@ -107,14 +109,15 @@ local module = {
                  -- root UUID from the generated fstab (single source of truth).
                  if config.kernel then
                      local kernel_pkg = config.kernel.package or "linux"
-                     table.insert(steps, {
-                         name = "boot-entry",
-                         description = "Create systemd-boot entry for Generation 0",
-                         command = "",
-                         meta = { kernel = kernel_pkg },
-                         order = 212,
-                         on_distro = "arch",
-                     })
+                      table.insert(steps, {
+                          name = "boot_entry_create",
+                          description = "Create systemd-boot entry for Generation 0",
+                          command = "boot_entry",
+                          kind = "lua-system",
+                          meta = { kernel = kernel_pkg, operation = "create_boot_entry", generation = 0 },
+                          order = 212,
+                          on_distro = "arch",
+                      })
                  end
             elseif loader_type == "grub" then
                   -- Install GRUB
