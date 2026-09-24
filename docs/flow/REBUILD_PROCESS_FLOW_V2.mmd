@@ -1,0 +1,78 @@
+graph TD
+    A["🔄 CLI: kod rebuild<br/>(kod.py:639)"]
+    
+    A --> B["Parse CLI args<br/>--config, --new-generation,<br/>--update, --dry-run"]
+    
+    B --> C["Load config<br/>load_config_lua<br/>(config/loader.py)"]
+    
+    C --> D["Read current generation state<br/>(kod.py:676-692)<br/>current_generation from /.generation<br/>current_packages/services<br/>from /kod/generations/N/"]
+    
+    D --> E{new_generation?}
+    
+    E -->|false| E1["🟦 MODE 1: In-place Rebuild<br/>(DEFAULT)"]
+    E -->|true| E2["🟦 MODE 2: Snapshot-based Rebuild"]
+    
+    E1 --> E1A["Create backup snapshot<br/>btrfs snapshot /<br/>/kod/current/old-rootfs<br/>(kod.py:711)"]
+    E1A --> E1B["use_chroot = False<br/>new_root_path = '/'<br/>Execute on host system"]
+    E1B --> MODE1_PLAN["▶ PLAN PHASE<br/>(kod.py:766-773)"]
+    
+    E2 --> E2A["Create new generation<br/>mkdir -p /kod/generations/N+1<br/>(kod.py:701)"]
+    E2A --> E2B["Snapshot current<br/>btrfs snapshot /<br/>/kod/generations/N+1/rootfs<br/>(kod.py:705)"]
+    E2B --> E2C["use_chroot = True<br/>new_root_path =<br/>/kod/generations/N+1/rootfs<br/>Setup chroot mounts"]
+    E2C --> MODE2_PLAN["▶ PLAN PHASE<br/>(kod.py:766-773)"]
+    
+    MODE1_PLAN --> PLAN["Load target config"]
+    MODE2_PLAN --> PLAN
+    
+    PLAN --> P1["Compute diffs<br/>new_packages - current_packages<br/>new_services - current_services<br/>(kod.py:690-692)"]
+    
+    P1 --> P2["build_plan<br/>(planner.py:766)<br/>baseline='current'<br/>Only emit changed steps"]
+    
+    P2 --> P3["compose_steps_lua<br/>(planner.py:108)<br/>Load Lua planning module"]
+    
+    P3 --> P4["For each Lua section:<br/>packages.emit_steps<br/>services.emit_steps<br/>... only if changed<br/>(planning/planner.lua:140)"]
+    
+    P4 --> P5["sort_steps() by order<br/>Convert Lua -&gt; Python<br/>(planner.py:180-205)"]
+    
+    P5 --> P6{Dry run?}
+    
+    P6 -->|Yes| DRY["Print plan &amp; exit"]
+    P6 -->|No| EXEC["🚀 EXECUTION PHASE"]
+    
+    EXEC --> E1_EXEC["Execute steps on host<br/>use_chroot=False<br/>mount_point='/'<br/>(executor.py:797)"]
+    EXEC --> E2_EXEC["Execute steps in chroot<br/>use_chroot=True<br/>mount_point='/kod/gen/N+1/rootfs'<br/>(executor.py:797)"]
+    
+    E1_EXEC --> EXEC_LOOP["For each step:<br/>run_shell(cmd)<br/>Check return code"]
+    E2_EXEC --> EXEC_LOOP
+    
+    EXEC_LOOP --> POST["Store state &amp; generate locks<br/>store_packages_services()<br/>generate_package_lock()"]
+    
+    POST --> FINAL{Finalization}
+    
+    FINAL -->|new_generation=False| SWAP["🟪 ATOMIC SWAP<br/>(kod.py:815-830)"]
+    FINAL -->|new_generation=True| NOSWAP["🟪 NO SWAP<br/>(kod.py:836-837)"]
+    
+    SWAP --> S1["_swap_generations_atomic<br/>(kod.py:818)"]
+    S1 --> S2["1. Backup current:<br/>btrfs snapshot current -&gt; .backup"]
+    S2 --> S3["2. Rotate generations:<br/>current -&gt; N+1 subvol<br/>old current -&gt; N subvol"]
+    S3 --> S4["3. Activate new gen:<br/>move N+1 -&gt; current"]
+    S4 --> S5["4. On success: delete backup<br/>On failure: restore from backup"]
+    S5 --> S6["Update /etc/fstab:<br/>change_subvol()"]
+    S6 --> SUCCESS["✅ REBUILD COMPLETE<br/>System reboots to new generation"]
+    
+    NOSWAP --> NS1["Unmount snapshot<br/>umount -R /kod/generations/N+1"]
+    NS1 --> NS2["Write .generation file"]
+    NS2 --> KEEP["✅ SNAPSHOT KEPT<br/>Available at /kod/generations/N+1<br/>User can boot/test manually"]
+    
+    style A fill:#FF9800,color:#fff,stroke:#E65100,stroke-width:3px
+    style E fill:#2196F3,color:#fff,stroke:#1565C0,stroke-width:3px
+    style E1 fill:#0288D1,color:#fff,stroke:#01579B,stroke-width:2px
+    style E2 fill:#0288D1,color:#fff,stroke:#01579B,stroke-width:2px
+    style MODE1_PLAN fill:#0277BD,color:#fff,stroke:#01579B,stroke-width:2px
+    style MODE2_PLAN fill:#0277BD,color:#fff,stroke:#01579B,stroke-width:2px
+    style P2 fill:#4CAF50,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style EXEC fill:#F44336,color:#fff,stroke:#C62828,stroke-width:2px
+    style SWAP fill:#9C27B0,color:#fff,stroke:#6A1B9A,stroke-width:3px
+    style NOSWAP fill:#7B1FA2,color:#fff,stroke:#4A148C,stroke-width:3px
+    style SUCCESS fill:#66BB6A,color:#fff,stroke:#2E7D32,stroke-width:3px
+    style KEEP fill:#66BB6A,color:#fff,stroke:#2E7D32,stroke-width:3px
