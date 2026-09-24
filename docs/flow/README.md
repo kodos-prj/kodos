@@ -10,9 +10,11 @@ Complete architectural documentation and flow diagrams for the KodOS installatio
 
 **Need deep dive?** Read **[KODOS_INSTALLATION_FLOW.md](KODOS_INSTALLATION_FLOW.md)** for comprehensive breakdown with file:line references.
 
-## 📊 Mermaid Diagrams
+## 📊 Mermaid Flow Diagrams
 
 Interactive flow diagrams (render in GitHub, VS Code, or any Mermaid viewer):
+
+### Installation Process
 
 1. **[KODOS_INSTALLATION_FLOW.mmd](KODOS_INSTALLATION_FLOW.mmd)** - Main installation pipeline
    - CLI → config → plan → execution flow
@@ -33,9 +35,21 @@ Interactive flow diagrams (render in GitHub, VS Code, or any Mermaid viewer):
    - Flatpak apps (systemd service)
    - Stream-specific execution details and error handling
 
+### Rebuild Process
+
+4. **[REBUILD_PROCESS_FLOW.mmd](REBUILD_PROCESS_FLOW.mmd)** - Complete rebuild pipeline (NEW)
+   - Detailed flow from `kod rebuild` CLI through atomic swap
+   - **All function calls with file:line references**
+   - Diff computation (current vs target state)
+   - Only changed sections executed (baseline='current')
+   - Atomic generation swap with rollback capability
+   - State management and lock file generation
+
 ## 📖 Text Documentation
 
 Comprehensive guides with file:line references and pseudocode:
+
+### Installation Process
 
 1. **[INSTALLATION_FLOW_SUMMARY.md](INSTALLATION_FLOW_SUMMARY.md)** (12 KB)
    - Quick reference guide
@@ -60,8 +74,23 @@ Comprehensive guides with file:line references and pseudocode:
    - Step execution with hooks
    - State file structure
 
-4. **[INSTALLATION_ANALYSIS_INDEX.md](INSTALLATION_ANALYSIS_INDEX.md)** (9 KB)
-   - Navigation index
+### Rebuild Process
+
+5. **[REBUILD_PROCESS_REFERENCE.md](REBUILD_PROCESS_REFERENCE.md)** (400+ lines, NEW)
+   - Complete function signatures with examples
+   - Phase-by-phase breakdown of rebuild flow
+   - **Key difference: baseline='current' and diff computation**
+   - Lua executor internals and step execution
+   - Atomic generation swap mechanism with btrfs
+   - Rollback procedures on failure
+   - State file formats and lock generation
+   - Full call sequence from CLI to swap
+   - Error handling and on_error policies
+
+### Navigation & Reference
+
+6. **[INSTALLATION_ANALYSIS_INDEX.md](INSTALLATION_ANALYSIS_INDEX.md)** (9 KB)
+   - Navigation index for all documentation
    - Quick-start paths for different tasks
    - Architecture patterns and design principles
    - How to extend the system
@@ -74,6 +103,11 @@ Comprehensive guides with file:line references and pseudocode:
 2. Study: **KODOS_INSTALLATION_FLOW.mmd** (visual)
 3. Reference: **INSTALLATION_FLOW_VISUAL.txt** (ASCII diagrams)
 
+### I want to understand the rebuild process
+1. Read: **REBUILD_PROCESS_FLOW.mmd** (visual with all function calls)
+2. Study: **REBUILD_PROCESS_REFERENCE.md** (complete reference)
+3. Key section: "Diff Computation" and "Atomic Generation Swap"
+
 ### I want to debug AUR package installation
 1. Read: **AUR_PACKAGE_BUILD_FLOW.mmd**
 2. Check: **PACKAGE_STREAMS_FLOW.mmd** (AUR stream)
@@ -84,13 +118,22 @@ Comprehensive guides with file:line references and pseudocode:
 2. Study: **KODOS_INSTALLATION_FLOW.md** (architecture sections)
 3. Review: Existing Lua sections as templates
 
-### I want to trace a specific function
-Use **file:line** references throughout documentation. Example:
+### I want to trace a specific function call
+Use **file:line** references throughout documentation:
+- **REBUILD_PROCESS_FLOW.mmd** - All functions labeled with file:line (visual)
+- **REBUILD_PROCESS_REFERENCE.md** - Full signatures and examples
+
+Example:
 ```
-packages_build_aur_brother-dcp-l2550dw
-└─ src/lua/kod/sections/packages.lua:442
-   └─ emit_steps() generates this step
-   └─ calls yay as kod user (unprivileged)
+plan_rebuild()          → kod.py:751
+├─ build_plan()         → planner.py:463
+│  └─ compose_steps_lua() → planner.py:108
+│     └─ packages.lua:emit_steps()
+│        ├─ aggregate_all_packages() → packages.lua:368
+│        ├─ separate_packages() → packages.lua:405
+│        └─ emit_steps() → packages.lua:419
+└─ execute_steps() → executor.py:36
+   └─ planning/executor.lua:40
 ```
 
 ## 🏗️ Key Architectural Patterns
@@ -139,18 +182,35 @@ After successful rebuild:
 docs/flow/
 ├─ README.md (this file)
 ├─ FLOW_DIAGRAMS_README.md (overview & how to use)
+├─
+├─ Installation Process:
 ├─ KODOS_INSTALLATION_FLOW.mmd (main flow - Mermaid)
 ├─ AUR_PACKAGE_BUILD_FLOW.mmd (AUR detail - Mermaid)
 ├─ PACKAGE_STREAMS_FLOW.mmd (three streams - Mermaid)
 ├─ INSTALLATION_FLOW_SUMMARY.md (quick reference)
 ├─ KODOS_INSTALLATION_FLOW.md (detailed reference)
 ├─ INSTALLATION_FLOW_VISUAL.txt (ASCII diagrams)
+├─
+├─ Rebuild Process:
+├─ REBUILD_PROCESS_FLOW.mmd (rebuild flow - Mermaid, with all function calls)
+├─ REBUILD_PROCESS_REFERENCE.md (detailed reference, 400+ lines)
+├─
 └─ INSTALLATION_ANALYSIS_INDEX.md (navigation index)
 ```
 
-## 🔧 Recent Changes (v2)
+## 🔧 Recent Changes (v2 & v3)
 
-### AUR Package Installation - Complete Rewrite
+### v3: Rebuild Process Documentation (NEW)
+Added comprehensive rebuild flow diagrams and reference:
+- `REBUILD_PROCESS_FLOW.mmd` - Complete Mermaid flow with all function calls
+- `REBUILD_PROCESS_REFERENCE.md` - 400+ line detailed reference
+- **Key differences from install:**
+  - Diff computation (current vs target state)
+  - `baseline='current'` skips unchanged sections
+  - Atomic generation swap instead of new generation
+  - Rollback capability via btrfs backup
+
+### v2: AUR Package Installation - Complete Rewrite
 **Problem:** AUR packages silently skipped during install/rebuild
 
 **Solution:** 5-step AUR build sequence with proper user/permission handling
@@ -170,6 +230,7 @@ docs/flow/
 - 7f5d75e: Fix build directory permissions
 - c467bb7: Run yay as unprivileged user
 - 044c5b0: Fix kod user shell to bash
+- c2e55d4: Add rebuild process diagrams
 
 ## 📚 Additional References
 
