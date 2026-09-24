@@ -3,7 +3,7 @@ graph TD
     
     A --> B["Parse CLI args<br/>--config, --new-generation,<br/>--update, --dry-run"]
     
-    B --> C["Load config<br/>load_config_lua<br/>(config/loader.py)"]
+    B --> C["Load config<br/>load_config<br/>(config/loader.py)"]
     
     C --> D["Read current generation state<br/>(kod.py:676-692)<br/>current_generation from /.generation<br/>current_packages/services<br/>from /kod/generations/N/"]
     

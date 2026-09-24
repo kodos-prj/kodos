@@ -14,7 +14,7 @@ STEP 1: CONFIG LOADING
            │
            ▼
 ┌─────────────────────────┐
-│ load_config_lua()       │ Returns Lua table from .lua file
+│ load_config()           │ Returns Lua table from .lua file
 │ (config/loader.py)      │
 └──────────┬──────────────┘
            │
@@ -451,7 +451,7 @@ emit_steps(config, "arch")
 
 Python                             Lua                        Python
 │                                  │                          │
-├─ load_config_lua()               │                          │
+├─ load_config()                   │                          │
 │  └─ Returns: dict or object      │                          │
 │     with __dict__                │                          │
 │                                  │                          │

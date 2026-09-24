@@ -634,7 +634,6 @@ def plan(config: Optional[str], baseline: str) -> None:
 ```
 
 Notes:
-- `load_config` here is the module alias for `load_config_lua_raw` (kod.py:144).
 - Spec §4: missing-generation error must hint at `--baseline empty` — covered by `_load_current_state`.
 
 **Test (failing first):**

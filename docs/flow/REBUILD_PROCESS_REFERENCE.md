@@ -636,7 +636,7 @@ end
 
 ```
 kod rebuild [--config CONFIG]          # CLI entry (kod.py:639)
-├─ load_config_lua(config_path)        # Load config
+├─ load_config(config_path)            # Load config
 ├─ get current state from generation N # Read /kod/generations/N/installed_packages
 ├─ new_generation = False              # Use current system (kod.py:703-715)
 ├─   exec("btrfs subvolume snapshot / /kod/current/old-rootfs")  # Backup
@@ -673,7 +673,7 @@ kod rebuild [--config CONFIG]          # CLI entry (kod.py:639)
 
 ```
 kod rebuild --new-generation [--config CONFIG]  # CLI entry (kod.py:639)
-├─ load_config_lua(config_path)        # Load config
+├─ load_config(config_path)            # Load config
 ├─ new_generation = True               # Create snapshot (kod.py:703-715)
 ├─   exec("btrfs subvolume snapshot / /kod/generations/N+1/rootfs")
 ├─   use_chroot = True                 # Use chroot to snapshot

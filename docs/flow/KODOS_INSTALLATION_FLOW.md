@@ -25,7 +25,7 @@ KodOS uses a multi-phase architecture with Lua sections (configuration builders)
 ```
 kod install [--config FILE] [--mount_point MOUNT]
   └─> load_config(config)  [kod.py:436]
-       └─> load_config_lua()  [config/loader.py] → returns Lua table
+       └─> load_config()  [config/loader.py] → returns Lua table
             └─> Parses .lua config file → Python object wrapper
 ```
 
