@@ -12,7 +12,12 @@ class Context:
     """Context class for executing commands in a specific environment.
 
     This class represents the context in which commands are executed. It stores
-    information about the user and mount point that are used to execute commands.
+    information about the user, mount point, and execution stage used to execute commands.
+    
+    The stage parameter controls behavior:
+    - "install": Fresh installation (uses chroot by default)
+    - "rebuild": System rebuild (uses chroot)
+    - "rebuild-user": User-level rebuild operations (no chroot)
     """
 
     user: str
@@ -33,7 +38,11 @@ class Context:
         use_chroot : bool
             If True, the command will be executed using chroot. Defaults to True.
         stage : str
-            The stage of the installation. This can be either "install" or "rebuild".
+            The stage of the installation/rebuild. Valid values:
+            - "install": Fresh installation (install CLI)
+            - "rebuild": System rebuild with chroot (rebuild CLI)
+            - "rebuild-user": User-level operations after rebuild (no chroot)
+            Defaults to "install". Used to conditionally enable user services.
         """
         self.user = user
         self.mount_point = mount_point
