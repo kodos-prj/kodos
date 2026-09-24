@@ -1,9 +1,12 @@
 -- Generic step runner for KodOS plans (language-agnostic orchestrator).
 -- Runs steps in order, fires pre/post hooks, applies on_error policies.
--- System/disk steps run as shell commands with a `timeout` guard and optional
--- chroot wrap; package/service/named-system steps dispatch to the host-side
--- callable dispatch.step(step, ctx) (system modules move to Lua later).
--- Note: lupa disables io.popen, so no output capture here — os.execute only.
+--
+-- Step kinds:
+--   system/disk: Run as shell commands with `timeout` guard and optional chroot wrap.
+--   lua-system:  Dispatch to Lua system modules (e.g., kod.system.boot) via step.meta.operation.
+--   package/service: Dispatch to host-side callable dispatch.step(step, ctx).
+--
+-- Note: lupa disables io.popen, so no output capture — os.execute only.
 
 local Executor = {}
 
@@ -35,22 +38,18 @@ end
 
 -- steps:   array of step tables {kind,name,program,args,chroot,timeout_s,on_error,meta}
 -- ctx:     table with mount_point, use_chroot, repos
--- dispatch: table with dispatch.step(step, ctx) for non-shell steps
+-- dispatch: table with dispatch.step(step, ctx) for package/service steps (optional)
 -- hooks:   table mapping "pre:<kind>"/"post:<kind>" to arrays of callables
+--
+-- Returns: array of result tables {success, error, is_warning}
 function Executor.run(steps, ctx, dispatch, hooks)
     hooks = hooks or {}
     local results = {}
 
     for i = 1, #steps do
-        local step = steps[i]
-        
-        -- DEBUG: Log each step to see what's being executed
-        if step.kind == "package" and not (step.program or step.command) then
-            io.stderr:write(string.format("DEBUG: Step %d: kind=%s name=%s program=%s command=%s\n", 
-                i, step.kind or "nil", step.name or "nil", step.program or "nil", step.command or "nil"))
-        end
+         local step = steps[i]
 
-        -- pre hooks: error aborts the whole run
+         -- pre hooks: error aborts the whole run
         for _, hook in ipairs(hooks["pre:" .. step.kind] or {}) do
             local ok, err = pcall(hook, step, ctx)
             if not ok then
