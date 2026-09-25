@@ -6,7 +6,7 @@ Aggregation logic moved to Lua (src/lua/kod/sections/packages.lua).
 
 import json
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from kod.common import exec, exec_chroot
 
@@ -18,19 +18,19 @@ from kod.common import exec, exec_chroot
 # ============================================================================
 
 
-def _get_privilege_level(repo: Dict[str, Any]) -> str:
+def _get_privilege_level(repo: dict[str, Any]) -> str:
     """
     Determine the privilege level for a repository.
-    
+
     Checks for the new 'privilege_level' field first, then falls back to
     the legacy 'run_as_root' boolean for backward compatibility.
-    
+
     Args:
         repo (dict): Repository configuration.
-        
+
     Returns:
         str: One of "user", "sudo", or "root".
-        
+
     Raises:
         ValueError: If privilege_level is invalid.
     """
@@ -39,9 +39,11 @@ def _get_privilege_level(repo: Dict[str, Any]) -> str:
         level = repo["privilege_level"]
         valid_levels = ["user", "sudo", "root"]
         if level not in valid_levels:
-            raise ValueError(f"Invalid privilege_level '{level}'. Must be one of {valid_levels}")
+            raise ValueError(
+                f"Invalid privilege_level '{level}'. Must be one of {valid_levels}"
+            )
         return level
-    
+
     # Legacy boolean field conversion
     if "run_as_root" in repo:
         # run_as_root=False → user level (runuser context)
@@ -51,7 +53,7 @@ def _get_privilege_level(repo: Dict[str, Any]) -> str:
             return "root"
         else:
             return "user"
-    
+
     # Default: assume root (for backward compatibility)
     return "root"
 
@@ -59,21 +61,23 @@ def _get_privilege_level(repo: Dict[str, Any]) -> str:
 def _build_privilege_command(base_cmd: str, privilege_level: str) -> str:
     """
     Build the command with appropriate privilege escalation.
-    
+
     Args:
         base_cmd (str): The base command to execute.
         privilege_level (str): One of "user", "sudo", "root".
-        
+
     Returns:
         str: The command with privilege escalation applied.
-        
+
     Raises:
         ValueError: If privilege_level is invalid.
     """
     valid_levels = ["user", "sudo", "root"]
     if privilege_level not in valid_levels:
-        raise ValueError(f"Invalid privilege_level '{privilege_level}'. Must be one of {valid_levels}")
-    
+        raise ValueError(
+            f"Invalid privilege_level '{privilege_level}'. Must be one of {valid_levels}"
+        )
+
     if privilege_level == "user":
         # Run as unprivileged 'kod' user
         return f"runuser -u kod -- {base_cmd}"
@@ -85,7 +89,6 @@ def _build_privilege_command(base_cmd: str, privilege_level: str) -> str:
         return base_cmd
 
 
-
 # Remaining functions: state management, privilege handling, execution
 # Aggregation moved to Lua (src/lua/kod/sections/packages.lua)
 
@@ -95,13 +98,13 @@ def _build_privilege_command(base_cmd: str, privilege_level: str) -> str:
 # ============================================================================
 
 
-def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]:
+def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]:
     """
     Determine the packages to install based on the given configuration.
 
     Calls Lua's package aggregation to collect packages from all config sections
     (desktop, hardware, fonts, user programs, system packages).
-    
+
     Returns packages wrapped in a dict for compatibility with state storage.
 
     Args:
@@ -113,39 +116,39 @@ def get_packages_to_install(conf: Any) -> Tuple[Dict[str, List[str]], List[str]]
               all unique packages to be installed.
             - packages_to_remove (list): Empty list (removal currently not implemented in Lua).
     """
+    from kod.bootstrap import _convert_to_lua_table
     from kod.lua_runtime import get_lua_runtime
     from kod.lua_utils import lua_table_to_python
-    from kod.bootstrap import _convert_to_lua_table
-    
+
     # Load Lua and call package aggregation
     lua = get_lua_runtime()
     result = lua.require("kod.sections.packages")
     # lupa.require() returns (module, filename) tuple; extract module
     packages_module = result[0] if isinstance(result, tuple) else result
-    
+
     # Convert Python dict/object to Lua table to ensure proper iteration
     # This handles the case where load_config returns a Python dict
     conf_lua = _convert_to_lua_table(lua, conf)
-    
+
     # Call Lua aggregation function with Lua table
     # ponytail: packages_to_remove not computed; implement when needed
     lua_packages = packages_module.aggregate_packages(conf_lua)
-    
+
     # Convert lupa.LuaTable to Python list
     packages_list = lua_table_to_python(lua_packages)
-    
+
     # Wrap in dict matching original format
     packages_to_install = {
         "packages": packages_list,
         "kernel": "linux",  # Default kernel; can be overridden in config
     }
-    
+
     packages_to_remove = []  # ponytail: desktop exclude_packages not yet implemented
-    
+
     return packages_to_install, packages_to_remove
 
 
-def load_repos() -> Optional[Dict[str, Any]]:
+def load_repos() -> dict[str, Any] | None:
     """
     Load the repository configuration from the file /var/kod/repos.json.
 
@@ -164,7 +167,9 @@ def load_repos() -> Optional[Dict[str, Any]]:
         return None
 
 
-def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str, Any]) -> None:
+def update_all_packages(
+    mount_point: str, new_generation: bool, repos: dict[str, Any]
+) -> None:
     """
     Updates all packages in the system.
 
@@ -182,17 +187,17 @@ def update_all_packages(mount_point: str, new_generation: bool, repos: Dict[str,
             except ValueError as e:
                 print(f"Error: Invalid privilege level for repo '{repo}': {e}")
                 continue
-            
-            cmd = repo_desc['update']
+
+            cmd = repo_desc["update"]
             privileged_cmd = _build_privilege_command(cmd, privilege_level)
-            
+
             if new_generation:
                 exec_chroot(privileged_cmd, mount_point=mount_point)
             else:
                 exec(privileged_cmd)
 
 
-def get_pending_packages(packages_to_install: Dict[str, List[str]]) -> List[str]:
+def get_pending_packages(packages_to_install: dict[str, list[str]]) -> list[str]:
     """
     Get the list of packages that are pending installation.
 
@@ -209,7 +214,9 @@ def get_pending_packages(packages_to_install: Dict[str, List[str]]) -> List[str]
 
 
 def store_packages_services(
-    state_path: str, packages_to_install: Dict[str, List[str]], system_services: List[str]
+    state_path: str,
+    packages_to_install: dict[str, list[str]],
+    system_services: list[str],
 ) -> None:
     """
     Store the list of packages that are installed and the list of services that are enabled.
@@ -225,26 +232,26 @@ def store_packages_services(
             The dictionary should have a single key: "packages", which is a list of
             package names.
         system_services (list): A list of system services that are enabled.
-    
+
     Raises:
         OSError: If state_path does not exist or is not writable
     """
     if not os.path.isdir(state_path):
         raise OSError(f"State path does not exist or is not a directory: {state_path}")
-    
+
     # Write packages atomically (temp + rename)
-    packahes_json = json.dumps(packages_to_install, indent=2)
+    packages_json = json.dumps(packages_to_install, indent=2)
     packages_file = f"{state_path}/installed_packages"
     temp_packages = f"{state_path}/.tmp_packages_{os.getpid()}"
     try:
         with open(temp_packages, "w") as f:
-            f.write(packahes_json)
+            f.write(packages_json)
         os.rename(temp_packages, packages_file)
     except Exception as e:
         if os.path.exists(temp_packages):
             os.unlink(temp_packages)
         raise OSError(f"Failed to write packages atomically to {packages_file}: {e}")
-    
+
     # Write services atomically (temp + rename)
     services_file = f"{state_path}/enabled_services"
     temp_services = f"{state_path}/.tmp_services_{os.getpid()}"
@@ -258,7 +265,7 @@ def store_packages_services(
         raise OSError(f"Failed to write services atomically to {services_file}: {e}")
 
 
-def load_package_lock(state_path: str) -> Optional[Dict[str, str]]:
+def load_package_lock(state_path: str) -> dict[str, str] | None:
     """
     Load the list of installed packages and their versions from a lock file.
 
@@ -286,12 +293,12 @@ def load_package_lock(state_path: str) -> Optional[Dict[str, str]]:
 
 def get_packages_updates(
     dist: Any,
-    current_packages: Dict[str, Any],
-    next_packages: Dict[str, Any],
-    remove_packages: List[str],
-    current_installed_packages: List[str],
+    current_packages: dict[str, Any],
+    next_packages: dict[str, Any],
+    remove_packages: list[str],
+    current_installed_packages: list[str],
     mount_point: str,
-) -> Tuple[List[str], List[str], List[str], bool]:
+) -> tuple[list[str], list[str], list[str], bool]:
     """
     Determine the packages to install, remove, and update, plus kernel update flag.
 
@@ -321,7 +328,9 @@ def get_packages_updates(
     current_kernel = current_packages.get("kernel", "linux")
     next_kernel = next_packages.get("kernel", "linux")
 
-    kernel_update_required = dist.kernel_update_required(current_kernel, next_kernel, current_installed_packages, mount_point)
+    kernel_update_required = dist.kernel_update_required(
+        current_kernel, next_kernel, current_installed_packages, mount_point
+    )
     if kernel_update_required:
         packages_to_install += [next_kernel]
 
@@ -340,12 +349,19 @@ def get_packages_updates(
         update_pkg = set(current_pkgs) & set(next_pkgs)
         packages_to_update += list(update_pkg)
 
-    return packages_to_install, packages_to_remove, packages_to_update, kernel_update_required
+    return (
+        packages_to_install,
+        packages_to_remove,
+        packages_to_update,
+        kernel_update_required,
+    )
 
 
-def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: List[str], chroot: bool) -> None:
+def manage_packages_shell(
+    repos: dict[str, Any], action: str, list_of_packages: list[str], chroot: bool
+) -> None:
     """Manage packages using schroot shell.
-    
+
     Args:
         repos (dict): Repository configurations.
         action (str): Package action (install, remove, etc).
@@ -367,16 +383,16 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
         print(repo, "->", pkgs)
         if len(pkgs) == 0:
             continue
-        
+
         try:
             privilege_level = _get_privilege_level(repos[repo])
         except ValueError as e:
             print(f"Error: Invalid privilege level for repo '{repo}': {e}")
             continue
-        
+
         cmd = f"{repos[repo][action]} {' '.join(pkgs)}"
         privileged_cmd = _build_privilege_command(cmd, privilege_level)
-        
+
         if privilege_level == "root":
             # Use schroot with root
             exec(f"schroot -r -c {chroot} -u root -- {privileged_cmd}")
@@ -385,7 +401,9 @@ def manage_packages_shell(repos: Dict[str, Any], action: str, list_of_packages: 
             exec(f"schroot -r -c {chroot} -- {privileged_cmd}")
 
 
-def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str]]], Optional[List[str]]]:
+def load_packages_services(
+    state_path: str,
+) -> tuple[dict[str, list[str]] | None, list[str] | None]:
     """Load the list of packages and services from state.
 
     Reads system state from a directory containing installed packages and enabled
@@ -405,4 +423,3 @@ def load_packages_services(state_path: str) -> Tuple[Optional[Dict[str, List[str
     with open(f"{state_path}/enabled_services", "r") as f:
         services = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
     return packages, services
-
