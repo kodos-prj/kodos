@@ -20,8 +20,8 @@ See ARCHITECTURE.md for system design.
 """
 
 import json
-import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -122,7 +122,6 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> list[Step]:
         RuntimeError: If Lua planner fails (can be caught for fallback)
     """
     import logging
-    import os
 
     from kod.lua_runtime import get_lua_runtime
     
@@ -136,8 +135,8 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> list[Step]:
         lua.reload_modules([r'kod\..*'])
         
         # Set Lua package.path to include src/kod/lib and src/kod/sections
-        base_path = os.path.dirname(os.path.dirname(__file__))
-        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+        base_dir = Path(__file__).parent.parent
+        lua_path = f"{base_dir}/?.lua;{base_dir}/?/init.lua"
         lua.execute(f"package.path = '{lua_path}' .. package.path")
         
         # Convert config to Lua table if needed
@@ -196,10 +195,10 @@ def compose_rebuild_steps_lua(state: dict) -> list[Step]:
         lua = get_lua_runtime()
         
         # Force reload of Lua modules to pick up code changes
-        lua.reload_modules(['kod\\..*'])
+        lua.reload_modules([r'kod\..*'])
 
-        base_path = os.path.dirname(os.path.dirname(__file__))
-        lua_path = f"{base_path}/?.lua;{base_path}/?/init.lua"
+        base_dir = Path(__file__).parent.parent
+        lua_path = f"{base_dir}/?.lua;{base_dir}/?/init.lua"
         lua.execute(f"package.path = '{lua_path}' .. package.path")
 
         from kod.bootstrap import _convert_to_lua_table
