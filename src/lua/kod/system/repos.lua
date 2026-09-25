@@ -1,12 +1,27 @@
 -- Repository functions
 
+---Create Arch official repository configuration with optional custom mirrors.
+---@param mirrors string|table Optional custom mirror URL(s). Can be:
+---  - Single URL string: "https://mirror.example.com/archlinux"
+---  - List of URLs: { "https://mirror1.com/archlinux", "https://mirror2.com/archlinux" }
+---  - nil/empty: Uses pacman's default mirrors (pre-configured in base image)
+---@return table Arch repo configuration table with type="arch"
+---
+---Example:
+---  local repos = require('repos')
+---  -- Use default mirrors from pacman.conf
+---  repos.arch_repo()
+---  -- Use single custom mirror
+---  repos.arch_repo("https://mirror.example.com/archlinux")
+---  -- Use mirror list with fallbacks
+---  repos.arch_repo({
+---    "https://mirror1.example.com/archlinux",
+---    "https://mirror2.example.com/archlinux"
+---  })
 local function arch_repo(mirrors)
-    -- Creates the repo entry for official arch repos
-    --  - mirrors: is list of url mirror in case a particular set of mirror is required
     return {
         type = "arch",
-        mirrors = mirrors, --"https://mirror.rackspace.com/archlinux",
-        -- arch = "x86_64",
+        mirrors = mirrors,  -- nil, string, or list of mirror URLs
         repo = { "core", "extra" },
         privilege_level = "root",  -- Requires full root for pacman
         commands = {
@@ -234,10 +249,48 @@ end
 -- Used by sections/repos.lua to generate repo setup steps
 
 local function emit_arch_repo_steps(repo_name, repo_config)
-    -- Emit steps to add Arch official repo
-    -- ponytail: Arch repos in pacman.conf are usually pre-configured; skip unless custom mirrors needed
-    -- Add when: custom mirror overrides required or repo list customization
-    return {}
+    -- Emit steps to configure Arch official repo mirrors
+    -- If repo_config.mirrors is provided, generates step to write mirror list to pacman.conf
+    -- repo_config.mirrors can be: nil (use defaults), string (single mirror), or list of mirrors
+    
+    if not repo_config.mirrors then
+        -- No custom mirrors; use pacman's defaults (already in base image)
+        return {}
+    end
+    
+    -- Convert single string mirror to list for uniform handling
+    local mirror_list = {}
+    if type(repo_config.mirrors) == "string" then
+        table.insert(mirror_list, repo_config.mirrors)
+    elseif type(repo_config.mirrors) == "table" then
+        mirror_list = repo_config.mirrors
+    else
+        return {}
+    end
+    
+    if #mirror_list == 0 then
+        return {}
+    end
+    
+    -- Build pacman.conf mirror list (preserve Server = format for each mirror)
+    local mirror_lines = {}
+    for _, mirror_url in ipairs(mirror_list) do
+        table.insert(mirror_lines, "Server = " .. mirror_url)
+    end
+    local mirrors_config = table.concat(mirror_lines, "\n")
+    
+    -- Generate step: append mirror list to pacman.conf [core] and [extra] sections
+    -- ponytail: Simple append; assumes pacman.conf has these sections already.
+    -- Better: parse and update only the target sections if they change. Defer when needed.
+    return {
+        {
+            name = "repos_arch_mirrors_" .. repo_name,
+            description = "Configure Arch mirrors in pacman.conf",
+            -- Append our mirrors after the [core] section (they apply to all repos)
+            command = "echo '\n# Custom mirrors for Arch repos' >> /etc/pacman.conf && echo '" .. mirrors_config .. "' >> /etc/pacman.conf",
+            order = 50,
+        }
+    }
 end
 
 local function emit_aur_repo_steps(repo_name, repo_config)
