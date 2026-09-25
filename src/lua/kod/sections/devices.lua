@@ -366,15 +366,37 @@ local module = {
                              })
                             
                             -- Copy resolv.conf from host for DNS resolution in chroot
-                            -- This allows pacman to resolve mirrors during package installation
-                            table.insert(steps, {
-                                name = "devices_setup_dns",
-                                description = "Copy host /etc/resolv.conf to chroot for DNS resolution",
-                                command = "cp /etc/resolv.conf /mnt/etc/resolv.conf || true",
-                                chroot = false,  -- Run on host, not in chroot
-                                order = 44,
-                                 depends_on = {"devices_pacman_keyring_init"},
-                                 on_error = "warn",  -- Non-critical if host has no resolv.conf
+                             -- This allows pacman to resolve mirrors during package installation
+                             table.insert(steps, {
+                                 name = "devices_setup_dns",
+                                 description = "Copy host /etc/resolv.conf to chroot for DNS resolution",
+                                 command = "cp /etc/resolv.conf /mnt/etc/resolv.conf || true",
+                                 chroot = false,  -- Run on host, not in chroot
+                                 order = 44,
+                                  depends_on = {"devices_pacman_keyring_init"},
+                                  on_error = "warn",  -- Non-critical if host has no resolv.conf
+                              })
+                             
+                             -- Create kod user for AUR helper builds (needed before repos section)
+                             -- This user will run makepkg for AUR packages with proper permissions
+                             table.insert(steps, {
+                                 name = "devices_create_kod_user",
+                                 description = "Create kod user for AUR builds and package management",
+                                 command = "useradd -r -m -s /bin/bash kod 2>/dev/null || true",
+                                 chroot = true,
+                                 order = 49,
+                                 depends_on = {"devices_setup_dns"},
+                             })
+                             
+                             -- Configure sudo access for kod user
+                             -- Needed for yay/makepkg to run pacman commands
+                             table.insert(steps, {
+                                 name = "devices_kod_sudoers",
+                                 description = "Configure sudo access for kod user",
+                                 command = "echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod",
+                                 chroot = true,
+                                 order = 49,
+                                 depends_on = {"devices_create_kod_user"},
                              })
                          end
                   end

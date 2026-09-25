@@ -306,18 +306,19 @@ local function emit_aur_repo_steps(repo_name, repo_config)
     
     local git_url = repo_config.build.url
     local build_cmd = repo_config.build.build_cmd or "makepkg -si --noconfirm"
+    local helper_name = repo_config.build.name or repo_name
     
-    -- Extract directory name at runtime using shell (more robust than Lua regex)
-    -- git clone creates a directory matching the repo name; we find it by name
-    local dir_name = git_url:match("([^/]+)%.git$") or git_url:match("([^/]+)$")
-    
+    -- Run as 'kod' user (not root) to avoid permission issues with makepkg
+    -- Uses runuser to switch user context; cd to home directory
+    -- Matches official KodOS arch.py proc_repos implementation
     return {
         {
             name = "repos_aur_" .. repo_name,
-            description = "Install AUR helper: " .. (repo_config.build.name or repo_name),
+            description = "Install AUR helper: " .. helper_name,
             kind = "lua-system",
-            command = "cd /tmp && git clone " .. git_url .. " aur && cd aur && " .. build_cmd,
+            command = "runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf " .. helper_name .. " && git clone " .. git_url .. " " .. helper_name .. " && cd " .. helper_name .. " && " .. build_cmd .. "'",
             order = 50,
+            depends_on = {"devices_kod_sudoers"},
         }
     }
 end
