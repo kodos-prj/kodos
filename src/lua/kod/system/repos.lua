@@ -302,11 +302,16 @@ local function emit_aur_repo_steps(repo_name, repo_config)
     if not repo_config.build or not repo_config.build.url then
         return {}
     end
+    
+    -- Extract directory name from git URL (e.g., "https://aur.archlinux.org/yay-bin.git" → "yay-bin")
+    local git_url = repo_config.build.url
+    local dir_name = git_url:match("([^/]+)%.git$") or git_url:match("([^/]+)$")
+    
     return {
         {
             name = "repos_aur_" .. repo_name,
             description = "Install AUR helper: " .. (repo_config.build.name or repo_name),
-            command = "cd /tmp && git clone " .. repo_config.build.url .. " && cd " .. (repo_config.build.name or repo_name) .. " && " .. (repo_config.build.build_cmd or "makepkg -si --noconfirm"),
+            command = "cd /tmp && git clone " .. git_url .. " && cd " .. dir_name .. " && " .. (repo_config.build.build_cmd or "makepkg -si --noconfirm"),
             order = 50,
         }
     }
