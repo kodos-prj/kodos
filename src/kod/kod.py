@@ -652,8 +652,11 @@ def _cleanup_failed_generation(generation_id: int, new_root_path: str) -> None:
         print(f"⚠️  Warning: Failed to fully clean up generation {generation_id}: {e}")
 
 
-def _load_current_state() -> tuple[str, dict, list, dict]:
-    """Resolve current generation state read-only. Raises ClickException with hint."""
+def _load_current_state() -> tuple[str, dict, list, dict, int]:
+    """Resolve current generation state read-only. Raises ClickException with hint.
+    
+    Returns: (state_path, current_packages, current_services, installed_lock, generation)
+    """
     try:
         with open("/.generation") as f:
             gen = int(f.readline().strip())
@@ -663,7 +666,7 @@ def _load_current_state() -> tuple[str, dict, list, dict]:
         current_packages, current_services = load_packages_services(state_path)
         installed_lock = (load_package_lock(state_path)
                           if Path(f"{state_path}/packages.lock").is_file() else {})
-        return state_path, current_packages, current_services, installed_lock
+        return state_path, current_packages, current_services, installed_lock, gen
     except (FileNotFoundError, OSError):
         raise click.ClickException(
             "No KodOS generation found on this system. "
@@ -715,10 +718,10 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
     dist = get_distro_module(base_distribution)
 
     if dry_run:
-        _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
+        _state_path, cur_pkgs, cur_svcs, cur_lock, cur_gen = _load_current_state()
         steps = build_plan(conf, dist, baseline="current", current_packages=cur_pkgs,
                            current_services=cur_svcs, current_installed_packages=cur_lock,
-                           update=update)
+                           update=update, current_generation=cur_gen)
         print(render_plan(steps, "current", config))
         return
 
@@ -831,7 +834,9 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
             current_services=current_services,
             current_installed_packages=current_installed_packages,
             update=update,
-            new_generation=new_generation
+            new_generation=new_generation,
+            generation_id=generation_id,
+            current_generation=current_generation
          )
 
 

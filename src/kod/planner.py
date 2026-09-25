@@ -405,7 +405,8 @@ def plan_install(conf: Any) -> list[Step]:
 
 def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services: list[str],
                  current_installed_packages: dict | None = None, update: bool = False,
-                 new_generation: bool = False, mount_point: str = "/") -> list[Step]:
+                 new_generation: bool = False, generation_id: int | None = None, 
+                 current_generation: int | None = None, mount_point: str = "/") -> list[Step]:
     """Rebuild preview over the current generation. Read-only."""
     import logging
     import sys
@@ -443,6 +444,11 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
     lua = get_lua_runtime()
     conf_lua = _convert_to_lua_table(lua, conf)
     
+    # Determine which generation to use for boot entry
+    # - If new_generation: use the new generation_id
+    # - If rebuild: use current_generation
+    boot_generation = generation_id if new_generation else current_generation
+    
     steps = compose_rebuild_steps_lua({
         "next_packages": {"packages": list(next_packages.get("packages", [])),
                          "kernel": next_packages.get("kernel", "linux")},
@@ -457,6 +463,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         "kernel_update_required": kernel_update_required,
         "distro": conf.base_distribution or "arch",
         "config": conf_lua,  # Pass full config for packages.emit_steps
+        "boot_generation": boot_generation,  # Generation for boot entry
     })
     try:
         hooks_map = collect_hooks(conf.users or {})
@@ -469,11 +476,13 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
 def build_plan(conf: Any, dist: Any = None, baseline: str = "current",
                current_packages: dict | None = None, current_services: list[str] | None = None,
                current_installed_packages: dict | None = None, update: bool = False,
-               new_generation: bool = False) -> list[Step]:
+               new_generation: bool = False, generation_id: int | None = None,
+               current_generation: int | None = None) -> list[Step]:
     if baseline == "empty":
         return plan_install(conf)
     if baseline != "current":
         raise ValueError(f"unknown baseline: {baseline}")
     return plan_rebuild(conf, dist, current_packages or {}, current_services or [],
                         current_installed_packages, update=update,
-                        new_generation=new_generation)
+                        new_generation=new_generation, generation_id=generation_id,
+                        current_generation=current_generation)

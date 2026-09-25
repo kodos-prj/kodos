@@ -33,6 +33,7 @@ end
 --   remove_packages = {...},          -- explicit removals from config
 --   next_services    = {...},
 --   current_services = {...},
+--   boot_generation  = <int>,         -- generation for boot entry
 --   update             = bool,
 --   new_generation     = bool,
 --   kernel_update_required = bool,
@@ -41,14 +42,13 @@ end
 function Rebuild.diff(state)
     local steps = {}
 
-
-
     local next_packages = state.next_packages or {}
     local current_packages = state.current_packages or {}
     local next_kernel = next_packages.kernel or "linux"
     local new_gen = state.new_generation
     local distro = state.distro
     local config = state.config
+    local boot_generation = state.boot_generation or 0
 
     if state.update then
         local cmd = Repos.update_cmd(distro)
@@ -184,7 +184,7 @@ for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.curre
 end
 
     table.insert(steps, { kind = "lua-system", name = "boot-entry",
-        meta = { operation = "create_boot_entry", kernel = next_kernel } })
+        meta = { operation = "create_boot_entry", kernel = next_kernel, generation = boot_generation } })
 
     return steps
 end
