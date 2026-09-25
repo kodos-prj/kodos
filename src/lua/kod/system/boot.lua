@@ -33,27 +33,40 @@ end
 -- Get kernel version and file from distro module
 -- Returns: (kernel_file, kernel_version)
 function M.get_kernel_file(mount_point, kernel_pkg)
-    -- For now, we require distro support (arch by default)
-    -- This would be provided by a distro abstraction layer
-    -- For initial MVP, use Python's get_kernel_file via callback
+    kernel_pkg = kernel_pkg or "linux"
     
-    -- TODO: Move distro logic to Lua
-    -- Current: call Python get_kernel_file (temporary measure)
-    local py_get_kernel = _G._dispatch_python and _G._dispatch_python.get_kernel_file
-    if not py_get_kernel then
-        error("Python get_kernel_file not available")
+    -- For Arch Linux: kernel version is in /lib/modules/
+    -- Query installed kernel version from chroot
+    local result = Exec.exec_chroot(
+        "ls -1v /lib/modules | tail -1",
+        mount_point,
+        { throw_on_error = false, get_output = true }
+    )
+    
+    if not result.ok or not result.output then
+        error("Failed to detect kernel version in chroot at " .. mount_point)
     end
     
-    local ok, result = pcall(function()
-        return py_get_kernel(mount_point, kernel_pkg or "linux")
-    end)
-    
-    if not ok then
-        error("Failed to get kernel file: " .. tostring(result))
+    local kver = result.output:gsub("\n$", ""):gsub("%s+$", "")
+    if not kver or kver == "" then
+        error("No kernel version found in " .. mount_point .. "/lib/modules")
     end
     
-    -- Result is (kernel_file, kernel_version) tuple; unpack it
-    return result[1], result[2]
+    -- ponytail: kernel file path for Arch is /boot/vmlinuz-<kver> but we need source
+    -- For Arch LTS kernel: /boot/vmlinuz-linux-lts (or similar package-specific name)
+    -- Query the actual installed kernel file in /boot
+    local kernel_file_result = Exec.exec_chroot(
+        "ls -1 /boot/vmlinuz-* /boot/kernel-* /boot/Image* 2>/dev/null | head -1",
+        mount_point,
+        { throw_on_error = false, get_output = true }
+    )
+    
+    local kernel_file = "/boot/vmlinuz-linux"
+    if kernel_file_result.ok and kernel_file_result.output then
+        kernel_file = kernel_file_result.output:gsub("\n$", ""):gsub("%s+$", "")
+    end
+    
+    return kernel_file, kver
 end
 
 -- Copy kernel file to /boot/vmlinuz-<kver>
