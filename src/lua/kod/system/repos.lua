@@ -107,6 +107,7 @@ local function install_cmd(distro, packages)
     -- - packages: string or list of package names (may include aur:, flatpak:, etc prefixes)
     -- Returns: install command string, or nil if distro unsupported
     
+    -- TODO:
     -- ponytail: Hardcoded repo commands for aur:/flatpak: prefixes.
     -- Better: pass config.repos registry through planning so install_cmd() can look up
     -- actual repo.commands.install from aur_repo/flatpak_repo table definitions.
@@ -248,6 +249,7 @@ end
 -- Repo step generation functions: emit install steps for a given repo type and distro
 -- Used by sections/repos.lua to generate repo setup steps
 
+-- TODO: Move this function as part of arch_repo
 local function emit_arch_repo_steps(repo_name, repo_config)
     -- Emit steps to configure Arch official repo mirrors
     -- If repo_config.mirrors is provided, generates step to write mirror list to pacman.conf
@@ -293,6 +295,7 @@ local function emit_arch_repo_steps(repo_name, repo_config)
     }
 end
 
+-- TODO: Move this function as part of aur_repo
 local function emit_aur_repo_steps(repo_name, repo_config)
     -- Emit steps to install AUR helper (yay, paru, etc)
     -- repo_config.build.name, .url, .build_cmd
