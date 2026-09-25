@@ -29,7 +29,7 @@ See ARCHITECTURE.md for system design.
 from typing import Any
 
 
-def lua_table_to_python(value: Any) -> Any:
+def lua_table_to_python(value: Any) -> list | dict:
     """Recursively convert lupa LuaTable to Python dict/list.
     
     Lua has one table type; this detects whether it's array-like (int keys 1..n)

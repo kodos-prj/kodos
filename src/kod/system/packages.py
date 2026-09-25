@@ -6,6 +6,7 @@ Aggregation logic moved to Lua (src/lua/kod/sections/packages.lua).
 
 import json
 import os
+from pathlib import Path
 from typing import Any
 
 from kod.common import exec, exec_chroot
@@ -238,8 +239,8 @@ def get_pending_packages(packages_to_install: dict[str, list[str]]) -> list[str]
 
 def store_packages_services(
     state_path: str,
-    packages_to_install: dict[str, list[str]],
-    system_services: list[str],
+    packages_to_install: dict[str, list[str]] | None,
+    system_services: list[str] | None,
     packages_to_remove: list[str] | None = None,
 ) -> None:
     """
@@ -261,7 +262,8 @@ def store_packages_services(
     Raises:
         OSError: If state_path does not exist or is not writable
     """
-    if not os.path.isdir(state_path):
+    state_dir = Path(state_path)
+    if not state_dir.is_dir():
         raise OSError(f"State path does not exist or is not a directory: {state_path}")
 
     # Merge excluded packages from both sources
@@ -275,27 +277,25 @@ def store_packages_services(
 
     # Write packages atomically (temp + rename)
     packages_json = json.dumps(packages_data, indent=2)
-    packages_file = f"{state_path}/installed_packages"
-    temp_packages = f"{state_path}/.tmp_packages_{os.getpid()}"
+    packages_file = state_dir / "installed_packages"
+    temp_packages = state_dir / f".tmp_packages_{os.getpid()}"
     try:
-        with open(temp_packages, "w") as f:
-            f.write(packages_json)
-        os.rename(temp_packages, packages_file)
+        temp_packages.write_text(packages_json)
+        temp_packages.replace(packages_file)
     except Exception as e:
-        if os.path.exists(temp_packages):
-            os.unlink(temp_packages)
+        if temp_packages.exists():
+            temp_packages.unlink()
         raise OSError(f"Failed to write packages atomically to {packages_file}: {e}")
 
     # Write services atomically (temp + rename)
-    services_file = f"{state_path}/enabled_services"
-    temp_services = f"{state_path}/.tmp_services_{os.getpid()}"
+    services_file = state_dir / "enabled_services"
+    temp_services = state_dir / f".tmp_services_{os.getpid()}"
     try:
-        with open(temp_services, "w") as f:
-            f.write("\n".join(system_services))
-        os.rename(temp_services, services_file)
+        temp_services.write_text("\n".join(system_services))
+        temp_services.replace(services_file)
     except Exception as e:
-        if os.path.exists(temp_services):
-            os.unlink(temp_services)
+        if temp_services.exists():
+            temp_services.unlink()
         raise OSError(f"Failed to write services atomically to {services_file}: {e}")
 
 
