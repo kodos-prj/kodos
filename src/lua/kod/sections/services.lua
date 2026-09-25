@@ -68,12 +68,30 @@ local function aggregate_user_services(config)
         return services
     end
     
-    -- User services
+    -- User services can come from two places:
+    -- 1. users.USERNAME.services: Direct service configurations (if schema supports)
+    -- 2. users.USERNAME.programs: Each program can have a service with per_user=true
+    
     for user_name, user_conf in pairs(config.users) do
+        -- Collect from direct services section (if present)
         if user_conf.services then
             for service_name, service_conf in pairs(user_conf.services) do
                 if service_conf.enable then
                     table.insert(services, service_name)
+                end
+            end
+        end
+        
+        -- Collect from programs section (each program with a per-user service declaration)
+        if user_conf.programs then
+            for program_name, program_conf in pairs(user_conf.programs) do
+                if program_conf.enable and program_conf.service then
+                    local svc = program_conf.service
+                    if svc.enable and svc.service_name and svc.per_user then
+                        -- Store with user context for per-user service enablement
+                        -- Format: "username:service_name" for systemctl --user
+                        table.insert(services, user_name .. ":" .. svc.service_name)
+                    end
                 end
             end
         end
@@ -139,14 +157,30 @@ local module = {
         
         -- Emit enable steps for each service
         for _, service_name in ipairs(services) do
-            table.insert(steps, {
-                kind = "service",
-                name = service_name,
-                description = "Enable service on boot: " .. service_name,
-                command = "systemctl enable " .. service_name,
-                chroot = true,
-                order = 700,
-            })
+            -- Check if this is a per-user service (format: "username:service_name")
+            local username, svc_name = string.match(service_name, "^([^:]+):(.+)$")
+            
+            if username and svc_name then
+                -- Per-user service: use systemctl --user
+                table.insert(steps, {
+                    kind = "service",
+                    name = service_name,
+                    description = "Enable per-user service on boot for " .. username .. ": " .. svc_name,
+                    command = "systemctl --user enable " .. svc_name .. " --user=" .. username,
+                    chroot = true,
+                    order = 700,
+                })
+            else
+                -- System service: use regular systemctl
+                table.insert(steps, {
+                    kind = "service",
+                    name = service_name,
+                    description = "Enable service on boot: " .. service_name,
+                    command = "systemctl enable " .. service_name,
+                    chroot = true,
+                    order = 700,
+                })
+            end
         end
         
         -- Service config block (Task 9 extension)
