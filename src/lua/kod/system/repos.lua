@@ -288,6 +288,7 @@ local function emit_arch_repo_steps(repo_name, repo_config)
         {
             name = "repos_arch_mirrors_" .. repo_name,
             description = "Configure Arch mirrors in pacman.conf",
+            kind = "lua-system",
             -- Append our mirrors after the [core] section (they apply to all repos)
             command = "echo '\n# Custom mirrors for Arch repos' >> /etc/pacman.conf && echo '" .. mirrors_config .. "' >> /etc/pacman.conf",
             order = 50,
@@ -331,6 +332,7 @@ local function emit_flatpak_repo_steps(repo_name, repo_config)
         {
             name = "repos_flatpak_" .. repo_name,
             description = "Add flatpak remote: " .. repo_name,
+            kind = "lua-system",
             command = repo_config.init,
             order = 50,
         }
