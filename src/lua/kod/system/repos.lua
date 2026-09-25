@@ -230,6 +230,75 @@ local function update_cmd(distro)
     return nil
 end
 
+-- Repo step generation functions: emit install steps for a given repo type and distro
+-- Used by sections/repos.lua to generate repo setup steps
+
+local function emit_arch_repo_steps(repo_name, repo_config)
+    -- Emit steps to add Arch official repo
+    -- ponytail: Arch repos in pacman.conf are usually pre-configured; skip unless custom mirrors needed
+    -- Add when: custom mirror overrides required or repo list customization
+    return {}
+end
+
+local function emit_aur_repo_steps(repo_name, repo_config)
+    -- Emit steps to install AUR helper (yay, paru, etc)
+    -- repo_config.build.name, .url, .build_cmd
+    if not repo_config.build or not repo_config.build.url then
+        return {}
+    end
+    return {
+        {
+            name = "repos_aur_" .. repo_name,
+            description = "Install AUR helper: " .. (repo_config.build.name or repo_name),
+            command = "cd /tmp && git clone " .. repo_config.build.url .. " && cd " .. (repo_config.build.name or repo_name) .. " && " .. (repo_config.build.build_cmd or "makepkg -si --noconfirm"),
+            order = 50,
+        }
+    }
+end
+
+local function emit_flatpak_repo_steps(repo_name, repo_config)
+    -- Emit steps to initialize flatpak repo
+    -- repo_config.init has the remote-add command
+    if not repo_config.init then
+        return {}
+    end
+    return {
+        {
+            name = "repos_flatpak_" .. repo_name,
+            description = "Add flatpak remote: " .. repo_name,
+            command = repo_config.init,
+            order = 50,
+        }
+    }
+end
+
+local function emit_deb_repo_steps(repo_name, repo_config)
+    -- Emit steps to add Debian repo
+    -- ponytail: Skip unless repo_config has custom URL or PPA; default repos pre-configured
+    -- Add when: custom repo URLs need adding
+    return {}
+end
+
+local function emit_repo_steps(repo_name, repo_config, distro)
+    -- Dispatch to repo-type-specific emit function
+    -- Returns: list of step tables, or empty list if no setup needed
+    if not repo_config or not repo_config.type then
+        return {}
+    end
+    
+    if repo_config.type == "arch" then
+        return emit_arch_repo_steps(repo_name, repo_config)
+    elseif repo_config.type == "aur" then
+        return emit_aur_repo_steps(repo_name, repo_config)
+    elseif repo_config.type == "flatpak" then
+        return emit_flatpak_repo_steps(repo_name, repo_config)
+    elseif repo_config.type == "deb" then
+        return emit_deb_repo_steps(repo_name, repo_config)
+    end
+    
+    return {}
+end
+
 return {
     arch_repo = arch_repo,
     aur_repo = aur_repo,
@@ -238,4 +307,5 @@ return {
     install_cmd = install_cmd,
     remove_cmd = remove_cmd,
     update_cmd = update_cmd,
+    emit_repo_steps = emit_repo_steps,
 }
