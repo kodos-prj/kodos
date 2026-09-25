@@ -326,19 +326,34 @@ end
 
 local function emit_flatpak_repo_steps(repo_name, repo_config)
     -- Emit steps to initialize flatpak repo
-    -- repo_config.init has the remote-add command
-    if not repo_config.init then
-        return {}
+    -- First installs flatpak package (if specified), then adds remote repo
+    local steps = {}
+    
+    -- Step 1: Install flatpak package if specified
+    if repo_config.package then
+        table.insert(steps, {
+            name = "repos_flatpak_package_" .. repo_name,
+            description = "Install flatpak package",
+            command = "pacman -S --needed --noconfirm " .. repo_config.package,
+            chroot = true,
+            order = 51,
+        })
     end
-    return {
-        {
-            name = "repos_flatpak_" .. repo_name,
+    
+    -- Step 2: Add flatpak remote repo
+    if repo_config.init then
+        local prev_step = repo_config.package and ("repos_flatpak_package_" .. repo_name) or nil
+        table.insert(steps, {
+            name = "repos_flatpak_init_" .. repo_name,
             description = "Add flatpak remote: " .. repo_name,
-            kind = "lua-system",
             command = repo_config.init,
-            order = 50,
-        }
-    }
+            chroot = true,
+            order = 52,
+            depends_on = prev_step and {prev_step} or nil,
+        })
+    end
+    
+    return steps
 end
 
 local function emit_deb_repo_steps(repo_name, repo_config)
