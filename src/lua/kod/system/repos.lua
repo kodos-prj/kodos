@@ -314,8 +314,7 @@ local function emit_aur_repo_steps(repo_name, repo_config)
         {
             name = "repos_aur_" .. repo_name,
             description = "Install AUR helper: " .. (repo_config.build.name or repo_name),
-            -- cd to /tmp, clone repo, find the cloned directory (basename of URL), cd into it, build
-            -- command = "cd /tmp && git clone " .. git_url .. " && cd $(basename " .. git_url .. " .git) && " .. build_cmd,
+            kind = "lua-system",
             command = "cd /tmp && git clone " .. git_url .. " aur && cd aur && " .. build_cmd,
             order = 50,
         }
