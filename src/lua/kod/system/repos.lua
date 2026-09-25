@@ -303,15 +303,19 @@ local function emit_aur_repo_steps(repo_name, repo_config)
         return {}
     end
     
-    -- Extract directory name from git URL (e.g., "https://aur.archlinux.org/yay-bin.git" → "yay-bin")
     local git_url = repo_config.build.url
+    local build_cmd = repo_config.build.build_cmd or "makepkg -si --noconfirm"
+    
+    -- Extract directory name at runtime using shell (more robust than Lua regex)
+    -- git clone creates a directory matching the repo name; we find it by name
     local dir_name = git_url:match("([^/]+)%.git$") or git_url:match("([^/]+)$")
     
     return {
         {
             name = "repos_aur_" .. repo_name,
             description = "Install AUR helper: " .. (repo_config.build.name or repo_name),
-            command = "cd /tmp && git clone " .. git_url .. " && cd " .. dir_name .. " && " .. (repo_config.build.build_cmd or "makepkg -si --noconfirm"),
+            -- cd to /tmp, clone repo, find the cloned directory (basename of URL), cd into it, build
+            command = "cd /tmp && git clone " .. git_url .. " && cd $(basename " .. git_url .. " .git) && " .. build_cmd,
             order = 50,
         }
     }
