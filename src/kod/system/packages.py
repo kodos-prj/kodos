@@ -240,6 +240,7 @@ def store_packages_services(
     state_path: str,
     packages_to_install: dict[str, list[str]],
     system_services: list[str],
+    packages_to_remove: list[str] | None = None,
 ) -> None:
     """
     Store the list of packages that are installed and the list of services that are enabled.
@@ -252,9 +253,10 @@ def store_packages_services(
         state_path (str): The path to the state directory where the package and service
             information should be stored.
         packages_to_install (dict): A dictionary containing the packages to install.
-            The dictionary should have a single key: "packages", which is a list of
-            package names.
+            Keys: "packages" (list), "kernel" (str), and "excluded" (list, from environment
+            exclusions like gnome-tour when GNOME is disabled).
         system_services (list): A list of system services that are enabled.
+        packages_to_remove (list): Optional list of packages to exclude/remove from installation.
 
     Raises:
         OSError: If state_path does not exist or is not writable
@@ -262,8 +264,17 @@ def store_packages_services(
     if not os.path.isdir(state_path):
         raise OSError(f"State path does not exist or is not a directory: {state_path}")
 
+    # Merge excluded packages from both sources
+    # packages_to_install may contain "excluded" from Lua; packages_to_remove is explicit
+    packages_data = packages_to_install.copy()
+    if packages_to_remove:
+        existing_excluded = packages_data.get("excluded", [])
+        # Merge both lists, dedup via set
+        all_excluded = list(set(existing_excluded) | set(packages_to_remove))
+        packages_data["excluded"] = sorted(all_excluded)  # Sort for deterministic output
+
     # Write packages atomically (temp + rename)
-    packages_json = json.dumps(packages_to_install, indent=2)
+    packages_json = json.dumps(packages_data, indent=2)
     packages_file = f"{state_path}/installed_packages"
     temp_packages = f"{state_path}/.tmp_packages_{os.getpid()}"
     try:

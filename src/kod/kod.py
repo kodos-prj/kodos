@@ -483,13 +483,13 @@ def install(config: str | None, mount_point: str) -> None:
             logger.warning(f"Failed to chmod /kod/generations: {e}")
 
         next_services = get_services_to_enable(ctx_obj, conf)
-        packages_to_install, _packages_to_remove = get_packages_to_install(conf)
+        packages_to_install, packages_to_remove = get_packages_to_install(conf)
         
         print(f"DEBUG: state_path = {state_path}")
         print(f"DEBUG: packages_to_install keys: {packages_to_install.keys()}")
         
         try:
-            store_packages_services(state_path, packages_to_install, next_services)
+            store_packages_services(state_path, packages_to_install, next_services, packages_to_remove)
             print("DEBUG: store_packages_services succeeded")
             if os.path.exists(state_path):
                 print(f"DEBUG: Files in {state_path}: {os.listdir(state_path)}")
@@ -776,8 +776,8 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
 
         # === Finalization (unchanged structure) ===
         next_services = get_services_to_enable(ctx, conf)
-        packages_to_install, _packages_to_remove = get_packages_to_install(conf)
-        store_packages_services(next_state_path, packages_to_install, next_services)
+        packages_to_install, packages_to_remove = get_packages_to_install(conf)
+        store_packages_services(next_state_path, packages_to_install, next_services, packages_to_remove)
         dist.generate_package_lock(new_root_path, next_state_path)
 
         partition_list = load_fstab("/")
