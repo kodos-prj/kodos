@@ -162,7 +162,7 @@ end
 ---  - Errors in individual sections are collected but don't stop composition
 ---  - Returns both steps and error messages (partial success case)
 ---
----@param config table|LuaTable Configuration table (from load_config or Python dict)
+---@param config table Configuration table (from load_config or Python dict)
 ---@param distro string Distribution name: "arch" or "debian"
 ---
 ---@return table|nil all_steps Ordered list of Step tables, or nil on validation failure
