@@ -4,19 +4,19 @@ Handles systemd service enablement, user services, and service configuration.
 Aggregation logic moved to Lua (src/lua/kod/sections/services.lua).
 """
 
-from typing import Any, List, Dict
+from typing import Any
 
 from kod.common import exec, exec_chroot
 
 # Aggregation moved to Lua (src/lua/kod/sections/services.lua)
 
 
-def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
+def get_services_to_enable(ctx: Any, conf: Any) -> list[str]:
     """Extract services to enable from config.
 
     Calls Lua's service aggregation to collect services from all config sections
     (desktop, system services, user services).
-    
+
     Args:
         ctx: Context object (passed through, not used in aggregation)
         conf: The configuration table (Lua table or Python dict) containing service configuration.
@@ -26,25 +26,25 @@ def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
     """
     from kod.lua_runtime import get_lua_runtime
     from kod.lua_utils import lua_table_to_python, python_dict_to_lua_table
-    
+
     # Load Lua and call service aggregation
     lua = get_lua_runtime()
     result = lua.require("kod.sections.services")
     # lupa.require() returns (module, filename) tuple; extract module
     services_module = result[0] if isinstance(result, tuple) else result
-    
+
     # Convert Python dict back to Lua table if needed
     if isinstance(conf, dict):
         conf_lua = python_dict_to_lua_table(lua, conf)
     else:
         conf_lua = conf
-    
+
     # Call Lua aggregation function
     lua_services = services_module.aggregate_services(conf_lua)
-    
+
     # Convert lupa.LuaTable to Python list
     services_list = lua_table_to_python(lua_services)
-    
+
     return services_list
 
 
@@ -53,8 +53,9 @@ def get_services_to_enable(ctx: Any, conf: Any) -> List[str]:
 # ============================================================================
 
 
-def enable_services(list_of_services: List[str], mount_point: str = "/mnt", 
-                   use_chroot: bool = False) -> None:
+def enable_services(
+    list_of_services: list[str], mount_point: str = "/mnt", use_chroot: bool = False
+) -> None:
     """
     Enable a list of services in the specified mount point.
 
@@ -82,7 +83,7 @@ def enable_services(list_of_services: List[str], mount_point: str = "/mnt",
             exec(f"systemctl enable --now {service}")
 
 
-def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
+def enable_user_services(ctx: Any, user: str, services: list[str]) -> None:
     """
     Enable services for a user in the specified context.
 
@@ -106,21 +107,19 @@ def enable_user_services(ctx: Any, user: str, services: List[str]) -> None:
 
 
 def enable_services_from_programs(
-    compiled: Dict[str, Any],
-    mount_point: str = "/mnt",
-    use_chroot: bool = False
+    compiled: dict[str, Any], mount_point: str = "/mnt", use_chroot: bool = False
 ) -> None:
     """Enable services from compiled program definitions.
-    
+
     Extracts services that have enable=true from the compiled programs section
     and enables them via systemctl. This is called during installation after
     packages are installed.
-    
+
     Args:
         compiled: Compiled config with programs section
         mount_point: Path for chroot operations (default: "/mnt")
         use_chroot: Whether to use chroot for service enablement (default: False)
-    
+
     Example:
         >>> compiled = {
         ...     "programs": {
@@ -133,18 +132,20 @@ def enable_services_from_programs(
     """
     if "programs" not in compiled:
         return
-    
+
     services_to_enable = []
-    
-    for program_name, program_data in compiled["programs"].items():
-        service = program_data["service"] if "service" in program_data else None
-        if service and ("enable" in service and service["enable"]):
-            service_name = service["service_name"] if "service_name" in service else None
+
+    for program_data in compiled["programs"].values():
+        service = program_data.get("service", None)
+        if service and (service.get("enable")):
+            service_name = (
+                service.get("service_name", None)
+            )
             if service_name:
                 services_to_enable.append(service_name)
-    
+
     # Use existing enable_services() function
     if services_to_enable:
-        enable_services(services_to_enable, mount_point=mount_point, use_chroot=use_chroot)
-
-
+        enable_services(
+            services_to_enable, mount_point=mount_point, use_chroot=use_chroot
+        )

@@ -17,21 +17,15 @@ local function aggregate_desktop_services(config)
     
     local desktop = config.desktop
     
-    -- Display manager service
+    -- Display manager service (top-level, can be directly specified)
     if desktop.display_manager then
         table.insert(services, desktop.display_manager)
     end
     
-    -- Display managers from desktop environments
-    if desktop.desktop_manager then
-        local found_display_manager = false
-        for _, dm_conf in pairs(desktop.desktop_manager) do
-            if dm_conf.enable and dm_conf.display_manager and not found_display_manager then
-                table.insert(services, dm_conf.display_manager)
-                found_display_manager = true
-            end
-        end
-    end
+    -- Note: Desktop environments (gnome, plasma, cosmic, etc.) don't currently
+    -- specify their own display managers in the schema. The display_manager is
+    -- set at the desktop section level and applies to the enabled environment.
+    -- If per-environment display manager support is added later, iterate here.
     
     return services
 end
