@@ -504,25 +504,25 @@ def install(config: str | None, mount_point: str) -> None:
             logger.warning(f"Failed to record generation 0 state: {e}")
             import traceback
             traceback.print_exc()
-        
-        # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
-        # These must be unmounted before we can safely unmount /mnt
-        # Use lazy unmount (-l) to handle busy mounts
-        print("Cleaning up chroot mounts...")
-        try:
-            # First try regular unmount
-            exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
-            # Verify unmount succeeded and flush data
+        finally:
+            # Clean up chroot mounts (proc, sys, dev, dev/pts) that were set up during install
+            # These must be unmounted before we can safely unmount /mnt
+            # Use lazy unmount (-l) to handle busy mounts
+            print("Cleaning up chroot mounts...")
             try:
-                _verify_unmount("/mnt", max_retries=3)
-            except RuntimeError as e:
-                logger.error(f"Unmount verification failed: {e}")
-                # Don't exit - let install complete, but warn user
-                print(f"⚠️  Warning: {e}", file=sys.stderr)
-        except Exception as e:
-            logger.warning(f"Failed to cleanup chroot mounts: {e}")
+                # First try regular unmount
+                exec("umount -R /mnt 2>/dev/null || umount -lR /mnt 2>/dev/null || true")
+                # Verify unmount succeeded and flush data
+                try:
+                    _verify_unmount("/mnt", max_retries=3)
+                except RuntimeError as e:
+                    logger.error(f"Unmount verification failed: {e}")
+                    # Don't exit - let install complete, but warn user
+                    print(f"⚠️  Warning: {e}", file=sys.stderr)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup chroot mounts: {e}")
 
-        print("\n✅ Install completed successfully")
+            print("\n✅ Install completed successfully")
 
     except StepError as e:
         print(f"❌ Step error: {e}", file=sys.stderr)

@@ -268,7 +268,7 @@ def store_packages_services(
 
     # Merge excluded packages from both sources
     # packages_to_install may contain "excluded" from Lua; packages_to_remove is explicit
-    packages_data = packages_to_install.copy()
+    packages_data = packages_to_install.copy() if packages_to_install else {}
     if packages_to_remove:
         existing_excluded = packages_data.get("excluded", [])
         # Merge both lists, dedup via set

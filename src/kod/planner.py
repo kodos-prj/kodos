@@ -133,7 +133,7 @@ def compose_steps_lua(config: Any, distro: str = "arch") -> list[Step]:
         lua = get_lua_runtime()
         
         # Force reload of Lua modules to pick up code changes
-        lua.reload_modules(['kod\\..*'])
+        lua.reload_modules([r'kod\..*'])
         
         # Set Lua package.path to include src/kod/lib and src/kod/sections
         base_path = os.path.dirname(os.path.dirname(__file__))
