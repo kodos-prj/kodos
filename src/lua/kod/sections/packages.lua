@@ -452,6 +452,20 @@ local module = {
             end
         end
         
+        -- Handle flatpak applications (install after flatpak is initialized)
+        if #flatpak_pkgs > 0 then
+            for i, app_id in ipairs(flatpak_pkgs) do
+                table.insert(steps, {
+                    name = "packages_install_flatpak_" .. app_id:gsub("[^%w-]", "_"),
+                    description = "Install flatpak application: " .. app_id,
+                    command = "flatpak install -y flathub " .. app_id,
+                    chroot = true,
+                    order = 600 + i, -- After AUR packages (500+)
+                    timeout_s = 300,
+                })
+            end
+        end
+        
         return steps
     end
 }
