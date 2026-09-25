@@ -143,10 +143,27 @@ def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]
     packages_list = result_dict.get("packages", []) if isinstance(result_dict, dict) else []
     excluded_list = result_dict.get("excluded", []) if isinstance(result_dict, dict) else []
 
+    # Get kernel from boot config, fall back to "linux" if not specified
+    kernel = "linux"  # Default
+    try:
+        # Try accessing as Lua table first (from load_config_lua)
+        if hasattr(conf, "boot") and hasattr(conf.boot, "kernel"):
+            kernel_config = conf.boot.kernel
+            if hasattr(kernel_config, "package"):
+                kernel = kernel_config.package
+    except (AttributeError, TypeError):
+        # Fall back to dict access (from Python dict or failed Lua access)
+        if isinstance(conf, dict) and "boot" in conf:
+            boot_config = conf["boot"]
+            if isinstance(boot_config, dict) and "kernel" in boot_config:
+                kernel_config = boot_config["kernel"]
+                if isinstance(kernel_config, dict) and "package" in kernel_config:
+                    kernel = kernel_config["package"]
+
     # Wrap in dict matching original format
     packages_to_install = {
         "packages": packages_list,
-        "kernel": "linux",  # Default kernel; can be overridden in config
+        "kernel": kernel,
     }
 
     packages_to_remove = excluded_list
