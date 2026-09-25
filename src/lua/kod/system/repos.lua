@@ -317,6 +317,7 @@ local function emit_aur_repo_steps(repo_name, repo_config)
             description = "Install AUR helper: " .. helper_name,
             kind = "lua-system",
             command = "runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf " .. helper_name .. " && git clone " .. git_url .. " " .. helper_name .. " && cd " .. helper_name .. " && " .. build_cmd .. "'",
+            chroot = true,
             order = 50,
             depends_on = {"devices_kod_sudoers"},
         }
