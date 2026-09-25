@@ -37,8 +37,8 @@ local module = {
              end
 
               -- Write dracut config with all drivers in a single add_drivers line
-              -- (dracut concatenates multiple add_drivers+= lines without spaces)
-              local drivers_line = "add_drivers+=" .. table.concat(modules, " ")
+              -- (dracut config files are bash scripts that source add_drivers as an array)
+              local drivers_line = "add_drivers+=(" .. table.concat(modules, " ") .. ")"
              
               table.insert(steps, {
                  name = "boot_kernel_modules_config",
