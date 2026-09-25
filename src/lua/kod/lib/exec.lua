@@ -1,58 +1,98 @@
--- Wrapper for Python exec and exec_chroot functions
---
--- Called from Lua system modules; dispatches to Python implementations.
--- Functions are injected by Python at runtime via _G._dispatch_python.
+-- Execute shell commands in host or chroot environments
+-- Native Lua implementation using os.execute and temporary scripts
 
 local M = {}
 
--- Call Python exec() function via the dispatch table
+-- Execute a shell command on the host
 -- Options: { get_output=bool, throw_on_error=bool }
 function M.exec(cmd, options)
     options = options or {}
     
-    -- Get the Python exec function from global dispatch (injected at runtime)
-    local py_exec = _G._dispatch_python and _G._dispatch_python.exec
-    if not py_exec then
-        error("Python exec function not available; dispatch not initialized")
-    end
-    
-    local ok, result = pcall(function()
-        return py_exec(cmd, options.get_output or false)
-    end)
-    
-    if not ok then
-        if options.throw_on_error then
-            error("exec failed: " .. tostring(result))
+    if options.get_output then
+        -- Capture output by redirecting to temp file
+        local tmp_file = "/tmp/kodos_exec_output_" .. os.time() .. math.random(1000000)
+        local full_cmd = cmd .. " > " .. tmp_file .. " 2>&1"
+        local status = os.execute(full_cmd)
+        
+        -- Read output
+        local file = io.open(tmp_file, "r")
+        local output = file and file:read("*a") or ""
+        if file then file:close() end
+        os.remove(tmp_file)
+        
+        if status ~= 0 and options.throw_on_error then
+            error("exec failed with status " .. status .. ": " .. output)
         end
-        return { ok = false, output = "", error = tostring(result) }
+        
+        return {
+            ok = (status == 0),
+            output = output,
+            error = (status ~= 0) and output or nil,
+            status = status
+        }
+    else
+        -- Just run command
+        local status = os.execute(cmd .. " >/dev/null 2>&1")
+        
+        if status ~= 0 and options.throw_on_error then
+            error("exec failed with status " .. status)
+        end
+        
+        return {
+            ok = (status == 0),
+            output = "",
+            error = (status ~= 0) and "command failed" or nil,
+            status = status
+        }
     end
-    
-    return { ok = true, output = result or "", error = nil }
 end
 
--- Call Python exec_chroot() function via the dispatch table
+-- Execute a shell command in chroot environment
+-- ponytail: Uses 'chroot' command directly instead of Python wrapper
 -- Options: { get_output=bool, throw_on_error=bool }
 function M.exec_chroot(cmd, mount_point, options)
     options = options or {}
     
-    local py_exec_chroot = _G._dispatch_python and _G._dispatch_python.exec_chroot
-    if not py_exec_chroot then
-        error("Python exec_chroot function not available; dispatch not initialized")
-    end
+    -- Build chroot command
+    local chroot_cmd = "chroot " .. mount_point .. " /bin/bash -c '" .. cmd:gsub("'", "'\\''") .. "'"
     
-    local ok, result = pcall(function()
-        -- Call with positional args; Lupa will pass them to the Python function
-        return py_exec_chroot(cmd, mount_point, options.get_output or false)
-    end)
-    
-    if not ok then
-        if options.throw_on_error then
-            error("exec_chroot failed: " .. tostring(result))
+    if options.get_output then
+        -- Capture output by redirecting to temp file
+        local tmp_file = "/tmp/kodos_chroot_output_" .. os.time() .. math.random(1000000)
+        local full_cmd = chroot_cmd .. " > " .. tmp_file .. " 2>&1"
+        local status = os.execute(full_cmd)
+        
+        -- Read output
+        local file = io.open(tmp_file, "r")
+        local output = file and file:read("*a") or ""
+        if file then file:close() end
+        os.remove(tmp_file)
+        
+        if status ~= 0 and options.throw_on_error then
+            error("exec_chroot failed with status " .. status .. ": " .. output)
         end
-        return { ok = false, output = "", error = tostring(result) }
+        
+        return {
+            ok = (status == 0),
+            output = output,
+            error = (status ~= 0) and output or nil,
+            status = status
+        }
+    else
+        -- Just run command
+        local status = os.execute(chroot_cmd .. " >/dev/null 2>&1")
+        
+        if status ~= 0 and options.throw_on_error then
+            error("exec_chroot failed with status " .. status)
+        end
+        
+        return {
+            ok = (status == 0),
+            output = "",
+            error = (status ~= 0) and "command failed" or nil,
+            status = status
+        }
     end
-    
-    return { ok = true, output = result or "", error = nil }
 end
 
 return M
