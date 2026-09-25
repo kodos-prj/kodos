@@ -137,6 +137,53 @@ local function merge_user_programs_services(config)
 end
 
 -- Main composition function: load all sections, call emit_steps, collect and sort results
+---Compose installation/rebuild plan from configuration.
+---
+---Loads all enabled configuration sections, calls their emit_steps() methods,
+---merges the resulting steps, sorts them by order field, and returns the
+---complete execution plan.
+---
+---Entry point for Python planner (src/kod/planner.py:compose_steps_lua).
+---
+---Process:
+---  1. Validate config and distro parameters
+---  2. Set config.base_distribution if not already set
+---  3. Merge user-level programs/services into global collections (Task 10)
+---  4. For each enabled section (in order):
+---     - Load section module (with caching)
+---     - Call section.emit_steps(section_config, distro)
+---     - Collect all returned steps
+---  5. Sort all steps by order field (and handle dependencies via sort_steps)
+---  6. Return (steps, error_msg) or (nil, error) on validation failure
+---
+---Special handling:
+---  - packages section receives full config (needs to aggregate from all sections)
+---  - All other sections receive their section-specific config (config[section_name])
+---  - Errors in individual sections are collected but don't stop composition
+---  - Returns both steps and error messages (partial success case)
+---
+---@param config table|LuaTable Configuration table (from load_config or Python dict)
+---@param distro string Distribution name: "arch" or "debian"
+---
+---@return table|nil all_steps Ordered list of Step tables, or nil on validation failure
+---@return string|nil error_msg Concatenated error messages from sections, or nil if no errors
+---
+---@raise Returns (nil, error_msg) instead of raising on validation failure
+---
+---Example:
+---  local planner = require('kod.planning.planner')
+---  local config = require('kod.lib.configs').load('example/testvm/configuration.lua')
+---  local steps, errors = planner:compose(config, 'arch')
+---  if not steps then
+---    print('Failed to compose plan:', errors)
+---    return
+---  end
+---  if errors then
+---    print('Warnings during composition:', errors)
+---  end
+---  for i, step in ipairs(steps) do
+---    print(i, step.name, step.order)
+---  end
 function Planner:compose(config, distro)
     -- Validate inputs
     local valid, err = validate_config(config)
