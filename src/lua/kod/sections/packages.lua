@@ -336,7 +336,9 @@ local module = {
         end
         
         -- Aggregate packages from all config sections
-        local packages = aggregate_all_packages(config)
+        local pkg_data = aggregate_all_packages(config)
+        local packages = pkg_data.packages
+        local excluded = pkg_data.excluded
         
         if #packages == 0 then
             return steps
