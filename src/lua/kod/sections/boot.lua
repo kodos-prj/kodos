@@ -25,38 +25,28 @@ local module = {
              end
             
             -- Pin initramfs modules via dracut conf BEFORE kernel install
-            -- This must run before boot_kernel_install (order 200) so that the kernel's
-            -- post-install hook can use this config when it runs dracut automatically
-            -- KodOS root is btrfs, so btrfs is always pinned: without it the kernel hangs
-            -- on /dev/disk/by-uuid at boot.
-            local modules = { "btrfs" }
-            for _, m in ipairs(config.kernel.modules or {}) do
-                if m ~= "btrfs" then
-                    table.insert(modules, m)
-                end
-            end
-            local add_lines = {}
-            for _, m in ipairs(modules) do
-                table.insert(add_lines, "add_drivers+=" .. m)
-            end
+             -- This must run before boot_kernel_install (order 200) so that the kernel's
+             -- post-install hook can use this config when it runs dracut automatically
+             -- KodOS root is btrfs, so btrfs is always pinned: without it the kernel hangs
+             -- on /dev/disk/by-uuid at boot.
+             local modules = { "btrfs" }
+             for _, m in ipairs(config.kernel.modules or {}) do
+                 if m ~= "btrfs" then
+                     table.insert(modules, m)
+                 end
+             end
 
-            -- Build config content as multi-line string (each driver on own line)
-            -- Use double quotes in echo to allow variable expansion (though we have none)
-            -- This avoids nested quote escaping issues when command is wrapped in sh -c
-            local shell_lines = {}
-            for _, line in ipairs(add_lines) do
-                -- Use double quotes so no escaping needed for simple strings like add_drivers+=...
-                table.insert(shell_lines, "echo \"" .. line .. "\"")
-            end
-            local echo_commands = table.concat(shell_lines, " && ")
+             -- Write dracut config with all drivers in a single add_drivers line
+             -- (dracut concatenates multiple add_drivers+= lines without spaces)
+             local drivers_line = "add_drivers+=" .. table.concat(modules, " ")
             
-            table.insert(steps, {
-               name = "boot_kernel_modules_config",
-               description = "Configure initramfs modules: " .. table.concat(modules, " "),
-               command = "mkdir -p /etc/dracut.conf.d && (" .. echo_commands .. ") > /etc/dracut.conf.d/kodos.conf",
-               chroot = true,
-               order = 199,
-            })
+             table.insert(steps, {
+                name = "boot_kernel_modules_config",
+                description = "Configure initramfs modules: " .. table.concat(modules, " "),
+                command = "mkdir -p /etc/dracut.conf.d && echo \"" .. drivers_line .. "\" > /etc/dracut.conf.d/kodos.conf",
+                chroot = true,
+                order = 199,
+             })
             
             table.insert(steps, {
                 name = "boot_kernel_install",
