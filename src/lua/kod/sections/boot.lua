@@ -72,7 +72,6 @@ local module = {
              table.insert(steps, {
                  name = "boot_kernel_update",
                  description = "Update kernel files in /boot: " .. kernel_pkg,
-                 command = "kernel_update",
                  kind = "lua-system",
                  meta = { kernel = kernel_pkg, operation = "update_kernel" },
                  order = 202,
@@ -81,7 +80,6 @@ local module = {
              table.insert(steps, {
                  name = "boot_initramfs_update",
                  description = "Generate initramfs for " .. kernel_pkg,
-                 command = "initramfs_update",
                  kind = "lua-system",
                  meta = { kernel = kernel_pkg, operation = "update_initramfs" },
                  order = 203,
@@ -112,7 +110,6 @@ local module = {
                       table.insert(steps, {
                           name = "boot_entry_create",
                           description = "Create systemd-boot entry for Generation 0",
-                          command = "boot_entry",
                           kind = "lua-system",
                           meta = { kernel = kernel_pkg, operation = "create_boot_entry", generation = 0 },
                           order = 212,
