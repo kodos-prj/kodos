@@ -33,14 +33,28 @@ end
 local function aggregate_system_services(config)
     local services = {}
     
-    if not config.services then
-        return services
+    -- Services can come from two places:
+    -- 1. config.services: Top-level services section (if it exists)
+    -- 2. config.programs: Each program can have an associated service to enable
+    
+    -- Collect from top-level services section (if present)
+    if config.services then
+        for service_name, service_conf in pairs(config.services) do
+            if service_conf.enable then
+                table.insert(services, service_name)
+            end
+        end
     end
     
-    -- System services with enable=true
-    for service_name, service_conf in pairs(config.services) do
-        if service_conf.enable then
-            table.insert(services, service_name)
+    -- Collect from programs section (each enabled program with a service declaration)
+    if config.programs then
+        for program_name, program_conf in pairs(config.programs) do
+            if program_conf.enable and program_conf.service then
+                local svc = program_conf.service
+                if svc.enable and svc.service_name then
+                    table.insert(services, svc.service_name)
+                end
+            end
         end
     end
     
