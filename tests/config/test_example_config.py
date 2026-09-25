@@ -1,14 +1,13 @@
 """Integration tests: validate real example configs end-to-end."""
 
-import sys
 from pathlib import Path
 
 EXAMPLE = Path(__file__).parent.parent.parent / "example" / "testvm"
 
 
 def test_example_testvm_config_is_valid():
-    from kod.config.validator import validate_config
     from kod.config.loader import load_config_lua as load_config
+    from kod.config.validator import validate_config
 
     conf = load_config(str(EXAMPLE / "configuration.lua"))
     errors = validate_config(conf)
@@ -16,8 +15,8 @@ def test_example_testvm_config_is_valid():
 
 
 def test_broken_lua_config_catches_typo(tmp_path):
-    from kod.config.validator import validate_config
     from kod.config.loader import load_config_lua as load_config
+    from kod.config.validator import validate_config
 
     bad = tmp_path / "bad.lua"
     bad.write_text('return { packges = { "git" } }\n')
