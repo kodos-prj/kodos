@@ -12,13 +12,16 @@ function M.exec(cmd, options)
         -- Capture output by redirecting to temp file
         local tmp_file = "/tmp/kodos_exec_output_" .. os.time() .. math.random(1000000)
         local full_cmd = cmd .. " > " .. tmp_file .. " 2>&1"
-        local status = os.execute(full_cmd)
+        local success, exit_type, exit_code = os.execute(full_cmd)
         
         -- Read output
         local file = io.open(tmp_file, "r")
         local output = file and file:read("*a") or ""
         if file then file:close() end
         os.remove(tmp_file)
+        
+        -- os.execute returns (success, type, code) in Lua 5.5+
+        local status = exit_code or (success and 0 or 1)
         
         if status ~= 0 and options.throw_on_error then
             error("exec failed with status " .. status .. ": " .. output)
@@ -32,7 +35,8 @@ function M.exec(cmd, options)
         }
     else
         -- Just run command
-        local status = os.execute(cmd .. " >/dev/null 2>&1")
+        local success, exit_type, exit_code = os.execute(cmd .. " >/dev/null 2>&1")
+        local status = exit_code or (success and 0 or 1)
         
         if status ~= 0 and options.throw_on_error then
             error("exec failed with status " .. status)
@@ -60,13 +64,16 @@ function M.exec_chroot(cmd, mount_point, options)
         -- Capture output by redirecting to temp file
         local tmp_file = "/tmp/kodos_chroot_output_" .. os.time() .. math.random(1000000)
         local full_cmd = chroot_cmd .. " > " .. tmp_file .. " 2>&1"
-        local status = os.execute(full_cmd)
+        local success, exit_type, exit_code = os.execute(full_cmd)
         
         -- Read output
         local file = io.open(tmp_file, "r")
         local output = file and file:read("*a") or ""
         if file then file:close() end
         os.remove(tmp_file)
+        
+        -- os.execute returns (success, type, code) in Lua 5.5+
+        local status = exit_code or (success and 0 or 1)
         
         if status ~= 0 and options.throw_on_error then
             error("exec_chroot failed with status " .. status .. ": " .. output)
@@ -80,7 +87,8 @@ function M.exec_chroot(cmd, mount_point, options)
         }
     else
         -- Just run command
-        local status = os.execute(chroot_cmd .. " >/dev/null 2>&1")
+        local success, exit_type, exit_code = os.execute(chroot_cmd .. " >/dev/null 2>&1")
+        local status = exit_code or (success and 0 or 1)
         
         if status ~= 0 and options.throw_on_error then
             error("exec_chroot failed with status " .. status)
