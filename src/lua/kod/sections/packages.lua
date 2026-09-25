@@ -452,21 +452,10 @@ local module = {
             end
         end
         
-        -- Handle flatpak applications (install after flatpak is initialized)
-        -- Note: Flatpak requires dbus and system resources; skip during initial chroot install
-        -- Flatpak apps will be installed during rebuild when system is running
-        if #flatpak_pkgs > 0 then
-            for i, app_id in ipairs(flatpak_pkgs) do
-                table.insert(steps, {
-                    name = "packages_install_flatpak_" .. app_id:gsub("[^%w-]", "_"),
-                    description = "Install flatpak application: " .. app_id,
-                    command = "flatpak install -y flathub " .. app_id,
-                    chroot = false,  -- Run outside chroot; requires running system with dbus
-                    order = 600 + i, -- After AUR packages (500+)
-                    timeout_s = 600,  -- 10 minutes per app (downloading can be slow)
-                })
-            end
-        end
+        -- Flatpak applications are handled separately:
+        -- - Initial install: via Python post-install handler (_install_flatpak_apps)
+        -- - Rebuild: via rebuild planner (rebuild.lua handles flatpak in config)
+        -- This approach ensures flatpak apps install when system has proper dbus/network
         
         return steps
     end

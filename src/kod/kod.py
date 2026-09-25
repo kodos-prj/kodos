@@ -413,7 +413,76 @@ def config_init(distro: str, output: str | None) -> None:
 # pkgs_installed = []
 base_distribution = "arch"
 
+
+
 ##############################################################################
+
+
+def _install_flatpak_apps(conf, mount_point: str) -> None:
+    """Install flatpak applications after the chroot is exited.
+    
+    At this point the system is mounted at mount_point but not yet booted,
+    allowing us to install flatpak apps with proper system access.
+    """
+    import subprocess
+    
+    # Extract flatpak apps from configuration
+    flatpak_apps = []
+    
+    # Check top-level packages
+    if hasattr(conf, 'packages') and conf.packages:
+        for pkg in conf.packages:
+            if isinstance(pkg, str) and pkg.startswith('flatpak:'):
+                flatpak_apps.append(pkg[8:])  # Remove 'flatpak:' prefix
+    
+    # Check desktop environment packages
+    if hasattr(conf, 'desktop') and conf.desktop and hasattr(conf.desktop, 'environments'):
+        for env_name, env_config in conf.desktop.environments.items():
+            if env_config and hasattr(env_config, 'extra_packages') and env_config.extra_packages:
+                for pkg in env_config.extra_packages:
+                    if isinstance(pkg, str) and pkg.startswith('flatpak:'):
+                        flatpak_apps.append(pkg[8:])
+    
+    if not flatpak_apps:
+        print("No flatpak applications to install")
+        return
+    
+    print(f"Installing {len(flatpak_apps)} flatpak application(s)...")
+    
+    # Mount the installed system temporarily to run flatpak
+    # We need to bind mount /run, /sys, /proc to allow dbus and other system services
+    mnt = Path(mount_point)
+    
+    try:
+        # Set up system mounts for flatpak to work
+        print(f"Setting up system access in {mount_point}...")
+        subprocess.run(["mount", "-t", "proc", "proc", str(mnt / "proc")], 
+                      capture_output=True, check=False)
+        subprocess.run(["mount", "-t", "sysfs", "sys", str(mnt / "sys")], 
+                      capture_output=True, check=False)
+        subprocess.run(["mount", "-o", "bind", "/dev", str(mnt / "dev")], 
+                      capture_output=True, check=False)
+        subprocess.run(["mount", "-o", "bind", "/dev/pts", str(mnt / "dev/pts")], 
+                      capture_output=True, check=False)
+        subprocess.run(["mount", "-o", "bind", "/run", str(mnt / "run")], 
+                      capture_output=True, check=False)
+        
+        # Install each flatpak app
+        for app_id in flatpak_apps:
+            print(f"Installing flatpak app: {app_id}...")
+            cmd = ["chroot", mount_point, "flatpak", "install", "-y", "flathub", app_id]
+            result = subprocess.run(cmd, timeout=600, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"✅ {app_id} installed")
+            else:
+                logger.warning(f"Failed to install {app_id}: {result.stderr}")
+                print(f"⚠️  Failed to install {app_id}", file=sys.stderr)
+    
+    finally:
+        # Clean up system mounts
+        print("Cleaning up system access...")
+        subprocess.run(["umount", "-R", mount_point], capture_output=True, check=False)
 
 
 @cli.command()
@@ -522,6 +591,16 @@ def install(config: str | None, mount_point: str) -> None:
             except Exception as e:
                 logger.warning(f"Failed to cleanup chroot mounts: {e}")
 
+            # Install flatpak applications after chroot is exited
+            # At this point the system is mounted at /mnt but not booted
+            print("\n=== Installing Flatpak Applications ===")
+            try:
+                _install_flatpak_apps(conf, mount_point)
+            except Exception as e:
+                logger.warning(f"Failed to install flatpak apps: {e}")
+                print(f"⚠️  Warning: Flatpak app installation failed: {e}", file=sys.stderr)
+                # Don't fail the install; flatpak apps are not critical
+            
             print("\n✅ Install completed successfully")
 
     except StepError as e:
