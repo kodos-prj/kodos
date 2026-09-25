@@ -103,7 +103,8 @@ def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]
     Determine the packages to install based on the given configuration.
 
     Calls Lua's package aggregation to collect packages from all config sections
-    (desktop, hardware, fonts, user programs, system packages).
+    (desktop, hardware, fonts, user programs, system packages). Also collects
+    packages to exclude (e.g., gnome-tour from GNOME environment).
 
     Returns packages wrapped in a dict for compatibility with state storage.
 
@@ -114,7 +115,8 @@ def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]
         tuple: A tuple containing two elements:
             - packages_to_install (dict): A dictionary with "packages" key listing
               all unique packages to be installed.
-            - packages_to_remove (list): Empty list (removal currently not implemented in Lua).
+            - packages_to_remove (list): List of packages to exclude/remove
+              (e.g., unwanted environment defaults).
     """
     from kod.bootstrap import _convert_to_lua_table
     from kod.lua_runtime import get_lua_runtime
@@ -131,11 +133,15 @@ def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]
     conf_lua = _convert_to_lua_table(lua, conf)
 
     # Call Lua aggregation function with Lua table
-    # ponytail: packages_to_remove not computed; implement when needed
-    lua_packages = packages_module.aggregate_packages(conf_lua)
+    # Returns {packages={...}, excluded={...}}
+    lua_result = packages_module.aggregate_packages(conf_lua)
 
-    # Convert lupa.LuaTable to Python list
-    packages_list = lua_table_to_python(lua_packages)
+    # Convert lupa.LuaTable to Python dict
+    result_dict = lua_table_to_python(lua_result)
+
+    # Extract packages and excluded lists
+    packages_list = result_dict.get("packages", []) if isinstance(result_dict, dict) else []
+    excluded_list = result_dict.get("excluded", []) if isinstance(result_dict, dict) else []
 
     # Wrap in dict matching original format
     packages_to_install = {
@@ -143,7 +149,7 @@ def get_packages_to_install(conf: Any) -> tuple[dict[str, list[str]], list[str]]
         "kernel": "linux",  # Default kernel; can be overridden in config
     }
 
-    packages_to_remove = []  # ponytail: desktop exclude_packages not yet implemented
+    packages_to_remove = excluded_list
 
     return packages_to_install, packages_to_remove
 

@@ -175,6 +175,30 @@ local function aggregate_user_program_packages(config)
     return packages
 end
 
+local function aggregate_excluded_packages(config)
+    local excluded = {}
+    
+    if not config.desktop then
+        return excluded
+    end
+    
+    local desktop = config.desktop
+    
+    -- Desktop environments: collect exclude_packages from each enabled environment
+    local environments = rawget(desktop, 'environments')
+    if environments then
+        for env_name, env_conf in pairs(environments) do
+            if env_conf.enable and env_conf.exclude_packages then
+                for _, pkg in pairs(env_conf.exclude_packages) do
+                    table.insert(excluded, pkg)
+                end
+            end
+        end
+    end
+    
+    return excluded
+end
+
 local function aggregate_global_program_packages(config)
     local packages = {}
     
@@ -217,6 +241,7 @@ end
 
 local function aggregate_all_packages(config)
     local packages = {}
+    local excluded = {}
     
     -- Collect from all sources
     local sources = {
@@ -236,8 +261,19 @@ local function aggregate_all_packages(config)
         end
     end
     
+    -- Collect excluded packages from desktop environments
+    excluded = aggregate_excluded_packages(config)
+    
     -- Remove duplicates while preserving order
-    return deduplicate_packages(packages)
+    packages = deduplicate_packages(packages)
+    excluded = deduplicate_packages(excluded)
+    
+    -- Return both packages and excluded packages
+    -- Lua table with both arrays: {packages={...}, excluded={...}}
+    return {
+        packages = packages,
+        excluded = excluded,
+    }
 end
 
 -- ============================================================================
