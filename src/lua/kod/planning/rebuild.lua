@@ -41,9 +41,7 @@ end
 function Rebuild.diff(state)
     local steps = {}
 
-    local function add(kind, name, meta, on_error)
-        table.insert(steps, { kind = kind, name = name, meta = meta, on_error = on_error })
-    end
+
 
     local next_packages = state.next_packages or {}
     local current_packages = state.current_packages or {}
@@ -174,8 +172,10 @@ function Rebuild.diff(state)
     end
 
     if state.kernel_update_required then
-        add("system", "kernel-update", { kernel = next_kernel })
-        add("system", "initramfs-update", { kernel = next_kernel })
+        table.insert(steps, { kind = "lua-system", name = "kernel-update", 
+            meta = { operation = "update_kernel", kernel = next_kernel } })
+        table.insert(steps, { kind = "lua-system", name = "initramfs-update", 
+            meta = { operation = "update_initramfs", kernel = next_kernel } })
     end
 
 for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.current_services))) do
@@ -183,7 +183,8 @@ for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.curre
         command = "systemctl enable" .. (new_gen and "" or " --now") .. " " .. svc, chroot = new_gen })
 end
 
-    add("system", "boot-entry", { kernel = next_kernel })
+    table.insert(steps, { kind = "lua-system", name = "boot-entry",
+        meta = { operation = "create_boot_entry", kernel = next_kernel } })
 
     return steps
 end

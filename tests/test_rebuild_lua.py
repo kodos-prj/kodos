@@ -43,7 +43,7 @@ class TestRebuildDiffLua:
               update = false, new_generation = false, kernel_update_required = false, distro = "arch" }
         """)
         assert steps == ["service oldsvc", "package gone", "package new",
-                        "service newsvc", "system boot-entry"]
+                        "service newsvc", "lua-system boot-entry"]
 
     def test_new_generation_skips_disable(self, lua):
         steps = _diff(lua, """
@@ -55,7 +55,7 @@ class TestRebuildDiffLua:
               disabled_services = {},
               update = false, new_generation = true, kernel_update_required = false, distro = "arch" }
         """)
-        assert steps == ["system boot-entry"]
+        assert steps == ["lua-system boot-entry"]
 
     def test_kernel_and_update_steps(self, lua):
         steps = _diff(lua, """
@@ -68,8 +68,8 @@ class TestRebuildDiffLua:
               update = true, new_generation = false, kernel_update_required = true, distro = "arch" }
         """)
         assert steps == ["system update-packages", "system boot_kernel_modules_config", "package linux-lts",
-                        "system kernel-update", "system initramfs-update",
-                        "system boot-entry"]
+                        "lua-system kernel-update", "lua-system initramfs-update",
+                        "lua-system boot-entry"]
 
     def test_explicit_remove_packages(self, lua):
         steps = _diff(lua, """
@@ -81,7 +81,7 @@ class TestRebuildDiffLua:
               disabled_services = {},
               update = false, new_generation = false, kernel_update_required = false, distro = "arch" }
         """)
-        assert steps == ["package forced", "system boot-entry"]
+        assert steps == ["package forced", "lua-system boot-entry"]
 
 
 class TestRebuildPlanAbsolute:
