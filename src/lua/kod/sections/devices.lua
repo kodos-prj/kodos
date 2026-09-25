@@ -282,18 +282,18 @@ local module = {
                            end
                        end
                        
-                       -- Bootstrap base system (Arch Linux pacstrap)
-                       -- This must run after btrfs hierarchy setup, before any chroot steps
-                       if has_root_partition then
-                            table.insert(steps, {
-                                name = "devices_bootstrap_base_system",
-                                description = "Bootstrap base system to /mnt",
-                                -- Include dracut for initramfs generation, btrfs-progs for btrfs support, and bash for chroot
-                                command = "pacstrap /mnt base bash linux-lts dracut btrfs-progs",
-                                chroot = false,
-                                order = 40,
-                                depends_on = {"devices_write_generation_marker"},
-                            })
+                        -- Bootstrap base system (Arch Linux pacstrap)
+                        -- This must run after btrfs hierarchy setup, before any chroot steps
+                        if has_root_partition then
+                             table.insert(steps, {
+                                 name = "devices_bootstrap_base_system",
+                                 description = "Bootstrap base system to /mnt",
+                                 -- Use full essential package list from ArchAdapter._get_base_packages_config()
+                                 command = "pacstrap -K /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts",
+                                 chroot = false,
+                                 order = 40,
+                                 depends_on = {"devices_write_generation_marker"},
+                             })
                            
                            -- Generate /etc/mtab for chroot environment
                            -- This is required for pacman to work inside chroot
