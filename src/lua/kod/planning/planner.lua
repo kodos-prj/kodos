@@ -212,32 +212,29 @@ function Planner:compose(config, distro)
         if config[section_name] then
             -- Try to load and call section
             local success, section_or_error = pcall(load_section, section_name)
-            if not success then
-                table.insert(errors, section_or_error)
-                goto continue
-            end
-            
-            local section = section_or_error
-            
-            -- Call emit_steps to get steps from this section
-            local ok, err = pcall(function()
-                -- Special case: packages section needs full config to aggregate from all sections
-                -- All other sections receive their section-specific config
-                local section_config = (section_name == 'packages') and config or config[section_name]
-                local section_steps = section.emit_steps(section_config, distro)
-                if section_steps and type(section_steps) == "table" then
-                    for _, step in ipairs(section_steps) do
-                        table.insert(all_steps, step)
+            if success then
+                local section = section_or_error
+                
+                -- Call emit_steps to get steps from this section
+                local ok, err = pcall(function()
+                    -- Special case: packages section needs full config to aggregate from all sections
+                    -- All other sections receive their section-specific config
+                    local section_config = (section_name == 'packages') and config or config[section_name]
+                    local section_steps = section.emit_steps(section_config, distro)
+                    if section_steps and type(section_steps) == "table" then
+                        for _, step in ipairs(section_steps) do
+                            table.insert(all_steps, step)
+                        end
                     end
-                end
-            end)
+                end)
 
-            if not ok then
-                table.insert(errors, "Section '" .. section_name .. "' emit_steps failed: " .. tostring(err))
+                if not ok then
+                    table.insert(errors, "Section '" .. section_name .. "' emit_steps failed: " .. tostring(err))
+                end
+            else
+                table.insert(errors, section_or_error)
             end
         end
-        
-        ::continue::
     end
     
     -- Sort all collected steps by order field (and handle dependencies)
