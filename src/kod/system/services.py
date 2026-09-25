@@ -26,6 +26,7 @@ def get_services_to_enable(ctx: Any, conf: Any) -> list[str]:
     """
     from kod.lua_runtime import get_lua_runtime
     from kod.lua_utils import lua_table_to_python, python_dict_to_lua_table
+    import sys
 
     # Load Lua and call service aggregation
     lua = get_lua_runtime()
@@ -39,13 +40,62 @@ def get_services_to_enable(ctx: Any, conf: Any) -> list[str]:
     else:
         conf_lua = conf
 
+    # DEBUG: Check what we're aggregating
+    print(f"DEBUG: get_services_to_enable() stage={ctx.stage if hasattr(ctx, 'stage') else 'unknown'}", file=sys.stderr)
+    print(f"DEBUG: conf type={type(conf).__name__}", file=sys.stderr)
+    if isinstance(conf, dict):
+        print(f"DEBUG: conf keys={list(conf.keys())}", file=sys.stderr)
+        if 'users' in conf:
+            print(f"DEBUG: users in conf={list(conf['users'].keys())}", file=sys.stderr)
+            for user_name, user_conf in conf['users'].items():
+                if isinstance(user_conf, dict) and 'programs' in user_conf:
+                    print(f"DEBUG: {user_name} programs={list(user_conf['programs'].keys())}", file=sys.stderr)
+
     # Call Lua aggregation function
     lua_services = services_module.aggregate_services(conf_lua)
 
     # Convert lupa.LuaTable to Python list
     services_list = lua_table_to_python(lua_services)
+    
+    print(f"DEBUG: aggregate_services() returned={list(services_list)}", file=sys.stderr)
 
     return services_list
+
+
+def get_disabled_services(conf: Any) -> list[str]:
+    """Extract services from DISABLED programs.
+    
+    When a program with a service is disabled (enable=false), its service should
+    be removed during rebuild. This function collects those services.
+
+    Args:
+        conf: The configuration table (Lua table or Python dict) containing service configuration.
+
+    Returns:
+        list: A list of service names from disabled programs.
+    """
+    from kod.lua_runtime import get_lua_runtime
+    from kod.lua_utils import lua_table_to_python, python_dict_to_lua_table
+
+    # Load Lua and call disabled services aggregation
+    lua = get_lua_runtime()
+    result = lua.require("kod.sections.services")
+    # lupa.require() returns (module, filename) tuple; extract module
+    services_module = result[0] if isinstance(result, tuple) else result
+
+    # Convert Python dict back to Lua table if needed
+    if isinstance(conf, dict):
+        conf_lua = python_dict_to_lua_table(lua, conf)
+    else:
+        conf_lua = conf
+
+    # Call Lua function to get disabled services
+    lua_disabled = services_module.aggregate_disabled_services(conf_lua)
+
+    # Convert lupa.LuaTable to Python list
+    disabled_services = lua_table_to_python(lua_disabled)
+    
+    return disabled_services
 
 
 # ============================================================================

@@ -420,11 +420,17 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
     next_packages, remove_packages = get_packages_to_install(conf)
     ctx = Context(user="root", stage="rebuild")
     next_services = get_services_to_enable(ctx, conf)
+    
+    from kod.system.services import get_disabled_services
+    disabled_services = get_disabled_services(conf)
 
     # DEBUG: Print to stderr so it definitely shows up
     print(f"DEBUG: current_packages={list(current_packages.get('packages', []))}", file=sys.stderr)
     print(f"DEBUG: next_packages={list(next_packages.get('packages', []))}", file=sys.stderr)
     print(f"DEBUG: remove_packages={list(remove_packages or [])}", file=sys.stderr)
+    print(f"DEBUG: current_services={list(current_services or [])}", file=sys.stderr)
+    print(f"DEBUG: next_services={list(next_services or [])}", file=sys.stderr)
+    print(f"DEBUG: disabled_services={list(disabled_services or [])}", file=sys.stderr)
 
     kernel_update_required = dist.kernel_update_required(
         current_packages.get("kernel", "linux"),
@@ -445,6 +451,7 @@ def plan_rebuild(conf: Any, dist: Any, current_packages: dict, current_services:
         "remove_packages": list(remove_packages or []),
         "next_services": list(next_services),
         "current_services": list(current_services or []),
+        "disabled_services": list(disabled_services or []),
         "update": update,
         "new_generation": new_generation,
         "kernel_update_required": kernel_update_required,

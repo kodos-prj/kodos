@@ -60,9 +60,16 @@ function Rebuild.diff(state)
     end
 
     if not state.new_generation then
-        for _, svc in ipairs(sorted_diff(to_set(state.current_services), to_set(state.next_services))) do
-            table.insert(steps, { kind = "service", name = svc,
-                command = "systemctl disable --now " .. svc, chroot = false })
+        -- Only disable services that were EXPLICITLY DISABLED in the config
+        -- Do NOT disable services simply missing from next_services (they may be external)
+        for _, svc in ipairs(state.disabled_services or {}) do
+            if state.current_services then
+                local current_set = to_set(state.current_services)
+                if current_set[svc] then
+                    table.insert(steps, { kind = "service", name = svc,
+                        command = "systemctl disable --now " .. svc, chroot = false })
+                end
+            end
         end
     end
     

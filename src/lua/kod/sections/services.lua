@@ -136,14 +136,60 @@ local function aggregate_all_services(config)
 end
 
 -- ============================================================================
+-- DISABLED SERVICES AGGREGATION
+-- ============================================================================
+
+local function aggregate_disabled_services(config)
+    -- Collect services from DISABLED programs.
+    --
+    -- When a program with a service is disabled (enable=false), its service should
+    -- be removed during rebuild. This function collects those services so they can
+    -- be explicitly disabled.
+    local disabled_svcs = {}
+    
+    -- Collect from disabled system programs
+    if config.programs then
+        for program_name, program_conf in pairs(config.programs) do
+            -- If program is disabled and has a service, collect the service
+            if program_conf.enable == false and program_conf.service then
+                local svc = program_conf.service
+                if svc.service_name then
+                    table.insert(disabled_svcs, svc.service_name)
+                end
+            end
+        end
+    end
+    
+    -- Collect from disabled user program services
+    if config.users then
+        for user_name, user_conf in pairs(config.users) do
+            if user_conf.programs then
+                for program_name, program_conf in pairs(user_conf.programs) do
+                    if program_conf.enable == false and program_conf.service then
+                        local svc = program_conf.service
+                        if svc.enable == false and svc.service_name and svc.per_user then
+                            -- Format as "username:service_name"
+                            table.insert(disabled_svcs, user_name .. ":" .. svc.service_name)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return disabled_svcs
+end
+
+-- ============================================================================
 -- STEP EMISSION
 -- ============================================================================
 
 local module = {
     schema = Schema.services,
     
-    -- Export aggregation function for Python to call
+    -- Export aggregation functions for Python to call
     aggregate_services = aggregate_all_services,
+    aggregate_disabled_services = aggregate_disabled_services,
     
     emit_steps = function(config, distro)
         local steps = {}
