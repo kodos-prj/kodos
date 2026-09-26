@@ -220,8 +220,12 @@ for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.curre
         command = "systemctl enable" .. (new_gen and "" or " --now") .. " " .. svc, chroot = new_gen })
 end
 
-    table.insert(steps, { kind = "lua-system", name = "boot-entry",
-        meta = { operation = "create_boot_entry", kernel = next_kernel, generation = boot_generation } })
+    -- Boot entry only during rebuild (not during install)
+    -- During install, devices section handles boot setup
+    if not state.new_generation then
+        table.insert(steps, { kind = "lua-system", name = "boot-entry",
+            meta = { operation = "create_boot_entry", kernel = next_kernel, generation = boot_generation } })
+    end
 
     return steps
 end
