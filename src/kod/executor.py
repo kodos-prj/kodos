@@ -109,10 +109,19 @@ def execute_steps(
             kind = step.kind
             # Command is stored in meta since we don't want it in the step dict
             # (which would make Lua executor treat it as a shell step)
-            meta = step.meta if step.meta is not None else {}
-            cmd = meta.get("command") if meta else ""
-            if not cmd:
-                cmd = ""
+            # Note: Lupa converts Lua nil to Python None
+            meta = step.meta
+            cmd = ""
+            if meta is not None:
+                # meta is a Lua table via lupa - try to access as dict-like
+                try:
+                    cmd = meta.get("command") if hasattr(meta, 'get') else meta["command"]
+                except (KeyError, TypeError, AttributeError):
+                    # Try accessing as Lua table (lupa allows dict-like access)
+                    try:
+                        cmd = meta["command"] or ""
+                    except:
+                        cmd = ""
             
             if kind == "package" or kind == "service":
                 if not cmd:

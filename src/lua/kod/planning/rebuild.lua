@@ -179,29 +179,32 @@ function Rebuild.diff(state)
 
     -- Handle flatpak applications after regular packages
     -- Flatpak packages must be installed AFTER flatpak itself is available
-    -- Extract flatpak: packages from next_packages
-    local flatpak_apps = {}
-    for _, pkg in ipairs(next_packages.packages or {}) do
-        if pkg:match("^flatpak:") then
-            table.insert(flatpak_apps, pkg:sub(9))  -- Remove "flatpak:" prefix
+    -- Only during REBUILD (not during initial INSTALL)
+    if not state.new_generation then
+        -- Extract flatpak: packages from next_packages
+        local flatpak_apps = {}
+        for _, pkg in ipairs(next_packages.packages or {}) do
+            if pkg:match("^flatpak:") then
+                table.insert(flatpak_apps, pkg:sub(9))  -- Remove "flatpak:" prefix
+            end
         end
-    end
-    
-    -- If there are flatpak apps to install, add them as steps
-    -- These run after the main package installation (which installs flatpak itself)
-    if #flatpak_apps > 0 then
-        for _, app_id in ipairs(flatpak_apps) do
-            table.insert(steps, {
-                kind = "package",
-                name = "flatpak_install_" .. app_id:gsub("%.", "_"):gsub("/", "_"),
-                description = "Install flatpak application: " .. app_id,
-                chroot = new_gen,
-                order = 510,
-                timeout_s = 300,
-                depends_on = {"packages_install_normal_and_base"},
-                -- Store command in meta for dispatch callback
-                meta = { command = "flatpak install -y flathub " .. app_id },
-            })
+        
+        -- If there are flatpak apps to install, add them as steps
+        -- These run after the main package installation (which installs flatpak itself)
+        if #flatpak_apps > 0 then
+            for _, app_id in ipairs(flatpak_apps) do
+                table.insert(steps, {
+                    kind = "package",
+                    name = "flatpak_install_" .. app_id:gsub("%.", "_"):gsub("/", "_"),
+                    description = "Install flatpak application: " .. app_id,
+                    chroot = new_gen,
+                    order = 510,
+                    timeout_s = 300,
+                    depends_on = {"packages_install_normal_and_base"},
+                    -- Store command in meta for dispatch callback
+                    meta = { command = "flatpak install -y flathub " .. app_id },
+                })
+            end
         end
     end
 
