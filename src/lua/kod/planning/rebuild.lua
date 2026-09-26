@@ -118,11 +118,9 @@ function Rebuild.diff(state)
 
     -- Generate package installation steps using the packages section
     -- This handles normal/aur/flatpak packages with proper sequencing
-    -- Package/service/AUR steps only apply during REBUILD (new_generation=false)
-    -- During initial INSTALL (new_generation=true), packages are handled by devices_bootstrap_base_system
-    -- AUR packages can only be built during rebuild when running on the actual system,
-    -- not during bootstrap in a chroot (which requires proper root context)
-    if config and not state.new_generation and next_packages.packages and #next_packages.packages > 0 then
+    -- If config is provided, use emit_steps for proper AUR/flatpak handling
+    -- Note: /run must be bind-mounted before AUR/flatpak steps (see devices_setup_mtab)
+    if config and next_packages.packages and #next_packages.packages > 0 then
         -- Check if there are new packages to install
         local install_set = {}
         for _, p in ipairs(sorted_diff(to_set(next_packages.packages), to_set(current_packages.packages))) do
@@ -181,33 +179,29 @@ function Rebuild.diff(state)
 
     -- Handle flatpak applications after regular packages
     -- Flatpak packages must be installed AFTER flatpak itself is available
-    -- Only during REBUILD (not during initial INSTALL)
-    -- During install, dbus and network may not be available in the chroot
-    if not state.new_generation then
-        -- Extract flatpak: packages from next_packages
-        local flatpak_apps = {}
-        for _, pkg in ipairs(next_packages.packages or {}) do
-            if pkg:match("^flatpak:") then
-                table.insert(flatpak_apps, pkg:sub(9))  -- Remove "flatpak:" prefix
-            end
+    -- Extract flatpak: packages from next_packages
+    local flatpak_apps = {}
+    for _, pkg in ipairs(next_packages.packages or {}) do
+        if pkg:match("^flatpak:") then
+            table.insert(flatpak_apps, pkg:sub(9))  -- Remove "flatpak:" prefix
         end
-        
-        -- If there are flatpak apps to install, add them as steps
-        -- These run after the main package installation (which installs flatpak itself)
-        if #flatpak_apps > 0 then
-            for _, app_id in ipairs(flatpak_apps) do
-                table.insert(steps, {
-                    kind = "package",
-                    name = "flatpak_install_" .. app_id:gsub("%.", "_"):gsub("/", "_"),
-                    description = "Install flatpak application: " .. app_id,
-                    chroot = new_gen,
-                    order = 510,
-                    timeout_s = 300,
-                    depends_on = {"packages_install_normal_and_base"},
-                    -- Store command in meta for dispatch callback
-                    meta = { command = "flatpak install -y flathub " .. app_id },
-                })
-            end
+    end
+    
+    -- If there are flatpak apps to install, add them as steps
+    -- These run after the main package installation (which installs flatpak itself)
+    if #flatpak_apps > 0 then
+        for _, app_id in ipairs(flatpak_apps) do
+            table.insert(steps, {
+                kind = "package",
+                name = "flatpak_install_" .. app_id:gsub("%.", "_"):gsub("/", "_"),
+                description = "Install flatpak application: " .. app_id,
+                chroot = new_gen,
+                order = 510,
+                timeout_s = 300,
+                depends_on = {"packages_install_normal_and_base"},
+                -- Store command in meta for dispatch callback
+                meta = { command = "flatpak install -y flathub " .. app_id },
+            })
         end
     end
 
