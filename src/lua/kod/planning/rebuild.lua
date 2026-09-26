@@ -120,6 +120,8 @@ function Rebuild.diff(state)
     -- This handles normal/aur/flatpak packages with proper sequencing
     -- Package/service/AUR steps only apply during REBUILD (new_generation=false)
     -- During initial INSTALL (new_generation=true), packages are handled by devices_bootstrap_base_system
+    -- AUR packages can only be built during rebuild when running on the actual system,
+    -- not during bootstrap in a chroot (which requires proper root context)
     if config and not state.new_generation and next_packages.packages and #next_packages.packages > 0 then
         -- Check if there are new packages to install
         local install_set = {}
@@ -180,6 +182,7 @@ function Rebuild.diff(state)
     -- Handle flatpak applications after regular packages
     -- Flatpak packages must be installed AFTER flatpak itself is available
     -- Only during REBUILD (not during initial INSTALL)
+    -- During install, dbus and network may not be available in the chroot
     if not state.new_generation then
         -- Extract flatpak: packages from next_packages
         local flatpak_apps = {}
