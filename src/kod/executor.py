@@ -105,20 +105,27 @@ def execute_steps(
         During rebuild (chroot=False), they run on host with sudo.
         Returns None (success) or raises on failure.
         """
-        kind = step.kind
-        # Command is stored in meta since we don't want it in the step dict
-        # (which would make Lua executor treat it as a shell step)
-        meta = step.meta if step.meta is not None else {}
-        cmd = meta.get("command") or ""
-        
-        if kind == "package" or kind == "service":
+        try:
+            kind = step.kind
+            # Command is stored in meta since we don't want it in the step dict
+            # (which would make Lua executor treat it as a shell step)
+            meta = step.meta if step.meta is not None else {}
+            cmd = meta.get("command") if meta else ""
             if not cmd:
-                return  # No-op step
+                cmd = ""
             
-            mp = ctx_lua.mount_point if ctx_lua else "/"
-            chroot_needed = step.chroot if hasattr(step, 'chroot') else False
-            
-            try:
+            if kind == "package" or kind == "service":
+                if not cmd:
+                    return  # No-op step
+                
+                mp = ctx_lua.mount_point if ctx_lua else "/"
+                # Safely access chroot field with default False
+                chroot_needed = False
+                try:
+                    chroot_needed = bool(step.chroot)
+                except:
+                    chroot_needed = False
+                
                 if chroot_needed and mp != "/":
                     # During install: chroot into new mount point
                     exec_chroot(cmd, mount_point=mp)
@@ -128,10 +135,14 @@ def execute_steps(
                 else:
                     # During rebuild: run on host with sudo
                     exec(f"sudo {cmd}")
-            except Exception as e:
-                raise StepError(f"Step '{step.name}' failed: {e}")
-        else:
-            raise StepError(f"Unknown dispatch step kind: {kind}")
+            else:
+                raise StepError(f"Unknown dispatch step kind: {kind}")
+        except StepError:
+            raise
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise StepError(f"dispatch_step failed: {e}")
     
     dispatch_lua["step"] = dispatch_step
     

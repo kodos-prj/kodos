@@ -118,8 +118,9 @@ function Rebuild.diff(state)
 
     -- Generate package installation steps using the packages section
     -- This handles normal/aur/flatpak packages with proper sequencing
-    -- If config is provided, use emit_steps for proper AUR/flatpak handling
-    if config and next_packages.packages and #next_packages.packages > 0 then
+    -- Package/service/AUR steps only apply during REBUILD (new_generation=false)
+    -- During initial INSTALL (new_generation=true), packages are handled by devices_bootstrap_base_system
+    if config and not state.new_generation and next_packages.packages and #next_packages.packages > 0 then
         -- Check if there are new packages to install
         local install_set = {}
         for _, p in ipairs(sorted_diff(to_set(next_packages.packages), to_set(current_packages.packages))) do

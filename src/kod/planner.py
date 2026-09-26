@@ -393,7 +393,41 @@ def plan_disk_steps(conf: Any) -> list[Step]:
 def plan_install(conf: Any) -> list[Step]:
     """Full install preview over an empty baseline. Read-only."""
     distro = conf.base_distribution or "arch"
-    steps = compose_steps_lua(conf, distro)
+    
+    # Use the rebuild planner with new_generation=true and empty baselines
+    # This ensures proper handling of packages (no AUR/rebuild steps during install)
+    from kod.system.packages import get_packages_to_install
+    from kod.system.services import get_services_to_enable
+    from kod.system.services import get_disabled_services
+    from kod.context import Context
+    
+    next_packages, remove_packages = get_packages_to_install(conf)
+    ctx = Context(user="root", stage="install")
+    next_services = get_services_to_enable(ctx, conf)
+    disabled_services = get_disabled_services(conf)
+    
+    # Convert conf to Lua table for rebuild planner
+    from kod.bootstrap import _convert_to_lua_table
+    from kod.lua_runtime import get_lua_runtime
+    lua = get_lua_runtime()
+    conf_lua = _convert_to_lua_table(lua, conf)
+    
+    steps = compose_rebuild_steps_lua({
+        "next_packages": {"packages": list(next_packages.get("packages", [])),
+                         "kernel": next_packages.get("kernel", "linux")},
+        "current_packages": {"packages": [], "kernel": "linux"},  # Empty baseline
+        "remove_packages": [],  # Nothing to remove on new install
+        "next_services": list(next_services),
+        "current_services": [],  # Empty baseline
+        "disabled_services": list(disabled_services or []),
+        "update": False,
+        "new_generation": True,  # This is an INSTALL (new generation)
+        "kernel_update_required": False,  # Kernel update handled by devices section
+        "distro": distro,
+        "config": conf_lua,
+        "boot_generation": 0,
+    })
+    
     from kod.hooks import collect_hooks
     try:
         hooks_map = collect_hooks(conf.users or {})
