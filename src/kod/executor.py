@@ -97,6 +97,37 @@ def execute_steps(
 
     dispatch_lua = lua.table()
     
+    def dispatch_step(step, ctx_lua):
+        """Dispatch package/service steps to Python handlers.
+        
+        Package and service steps have commands that need to be run with
+        proper sudo/root access, which can only be done from Python.
+        Returns None (success) or raises on failure.
+        """
+        kind = step.kind
+        cmd = step.command or step.program or ""
+        
+        if kind == "package" or kind == "service":
+            if not cmd:
+                return  # No-op step
+            
+            # Run command with sudo if needed
+            # For rebuild (mount_point="/"), run on host; for new generation, chroot
+            mp = ctx_lua.mount_point if ctx_lua else "/"
+            
+            try:
+                if step.chroot and mp != "/":
+                    exec_chroot(cmd, mount_point=mp)
+                else:
+                    # Run on host (rebuild mode); this requires root
+                    exec(f"sudo {cmd}")
+            except Exception as e:
+                raise StepError(f"Step '{step.name}' failed: {e}")
+        else:
+            raise StepError(f"Unknown dispatch step kind: {kind}")
+    
+    dispatch_lua["step"] = dispatch_step
+    
     # Inject Python exec functions for Lua system modules to call back
     # These are used by src/lua/kod/system/boot.lua
     dispatch_lua["_dispatch_python"] = lua.table()

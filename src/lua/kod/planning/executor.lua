@@ -68,8 +68,24 @@ function Executor.run(steps, ctx, dispatch, hooks)
         end
 
         local result
-        if (step.program or step.command) and (step.program or step.command) ~= "" then
-            -- Any step carrying a command is a shell step (system or disk).
+        -- Package/service steps dispatch to host callbacks (which handle sudo/root)
+        -- even if they have commands; other steps with commands are shell steps
+        if step.kind == "package" or step.kind == "service" then
+            -- Dispatch to host: the host decides whether to run via shell, sudo, or skip
+            if dispatch and dispatch.step then
+                local ok, r = pcall(dispatch.step, step, ctx)
+                if not ok then
+                    result = { success = false, error = tostring(r) }
+                elseif r == "shell" then
+                    result = Executor.run_shell(step, ctx.mount_point)
+                else
+                    result = { success = true }
+                end
+            else
+                result = { success = true }
+            end
+        elseif (step.program or step.command) and (step.program or step.command) ~= "" then
+            -- Any other step carrying a command is a shell step (system or disk).
             result = Executor.run_shell(step, ctx.mount_point)
         elseif step.kind == "lua-system" then
             -- Lua system module: call the appropriate function from the boot module
@@ -92,22 +108,6 @@ function Executor.run(steps, ctx, dispatch, hooks)
             
             if not ok then
                 result = { success = false, error = "lua-system step failed: " .. tostring(err) }
-            else
-                result = { success = true }
-            end
-            
-        elseif step.kind == "package" or step.kind == "service" then
-            -- No command: a named verb. The host may run it, return "shell",
-            -- or be absent (metadata-only no-op).
-            if dispatch and dispatch.step then
-                local ok, r = pcall(dispatch.step, step, ctx)
-                if not ok then
-                    result = { success = false, error = tostring(r) }
-                elseif r == "shell" then
-                    result = Executor.run_shell(step, ctx.mount_point)
-                else
-                    result = { success = true }
-                end
             else
                 result = { success = true }
             end
