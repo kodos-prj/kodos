@@ -44,7 +44,7 @@ local module = {
             table.insert(steps, {
                 name = "hardware_pipewire_enable",
                 description = "Enable PipeWire service",
-                command = "systemctl enable --global pipewire",
+                command = "systemctl enable pipewire",
                 chroot = true,
                 order = 351,
                 depends_on = {"hardware_pipewire_install"},

@@ -274,24 +274,21 @@ local function emit_arch_repo_steps(repo_name, repo_config)
         return {}
     end
     
-    -- Build pacman.conf mirror list (preserve Server = format for each mirror)
-    local mirror_lines = {}
+    -- Write mirrors to /etc/pacman.d/mirrorlist: both [core] and [extra] in
+    -- pacman.conf Include it, so every repo picks them up. (Appending Server=
+    -- lines to pacman.conf would only apply to the last section.)
+    local quoted = { "'# Custom mirrors configured by KodOS'" }
     for _, mirror_url in ipairs(mirror_list) do
-        table.insert(mirror_lines, "Server = " .. mirror_url)
+        table.insert(quoted, "'" .. "Server = " .. mirror_url .. "'")
     end
-    local mirrors_config = table.concat(mirror_lines, "\n")
-    
-    -- Generate step: append mirror list to pacman.conf [core] and [extra] sections
-    -- ponytail: Simple append; assumes pacman.conf has these sections already.
-    -- Better: parse and update only the target sections if they change. Defer when needed.
+
     return {
         {
             name = "repos_arch_mirrors_" .. repo_name,
-            description = "Configure Arch mirrors in pacman.conf",
+            description = "Configure Arch mirrors in pacman.d/mirrorlist",
             kind = "lua-system",
-            -- Append our mirrors after the [core] section (they apply to all repos)
-            command = "echo '\n# Custom mirrors for Arch repos' >> /etc/pacman.conf && echo '" .. mirrors_config .. "' >> /etc/pacman.conf",
-            chroot = true,  -- must target the installed system's pacman.conf, not the host's
+            command = "printf '%s\\n' " .. table.concat(quoted, " ") .. " > /etc/pacman.d/mirrorlist",
+            chroot = true,  -- must target the installed system, not the host's
             order = 50,
         }
     }

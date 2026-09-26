@@ -46,6 +46,13 @@ local function emit_config_steps(steps, username, kind, name, pconf, order_base)
     local i = 0
     for _, cmd in ipairs(capture_commands(command, pconf.config)) do
         i = i + 1
+        -- Per-user configs must run as that user (matches original kodos, which
+        -- set ctx.user before executing): git config --global etc. must land in
+        -- the user's home, not /root. Captured cmds use double quotes only, so
+        -- single-quote wrapping is safe.
+        if username ~= "root" then
+            cmd = "runuser -u " .. username .. " -- /bin/bash -c '" .. cmd .. "'"
+        end
         -- Wrap config commands with || true to make them non-fatal
         -- (some programs may not be installed yet or may be optional)
         table.insert(steps, {

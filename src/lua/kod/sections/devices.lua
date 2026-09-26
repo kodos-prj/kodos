@@ -382,7 +382,10 @@ local module = {
                              table.insert(steps, {
                                  name = "devices_create_kod_user",
                                  description = "Create kod user for AUR builds and package management",
-                                 command = "useradd -r -m -s /bin/bash kod 2>/dev/null || true",
+                                 -- Same flags as repos_aur_* (which re-runs this idempotently):
+                                 -- wheel group + home at /var/kod/.home so AUR builds land in
+                                 -- the persistent store, not /home.
+                                 command = "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
                                  chroot = true,
                                  order = 49,
                                  depends_on = {"devices_setup_dns"},
