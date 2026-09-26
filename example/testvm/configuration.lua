@@ -117,7 +117,7 @@ return {
                 },
 
                 zsh = {
-                    enable = false,
+                    enable = true,
                 },
 
                 neovim = {
@@ -253,10 +253,10 @@ return {
             -- AUR packages
             -- "aur:visual-studio-code-bin",
             -- "aur:floorp-bin",
-            -- "aur:mission-center",
+            "aur:mission-center",
             -- Flatpak packages
             -- "flatpak:com.mattjakeman.ExtensionManager",
-            -- "flatpak:com.visualstudio.code",
+            "flatpak:com.visualstudio.code",
             -- "distrobox",
             -- "aur:quickemu",
             -- "aur:uxplay",
