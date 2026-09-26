@@ -376,10 +376,11 @@ local module = {
             if #aur_pkgs > 0 then
                 -- Create kod user for AUR builds
                 -- Don't set shell to nologin since we need to run commands as this user
+                -- Home directory at /var/kod/.home (matches original kodos design)
                 table.insert(steps, {
                     name = "packages_create_kod_user",
                     description = "Create kod user for AUR package builds",
-                    command = "useradd -r -m -s /bin/bash kod 2>/dev/null || true",
+                    command = "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
                     chroot = true,
                     order = 492,
                     depends_on = {"packages_install_normal_and_base"},
