@@ -309,15 +309,21 @@ local function emit_aur_repo_steps(repo_name, repo_config)
     local build_cmd = repo_config.build.build_cmd or "makepkg -si --noconfirm"
     local helper_name = repo_config.build.name or repo_name
     
-    -- Run as 'kod' user (not root) to avoid permission issues with makepkg
-    -- Uses runuser to switch user context; cd to home directory
-    -- Matches official KodOS arch.py proc_repos implementation
+    -- Self-contained: creates the kod build user + NOPASSWD sudoers, then builds
+    -- the AUR helper in kod's home (not root; makepkg needs an unprivileged builder).
+    -- git/base-devel/sudo come from pacstrap, so this can run before bulk package install.
+    local cmd = table.concat({
+        "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
+        "echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod",
+        "runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf " .. helper_name .. " && git clone " .. git_url .. " " .. helper_name .. " && cd " .. helper_name .. " && " .. build_cmd .. "'",
+    }, "; ")
+
     return {
         {
             name = "repos_aur_" .. repo_name,
-            description = "Install AUR helper: " .. helper_name,
+            description = "Create kod user and install AUR helper: " .. helper_name,
             kind = "lua-system",
-            command = "runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf " .. helper_name .. " && git clone " .. git_url .. " " .. helper_name .. " && cd " .. helper_name .. " && " .. build_cmd .. "'",
+            command = cmd,
             chroot = true,
             order = 50,
             depends_on = {"devices_kod_sudoers"},

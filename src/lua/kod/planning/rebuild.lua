@@ -177,33 +177,8 @@ function Rebuild.diff(state)
         end
     end
 
-    -- Handle flatpak applications after regular packages
-    -- Flatpak packages must be installed AFTER flatpak itself is available
-    -- Extract flatpak: packages from next_packages
-    local flatpak_apps = {}
-    for _, pkg in ipairs(next_packages.packages or {}) do
-        if pkg:match("^flatpak:") then
-            table.insert(flatpak_apps, pkg:sub(9))  -- Remove "flatpak:" prefix
-        end
-    end
-    
-    -- If there are flatpak apps to install, add them as steps
-    -- These run after the main package installation (which installs flatpak itself)
-    if #flatpak_apps > 0 then
-        for _, app_id in ipairs(flatpak_apps) do
-            table.insert(steps, {
-                kind = "package",
-                name = "flatpak_install_" .. app_id:gsub("%.", "_"):gsub("/", "_"),
-                description = "Install flatpak application: " .. app_id,
-                chroot = new_gen,
-                order = 510,
-                timeout_s = 300,
-                depends_on = {"packages_install_normal_and_base"},
-                -- Store command in meta for dispatch callback
-                meta = { command = "flatpak install -y flathub " .. app_id },
-            })
-        end
-    end
+    -- Flatpak apps: emitted by Packages.emit_steps above (packages_flatpak_install_*),
+    -- converted through the same loop, ordered after AUR package steps.
 
     if state.kernel_update_required then
         table.insert(steps, { kind = "lua-system", name = "kernel-update", 

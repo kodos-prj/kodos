@@ -372,71 +372,36 @@ local module = {
                 })
             end
             
-            -- Step 1.5: Build yay from AUR (if there are AUR packages)
-            if #aur_pkgs > 0 then
-                -- Create kod user for AUR builds
-                -- Don't set shell to nologin since we need to run commands as this user
-                -- Home directory at /var/kod/.home (matches original kodos design)
+            -- AUR packages: the kod user and AUR helper (yay) are created by the
+            -- repos section's aur step (repos_aur_*), which builds the helper in
+            -- kod's home. Here we only build the configured AUR packages, also
+            -- from kod's home via runuser.
+            for i, aur_pkg in ipairs(aur_pkgs) do
+                local build_cmd = "runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed \"" .. aur_pkg .. "\"'"
+
                 table.insert(steps, {
-                    name = "packages_create_kod_user",
-                    description = "Create kod user for AUR package builds",
-                    command = "useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true",
+                    name = "packages_build_aur_" .. aur_pkg,
+                    description = "Build and install AUR package: " .. aur_pkg,
+                    command = build_cmd,
                     chroot = true,
-                    order = 492,
-                    depends_on = {"packages_install_normal_and_base"},
+                    order = 500 + i,
+                    timeout_s = 900,  -- 15 minutes per package
+                    depends_on = {"repos_aur_aur"},
                 })
-                
-                -- Add kod user to sudoers with NOPASSWD for yay/makepkg operations
-                -- yay will call sudo pacman -U to install built packages
-                -- makepkg may also need sudo for some operations
+            end
+
+            -- Flatpak applications: installed in chroot after AUR packages.
+            -- Requires /run mounted (devices_setup_mtab) and the flathub remote
+            -- added by the repos section (repos_flatpak_init_*).
+            for i, app in ipairs(flatpak_pkgs) do
                 table.insert(steps, {
-                    name = "packages_kod_sudoers",
-                    description = "Configure sudo access for kod user (yay/makepkg operations)",
-                    command = "echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod",
+                    name = "packages_flatpak_install_" .. app:gsub("%W", "_"),
+                    description = "Install flatpak application: " .. app,
+                    command = "flatpak install -y flathub " .. app,
                     chroot = true,
-                    order = 493,
-                    depends_on = {"packages_create_kod_user"},
+                    order = 510 + i,
+                    timeout_s = 600,
                 })
-                
-                -- Build yay from AUR first (so it can build other AUR packages)
-                -- yay will be installed system-wide and can then be used for other AUR packages
-                local yay_build_cmd = table.concat({
-                    "cd /tmp",
-                    "git clone https://aur.archlinux.org/yay-bin.git",
-                    "chown -R kod:kod yay-bin",
-                    "cd yay-bin",
-                    "sudo -u kod makepkg -si --noconfirm",
-                    "cd /tmp",
-                    "rm -rf yay-bin",
-                }, " && ")
-                
-                table.insert(steps, {
-                    name = "packages_build_yay_helper",
-                    description = "Build and install yay AUR helper",
-                    command = yay_build_cmd,
-                    chroot = true,
-                    order = 494,
-                    timeout_s = 900,
-                    depends_on = {"packages_kod_sudoers"},
-                })
-                
-                -- Step 2: Build remaining AUR packages using yay
-                -- Run yay as kod user to allow makepkg to build AUR packages
-                for i, aur_pkg in ipairs(aur_pkgs) do
-                    local build_cmd = table.concat({
-                        "sudo -u kod yay -S --noconfirm --needed '" .. aur_pkg .. "'",
-                    }, " && ")
-                    
-                    table.insert(steps, {
-                        name = "packages_build_aur_" .. aur_pkg,
-                        description = "Build and install AUR package: " .. aur_pkg,
-                        command = build_cmd,
-                        chroot = true,
-                        order = 500 + i,
-                        timeout_s = 900,  -- 15 minutes per package
-                        depends_on = {"packages_build_yay_helper"},
-                    })
-                end
             end
         else
             -- For Debian, just install normal packages (skip AUR)
@@ -452,11 +417,6 @@ local module = {
                 })
             end
         end
-        
-        -- Flatpak applications are handled separately:
-        -- - Initial install: via Python post-install handler (_install_flatpak_apps)
-        -- - Rebuild: via rebuild planner (rebuild.lua handles flatpak in config)
-        -- This approach ensures flatpak apps install when system has proper dbus/network
         
         return steps
     end
