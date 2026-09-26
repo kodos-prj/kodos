@@ -291,6 +291,7 @@ local function emit_arch_repo_steps(repo_name, repo_config)
             kind = "lua-system",
             -- Append our mirrors after the [core] section (they apply to all repos)
             command = "echo '\n# Custom mirrors for Arch repos' >> /etc/pacman.conf && echo '" .. mirrors_config .. "' >> /etc/pacman.conf",
+            chroot = true,  -- must target the installed system's pacman.conf, not the host's
             order = 50,
         }
     }
