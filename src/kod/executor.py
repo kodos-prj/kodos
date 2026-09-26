@@ -107,21 +107,23 @@ def execute_steps(
         """
         try:
             kind = step.kind
-            # Command is stored in meta since we don't want it in the step dict
-            # (which would make Lua executor treat it as a shell step)
-            # Note: Lupa converts Lua nil to Python None
+            # Command priority:
+            # 1. meta.command - set by rebuild.lua (kept out of top-level so the
+            #    Lua executor doesn't treat these as shell steps)
+            # 2. step.program - set when a step's top-level 'command' survives
+            #    the Python Step round-trip (emit_steps-generated steps)
             meta = step.meta
             cmd = ""
             if meta is not None:
-                # meta is a Lua table via lupa - try to access as dict-like
                 try:
-                    cmd = meta.get("command") if hasattr(meta, 'get') else meta["command"]
+                    cmd = meta["command"] or ""
                 except (KeyError, TypeError, AttributeError):
-                    # Try accessing as Lua table (lupa allows dict-like access)
-                    try:
-                        cmd = meta["command"] or ""
-                    except:
-                        cmd = ""
+                    cmd = ""
+            if not cmd:
+                try:
+                    cmd = str(step.program or "")
+                except Exception:
+                    cmd = ""
             
             if kind == "package" or kind == "service":
                 if not cmd:
