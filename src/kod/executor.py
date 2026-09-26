@@ -101,25 +101,32 @@ def execute_steps(
         """Dispatch package/service steps to Python handlers.
         
         Package and service steps have commands that need to be run with
-        proper sudo/root access, which can only be done from Python.
+        proper permissions. During install (chroot=True), they run in the chroot.
+        During rebuild (chroot=False), they run on host with sudo.
         Returns None (success) or raises on failure.
         """
         kind = step.kind
-        cmd = step.command or step.program or ""
+        # Command is stored in meta since we don't want it in the step dict
+        # (which would make Lua executor treat it as a shell step)
+        meta = step.meta if step.meta is not None else {}
+        cmd = meta.get("command") or ""
         
         if kind == "package" or kind == "service":
             if not cmd:
                 return  # No-op step
             
-            # Run command with sudo if needed
-            # For rebuild (mount_point="/"), run on host; for new generation, chroot
             mp = ctx_lua.mount_point if ctx_lua else "/"
+            chroot_needed = step.chroot if hasattr(step, 'chroot') else False
             
             try:
-                if step.chroot and mp != "/":
+                if chroot_needed and mp != "/":
+                    # During install: chroot into new mount point
                     exec_chroot(cmd, mount_point=mp)
+                elif chroot_needed:
+                    # chroot=True but mount_point is "/", run as-is (on current system)
+                    exec(cmd)
                 else:
-                    # Run on host (rebuild mode); this requires root
+                    # During rebuild: run on host with sudo
                     exec(f"sudo {cmd}")
             except Exception as e:
                 raise StepError(f"Step '{step.name}' failed: {e}")
