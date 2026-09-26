@@ -130,16 +130,16 @@ local module = {
                 })
             end
             
-             -- Loader include files
+             -- Loader include entries: install as packages (e.g. memtest86+),
+             -- which provide their own boot entry. A bare "include" line in
+             -- loader.conf pointed at a path that doesn't exist on stock systems.
              if config.loader.include and #config.loader.include > 0 then
                  for i, include_entry in ipairs(config.loader.include) do
-                      -- Clean entry name for step naming (remove .conf extension if present)
                       local entry_name = include_entry:gsub("%.conf$", ""):gsub("[/-]", "_")
-                      
                       table.insert(steps, {
                           name = "boot_loader_include_" .. entry_name,
-                          description = "Add loader include: " .. include_entry,
-                          command = "echo \"include " .. include_entry .. "\" >> /boot/loader/loader.conf",
+                          description = "Install loader entry package: " .. include_entry,
+                          command = "pacman -S --noconfirm " .. include_entry,
                           chroot = true,
                           order = 213 + i,
                       })

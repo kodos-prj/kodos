@@ -206,9 +206,10 @@ local function aggregate_global_program_packages(config)
         return packages
     end
     
-    -- Global system-level programs (not per-user)
+    -- Global system-level programs (not per-user). Enable semantics match
+    -- sections/programs.lua: only an explicit enable=false is skipped.
     for prog_name, prog_conf in pairs(config.programs) do
-        if prog_conf.enable then
+        if prog_conf.enable ~= false then
             -- Use custom package name if specified, otherwise prog name
             local pkg_name = prog_conf.package or prog_name
             table.insert(packages, pkg_name)
