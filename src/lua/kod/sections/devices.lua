@@ -334,9 +334,17 @@ local module = {
                               -- fsck pass must be 0: btrfs has no external fsck; a failing
                               -- fsck@<uuid>.service blocks ALL systemd mounts of this device
                               -- (/kod, /home) at boot. (Root itself mounts via initramfs.)
-                              table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0\" >> /mnt/etc/fstab")
-                              
-                              -- Boot partition (/boot)
+                               table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "3") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0\" >> /mnt/etc/fstab")
+                               
+                               -- Swap partition (looked up from config: without swap the
+                               -- layout compacts and a hardcoded index would point at root)
+                               for part_num, partition in pairs(disk_config.partitions or {}) do
+                                   if type(partition) == "table" and partition.filesystem == "linux-swap" then
+                                       table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, part_num) .. ") && test -n \"$UUID\" && echo \"UUID=$UUID none swap defaults 0 0\" >> /mnt/etc/fstab")
+                                   end
+                               end
+                               
+                               -- Boot partition (/boot)
                               -- fsck pass 0: dosfstools (fsck.vfat) may be absent from base;
                               -- a failing fsck@<uuid>.service would block the /boot mount.
                               table.insert(fstab_commands, "UUID=$(lsblk -no UUID " .. partition_path(device_path, "1") .. ") && test -n \"$UUID\" && echo \"UUID=$UUID /boot vfat defaults,nofail 0 0\" >> /mnt/etc/fstab")
