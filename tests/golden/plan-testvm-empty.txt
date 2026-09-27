@@ -27,7 +27,7 @@
 025 [system] devices_setup_dns: cp /etc/resolv.conf /mnt/etc/resolv.conf || true
 026 [system] devices_create_kod_user: useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true
 027 [system] devices_kod_sudoers: echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod
-028 [lua-system] repos_arch_mirrors_official: printf '%s\n' '# Custom mirrors configured by KodOS' 'Server = http://wcbmedia.io:8000/$repo/os/$arch' > /etc/pacman.d/mirrorlist && (grep -q '^DisableDownloadTimeout' /etc/pacman.conf || sed -i '/\[options\]/a DisableDownloadTimeout' /etc/pacman.conf)
+028 [lua-system] repos_arch_mirrors_official: printf '%s\n' '# Custom mirrors configured by KodOS' 'Server = http://wcbmedia.io:8000/$repo/os/$arch' > /etc/pacman.d/mirrorlist
 029 [lua-system] repos_aur_aur: useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true; echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod; runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf yay && git clone https://aur.archlinux.org/yay-bin.git yay && cd yay && makepkg -si --noconfirm'
 030 [system] repos_flatpak_package_flatpak: pacman -S --needed --noconfirm flatpak
 031 [system] repos_flatpak_init_flatpak: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
