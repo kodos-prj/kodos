@@ -18,9 +18,9 @@ return {
 
     repos = {
         official = repos.arch_repo({
-            "https://mirror.rackspace.com/archlinux/$repo/os/$arch",
             "http://wcbmedia.io:8000/$repo/os/$arch",
-            "http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch"
+            "http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org/$repo/os/$arch",
+            "https://mirror.rackspace.com/archlinux/$repo/os/$arch"
         }),
 --         official = repos.arch_repo("http://wcbmedia.io:8000/$repo/os/$arch"),
 --         official = repos.arch_repo("http://mirror2.evolution-host.com/archlinux/"),
