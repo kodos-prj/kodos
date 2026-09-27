@@ -282,12 +282,20 @@ local function emit_arch_repo_steps(repo_name, repo_config)
         table.insert(quoted, "'" .. "Server = " .. mirror_url .. "'")
     end
 
+    -- DisableDownloadTimeout (a valid pacman.conf [options] directive; there is
+    -- no ConnectTimeout option) stops pacman killing slow mirror connections at
+    -- its default low-speed/timeout limits. The executor's per-step timeout_s
+    -- remains the outer bound against truly hung downloads. Inserted into the
+    -- [options] section, not appended: directives are section-scoped and EOF is
+    -- inside the last repo section.
     return {
         {
             name = "repos_arch_mirrors_" .. repo_name,
-            description = "Configure Arch mirrors in pacman.d/mirrorlist",
+            description = "Configure Arch mirrors in pacman.d/mirrorlist and relax download timeouts",
             kind = "lua-system",
-            command = "printf '%s\\n' " .. table.concat(quoted, " ") .. " > /etc/pacman.d/mirrorlist",
+            command = "printf '%s\\n' " .. table.concat(quoted, " ") .. " > /etc/pacman.d/mirrorlist"
+                .. " && (grep -q '^DisableDownloadTimeout' /etc/pacman.conf"
+                .. " || sed -i '/\\[options\\]/a DisableDownloadTimeout' /etc/pacman.conf)",
             chroot = true,  -- must target the installed system, not the host's
             order = 50,
         }
