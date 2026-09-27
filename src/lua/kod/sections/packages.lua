@@ -369,7 +369,7 @@ local module = {
                     command = install_cmd,
                     chroot = true,
                     order = 490,
-                    timeout_s = 600,
+                    timeout_s = 3600,  -- bulk install can exceed pacstrap's size
                 })
             end
             
@@ -386,7 +386,7 @@ local module = {
                     command = build_cmd,
                     chroot = true,
                     order = 500 + i,
-                    timeout_s = 900,  -- 15 minutes per package
+                    timeout_s = 7200,  -- AUR builds compile from source; most unbounded step
                     depends_on = {"repos_aur_aur"},
                 })
             end
@@ -401,7 +401,7 @@ local module = {
                     command = "flatpak install -y flathub " .. app,
                     chroot = true,
                     order = 510 + i,
-                    timeout_s = 600,
+                    timeout_s = 1800,
                 })
             end
         else

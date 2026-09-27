@@ -323,6 +323,7 @@ local function emit_aur_repo_steps(repo_name, repo_config)
             command = cmd,
             chroot = true,
             order = 50,
+            timeout_s = 3600,  -- yay is a Rust build; default 300s is far too short
             depends_on = {"devices_kod_sudoers"},
         }
     }
@@ -341,6 +342,7 @@ local function emit_flatpak_repo_steps(repo_name, repo_config)
             command = "pacman -S --needed --noconfirm " .. repo_config.package,
             chroot = true,
             order = 51,
+            timeout_s = 1800,
         })
     end
     

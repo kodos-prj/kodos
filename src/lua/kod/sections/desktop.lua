@@ -46,6 +46,7 @@ local module = {
                 command = install_cmd,
                 chroot = true,
                 order = 450,
+                timeout_s = 3600,  -- DE installs are large downloads
             })
             
             -- Enable display manager (depends on DE)
@@ -104,6 +105,7 @@ local module = {
                           command = install_cmd,
                           chroot = true,
                           order = de_order,
+                          timeout_s = 3600,  -- DE installs are large downloads
                       })
                      
                      de_order = de_order + 1
@@ -145,12 +147,13 @@ local module = {
               end
              
              table.insert(steps, {
-                 name = "desktop_display_manager_install",
-                 description = "Install display manager: " .. config.display_manager,
-                 command = install_cmd,
-                 chroot = true,
-                 order = 455,
-             })
+                  name = "desktop_display_manager_install",
+                  description = "Install display manager: " .. config.display_manager,
+                  command = install_cmd,
+                  chroot = true,
+                  order = 455,
+                  timeout_s = 1800,
+              })
              
              table.insert(steps, {
                  kind = "service",

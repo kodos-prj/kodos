@@ -38,6 +38,7 @@ local module = {
                 command = install_cmd,
                 chroot = true,
                 order = 350,
+                timeout_s = 1800,
             })
             
             -- Enable pipewire service
@@ -75,6 +76,7 @@ local module = {
                 command = install_cmd,
                 chroot = true,
                 order = 360,
+                timeout_s = 1800,
             })
             
             -- Add extra packages step if any extra packages

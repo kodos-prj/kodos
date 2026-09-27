@@ -289,9 +289,10 @@ local module = {
                                  name = "devices_bootstrap_base_system",
                                  description = "Bootstrap base system to /mnt",
                                  -- Use full essential package list from ArchAdapter._get_base_packages_config()
-                                 command = "pacstrap -K /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts",
-                                 chroot = false,
-                                 order = 40,
+                                  command = "pacstrap -K /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts",
+                                  chroot = false,
+                                  order = 40,
+                                  timeout_s = 3600,  -- ~830MB download; default 300s dies mid-transfer
                                  depends_on = {"devices_write_generation_marker"},
                              })
                            

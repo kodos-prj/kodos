@@ -50,6 +50,7 @@ local module = {
                 command = install_cmd,
                 chroot = true,
                 order = 400,
+                timeout_s = 1800,
             })
             
             -- Update font cache
@@ -78,6 +79,7 @@ local module = {
                 command = install_cmd,
                 chroot = true,
                 order = 402,
+                timeout_s = 1800,
             })
         end
         
