@@ -166,10 +166,11 @@ local module = {
              })
          end
          
-           -- Flatpak apps installation (post-boot or immediate if daemon running)
-             -- During initial install: deferred to first boot via systemd service
-             -- During rebuild: install immediately if flatpak daemon is running; else defer to next boot
-            local packages_module = require('kod.sections.packages')
+            -- Flatpak apps are installed system-wide on first boot by a systemd
+            -- service. Not during chroot (flatpak needs a running system), and no
+            -- daemon gating: root system installs use /var/lib/flatpak directly,
+            -- not the user-level flatpak daemon.
+             local packages_module = require('kod.sections.packages')
             local all_packages = packages_module.aggregate_packages(config)
             local flatpak_apps = packages_module.extract_flatpak_apps(all_packages.packages)
           
@@ -192,15 +193,13 @@ local module = {
                   order = 470,
               })
               
-               -- Write install script (uses printf to avoid shell variable interpolation issues)
-               -- Store script as base64 to avoid escaping nightmares
-               local install_script_content = [[#!/bin/bash
-# kod-install-flatpak-apps - Install flatpak applications on first boot or rebuild
-# During rebuild, if flatpak daemon is running, install immediately
-# Otherwise defer to next boot via systemd service
-set -e
+                -- Write install script. Runs as root on a booted system:
+                -- system-wide flatpak installs use /var/lib/flatpak directly,
+                -- no user-level daemon involved. Per-app loop so one bad app
+                -- doesn't block the rest.
+                local install_script_content = [[#!/bin/bash
+# kod-install-flatpak-apps - Install flatpak applications system-wide on boot
 FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
-INSTALLED_FLAG="/var/lib/kod/flatpak-apps-installed"
 if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
     echo "No flatpak apps configured in $FLATPAK_APPS_CONFIG"
     exit 0
@@ -208,33 +207,15 @@ fi
 mapfile -t APPS < "$FLATPAK_APPS_CONFIG"
 if [ ${#APPS[@]} -eq 0 ]; then
     echo "No flatpak apps to install"
-    mkdir -p "$(dirname "$INSTALLED_FLAG")"
-    touch "$INSTALLED_FLAG"
     exit 0
 fi
-
-# Check if this is a rebuild (flatpak daemon might be running)
-# Try to detect if we're in chroot: if /etc/fstab doesn't exist or is being built, we're in install chroot
-if [ ! -f /etc/fstab ]; then
-    echo "Initial install: deferring flatpak install to first boot"
-    exit 0
-fi
-
-# In a running system: try to install if flatpak daemon is available
-# If daemon not running, skip (the systemd service will run this script again on next boot)
-if systemctl --user is-active --quiet flatpak 2>/dev/null; then
-    echo "Flatpak daemon detected: installing applications now"
-    if ! flatpak remote-list 2>/dev/null | grep -q flathub; then
-        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+for APP in "${APPS[@]}"; do
+    if ! flatpak install -y flathub "$APP"; then
+        echo "WARN: failed to install $APP"
     fi
-    if flatpak install -y flathub "${APPS[@]}" 2>/dev/null; then
-        mkdir -p "$(dirname "$INSTALLED_FLAG")"
-        touch "$INSTALLED_FLAG"
-        echo "Flatpak apps installation complete"
-    fi
-else
-    echo "Flatpak daemon not running; deferring install to next boot"
-fi
+done
+echo "Flatpak apps installation complete"
 ]]
               
               -- Escape single quotes for shell
@@ -251,18 +232,17 @@ fi
               })
               
               -- Write systemd service
-              local systemd_service = [[
+               local systemd_service = [[
 [Unit]
 Description=KodOS Flatpak Apps Installer
-After=multi-user.target
+Wants=network-online.target
+After=network-online.target
 ConditionPathExists=/etc/kod/flatpak-apps.txt
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/local/bin/kod-install-flatpak-apps
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
