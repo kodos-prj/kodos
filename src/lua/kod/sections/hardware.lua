@@ -40,16 +40,6 @@ local module = {
                 order = 350,
                 timeout_s = 1800,
             })
-            
-            -- Enable pipewire service
-            table.insert(steps, {
-                name = "hardware_pipewire_enable",
-                description = "Enable PipeWire service",
-                command = "systemctl enable pipewire",
-                chroot = true,
-                order = 351,
-                depends_on = {"hardware_pipewire_install"},
-            })
         end
         
         -- SANE scanner support
