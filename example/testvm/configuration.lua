@@ -17,12 +17,12 @@ return {
     base_distribution = "arch",
 
     repos = {
---         official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
-        official = repos.arch_repo({
-            "https://mirror.rackspace.com/archlinux", 
-            "http://wcbmedia.io:8000", 
-            "http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"
-        }),
+        official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
+--         official = repos.arch_repo({
+--             "https://mirror.rackspace.com/archlinux", 
+--             "http://wcbmedia.io:8000", 
+--             "http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"
+--         }),
 --         official = repos.arch_repo("http://wcbmedia.io:8000/$repo/os/$arch"),
 --         official = repos.arch_repo("http://mirror2.evolution-host.com/archlinux/"),
 --         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
