@@ -20,38 +20,39 @@
 018 [system] devices_mount_btrfs_home: mount -o subvol=store/home /dev/vda3 /mnt/home
 019 [system] devices_mount_btrfs_binds: mount --bind /mnt/kod/store/root /mnt/root && mount --bind /mnt/kod/store/var/log /mnt/var/log && mount --bind /mnt/kod/store/var/tmp /mnt/var/tmp && mount --bind /mnt/kod/store/var/cache /mnt/var/cache && mount --bind /mnt/kod/store/var/kod /mnt/var/kod
 020 [system] devices_write_generation_marker: echo '0' > /mnt/.generation
-021 [system] devices_bootstrap_base_system: printf '%s\n' 'Server = http://wcbmedia.io:8000/$repo/os/$arch' > /tmp/kod-mirrorlist && cp /etc/pacman.conf /tmp/kod-pacman.conf && sed -i -E '/^[[:space:]]*#?[[:space:]]*MirrorList[[:space:]]*=/d' /tmp/kod-pacman.conf && sed -i '/^[[:space:]]*\[options\]/a MirrorList = /tmp/kod-mirrorlist' /tmp/kod-pacman.conf && pacstrap -K -C /tmp/kod-pacman.conf /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts
+021 [system] devices_bootstrap_base_system: printf '%s\n' 'Server = https://mirror.rackspace.com/archlinux' 'Server = http://wcbmedia.io:8000' 'Server = http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org' > /tmp/kod-mirrorlist && cp /etc/pacman.conf /tmp/kod-pacman.conf && sed -i -E '/^[[:space:]]*#?[[:space:]]*MirrorList[[:space:]]*=/d' /tmp/kod-pacman.conf && sed -i '/^[[:space:]]*\[options\]/a MirrorList = /tmp/kod-mirrorlist' /tmp/kod-pacman.conf && pacstrap -K -C /tmp/kod-pacman.conf /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts
 022 [system] devices_setup_mtab: mount -t proc proc /mnt/proc && mount -t sysfs sys /mnt/sys && mount -o bind /dev /mnt/dev && mount -o bind /dev/pts /mnt/dev/pts && mount -o bind /run /mnt/run && ln -sf /proc/mounts /mnt/etc/mtab
 023 [system] devices_pacman_keyring_init: pacman-key --init && pacman-key --populate archlinux
 024 [system] devices_generate_fstab: echo "# Static information about the filesystems." > /mnt/etc/fstab && echo "# See fstab(5) for details." >> /mnt/etc/fstab && echo "" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID / btrfs defaults,subvol=generations/0/rootfs 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda2) && test -n "$UUID" && echo "UUID=$UUID none swap defaults 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda1) && test -n "$UUID" && echo "UUID=$UUID /boot vfat defaults,nofail 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /kod btrfs defaults,nofail 0 0" >> /mnt/etc/fstab && UUID=$(lsblk -no UUID /dev/vda3) && test -n "$UUID" && echo "UUID=$UUID /home btrfs defaults,subvol=store/home,nofail 0 0" >> /mnt/etc/fstab && echo "/kod/store/root /root none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/log /var/log none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/tmp /var/tmp none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/cache /var/cache none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab && echo "/kod/store/var/kod /var/kod none defaults,bind,nofail,x-systemd.after=kod.mount 0 0" >> /mnt/etc/fstab
 025 [system] devices_setup_dns: cp /etc/resolv.conf /mnt/etc/resolv.conf || true
 026 [system] devices_create_kod_user: useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true
 027 [system] devices_kod_sudoers: echo 'kod ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/kod
-028 [lua-system] repos_arch_mirrors_official: printf '%s\n' '# Custom mirrors configured by KodOS' 'Server = http://wcbmedia.io:8000/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+028 [lua-system] repos_arch_mirrors_official: printf '%s\n' '# Custom mirrors configured by KodOS' 'Server = https://mirror.rackspace.com/archlinux' 'Server = http://wcbmedia.io:8000' 'Server = http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org' > /etc/pacman.d/mirrorlist
 029 [lua-system] repos_aur_aur: useradd -m -r -G wheel -s /bin/bash -d /var/kod/.home kod 2>/dev/null || true; echo 'kod ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/kod; runuser -u kod -- /bin/bash -c 'cd ~ && rm -rf yay && git clone https://aur.archlinux.org/yay-bin.git yay && cd yay && makepkg -si --noconfirm'
-030 [system] repos_flatpak_package_flatpak: pacman -S --needed --noconfirm flatpak
-031 [system] repos_flatpak_init_flatpak: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-032 [system] network_hostname_set: echo "testvm" > /etc/hostname
-033 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
-034 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
-035 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-036 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
-037 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-038 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
-039 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
-040 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
-041 [system] locale_hwclock_sync: hwclock --systohc
-042 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && echo 'add_drivers+=(btrfs xhci_pci ohci_pci ehci_pci virtio_pci ahci usbhid sr_mod virtio_blk)' > /etc/dracut.conf.d/kodos.conf
-043 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
-044 [lua-system] boot_kernel_update: {"kernel": "linux-lts", "operation": "update_kernel"}
-045 [lua-system] boot_initramfs_update: {"kernel": "linux-lts", "operation": "update_initramfs"}
-046 [system] boot_loader_install_systemd: bootctl install
-047 [lua-system] boot_entry_create: {"generation": 0, "kernel": "linux-lts", "operation": "create_boot_entry"}
-048 [system] boot_loader_include_memtest86+: pacman -S --noconfirm memtest86+
-049 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
-050 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
-051 [system] flatpak_config_write: mkdir -p /etc/kod && printf '%s\n' 'com.visualstudio.code' > /etc/kod/flatpak-apps.txt
-052 [system] flatpak_install_script_write: mkdir -p /usr/local/bin && echo '#!/bin/bash
+030 [system] repos_arch_mirrors_sync_official: pacman -Sy --noconfirm
+031 [system] repos_flatpak_package_flatpak: pacman -S --needed --noconfirm flatpak
+032 [system] repos_flatpak_init_flatpak: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+033 [system] network_hostname_set: echo "testvm" > /etc/hostname
+034 [system] network_hosts_file_update: echo "127.0.0.1 testvm" >> /etc/hosts
+035 [system] network_ipv6_enable: mkdir -p /etc/sysctl.d && echo "net.ipv6.conf.all.disable_ipv6 = 0" >> /etc/sysctl.d/99-enable-ipv6.conf
+036 [system] locale_generate_default: echo "en_CA.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+037 [system] locale_set_default: echo "LANG=en_CA.UTF-8" > /etc/locale.conf
+038 [system] locale_generate_extra_en_GB_UTF_8_UTF_8: echo "en_GB.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+039 [system] locale_generate_extra_en_US_UTF_8_UTF_8: echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen && locale-gen
+040 [system] locale_set_extra_vars: echo "LC_ADDRESS=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_IDENTIFICATION=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MEASUREMENT=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_MONETARY=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NAME=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_NUMERIC=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_PAPER=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TELEPHONE=en_CA.UTF-8" >> /etc/locale.conf && echo "LC_TIME=en_CA.UTF-8" >> /etc/locale.conf
+041 [system] locale_timezone_set: ln -sf /usr/share/zoneinfo/America/Edmonton /etc/localtime
+042 [system] locale_hwclock_sync: hwclock --systohc
+043 [system] boot_kernel_modules_config: mkdir -p /etc/dracut.conf.d && echo 'add_drivers+=(btrfs xhci_pci ohci_pci ehci_pci virtio_pci ahci usbhid sr_mod virtio_blk)' > /etc/dracut.conf.d/kodos.conf
+044 [system] boot_kernel_install: pacman -S --noconfirm linux-lts
+045 [lua-system] boot_kernel_update: {"kernel": "linux-lts", "operation": "update_kernel"}
+046 [lua-system] boot_initramfs_update: {"kernel": "linux-lts", "operation": "update_initramfs"}
+047 [system] boot_loader_install_systemd: bootctl install
+048 [lua-system] boot_entry_create: {"generation": 0, "kernel": "linux-lts", "operation": "create_boot_entry"}
+049 [system] boot_loader_include_memtest86+: pacman -S --noconfirm memtest86+
+050 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
+051 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
+052 [system] flatpak_config_write: mkdir -p /etc/kod && printf '%s\n' 'com.visualstudio.code' > /etc/kod/flatpak-apps.txt
+053 [system] flatpak_install_script_write: mkdir -p /usr/local/bin && echo '#!/bin/bash
 # kod-install-flatpak-apps - Install flatpak applications system-wide on boot
 FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
 if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
@@ -71,7 +72,7 @@ for APP in "${APPS[@]}"; do
 done
 echo "Flatpak apps installation complete"
 ' > /usr/local/bin/kod-install-flatpak-apps && chmod +x /usr/local/bin/kod-install-flatpak-apps
-053 [system] flatpak_systemd_service_write: mkdir -p /etc/systemd/system && echo '[Unit]
+054 [system] flatpak_systemd_service_write: mkdir -p /etc/systemd/system && echo '[Unit]
 Description=KodOS Flatpak Apps Installer
 Wants=network-online.target
 After=network-online.target
@@ -85,20 +86,20 @@ ExecStart=/usr/local/bin/kod-install-flatpak-apps
 [Install]
 WantedBy=multi-user.target
 ' > /etc/systemd/system/kod-flatpak-install.service
-054 [service] kod-flatpak-install: systemctl enable kod-flatpak-install
-055 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
-056 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
-057 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
-058 [system] users_create_abuss: useradd -m -s /bin/bash abuss
-059 [system] users_create_root: true
-060 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
-061 [system] users_password_root: echo "root:root" | chpasswd
-062 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
-063 [system] users_sudoers_wheel_abuss: test -f /etc/sudoers && (sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su) || true
-064 [system] users_abuss_program_git_1: runuser -u abuss -- /bin/bash -c 'git config --global user.email "antal.buss@gmail.com"' || true
-065 [system] users_abuss_program_git_2: runuser -u abuss -- /bin/bash -c 'git config --global user.name "Antal Buss"' || true
-066 [service] NetworkManager: systemctl enable NetworkManager
-067 [service] bluetooth: systemctl enable bluetooth
-068 [service] cups: systemctl enable cups
-069 [service] fwupd: systemctl enable fwupd
-070 [service] sshd: systemctl enable sshd
+055 [service] kod-flatpak-install: systemctl enable kod-flatpak-install
+056 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
+057 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
+058 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
+059 [system] users_create_abuss: useradd -m -s /bin/bash abuss
+060 [system] users_create_root: true
+061 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
+062 [system] users_password_root: echo "root:root" | chpasswd
+063 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
+064 [system] users_sudoers_wheel_abuss: test -f /etc/sudoers && (sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su) || true
+065 [system] users_abuss_program_git_1: runuser -u abuss -- /bin/bash -c 'git config --global user.email "antal.buss@gmail.com"' || true
+066 [system] users_abuss_program_git_2: runuser -u abuss -- /bin/bash -c 'git config --global user.name "Antal Buss"' || true
+067 [service] NetworkManager: systemctl enable NetworkManager
+068 [service] bluetooth: systemctl enable bluetooth
+069 [service] cups: systemctl enable cups
+070 [service] fwupd: systemctl enable fwupd
+071 [service] sshd: systemctl enable sshd

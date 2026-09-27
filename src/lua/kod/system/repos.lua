@@ -294,6 +294,16 @@ local function emit_arch_repo_steps(repo_name, repo_config)
             command = "printf '%s\\n' " .. table.concat(quoted, " ") .. " > /etc/pacman.d/mirrorlist",
             chroot = true,  -- must target the installed system, not the host's
             order = 50,
+        },
+        {
+            name = "repos_arch_mirrors_sync_" .. repo_name,
+            description = "Sync pacman database with configured mirrors",
+            kind = "system",
+            command = "pacman -Sy --noconfirm",
+            chroot = true,
+            order = 50.5,  -- right after mirror config, before any package installs
+            timeout_s = 600,
+            depends_on = {"repos_arch_mirrors_" .. repo_name},
         }
     }
 end
