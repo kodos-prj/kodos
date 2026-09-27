@@ -396,22 +396,9 @@ local module = {
                     timeout_s = 7200,  -- AUR builds compile from source; most unbounded step
                     depends_on = {"repos_aur_aur"},
                 })
-            end
+             end
 
-            -- Flatpak applications: installed in chroot after AUR packages.
-            -- Requires /run mounted (devices_setup_mtab) and the flathub remote
-            -- added by the repos section (repos_flatpak_init_*).
-            for i, app in ipairs(flatpak_pkgs) do
-                table.insert(steps, {
-                    name = "packages_flatpak_install_" .. app:gsub("%W", "_"),
-                    description = "Install flatpak application: " .. app,
-                    command = "flatpak install -y flathub " .. app,
-                    chroot = true,
-                    order = 510 + i,
-                    timeout_s = 1800,
-                })
-            end
-        else
+         else
             -- For Debian, just install normal packages (skip AUR)
             if #normal_pkgs > 0 then
                 local install_cmd = "apt-get install -y " .. table.concat(normal_pkgs, " ")

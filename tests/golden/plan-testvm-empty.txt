@@ -50,13 +50,68 @@
 048 [system] boot_loader_include_memtest86+: pacman -S --noconfirm memtest86+
 049 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
 050 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
-051 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
-052 [service] cosmic-greeter: systemctl enable cosmic-greeter
-053 [system] desktop_environments_install_cosmic: pacman -S --noconfirm cosmic
-054 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
-055 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
-056 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
-057 [system] packages_flatpak_install_com_visualstudio_code: flatpak install -y flathub com.visualstudio.code
+051 [system] flatpak_config_write: mkdir -p /etc/kod && printf '%s\n' 'com.visualstudio.code' > /etc/kod/flatpak-apps.txt
+052 [system] flatpak_install_script_write: mkdir -p /usr/local/bin && echo '#!/bin/bash
+# kod-install-flatpak-apps - Install flatpak applications on first boot or rebuild
+# During rebuild, if flatpak daemon is running, install immediately
+# Otherwise defer to next boot via systemd service
+set -e
+FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
+INSTALLED_FLAG="/var/lib/kod/flatpak-apps-installed"
+if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
+    echo "No flatpak apps configured in $FLATPAK_APPS_CONFIG"
+    exit 0
+fi
+mapfile -t APPS < "$FLATPAK_APPS_CONFIG"
+if [ ${#APPS[@]} -eq 0 ]; then
+    echo "No flatpak apps to install"
+    mkdir -p "$(dirname "$INSTALLED_FLAG")"
+    touch "$INSTALLED_FLAG"
+    exit 0
+fi
+
+# Check if this is a rebuild (flatpak daemon might be running)
+# Try to detect if we'\''re in chroot: if /etc/fstab doesn'\''t exist or is being built, we'\''re in install chroot
+if [ ! -f /etc/fstab ]; then
+    echo "Initial install: deferring flatpak install to first boot"
+    exit 0
+fi
+
+# In a running system: try to install if flatpak daemon is available
+# If daemon not running, skip (the systemd service will run this script again on next boot)
+if systemctl --user is-active --quiet flatpak 2>/dev/null; then
+    echo "Flatpak daemon detected: installing applications now"
+    if ! flatpak remote-list 2>/dev/null | grep -q flathub; then
+        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+    fi
+    if flatpak install -y flathub "${APPS[@]}" 2>/dev/null; then
+        mkdir -p "$(dirname "$INSTALLED_FLAG")"
+        touch "$INSTALLED_FLAG"
+        echo "Flatpak apps installation complete"
+    fi
+else
+    echo "Flatpak daemon not running; deferring install to next boot"
+fi
+' > /usr/local/bin/kod-install-flatpak-apps && chmod +x /usr/local/bin/kod-install-flatpak-apps
+053 [system] flatpak_systemd_service_write: mkdir -p /etc/systemd/system && echo '[Unit]
+Description=KodOS Flatpak Apps Installer
+After=multi-user.target
+ConditionPathExists=/etc/kod/flatpak-apps.txt
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/kod-install-flatpak-apps
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+' > /etc/systemd/system/kod-flatpak-install.service
+054 [service] kod-flatpak-install: systemctl enable kod-flatpak-install
+055 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
+056 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
+057 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
 058 [system] users_create_abuss: useradd -m -s /bin/bash abuss
 059 [system] users_create_root: true
 060 [system] users_password_abuss: echo "abuss:abuss" | chpasswd

@@ -166,12 +166,12 @@ local module = {
              })
          end
          
-         -- Flatpak apps installation (post-boot via systemd service)
-           -- Aggregate all packages from config, then extract flatpak apps
-           -- This ensures flatpak apps come from the same aggregation pipeline as normal packages
-           local packages_module = require('kod.sections.packages')
-           local all_packages = packages_module.aggregate_packages(config)
-           local flatpak_apps = packages_module.extract_flatpak_apps(all_packages)
+           -- Flatpak apps installation (post-boot or immediate if daemon running)
+             -- During initial install: deferred to first boot via systemd service
+             -- During rebuild: install immediately if flatpak daemon is running; else defer to next boot
+            local packages_module = require('kod.sections.packages')
+            local all_packages = packages_module.aggregate_packages(config)
+            local flatpak_apps = packages_module.extract_flatpak_apps(all_packages.packages)
           
            if #flatpak_apps > 0 then
                -- Write flatpak apps list to config file
@@ -192,10 +192,12 @@ local module = {
                   order = 470,
               })
               
-              -- Write install script (uses printf to avoid shell variable interpolation issues)
-              -- Store script as base64 to avoid escaping nightmares
-              local install_script_content = [[#!/bin/bash
-# kod-install-flatpak-apps - Install flatpak applications on first boot
+               -- Write install script (uses printf to avoid shell variable interpolation issues)
+               -- Store script as base64 to avoid escaping nightmares
+               local install_script_content = [[#!/bin/bash
+# kod-install-flatpak-apps - Install flatpak applications on first boot or rebuild
+# During rebuild, if flatpak daemon is running, install immediately
+# Otherwise defer to next boot via systemd service
 set -e
 FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
 INSTALLED_FLAG="/var/lib/kod/flatpak-apps-installed"
@@ -210,14 +212,29 @@ if [ ${#APPS[@]} -eq 0 ]; then
     touch "$INSTALLED_FLAG"
     exit 0
 fi
-echo "Installing flatpak applications"
-if ! flatpak remote-list | grep -q flathub; then
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+# Check if this is a rebuild (flatpak daemon might be running)
+# Try to detect if we're in chroot: if /etc/fstab doesn't exist or is being built, we're in install chroot
+if [ ! -f /etc/fstab ]; then
+    echo "Initial install: deferring flatpak install to first boot"
+    exit 0
 fi
-flatpak install -y flathub "${APPS[@]}"
-mkdir -p "$(dirname "$INSTALLED_FLAG")"
-touch "$INSTALLED_FLAG"
-echo "Flatpak apps installation complete"
+
+# In a running system: try to install if flatpak daemon is available
+# If daemon not running, skip (the systemd service will run this script again on next boot)
+if systemctl --user is-active --quiet flatpak 2>/dev/null; then
+    echo "Flatpak daemon detected: installing applications now"
+    if ! flatpak remote-list 2>/dev/null | grep -q flathub; then
+        flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+    fi
+    if flatpak install -y flathub "${APPS[@]}" 2>/dev/null; then
+        mkdir -p "$(dirname "$INSTALLED_FLAG")"
+        touch "$INSTALLED_FLAG"
+        echo "Flatpak apps installation complete"
+    fi
+else
+    echo "Flatpak daemon not running; deferring install to next boot"
+fi
 ]]
               
               -- Escape single quotes for shell
