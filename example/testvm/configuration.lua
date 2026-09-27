@@ -18,7 +18,8 @@ return {
 
     repos = {
         -- official = repos.arch_repo("https://mirror.rackspace.com/archlinux"),
-        official = repos.arch_repo("http://mirror2.evolution-host.com/archlinux/"),
+        official = repos.arch_repo("http://wcbmedia.io:8000/$repo/os/$arch"),
+--         official = repos.arch_repo("http://mirror2.evolution-host.com/archlinux/"),
 --         official = repos.arch_repo("http://mirror.cpsc.ucalgary.ca/mirror/archlinux.org"),
         aur = repos.aur_repo("yay", "https://aur.archlinux.org/yay-bin.git"),
         flatpak = repos.flatpak_repo("flathub"),
