@@ -419,13 +419,7 @@ GOLDEN = Path(__file__).parent / "golden" / "plan-testvm-empty.txt"
 
 
 class TestGolden:
-    @patch("kod.system.packages.get_base_packages", return_value={
-        "kernel": "linux-lts",
-        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
-                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
-                 "mlocate", "schroot", "sudo", "whois"],
-    })
-    def test_testvm_empty_baseline_golden(self, _mock):
+    def test_testvm_empty_baseline_golden(self):
          from kod.config.loader import load_config_lua as load_lua
          from kod.planner import plan_install, render_plan
 
@@ -437,13 +431,7 @@ class TestGolden:
              pytest.skip("golden written")
          assert out == GOLDEN.read_text()
 
-    @patch("kod.system.packages.get_base_packages", return_value={
-        "kernel": "linux-lts",
-        "base": ["arch-install-scripts", "bash-completion", "base", "base-devel",
-                 "btrfs-progs", "dracut", "git", "intel-ucode", "linux-firmware",
-                 "mlocate", "schroot", "sudo", "whois"],
-    })
-    def test_testvm_preview_sanity(self, _mock):
+    def test_testvm_preview_sanity(self):
         from kod.config.loader import load_config_lua as load_lua
         from kod.planner import plan_install
 

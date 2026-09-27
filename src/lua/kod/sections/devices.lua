@@ -14,6 +14,24 @@ local function partition_path(disk, num)
     return disk .. tostring(num)
 end
 
+-- Find configured Arch mirror URLs in the repos section (first arch repo with mirrors).
+-- Returns a list of Server URLs, or nil when none are configured (keep host defaults).
+local function arch_mirror_list(repos)
+    if type(repos) ~= "table" then
+        return nil
+    end
+    for _, repo in pairs(repos) do
+        if type(repo) == "table" and repo.type == "arch" then
+            if type(repo.mirrors) == "string" then
+                return { repo.mirrors }
+            elseif type(repo.mirrors) == "table" and #repo.mirrors > 0 then
+                return repo.mirrors
+            end
+        end
+    end
+    return nil
+end
+
 local module = {
     schema = Schema.devices,
     
@@ -24,8 +42,11 @@ local module = {
              return steps
          end
          
-         -- Iterate over each device (disk) definition
-         for disk_name, disk_config in pairs(config) do
+          -- Iterate over each device (disk) definition. The planner passes the full
+          -- config to this section (for repos mirror access), so disks live under
+          -- config.devices.
+          local disks = config.devices or {}
+          for disk_name, disk_config in pairs(disks) do
              if type(disk_config) == "table" then
                   -- Each disk_config should have device configuration
                   -- Check if there's a disk_definition or similar function
@@ -282,14 +303,31 @@ local module = {
                            end
                        end
                        
-                        -- Bootstrap base system (Arch Linux pacstrap)
-                        -- This must run after btrfs hierarchy setup, before any chroot steps
-                        if has_root_partition then
-                             table.insert(steps, {
-                                 name = "devices_bootstrap_base_system",
-                                 description = "Bootstrap base system to /mnt",
-                                 -- Use full essential package list from ArchAdapter._get_base_packages_config()
-                                  command = "pacstrap -K /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts",
+                         -- Bootstrap base system (Arch Linux pacstrap)
+                         -- This must run after btrfs hierarchy setup, before any chroot steps
+                         if has_root_partition then
+                             -- pacstrap downloads using the HOST's pacman config/mirrorlist.
+                             -- Point a copy of it at the configured mirrors so generation 0
+                             -- pulls from the same source as the in-chroot steps. Without
+                             -- configured mirrors, fall back to the host defaults (no -C).
+                             local mirror_list = arch_mirror_list(config.repos)
+                             local pacstrap_cmd = "pacstrap -K"
+                             if mirror_list then
+                                 local quoted = {}
+                                 for _, url in ipairs(mirror_list) do
+                                     table.insert(quoted, "'" .. "Server = " .. url .. "'")
+                                 end
+                                 pacstrap_cmd = "printf '%s\\n' " .. table.concat(quoted, " ") .. " > /tmp/kod-mirrorlist"
+                                     .. " && cp /etc/pacman.conf /tmp/kod-pacman.conf"
+                                     .. " && sed -i -E '/^[[:space:]]*#?[[:space:]]*MirrorList[[:space:]]*=/d' /tmp/kod-pacman.conf"
+                                     .. " && sed -i '/^[[:space:]]*\\[options\\]/a MirrorList = /tmp/kod-mirrorlist' /tmp/kod-pacman.conf"
+                                     .. " && pacstrap -K -C /tmp/kod-pacman.conf"
+                             end
+                              table.insert(steps, {
+                                  name = "devices_bootstrap_base_system",
+                                  description = "Bootstrap base system to /mnt",
+                                  -- Use full essential package list from ArchAdapter._get_base_packages_config()
+                                   command = pacstrap_cmd .. " /mnt linux-lts base base-devel debugedit fakeroot intel-ucode btrfs-progs linux-firmware bash-completion mlocate sudo schroot whois dracut git arch-install-scripts",
                                   chroot = false,
                                   order = 40,
                                   timeout_s = 3600,  -- ~830MB download; default 300s dies mid-transfer

@@ -217,9 +217,10 @@ function Planner:compose(config, distro)
                 
                 -- Call emit_steps to get steps from this section
                 local ok, err = pcall(function()
-                    -- Special case: packages section needs full config to aggregate from all sections
-                    -- All other sections receive their section-specific config
-                    local section_config = (section_name == 'packages') and config or config[section_name]
+                    -- Special case: packages needs full config to aggregate all sections;
+                    -- devices needs it too (reads repos mirrors for pacstrap).
+                    -- All other sections receive their section-specific config.
+                    local section_config = (section_name == 'packages' or section_name == 'devices') and config or config[section_name]
                     local section_steps = section.emit_steps(section_config, distro)
                     if section_steps and type(section_steps) == "table" then
                         for _, step in ipairs(section_steps) do

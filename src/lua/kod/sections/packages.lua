@@ -268,6 +268,13 @@ local function aggregate_all_packages(config)
     -- Remove duplicates while preserving order
     packages = deduplicate_packages(packages)
     excluded = deduplicate_packages(excluded)
+
+    -- Sort for a reproducible plan: aggregators iterate string-keyed config maps
+    -- (programs, users, hardware...) whose key order varies across the Lua/Python
+    -- round-trip, which would otherwise reorder packages between runs. pacman and
+    -- the per-package AUR/flatpak steps don't depend on list order.
+    table.sort(packages)
+    table.sort(excluded)
     
     -- Return both packages and excluded packages
     -- Lua table with both arrays: {packages={...}, excluded={...}}
