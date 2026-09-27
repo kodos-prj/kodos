@@ -10,14 +10,21 @@ local module = {
     emit_steps = function(config, distro)
         local steps = {}
         
-        if not config or (config.enable == false) then
+        if not config then
+            return steps
+        end
+
+        -- Planner passes the full config (flatpak aggregation needs it); DE/DM
+        -- settings live under .desktop. Tolerate a bare section table too.
+        local d = (type(config.desktop) == "table") and config.desktop or config
+        if d.enable == false then
             return steps
         end
         
         -- Desktop environment installation
-        if config.environment then
+        if d.environment then
             local de_packages = {}
-            local de_name = config.environment:lower()
+            local de_name = d.environment:lower()
             
             -- Map DE names to package lists
             local de_map = {
@@ -42,7 +49,7 @@ local module = {
             
             table.insert(steps, {
                 name = "desktop_install_" .. de_name,
-                description = "Install " .. config.environment .. " desktop environment",
+                description = "Install " .. d.environment .. " desktop environment",
                 command = install_cmd,
                 chroot = true,
                 order = 450,
@@ -75,11 +82,11 @@ local module = {
         end
         
         -- Multi-environment configuration (desktop.environments block)
-         if config.environments and type(config.environments) == "table" then
-             local de_order = 460
-             
-             -- Handle each environment configuration
-             for env_name, env_config in pairs(config.environments) do
+          if d.environments and type(d.environments) == "table" then
+              local de_order = 460
+              
+              -- Handle each environment configuration
+              for env_name, env_config in pairs(d.environments) do
                  if type(env_config) == "table" and env_config.enable ~= false then
                      -- Map environment names to DE packages
                      local de_map = {
@@ -119,8 +126,8 @@ local module = {
         -- Only install when at least one environment is enabled; a display
         -- manager with no desktop to greet is useless.
         local any_env_enabled = false
-        if config.environments and type(config.environments) == "table" then
-            for _, env_config in pairs(config.environments) do
+        if d.environments and type(d.environments) == "table" then
+            for _, env_config in pairs(d.environments) do
                 if type(env_config) == "table" and env_config.enable ~= false then
                     any_env_enabled = true
                     break
@@ -128,8 +135,8 @@ local module = {
             end
         end
 
-         if config.display_manager and any_env_enabled then
-             local dm_service = config.display_manager:lower()
+         if d.display_manager and any_env_enabled then
+             local dm_service = d.display_manager:lower()
              
              -- Install display manager packages if needed
              local dm_packages = {
@@ -148,23 +155,36 @@ local module = {
              
              table.insert(steps, {
                   name = "desktop_display_manager_install",
-                  description = "Install display manager: " .. config.display_manager,
+                  description = "Install display manager: " .. d.display_manager,
                   command = install_cmd,
                   chroot = true,
                   order = 455,
                   timeout_s = 1800,
               })
              
-             table.insert(steps, {
-                 kind = "service",
-                 name = dm_service,
-                 description = "Enable display manager " .. dm_service,
-                 command = "systemctl enable " .. dm_service,
-                 chroot = true,
-                 order = 456,
-                 depends_on = {"desktop_display_manager_install"},
-             })
-         end
+              table.insert(steps, {
+                  kind = "service",
+                  name = dm_service,
+                  description = "Enable display manager " .. dm_service,
+                  command = "systemctl enable " .. dm_service,
+                  chroot = true,
+                  order = 456,
+                  depends_on = {"desktop_display_manager_install"},
+              })
+
+              -- The DM unit (e.g. cosmic-greeter) only aliases display-manager.service;
+              -- nothing pulls it in unless the default target is graphical.target
+              -- (fresh installs default to multi-user.target). gdm/sddm do this in
+              -- their post-install hooks; cosmic-greeter doesn't.
+              table.insert(steps, {
+                  name = "desktop_default_target_graphical",
+                  description = "Boot to graphical.target so display manager starts",
+                  command = "systemctl set-default graphical.target",
+                  chroot = true,
+                  order = 457,
+                  depends_on = {dm_service},
+              })
+          end
          
             -- Flatpak apps are installed system-wide on first boot by a systemd
             -- service. Not during chroot (flatpak needs a running system), and no

@@ -51,8 +51,12 @@
 049 [system] boot_loader_include_memtest86+: pacman -S --noconfirm memtest86+
 050 [system] hardware_pipewire_install: pacman -S --noconfirm pipewire wireplumber pipewire-alsa pipewire-pulse
 051 [system] fonts_packages_install: pacman -S --noconfirm ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd ttf-fira-sans ttf-fira-code
-052 [system] flatpak_config_write: mkdir -p /etc/kod && printf '%s\n' 'com.visualstudio.code' > /etc/kod/flatpak-apps.txt
-053 [system] flatpak_install_script_write: mkdir -p /usr/local/bin && echo '#!/bin/bash
+052 [system] desktop_display_manager_install: pacman -S --noconfirm cosmic-greeter
+053 [service] cosmic-greeter: systemctl enable cosmic-greeter
+054 [system] desktop_default_target_graphical: systemctl set-default graphical.target
+055 [system] desktop_environments_install_cosmic: pacman -S --noconfirm cosmic
+056 [system] flatpak_config_write: mkdir -p /etc/kod && printf '%s\n' 'com.visualstudio.code' > /etc/kod/flatpak-apps.txt
+057 [system] flatpak_install_script_write: mkdir -p /usr/local/bin && echo '#!/bin/bash
 # kod-install-flatpak-apps - Install flatpak applications system-wide on boot
 FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
 if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
@@ -72,7 +76,7 @@ for APP in "${APPS[@]}"; do
 done
 echo "Flatpak apps installation complete"
 ' > /usr/local/bin/kod-install-flatpak-apps && chmod +x /usr/local/bin/kod-install-flatpak-apps
-054 [system] flatpak_systemd_service_write: mkdir -p /etc/systemd/system && echo '[Unit]
+058 [system] flatpak_systemd_service_write: mkdir -p /etc/systemd/system && echo '[Unit]
 Description=KodOS Flatpak Apps Installer
 Wants=network-online.target
 After=network-online.target
@@ -86,20 +90,20 @@ ExecStart=/usr/local/bin/kod-install-flatpak-apps
 [Install]
 WantedBy=multi-user.target
 ' > /etc/systemd/system/kod-flatpak-install.service
-055 [service] kod-flatpak-install: systemctl enable kod-flatpak-install
-056 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
-057 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
-058 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
-059 [system] users_create_abuss: useradd -m -s /bin/bash abuss
-060 [system] users_create_root: true
-061 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
-062 [system] users_password_root: echo "root:root" | chpasswd
-063 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
-064 [system] users_sudoers_wheel_abuss: test -f /etc/sudoers && (sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su) || true
-065 [system] users_abuss_program_git_1: runuser -u abuss -- /bin/bash -c 'git config --global user.email "antal.buss@gmail.com"' || true
-066 [system] users_abuss_program_git_2: runuser -u abuss -- /bin/bash -c 'git config --global user.name "Antal Buss"' || true
-067 [service] NetworkManager: systemctl enable NetworkManager
-068 [service] bluetooth: systemctl enable bluetooth
-069 [service] cups: systemctl enable cups
-070 [service] fwupd: systemctl enable fwupd
-071 [service] sshd: systemctl enable sshd
+059 [service] kod-flatpak-install: systemctl enable kod-flatpak-install
+060 [system] packages_install_normal_and_base: pacman -S --noconfirm --needed bluez broot btop cosmic cosmic-greeter cups dua-cli duf dust fastfetch fwupd fzf ghostty git github-cli glow gping gutenprint helix htop hyperfine iw lazygit less libgtop lsd lurk mc networkmanager openssh pipewire pipewire-alsa pipewire-pulse python-invoke starship stow sudo syncthing tldr ttf-fira-code ttf-fira-sans ttf-firacode-nerd ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-common ttf-sourcecodepro-nerd uv wget zsh base-devel git
+061 [system] packages_build_aur_brother-dcp-l2550dw: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "brother-dcp-l2550dw"'
+062 [system] packages_build_aur_mission-center: runuser -u kod -- /bin/bash -c 'cd ~ && yay -S --noconfirm --needed "mission-center"'
+063 [system] users_create_abuss: useradd -m -s /bin/bash abuss
+064 [system] users_create_root: true
+065 [system] users_password_abuss: echo "abuss:abuss" | chpasswd
+066 [system] users_password_root: echo "root:root" | chpasswd
+067 [system] users_groups_abuss: usermod -aG audio,input,network,users,video,wheel abuss
+068 [system] users_sudoers_wheel_abuss: test -f /etc/sudoers && (sed -i "s/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/" /etc/sudoers && sed -i "s/# auth       required   pam_wheel.so/auth       required   pam_wheel.so/" /etc/pam.d/su) || true
+069 [system] users_abuss_program_git_1: runuser -u abuss -- /bin/bash -c 'git config --global user.email "antal.buss@gmail.com"' || true
+070 [system] users_abuss_program_git_2: runuser -u abuss -- /bin/bash -c 'git config --global user.name "Antal Buss"' || true
+071 [service] NetworkManager: systemctl enable NetworkManager
+072 [service] bluetooth: systemctl enable bluetooth
+073 [service] cups: systemctl enable cups
+074 [service] fwupd: systemctl enable fwupd
+075 [service] sshd: systemctl enable sshd
