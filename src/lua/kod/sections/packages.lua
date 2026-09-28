@@ -335,7 +335,108 @@ local module = {
     aggregate_packages = aggregate_all_packages,
     -- Export flatpak extraction for use by desktop.lua after aggregation
     extract_flatpak_apps = extract_flatpak_apps,
-    
+
+    -- Emit flatpak setup steps: write the apps list + installer script + systemd
+    -- service, then enable it. The actual install runs on next boot (flatpak needs
+    -- a running system). Shared by desktop (install) and rebuild so newly-added
+    -- flatpaks get installed. Returns {} when there are no apps.
+    emit_flatpak_setup_steps = function(flatpak_apps)
+        local out = {}
+        if #flatpak_apps == 0 then
+            return out
+        end
+
+        -- Write flatpak apps list to config file
+        local apps_args = ""
+        for _, app in ipairs(flatpak_apps) do
+            local escaped_app = app:gsub("'", "'\\''")
+            apps_args = apps_args .. " '" .. escaped_app .. "'"
+        end
+        local write_config_cmd = "mkdir -p /etc/kod && printf '%s\\n'" .. apps_args .. " > /etc/kod/flatpak-apps.txt"
+        table.insert(out, {
+            name = "flatpak_config_write",
+            description = "Write flatpak apps config",
+            command = write_config_cmd,
+            chroot = true,
+            order = 470,
+        })
+
+        -- Write install script. Runs as root on a booted system:
+        -- system-wide flatpak installs use /var/lib/flatpak directly,
+        -- no user-level daemon involved. Per-app loop so one bad app
+        -- doesn't block the rest.
+        local install_script_content = [[#!/bin/bash
+# kod-install-flatpak-apps - Install flatpak applications system-wide on boot
+FLATPAK_APPS_CONFIG="/etc/kod/flatpak-apps.txt"
+if [ ! -f "$FLATPAK_APPS_CONFIG" ]; then
+    echo "No flatpak apps configured in $FLATPAK_APPS_CONFIG"
+    exit 0
+fi
+mapfile -t APPS < "$FLATPAK_APPS_CONFIG"
+if [ ${#APPS[@]} -eq 0 ]; then
+    echo "No flatpak apps to install"
+    exit 0
+fi
+flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+for APP in "${APPS[@]}"; do
+    if ! flatpak install -y flathub "$APP"; then
+        echo "WARN: failed to install $APP"
+    fi
+done
+echo "Flatpak apps installation complete"
+]]
+        local script_escaped = install_script_content:gsub("'", "'\\''")
+        local write_script_cmd = "mkdir -p /usr/local/bin && echo '" .. script_escaped .. "' > /usr/local/bin/kod-install-flatpak-apps && chmod +x /usr/local/bin/kod-install-flatpak-apps"
+        table.insert(out, {
+            name = "flatpak_install_script_write",
+            description = "Write flatpak install script",
+            command = write_script_cmd,
+            chroot = true,
+            order = 471,
+            depends_on = {"flatpak_config_write"},
+        })
+
+        -- Write systemd service
+        local systemd_service = [[
+[Unit]
+Description=KodOS Flatpak Apps Installer
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/kod/flatpak-apps.txt
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/kod-install-flatpak-apps
+
+[Install]
+WantedBy=multi-user.target
+]]
+        local service_escaped = systemd_service:gsub("'", "'\\''")
+        local write_service_cmd = "mkdir -p /etc/systemd/system && echo '" .. service_escaped .. "' > /etc/systemd/system/kod-flatpak-install.service"
+        table.insert(out, {
+            name = "flatpak_systemd_service_write",
+            description = "Write flatpak installer systemd service",
+            command = write_service_cmd,
+            chroot = true,
+            order = 472,
+            depends_on = {"flatpak_install_script_write"},
+        })
+
+        -- Enable the service to run on next boot
+        table.insert(out, {
+            kind = "service",
+            name = "kod-flatpak-install",
+            description = "Enable flatpak installer service for first boot",
+            command = "systemctl enable kod-flatpak-install",
+            chroot = true,
+            order = 473,
+            depends_on = {"flatpak_systemd_service_write"},
+        })
+
+        return out
+    end,
+
     emit_steps = function(config, distro)
         local steps = {}
         

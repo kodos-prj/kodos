@@ -689,9 +689,9 @@ def plan(config: str | None, baseline: str) -> None:
 
     kwargs: dict = {}
     if baseline == "current":
-        _state_path, cur_pkgs, cur_svcs, cur_lock = _load_current_state()
+        _state_path, cur_pkgs, cur_svcs, cur_lock, cur_gen = _load_current_state()
         kwargs = {"current_packages": cur_pkgs, "current_services": cur_svcs,
-                  "current_installed_packages": cur_lock}
+                  "current_installed_packages": cur_lock, "current_generation": cur_gen}
     steps = build_plan(conf, dist, baseline=baseline, **kwargs)
     print(render_plan(steps, baseline, config))
 
@@ -719,9 +719,11 @@ def rebuild(config: str | None, new_generation: bool = False, update: bool = Fal
 
     if dry_run:
         _state_path, cur_pkgs, cur_svcs, cur_lock, cur_gen = _load_current_state()
+        gen_id = int(get_max_generation()) + 1 if new_generation else None
         steps = build_plan(conf, dist, baseline="current", current_packages=cur_pkgs,
                            current_services=cur_svcs, current_installed_packages=cur_lock,
-                           update=update, current_generation=cur_gen)
+                           update=update, current_generation=cur_gen,
+                           new_generation=new_generation, generation_id=gen_id)
         print(render_plan(steps, "current", config))
         return
 

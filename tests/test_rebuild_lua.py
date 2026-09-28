@@ -83,6 +83,23 @@ class TestRebuildDiffLua:
         """)
         assert steps == ["package forced", "lua-system boot-entry"]
 
+    def test_new_flatpak_emits_setup_steps(self, lua):
+        """A flatpak present in next_packages but absent from current must get the
+        deferred post-boot installer set up (config + script + service + enable)."""
+        steps = _diff(lua, """
+            { next_packages = { packages = { "keep", "flatpak:com.test.App" }, kernel = "linux" },
+              current_packages = { packages = { "keep" }, kernel = "linux" },
+              remove_packages = {},
+              next_services = {},
+              current_services = {},
+              disabled_services = {},
+              update = false, new_generation = false, kernel_update_required = false, distro = "arch" }
+        """)
+        assert "system flatpak_config_write" in steps
+        assert "system flatpak_install_script_write" in steps
+        assert "system flatpak_systemd_service_write" in steps
+        assert "service kod-flatpak-install" in steps
+
 
 class TestRebuildPlanAbsolute:
     """The Lua rebuild plan is locked to an absolute sequence (no Python oracle)."""

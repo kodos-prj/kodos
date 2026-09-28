@@ -177,8 +177,12 @@ function Rebuild.diff(state)
         end
     end
 
-    -- Flatpak apps: emitted by Packages.emit_steps above (packages_flatpak_install_*),
-    -- converted through the same loop, ordered after AUR package steps.
+    -- Flatpak apps: set up the deferred post-boot installer so newly-added flatpaks
+    -- install on next boot. (Packages.emit_steps handles normal/AUR packages only.)
+    local flatpak_apps = Packages.extract_flatpak_apps(next_packages.packages or {})
+    for _, s in ipairs(Packages.emit_flatpak_setup_steps(flatpak_apps)) do
+        table.insert(steps, { kind = s.kind or "system", name = s.name, command = s.command, chroot = new_gen })
+    end
 
     if state.kernel_update_required then
         table.insert(steps, { kind = "lua-system", name = "kernel-update", 
@@ -192,12 +196,11 @@ for _, svc in ipairs(sorted_diff(to_set(state.next_services), to_set(state.curre
         command = "systemctl enable" .. (new_gen and "" or " --now") .. " " .. svc, chroot = new_gen })
 end
 
-    -- Boot entry only during rebuild (not during install)
-    -- During install, devices section handles boot setup
-    if not state.new_generation then
-        table.insert(steps, { kind = "lua-system", name = "boot-entry",
-            meta = { operation = "create_boot_entry", kernel = next_kernel, generation = boot_generation } })
-    end
+    -- Boot entry during rebuild (both in-place and new-generation modes); each
+    -- creates a new generations/<id>/rootfs subvol that must be bootable.
+    -- During install the devices section handles boot setup instead.
+    table.insert(steps, { kind = "lua-system", name = "boot-entry",
+        meta = { operation = "create_boot_entry", kernel = next_kernel, generation = boot_generation } })
 
     return steps
 end
